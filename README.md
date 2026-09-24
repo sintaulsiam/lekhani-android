@@ -44,10 +44,13 @@ Lekhani Android is engineered to become the definitive mobile Bengali typing exp
 ### 1. Dark Mode Mobile Keyboard with Contextual Candidate Strip
 ![Dark Mode Keyboard](mockups/lekhani_android_dark.jpg)
 
-### 2. Settings & Theme Studio (Material You & OLED Themes)
+### 2. Lekhani প্রবাহ (Flow) Ergonomic Two-Thumb Layout
+![Lekhani Probaho Layout](mockups/lekhani_android_probaho.jpg)
+
+### 3. Settings & Theme Studio (Material You & OLED Themes)
 ![Settings & Themes](mockups/lekhani_android_themes.jpg)
 
-### 3. Interactive Web Mockup
+### 4. Interactive Web Mockup
 You can test the interactive prototype directly in your browser by opening [`mockups/index.html`](mockups/index.html).
 
 ---
