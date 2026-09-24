@@ -80,5 +80,5 @@
 - **Zero Internet Permission**: Manifest completely omits `android.permission.INTERNET`.
 
 ## 12. Onboarding & Accessibility
-- **Friendly 2-Step Setup Wizard**: Clean, non-intimidating setup flow to enable and select Lekhani with an interactive test pad.
+- **Friendly 3-Step Setup Wizard**: Clean, non-intimidating setup flow — (1) enable Lekhani in System Settings, (2) set as default keyboard, (3) interactive typing playground — all deep-linked for zero friction.
 - **TalkBack & Screen Reader Accessibility**: Meets WCAG 2.1 accessibility standards with phonetic Bengali pronunciation readouts.

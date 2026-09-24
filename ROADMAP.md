@@ -9,12 +9,18 @@
 ---
 
 ## Phase 1: Native Android UniFFI Bridge
-- [ ] Create `crates/lekhani-android` Rust crate.
-- [ ] UniFFI interface definition (`lekhani.udl` / proc-macros).
-- [ ] Thread-safe mobile session lifecycle wrappers (`AndroidLekhaniSession`).
-- [ ] Surrounding text context extraction (`getTextBeforeCursor`) for in-place sentence re-scoring.
+- [x] Create `crates/lekhani-android` Rust crate.
+- [x] UniFFI interface definition (`lekhani.udl` / proc-macros) — `uniffi::setup_scaffolding!()` + `uniffi.toml`.
+- [x] Thread-safe mobile session lifecycle wrappers (`AndroidLekhaniSession`).
+- [x] Surrounding text context extraction (`getTextBeforeCursor`) for in-place sentence re-scoring.
 - [ ] Cross-compilation pipeline via `cargo-ndk` (`arm64-v8a`, `armeabi-v7a`, `x86_64`).
-- [ ] Auto-generate idiomatic Kotlin bindings.
+- [x] Auto-generate idiomatic Kotlin bindings — `uniffi.toml` configured for `com.lekhani.android.ffi`.
+- [x] **CI/CD Pipeline (set once, runs forever)**:
+  - GitHub Actions workflow: `cargo clippy --all-targets -- -D warnings`, `cargo test`, and `cargo build --release` on every push.
+  - Android emulator smoke-test job (API 29 + API 34) triggered on every PR.
+  - Fail-fast: no PR merges unless all linting and tests pass.
+- [x] **Native Library Size Budget**: Define and enforce a `< 4 MB` per-ABI size cap for `lekhani-android.so` (all three ABIs combined `< 10 MB` stripped). Add a CI size-check step that fails the build if exceeded.
+- [x] **N-gram / AI Model Format Decision**: Binary trie + `mmap` chosen. Documented in `docs/MODEL_FORMAT.md`. Validate cold-load time and RSS impact before Phase 4 begins.
 
 ---
 
@@ -53,14 +59,26 @@
 ## Phase 4: Candidate Strip & Contextual AI Intelligence
 - [ ] Jetpack Compose horizontal candidate strip with fluid slide-in transitions.
 - [ ] Center-pinned primary candidate selection committed instantly with Spacebar tap.
-- [ ] Contextual homophone disambiguation badges with preview (*পড়া* vs *পরা*, *খাব* vs *যাব*).
+- [ ] Contextual homophone disambiguation badges with preview (*পড়া* vs *পরা*, *খাব* vs *যাব*).
 - [ ] Real-time next-word continuations upon committing tokens.
 - [ ] Colloquial Bengali suffix peeling & grammar morphology.
 - [ ] **Candidate Blacklisting**: Long-press any candidate in the strip to remove accidental typos from memory.
 
 ---
 
-## Phase 5: Emoji, Kaomoji, Symbols & Clipboard Suite
+## Phase 5: 100% Local / On-Device Voice Typing (Offline ASR)
+> ⚠️ Moved before Emoji/Clipboard — ASR is a core differentiator with significant FFI, binary size, and latency risk that must be validated early rather than deferred to Phase 7.
+- [ ] Embedded offline Bengali & English Speech-to-Text engine (`sherpa-onnx` / `vosk-android`).
+- [ ] **Model Delivery — Zero-Network Compliant**: ASR model must be **bundled inside the APK** or sideloaded via a companion on-device asset pack. On-demand internet downloads are **strictly prohibited** (violates the Zero Network principle in AGENTS.md). Ultra-quantized model (`< 25 MB`) preferred for APK bundling.
+- [ ] Android `AudioRecord` streaming pipeline with zero network calls.
+- [ ] Voice Activity Detection (VAD) with 1.5s automatic silence auto-stop.
+- [ ] Bengali punctuation auto-restoration (automatic `।`, `,`, `?`).
+- [ ] Quick-access microphone button in toolbar and Spacebar long-press voice trigger.
+- [ ] Visual audio waveform feedback overlay during voice transcription.
+
+---
+
+## Phase 6: Emoji, Kaomoji, Symbols & Clipboard Suite
 - [ ] Full Unicode 15.1+ emoji palette with category tabs (Smileys, People, Nature, Food, Travel, Activities, Objects, Symbols, Flags).
 - [ ] Instant bilingual search (Bengali e.g. "হাসি", "আগুন" + English keywords).
 - [ ] Recents & favorites shelf with local persistence.
@@ -71,7 +89,7 @@
 
 ---
 
-## Phase 6: Multi-Layout Switcher & Hardware Keyboard
+## Phase 7: Multi-Layout Switcher & Hardware Keyboard
 - [ ] **Layout Management in Settings**:
   - Individual toggle switches to enable/disable each layout (Avro, National, Probhat, Gboard-style, English).
   - Drag-and-drop layout priority reordering.
@@ -86,30 +104,18 @@
 
 ---
 
-## Phase 7: 100% Local / On-Device Voice Typing (Offline ASR)
-- [ ] Embedded offline Bengali & English Speech-to-Text engine (`sherpa-onnx` / `vosk-android`).
-- [ ] **Lightweight Model Delivery Strategy**:
-  - Ultra-quantized model option (< 25 MB) or one-time on-demand model asset download.
-- [ ] Android `AudioRecord` streaming pipeline with zero network calls.
-- [ ] Voice Activity Detection (VAD) with 1.5s automatic silence auto-stop.
-- [ ] Bengali punctuation auto-restoration (automatic `।`, `,`, `?`).
-- [ ] Quick-access microphone button in toolbar and Spacebar long-press voice trigger.
-- [ ] Visual audio waveform feedback overlay during voice transcription.
+## Phase 8: Glide / Gesture Typing (Swipe-to-Type)
+- [ ] Touch path vector capture (`ACTION_MOVE` continuous trajectory) on `KeyboardCanvasView`.
+- [ ] Spatial trajectory decoder over key centroids for both Bengali and English layouts.
+- [ ] Dynamic path trace visual effect with theme accent glow.
 
 ---
 
-## Phase 8: Dictionary Management & User Data Freedom
+## Phase 9: Dictionary Management & User Data Freedom
 - [ ] **One-Click Migration**: Import user dictionaries from Ridmik Keyboard and desktop Avro.
 - [ ] **Offline Backup & Export**: Export personal learned words to human-readable JSON.
 - [ ] **Personal Word Editor**: View, search, add, or delete learned words in Settings.
 - [ ] 100% offline local encryption: Personal vocabulary never leaves device storage.
-
----
-
-## Phase 9: Glide / Gesture Typing (Swipe-to-Type)
-- [ ] Touch path vector capture (`ACTION_MOVE` continuous trajectory) on `KeyboardCanvasView`.
-- [ ] Spatial trajectory decoder over key centroids for both Bengali and English layouts.
-- [ ] Dynamic path trace visual effect with theme accent glow.
 
 ---
 
@@ -143,10 +149,10 @@
 ---
 
 ## Phase 12: Onboarding Flow, Accessibility & Store Launch
-- [ ] **Frictionless 2-Step Onboarding Wizard**:
-  - Step 1: Enable Lekhani in Android System Settings.
-  - Step 2: Set Lekhani as default keyboard.
-  - Step 3: Interactive instant typing playground with theme preview.
+- [ ] **Frictionless 3-Step Onboarding Wizard**:
+  - Step 1: Enable Lekhani in Android System Settings (deep-linked directly).
+  - Step 2: Set Lekhani as default keyboard (deep-linked directly).
+  - Step 3: Interactive typing playground with live theme preview and layout intro.
 - [ ] **TalkBack & Accessibility (WCAG 2.1)**:
   - Full screen reader accessibility nodes for all keys and candidates.
   - Phonetic Bengali letter readout (e.g., "ক" -> "Ka").
