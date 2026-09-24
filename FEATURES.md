@@ -1,10 +1,15 @@
 # Lekhani Android: Complete Feature Specification
 
-## 1. Input Layouts
+## 1. Input Layouts & Switching
 - **Avro Phonetic (Classic Muscle Memory)**: 100% faithful transliteration (`ami` -> `আমি`, `shikkhok` -> `শিক্ষক`, `brriShTi` -> `বৃষ্টি`).
 - **Fixed National (জাতীয়)**: Official standard Bangladeshi layout with illuminated Shift & AltGr key states.
 - **Fixed Probhat (प्रभात)**: Popular phonetic fixed layout with dead-key combinations.
+- **Fixed Gboard-style Layout**: Standard Google Gboard Bengali layout arrangement and conjunct behavior for frictionless switching.
+- **English (QWERTY)**: Clean bilingual typing experience.
+- **Layout Toggle in Settings**: Individual toggle switches to enable/disable any layout, drag-to-reorder layout priority.
+- **Seamless Switching Controls**: Quick toggle via Globe key (🌐), spacebar horizontal swipe, or long-press spacebar layout menu.
 - **Dedicated Number & Punctuation Row**: Bengali numerals (০-৯) and special Bengali punctuation (Dari `।`, Taka `৳`, double dari `॥`).
+- **External Hardware Keyboard**: Intercepts USB & Bluetooth keyboards on tablets and Android desktop (DeX), mapping them directly to Avro or National typing.
 
 ## 2. Intelligence & Candidate Strip
 - **Sub-Millisecond Candidate Generation**: Instant 6-candidate ranking strip.
@@ -12,22 +17,67 @@
 - **One-Tap Spacebar Commitment**: Center-pinned primary candidate committed instantly with Spacebar tap.
 - **Next-Word Continuations**: Multi-token predictions displayed immediately after space.
 - **Colloquial Spoken Bengali Suffix Peeling**: Seamlessly handles modern dialects (`kortesi`, `jaitasi`, `khaitam`).
+- **Candidate Blacklisting**: Long-press any candidate in the strip to remove unwanted typos or suggestions from memory.
 
-## 3. Ergonomics & Touch Controls
-- **Swipe-to-Delete**: Slide left on the Backspace key to erase whole words.
+## 3. Bengali Script Precision & Complex Text
+- **Dedicated ZWJ (`\u200D`) and ZWNJ (`\u200C`) Keys**: Clean, accessible control over explicit Hasanta, Khanda-Ta (`ৎ`), and Ya-phala (`্য`).
+- **Conjunct-Aware Backspace**: Deletes complex conjuncts (e.g. `ক্ষ`, `জ্ঞ`) cleanly as a grapheme unit or stepwise based on preference.
+- **Unicode NFC Normalization**: Ensures every committed character is canonical Unicode before reaching the target app.
+- **Surrounding Text Awareness**: Inspects text before the cursor to provide relevant predictions even when editing in the middle of a sentence.
+
+## 4. Emoji, Kaomoji, Symbols & Clipboard
+- **Unicode 15.1+ Emoji Suite**: Full categorization (Smileys, People, Nature, Food, Travel, Activities, Objects, Symbols, Flags).
+- **Instant Search**: Search emojis in both Bengali (e.g., "হাসি", "ভালোবাসা", "আগুন") and English ("laugh", "love", "fire").
+- **Recents & Favorites Shelf**: Quick access to frequently used emojis with local persistence.
+- **Diverse Modifiers**: Long-press on person/hand emojis for skin-tone and gender selection.
+- **Kaomoji & Emoticons Picker**: Expressive text emoticons (`(◕‿◕)`, `¯\_(ツ)_/¯`, etc.).
+- **Smart Local Clipboard**: Pinned clips, one-tap paste, and auto-purging of sensitive passwords.
+
+## 5. 100% Local / On-Device Voice Typing
+- **Zero-Cloud Offline Speech Recognition**: Bengali and English voice typing powered entirely on-device (via embedded local ASR like `sherpa-onnx` / `vosk-android`).
+- **Punctuation Auto-Restoration**: Automatically injects Bengali punctuation (`।`, `,`, `?`) based on speech pauses.
+- **Low-Latency Streaming**: Visual sound-wave feedback with instant token streaming directly to `InputConnection`.
+- **Absolute Privacy**: Does not require or use internet access. Audio never leaves the phone.
+- **Voice Activity Detection (VAD)**: Automatic silence detection halts recording after 1.5 seconds of quiet.
+
+## 6. Glide & Gesture Typing (Swipe-to-Type)
+- **Continuous Gesture Input**: Trace across keys to compose words fluently without lifting a finger.
+- **Spatial Path Decoder**: High-accuracy path recognition across both Bengali and English layouts.
+- **Smooth Accent Trail**: Elegant visual trace line with theme-adaptive color glow.
+
+## 7. Ergonomics, Touch Controls & UI/UX
+- **Material 3 Expressive UI**: 120 FPS buttery-smooth touch grid with spring physics and gentle keypress glow.
+- **Swipe-to-Delete**: Slide left on the Backspace key to erase whole words with preview highlight.
 - **Spacebar Cursor Control**: Slide left/right on Spacebar to position cursor precisely between letters.
-- **One-Handed Mode**: Pin keyboard to left or right screen edge with quick-toggle arrow.
-- **Adjustable Keyboard Height**: Custom slider (Short, Normal, Tall, Extra Tall).
+- **One-Handed Mode**: Quick-dock keyboard to left or right screen edge with quick-toggle arrows.
+- **Split & Floating Modes**: Optimized split keyboard for foldables/tablets and freely movable floating window.
 - **Haptic Click Physics**: Subtle tactile haptic response tuned for low latency via Android `VibratorManager`.
 
-## 4. Privacy & Offline Guarantee
-- **Zero Internet Permission (`android.permission.INTERNET` omitted from manifest)**.
-- **Zero Telemetry**: No analytics, no crash reporters phoning home, no keystroke recording.
-- **100% On-Device Personalization**: User dictionary and frequency adjustments stay encrypted on local flash storage.
-- **Incognito Mode Support**: Automatically disables learning in private browser tabs and password fields.
+## 8. Deep Customization Suite
+- **Dimension Controls**: Granular sliders for keyboard height, row spacing, horizontal key margins, and bottom gesture chin adjustment.
+- **Key Visuals**: Toggle key borders, elevation drop-shadows, and customize key font size.
+- **Font Selection**: Choose preferred Bengali font rendering (Kalpurush, SolaimanLipi, System default).
+- **Sound Packs**: Choose between Classic Keypress, Modern Bubble, Mechanical Click, Typewriter, Soft Woodblock, or Mute with dedicated volume slider.
+- **Haptic Strength**: Fine-tune vibration duration and amplitude curve to match personal tactile preference.
+- **Customizable Toolbar**: Reorder and toggle quick tools (Emoji, Local Voice Mic, Clipboard, Themes, One-Handed, Settings).
 
-## 5. Themes & Personalization
+## 9. Themes & Personalization
 - **Material You Dynamic Color**: Keyboard dynamically takes accents from the user's Android wallpaper.
 - **Deep OLED Pure Black**: Conserves battery on modern AMOLED screens.
-- **Classic Avro Blue**: The iconic nostalgic blue theme loved by millions.
-- **Cyber Indigo & Neon**: Modern vibrant dark aesthetic.
+- **Classic Avro Blue & Cyber Indigo**: Nostalgic and cyberpunk modern presets.
+- **Custom Wallpaper Themes**: Set custom background pictures or gradients with customizable blur and opacity overlays.
+
+## 10. User Data Freedom & Migration
+- **One-Click Import**: Easily import custom dictionaries and learned words from Ridmik Keyboard and desktop Avro.
+- **Offline JSON Backup & Restore**: Export all settings and personal vocabulary to an encrypted or plain JSON file.
+- **User Dictionary Editor**: Direct in-app interface to browse, add, edit, or purge learned words.
+
+## 11. Security, Direct Boot & System Integration
+- **Direct Boot Ready (`directBootAware="true"`)**: Full functionality on the device lockscreen immediately after reboot before decryption.
+- **Password & Incognito Auto-Switch**: Instantly drops to English QWERTY on password fields; halts all learning and clipboard snooping.
+- **Non-Intrusive Landscape View**: Prevents full-screen extract takeover (`onEvaluateFullscreenMode() -> false`), keeping content visible.
+- **Zero Internet Permission**: Manifest completely omits `android.permission.INTERNET`.
+
+## 12. Onboarding & Accessibility
+- **Friendly 2-Step Setup Wizard**: Clean, non-intimidating setup flow to enable and select Lekhani with an interactive test pad.
+- **TalkBack & Screen Reader Accessibility**: Meets WCAG 2.1 accessibility standards with phonetic Bengali pronunciation readouts.

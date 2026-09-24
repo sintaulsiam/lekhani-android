@@ -76,12 +76,18 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full technical deep-dive.
 ## 🗺️ Project Roadmap
 
 - [x] Phase 0: Standalone Rust Core & Engine Crates published to crates.io
-- [ ] Phase 1: Android UniFFI Bridge (`lekhani-android-bridge`)
-- [ ] Phase 2: Android `InputMethodService` & Custom Canvas Touch Grid
-- [ ] Phase 3: Candidate Strip, Homophone Disambiguation & Next-Word AI
-- [ ] Phase 4: Spatial Touch Autocorrect (Gaussian Key Bounding Boxes)
-- [ ] Phase 5: Material You Theme Studio & Haptic Vibration Tuning
-- [ ] Phase 6: Public Alpha Release on F-Droid and Google Play
+- [ ] Phase 1: Native Android UniFFI Bridge Crate (`crates/lekhani-android`)
+- [ ] Phase 2: Android IME Scaffolding & System Compatibility (Direct Boot, Passwords, WebViews)
+- [ ] Phase 3: Hardware Canvas Touch Grid & Bengali Script Engine (Avro, National, Probhat, Gboard-style)
+- [ ] Phase 4: Candidate Strip & Contextual AI Intelligence (Homophones, Next-Word, Blacklist)
+- [ ] Phase 5: Emoji, Kaomoji, Symbols & Clipboard Suite (Unicode 15.1+, Bilingual Search)
+- [ ] Phase 6: Multi-Layout Switcher & Hardware Keyboard (Settings toggles, Bluetooth keyboards)
+- [ ] Phase 7: 100% Local / On-Device Voice Typing (Offline ASR, Zero Internet)
+- [ ] Phase 8: Dictionary Management & User Data Freedom (Ridmik/Avro import, JSON backup)
+- [ ] Phase 9: Glide / Gesture Typing (Continuous swipe path decoder)
+- [ ] Phase 10: Deep Customization & Theme Studio v2 (Geometry, sound packs, haptics, toolbar)
+- [ ] Phase 11: World-Class Modern UI/UX & Form Factors (Spring physics, tablet split & floating)
+- [ ] Phase 12: Onboarding Flow, Accessibility & Store Launch (2-step setup, TalkBack, F-Droid & Play)
 
 Detailed task breakdown in [ROADMAP.md](ROADMAP.md).
 

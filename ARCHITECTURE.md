@@ -83,3 +83,37 @@ Lekhani Android introduces a spatial touch model:
 - **RSS Budget**: Max **35 MB** heap usage under high memory pressure.
 - **Battery Impact**: Zero background CPU wake-locks. When the keyboard is dismissed, all threads sleep.
 
+---
+
+## 5. 100% On-Device Voice Typing Pipeline (Zero-Network ASR)
+
+To preserve the zero-telemetry guarantee, voice typing does not use cloud Google Speech APIs:
+- **Audio Capture**: Android `AudioRecord` streaming 16 kHz 16-bit mono PCM buffers.
+- **Offline ASR Engine**: Embedded on-device inference using quantized local acoustic models (`sherpa-onnx` / `vosk-android`).
+- **Post-Processing**: Bengali punctuation auto-restoration (automatic `।`, `,`, `?`) and numeral conversion.
+- **Output Flow**: Real-time partial transcriptions streamed directly to `InputConnection.setComposingText()`, finalized with `commitText()`.
+
+---
+
+## 6. Multi-Layout Engine & Settings State Management
+
+```
+┌────────────────────────────────────────────────────────┐
+│              Layout State Manager (Kotlin)             │
+│  - Active Layout Ring: [Avro -> Gboard -> National]   │
+│  - Quick Switch: Globe Key (🌐) / Spacebar Swipe       │
+└──────────────────────────▲─────────────────────────────┘
+                           │ Dispatches layout config
+┌──────────────────────────▼─────────────────────────────┐
+│               Layout Definition Layer                  │
+│  - Avro Phonetic (Dynamic Parser Engine)               │
+│  - Fixed National / Jatiya (Shift/AltGr matrices)      │
+│  - Fixed Probhat (Dead-key combiners)                  │
+│  - Fixed Gboard Bengali (Standardized Gboard key map)  │
+│  - English QWERTY                                      │
+└────────────────────────────────────────────────────────┘
+```
+- Each layout can be individually enabled/disabled in Android Settings.
+- Keyboard canvas dynamically swaps spatial bounding boxes and glyph textures with zero recreation overhead.
+
+
