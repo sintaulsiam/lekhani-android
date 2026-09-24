@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Lekhani Keyboard</string>
+    <string name="ime_name">Lekhani</string>
+    <string name="settings_title">Lekhani Settings</string>
+
+    <!-- IME subtype labels shown in Android Language &amp; Input settings -->
+    <string name="subtype_probaho">Lekhani প্রবাহ (Flow)</string>
+    <string name="subtype_avro">Avro Phonetic</string>
+    <string name="subtype_national">জাতীয় (National)</string>
+    <string name="subtype_probhat">Probhat (प्रभात)</string>
+    <string name="subtype_gboard">Gboard Style</string>
+    <string name="subtype_english">English (QWERTY)</string>
+</resources>

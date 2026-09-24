@@ -25,15 +25,16 @@
 ---
 
 ## Phase 2: Android IME Scaffolding & System Compatibility
-- [ ] Android Studio project setup (Gradle 8.x, Kotlin 2.0).
-- [ ] `LekhaniInputMethodService` implementation with resilient `InputConnection` lifecycle.
-- [ ] **Direct Boot Support (`directBootAware="true"`)**: Ensure the keyboard works on lockscreen reboots before device decryption.
-- [ ] **Secure & Incognito Mode**:
+- [x] Android Studio project setup (Gradle 8.x, Kotlin 2.0) — `android/` module with `settings.gradle.kts`, `build.gradle.kts`, `libs.versions.toml`.
+- [x] `LekhaniInputMethodService` implementation with resilient `InputConnection` lifecycle.
+- [x] **Direct Boot Support (`directBootAware="true"`)**: Device Protected Storage prefs via `createDeviceProtectedStorageContext()`.
+- [x] **Secure & Incognito Mode**:
   - Auto-switch to English QWERTY on password/PIN fields (`TYPE_TEXT_VARIATION_PASSWORD`).
-  - Strict freeze on dictionary learning and clipboard logging in private/incognito fields.
-- [ ] **WebView & Chromium Compatibility**: Resilient composing text buffer to prevent ghost letters and cursor jitter.
-- [ ] **Fullscreen Mode Policy**: Suppress legacy fullscreen extract UI in landscape (`onEvaluateFullscreenMode() -> false`).
-- [ ] **Zero-Permission Audit**: Verify complete absence of `android.permission.INTERNET`.
+  - Strict freeze on dictionary learning and clipboard logging via `session.setPrivateField(true)`.
+- [x] **WebView & Chromium Compatibility**: Composing shadow buffer + `finishComposingText()` flush guard in `setComposingTextSafe()`.
+- [x] **Fullscreen Mode Policy**: `onEvaluateFullscreenMode() -> false` — keyboard always overlays as a panel.
+- [x] **Zero-Permission Audit**: `scripts/audit_permissions.sh` scans all manifests for `INTERNET`; added to CI pipeline.
+
 
 ---
 

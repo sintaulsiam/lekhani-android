@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AndroidManifest.xml — Lekhani Keyboard
+    ═══════════════════════════════════════
+    CRITICAL POLICY RULES (from AGENTS.md §1):
+      1. android.permission.INTERNET is NEVER declared here. Zero network access.
+      2. directBootAware="true" — keyboard must work on the lockscreen before
+         device decryption (Device Protected Storage for prefs).
+      3. onEvaluateFullscreenMode() returns false — suppressed in Kotlin, but
+         configChanges here ensures the service is not restarted on rotation.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ── Permissions ─────────────────────────────────────────────────────────
+         ONLY declare what is strictly necessary. INTERNET is explicitly absent.
+    ──────────────────────────────────────────────────────────────────────── -->
+    <!-- Vibration for haptic key feedback -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Audio recording for 100% on-device offline voice typing (Phase 5) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- ── Application ─────────────────────────────────────────────────────── -->
+    <application
+        android:label="@string/app_name"
+        android:icon="@drawable/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Lekhani"
+        android:extractNativeLibs="true">
+
+        <!-- ── IME Service ─────────────────────────────────────────────────────
+             The central component: the Input Method service.
+
+             android:directBootAware="true"
+               The keyboard must be available on the lock screen immediately
+               after a cold boot, before the user decrypts their device.
+               All SharedPreferences must use createDeviceProtectedStorageContext()
+               — see LekhaniInputMethodService.kt.
+
+             android:permission="android.permission.BIND_INPUT_METHOD"
+               Restricts binding to the system only. Required by Android.
+
+             android:configChanges
+               Handles orientation and screen size changes in-service to avoid
+               service restarts (which would reset composing state mid-typing).
+        ─────────────────────────────────────────────────────────────────────── -->
+        <service
+            android:name=".ime.LekhaniInputMethodService"
+            android:label="@string/ime_name"
+            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:directBootAware="true"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation">
+
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+
+            <!-- Links to the IME metadata XML that declares supported subtypes -->
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/ime_method" />
+        </service>
+
+        <!-- ── Settings Activity ───────────────────────────────────────────────
+             Launched from Android's Language & Input settings panel when the
+             user taps "Settings" next to Lekhani. Also entry point for the
+             onboarding wizard (Phase 12).
+        ─────────────────────────────────────────────────────────────────────── -->
+        <activity
+            android:name=".ui.LekhaniSettingsActivity"
+            android:label="@string/settings_title"
+            android:exported="true"
+            android:theme="@style/Theme.Lekhani">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

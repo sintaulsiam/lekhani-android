@@ -83,7 +83,22 @@ jobs:
       - name: Run all unit tests
         run: cargo test --all-targets --all-features
 
-  # ── 3. Native Library Size Budget ───────────────────────────────────────────
+  # ── 4. Zero-Permission Audit ────────────────────────────────────────────────
+  #
+  # Enforces AGENTS.md §1.1: android.permission.INTERNET must NEVER appear
+  # in any AndroidManifest.xml in the project tree.
+  permission-audit:
+    name: "Zero-Permission Audit"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run zero-permission audit
+        run: |
+          chmod +x scripts/audit_permissions.sh
+          ./scripts/audit_permissions.sh
+
   #
   # Enforces the Phase 1 constraint from ROADMAP.md:
   #   < 4 MB per ABI (arm64-v8a) for lekhani_android.so (stripped)

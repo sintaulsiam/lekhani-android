@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    res/xml/ime_method.xml — IME Subtype Metadata
+    ══════════════════════════════════════════════
+    Declares the input method subtypes that appear in Android's Language &
+    Input settings. Each subtype corresponds to one keyboard layout mode.
+
+    android:subtypeLocale  — used by Android for language-based auto-switching
+    android:subtypeMode    — "keyboard" for all subtypes
+    android:isAuxiliary    — false means the subtype is shown in the main switcher
+    android:overridesImplicitlyEnabledSubtype — false keeps standard behaviour
+-->
+<input-method
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.lekhani.android.ui.LekhaniSettingsActivity"
+    android:isVrOnly="false">
+
+    <!-- Lekhani প্রবাহ (Flow) — primary Bengali ergonomic layout -->
+    <subtype
+        android:label="@string/subtype_probaho"
+        android:imeSubtypeLocale="bn"
+        android:imeSubtypeMode="keyboard"
+        android:isAuxiliary="false"
+        android:overridesImplicitlyEnabledSubtype="false"
+        android:subtypeId="0x01" />
+
+    <!-- Avro Phonetic — classic transliteration -->
+    <subtype
+        android:label="@string/subtype_avro"
+        android:imeSubtypeLocale="bn"
+        android:imeSubtypeMode="keyboard"
+        android:isAuxiliary="false"
+        android:overridesImplicitlyEnabledSubtype="false"
+        android:subtypeId="0x02" />
+
+    <!-- Fixed National (জাতীয়) — BBS standard -->
+    <subtype
+        android:label="@string/subtype_national"
+        android:imeSubtypeLocale="bn-BD"
+        android:imeSubtypeMode="keyboard"
+        android:isAuxiliary="false"
+        android:overridesImplicitlyEnabledSubtype="false"
+        android:subtypeId="0x03" />
+
+    <!-- Fixed Probhat (प्रभात) -->
+    <subtype
+        android:label="@string/subtype_probhat"
+        android:imeSubtypeLocale="bn"
+        android:imeSubtypeMode="keyboard"
+        android:isAuxiliary="false"
+        android:overridesImplicitlyEnabledSubtype="false"
+        android:subtypeId="0x04" />
+
+    <!-- Gboard-style Bengali -->
+    <subtype
+        android:label="@string/subtype_gboard"
+        android:imeSubtypeLocale="bn"
+        android:imeSubtypeMode="keyboard"
+        android:isAuxiliary="false"
+        android:overridesImplicitlyEnabledSubtype="false"
+        android:subtypeId="0x05" />
+
+    <!-- English QWERTY — bilingual fallback & password mode -->
+    <subtype
+        android:label="@string/subtype_english"
+        android:imeSubtypeLocale="en-US"
+        android:imeSubtypeMode="keyboard"
+        android:isAuxiliary="true"
+        android:overridesImplicitlyEnabledSubtype="true"
+        android:subtypeId="0x06" />
+
+</input-method>
