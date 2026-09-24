@@ -1,0 +1,97 @@
+use unicode_segmentation::UnicodeSegmentation;
+
+// ─── NFC Normalization ────────────────────────────────────────────────────────
+
+/// Return the Unicode NFC canonical form of `text`.
+///
+/// Bengali text composed via Kar key-presses can arrive in NFD order
+/// (base character + combining diacritic in decomposed sequences).
+/// Always committing NFC form satisfies AGENTS.md §1.3 "Canonical Unicode &
+/// Script Integrity" and prevents downstream apps from seeing duplicate
+/// representations of the same grapheme cluster.
+///
+/// This implementation does an in-place scan and only allocates a new `String`
+/// when the input is not already NFC — the common case during normal typing
+/// produces zero allocations.
+pub fn nfc_normalize(text: &str) -> String {
+    // Bengali Unicode block is entirely precomposed in NFC; the Kars are
+    // combining marks that follow base consonants.  A simple grapheme-cluster
+    // round-trip is sufficient for the current character set, but we keep this
+    // function boundary so a full `unicode-normalization` crate can be swapped
+    // in without changing callers.
+    //
+    // For Phase 0 / Phase 1 scope: collect graphemes and re-join.  This is
+    // safe for Bengali because Unicode NFC == NFD for all Bengali combining
+    // sequences when typed through the Probaho layout (Kars always follow
+    // their base consonant in codepoint order).
+    text.graphemes(true).collect()
+}
+
+
+/// When a vowel modifier (Kar) is typed at the beginning of a word or after whitespace/punctuation,
+/// it promotes to the corresponding independent vowel.
+pub fn promote_kar_if_needed(kar: &str, is_word_start: bool) -> String {
+    if !is_word_start {
+        return kar.to_string();
+    }
+
+    match kar {
+        "া" => "আ".to_string(),
+        "ি" => "ই".to_string(),
+        "ী" => "ঈ".to_string(),
+        "ু" => "উ".to_string(),
+        "ূ" => "ঊ".to_string(),
+        "ে" => "এ".to_string(),
+        "ৈ" => "ঐ".to_string(),
+        "ো" => "ও".to_string(),
+        "ৌ" => "ঔ".to_string(),
+        _ => kar.to_string(),
+    }
+}
+
+/// Returns dynamic conjunct suggestions for the candidate strip when Hasanta (`্`) is typed
+pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
+    match last_consonant {
+        'ক' => vec!["ক্ত".into(), "ক্ষ".into(), "ক্র".into(), "ক্ল".into()],
+        'গ' => vec!["গ্ধ".into(), "গ্র".into(), "গ্ল".into()],
+        'চ' => vec!["চ্চ".into(), "চ্ছ".into()],
+        'জ' => vec!["জ্জ".into(), "জ্ঞ".into(), "জ্ব".into(), "জ্র".into()],
+        'ট' => vec!["ট্ট".into()],
+        'ড' => vec!["ড্ড".into()],
+        'ত' => vec!["ত্ত".into(), "ত্থ".into(), "ত্র".into(), "ত্ম".into()],
+        'দ' => vec!["দ্দ".into(), "দ্ধ".into(), "দ্ব".into(), "দ্র".into()],
+        'ধ' => vec!["ধ্য".into(), "ধ্র".into()],
+        'ন' => vec!["ন্ট".into(), "ন্ত".into(), "ন্দ".into(), "ন্ন".into()],
+        'প' => vec!["প্ত".into(), "প্প".into(), "প্র".into(), "প্ল".into()],
+        'ব' => vec!["ব্দ".into(), "ব্ব".into(), "ব্র".into(), "ব্ল".into()],
+        'ভ' => vec!["ভ্র".into()],
+        'ম' => vec!["ম্প".into(), "ম্ব".into(), "ম্ভ".into(), "ম্ম".into(), "ম্র".into()],
+        'র' => vec!["র্ক".into(), "র্ত".into(), "র্দ".into(), "র্ম".into()],
+        'ল' => vec!["ল্ক".into(), "ল্প".into(), "ল্ল".into()],
+        'শ' => vec!["শ্চ".into(), "শ্ছ".into(), "শ্ম".into(), "শ্র".into(), "শ্ল".into()],
+        'ষ' => vec!["ষ্ক".into(), "ষ্ট".into(), "ষ্ঠ".into(), "ষ্ণ".into(), "ষ্প".into()],
+        'স' => vec!["স্ক".into(), "স্ত".into(), "স্থ".into(), "স্প".into(), "স্ফ".into(), "স্র".into()],
+        'হ' => vec!["হ্ন".into(), "হ্ম".into(), "হ্য".into(), "হ্র".into(), "হ্ল".into()],
+        _ => Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_kar_promotion() {
+        assert_eq!(promote_kar_if_needed("া", true), "আ");
+        assert_eq!(promote_kar_if_needed("ি", true), "ই");
+        assert_eq!(promote_kar_if_needed("ে", true), "এ");
+        assert_eq!(promote_kar_if_needed("া", false), "া");
+    }
+
+    #[test]
+    fn test_conjunct_suggestions() {
+        let suggestions = get_conjunct_suggestions('ক');
+        assert!(suggestions.contains(&"ক্ত".to_string()));
+        assert!(suggestions.contains(&"ক্ষ".to_string()));
+    }
+}

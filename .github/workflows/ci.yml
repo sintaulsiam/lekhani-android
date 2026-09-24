@@ -1,0 +1,161 @@
+# .github/workflows/ci.yml
+# ──────────────────────────────────────────────────────────────────────────────
+# Lekhani Android — Continuous Integration
+#
+# Triggers on every push and every pull request to main / develop.
+# ALL checks must pass before a PR can be merged (enforced via branch
+# protection rules — see AGENTS.md §5 "Git Workflow & Atomic Commit Policy").
+#
+# Jobs:
+#   1. rust-check   — clippy (warnings = errors) + rustfmt
+#   2. rust-test    — unit tests for all crates
+#   3. size-budget  — ensures lekhani_android.so stays < 4 MB per ABI
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Minimum supported Rust version (keep in sync with rust-toolchain.toml)
+  MSRV: "1.78"
+
+jobs:
+  # ── 1. Lint & Format ────────────────────────────────────────────────────────
+  rust-check:
+    name: "Clippy & Rustfmt"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: "Clippy — deny all warnings"
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: "Rustfmt — check formatting"
+        run: cargo fmt --all -- --check
+
+  # ── 2. Unit Tests ───────────────────────────────────────────────────────────
+  rust-test:
+    name: "Unit Tests"
+    runs-on: ubuntu-latest
+    needs: rust-check
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run all unit tests
+        run: cargo test --all-targets --all-features
+
+  # ── 3. Native Library Size Budget ───────────────────────────────────────────
+  #
+  # Enforces the Phase 1 constraint from ROADMAP.md:
+  #   < 4 MB per ABI (arm64-v8a) for lekhani_android.so (stripped)
+  #   < 10 MB combined across all 3 ABIs
+  #
+  # Uses cargo-ndk for cross-compilation to Android targets.
+  # The job installs the Android NDK via the standard GitHub-hosted runner
+  # environment variable $ANDROID_NDK_ROOT.
+  size-budget:
+    name: "Native .so Size Budget"
+    runs-on: ubuntu-latest
+    needs: rust-test
+    strategy:
+      matrix:
+        target:
+          - aarch64-linux-android     # arm64-v8a  (primary target)
+          - armv7-linux-androideabi   # armeabi-v7a
+          - x86_64-linux-android      # x86_64 (emulator)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain + Android target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-android-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-android-${{ matrix.target }}-
+
+      - name: Build release .so for ${{ matrix.target }}
+        run: |
+          cargo ndk \
+            --target ${{ matrix.target }} \
+            --platform 29 \
+            -- build --release -p lekhani-android
+        env:
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_HOME }}
+
+      - name: Strip debug symbols
+        run: |
+          STRIP="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          SO="target/${{ matrix.target }}/release/liblekhani_android.so"
+          if [ -f "$SO" ]; then
+            "$STRIP" --strip-unneeded "$SO"
+          fi
+
+      - name: Check .so size is under 4 MB budget
+        run: |
+          SO="target/${{ matrix.target }}/release/liblekhani_android.so"
+          if [ ! -f "$SO" ]; then
+            echo "ERROR: .so file not found at $SO"
+            exit 1
+          fi
+          SIZE_BYTES=$(stat -c%s "$SO")
+          MAX_BYTES=$((4 * 1024 * 1024))   # 4 MB
+          echo "liblekhani_android.so (${{ matrix.target }}): ${SIZE_BYTES} bytes"
+          if [ "$SIZE_BYTES" -gt "$MAX_BYTES" ]; then
+            echo "❌ FAIL: .so size ${SIZE_BYTES} exceeds 4 MB budget (${MAX_BYTES} bytes)"
+            echo "Investigate with: cargo bloat --release -p lekhani-android"
+            exit 1
+          else
+            echo "✅ PASS: ${SIZE_BYTES} bytes < 4 MB budget"
+          fi

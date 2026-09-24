@@ -1,0 +1,14 @@
+# uniffi.toml — Kotlin binding configuration for lekhani-android
+#
+# This file controls how UniFFI generates the Kotlin bindings that
+# Lekhani's Android Kotlin layer imports.
+#
+# Docs: https://mozilla.github.io/uniffi-rs/udl/attributes.html
+
+[bindings.kotlin]
+# Package name for the generated Kotlin source file.
+package_name = "com.lekhani.android.ffi"
+
+# Generate bindings into this subdirectory relative to the crate root.
+# The Android Gradle build picks them up from app/src/main/java/...
+cdylib_name = "lekhani_android"
