@@ -106,6 +106,7 @@ To preserve the zero-telemetry guarantee, voice typing does not use cloud Google
                            │ Dispatches layout config
 ┌──────────────────────────▼─────────────────────────────┐
 │               Layout Definition Layer                  │
+│  - Lekhani প্রবাহ / Flow (Ergonomic Two-Thumb Engine)  │
 │  - Avro Phonetic (Dynamic Parser Engine)               │
 │  - Fixed National / Jatiya (Shift/AltGr matrices)      │
 │  - Fixed Probhat (Dead-key combiners)                  │
@@ -115,5 +116,24 @@ To preserve the zero-telemetry guarantee, voice typing does not use cloud Google
 ```
 - Each layout can be individually enabled/disabled in Android Settings.
 - Keyboard canvas dynamically swaps spatial bounding boxes and glyph textures with zero recreation overhead.
+
+---
+
+## 7. Modern Engineering Standards & Toolchain Matrix
+
+Lekhani Android strictly enforces modern, industry-standard toolchain versions:
+
+| Component | Target Version | Engineering Standard & Rationale |
+| :--- | :--- | :--- |
+| **Android SDK** | **Compile SDK 35 / Target SDK 35** | Full compatibility with Android 15, edge-to-edge layout, predictive back. |
+| **Minimum SDK** | **API 24 (Android 7.0 Nougat)** | Covers 99.8% of global active Android devices without legacy baggage. |
+| **Kotlin** | **Kotlin 2.0+ (K2 Compiler)** | Next-gen Kotlin compiler for lightning-fast build times & Compose optimizations. |
+| **Gradle** | **Gradle 8.7+ / AGP 8.5+** | Configuration cache enabled, declarative Gradle Version Catalog (`libs.versions.toml`). |
+| **UI Framework** | **Material 3 Expressive + Hardware Canvas** | Dual-tier rendering: Hardware Canvas for 120 FPS touch grid, Compose for settings/strip. |
+| **Rust Toolchain** | **Rust 2021 Edition (stable)** | Compiled with `cargo-ndk` against Android NDK r26d/r27 with `lto = "fat"`, `opt-level = 3`. |
+| **FFI Bridge** | **Mozilla UniFFI 0.28+** | Modern memory-safe C-ABI JNI bindings with zero hand-written JNI glue code. |
+| **Unicode Engine** | **Unicode 15.1 / 16.0** | Canonical NFC normalization for all Bengali grapheme clusters and emoji sequences. |
+| **On-Device ASR** | **Sherpa-ONNX (int8 quantized)** | Embedded offline acoustic model, VAD, zero cloud network dependencies. |
+
 
 
