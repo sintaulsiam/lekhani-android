@@ -1,0 +1,48 @@
+# ─── Rust / Cargo ─────────────────────────────────────────────────────────────
+/target/
+**/target/
+Cargo.lock          # Lock file is tracked for binary crates, excluded here
+                    # because lekhani-android is a library crate whose consumers
+                    # (the Android Gradle build) manage their own lock files.
+**/*.rs.bk
+
+# ─── Android / Gradle ─────────────────────────────────────────────────────────
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+local.properties
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.so                # Compiled native libs — always built from source, never committed.
+
+# ─── Android Studio / IntelliJ IDEA ───────────────────────────────────────────
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+.DS_Store
+
+# ─── NDK / cargo-ndk artefacts ────────────────────────────────────────────────
+jniLibs/
+app/src/main/jniLibs/
+
+# ─── UniFFI generated sources ─────────────────────────────────────────────────
+# Generated Kotlin bindings are re-generated at build time from the Rust crate.
+# Committing them causes spurious diffs on every Rust change.
+app/src/main/java/com/lekhani/android/ffi/lekhani_android.kt
+
+# ─── OS noise ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*~
+
+# ─── Editor / tooling ─────────────────────────────────────────────────────────
+.vscode/
+.env
+*.log
