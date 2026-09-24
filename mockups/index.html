@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lekhani Android — Interactive Prototype & Mockup</title>
+  <title>Lekhani Android — Interactive Prototype & Ergonomic Showcase</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,7 +12,9 @@
       --bg: #090b10;
       --phone-bg: #10131c;
       --kb-bg: #131722;
+      --toolbar-bg: #151a26;
       --key-bg: #1c2233;
+      --key-alt-bg: #222a3d;
       --key-text: #f0f4fc;
       --key-sub: #7885a0;
       --key-shadow: #080a0f;
@@ -21,6 +23,8 @@
       --candidate-bg: #181f2f;
       --candidate-active: #0284c7;
       --border: rgba(255, 255, 255, 0.08);
+      --vowel-zone: rgba(56, 189, 248, 0.08);
+      --consonant-zone: rgba(129, 140, 248, 0.08);
       --font-main: 'Inter', -apple-system, sans-serif;
       --font-bn: 'Noto Sans Bengali', 'SolaimanLipi', sans-serif;
     }
@@ -28,19 +32,24 @@
     [data-theme="oled"] {
       --phone-bg: #000000;
       --kb-bg: #050505;
+      --toolbar-bg: #0a0a0a;
       --key-bg: #121212;
+      --key-alt-bg: #1a1a1a;
       --key-text: #ffffff;
       --key-sub: #666666;
+      --key-shadow: #000000;
       --candidate-bg: #080808;
-      --candidate-active: #ffffff;
-      --accent: #ffffff;
-      --accent-glow: rgba(255, 255, 255, 0.2);
+      --candidate-active: #22c55e;
+      --accent: #22c55e;
+      --accent-glow: rgba(34, 197, 94, 0.25);
     }
 
     [data-theme="avro"] {
       --phone-bg: #0a1428;
       --kb-bg: #0e1e3d;
+      --toolbar-bg: #102347;
       --key-bg: #152c59;
+      --key-alt-bg: #1c3973;
       --key-text: #ffffff;
       --key-sub: #86a5db;
       --candidate-bg: #12254a;
@@ -52,7 +61,9 @@
     [data-theme="indigo"] {
       --phone-bg: #0f0a1c;
       --kb-bg: #17102b;
+      --toolbar-bg: #1d1436;
       --key-bg: #241944;
+      --key-alt-bg: #2e2057;
       --key-text: #ffffff;
       --key-sub: #9e8dc9;
       --candidate-bg: #1c1336;
@@ -70,12 +81,12 @@
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
-      padding: 30px 15px;
+      padding: 24px 14px 40px 14px;
     }
 
     .header {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 18px;
     }
     .header h1 {
       font-size: 26px;
@@ -83,17 +94,25 @@
       background: linear-gradient(135deg, #38bdf8, #818cf8, #c084fc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .header p {
-      font-size: 14px;
+      font-size: 13px;
       color: #94a3b8;
     }
 
-    .controls {
+    .controls-wrapper {
       display: flex;
+      flex-direction: column;
+      align-items: center;
       gap: 10px;
       margin-bottom: 20px;
+      width: 100%;
+      max-width: 600px;
+    }
+    .controls-row {
+      display: flex;
+      gap: 8px;
       flex-wrap: wrap;
       justify-content: center;
     }
@@ -103,7 +122,7 @@
       color: #cbd5e1;
       padding: 6px 14px;
       border-radius: 20px;
-      font-size: 13px;
+      font-size: 12px;
       cursor: pointer;
       transition: all 0.2s;
     }
@@ -117,12 +136,12 @@
     /* Phone Device Mockup */
     .phone-frame {
       width: 100%;
-      max-width: 410px;
-      height: 740px;
+      max-width: 416px;
+      height: 770px;
       background: var(--phone-bg);
       border-radius: 44px;
       border: 6px solid #2a3347;
-      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -130,14 +149,15 @@
     }
 
     .status-bar {
-      height: 38px;
-      padding: 0 20px;
+      height: 36px;
+      padding: 0 22px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       font-size: 12px;
       font-weight: 600;
       color: #94a3b8;
+      z-index: 10;
     }
 
     .chat-screen {
@@ -146,17 +166,23 @@
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
-      gap: 12px;
-      background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.03), transparent 60%);
+      gap: 10px;
+      background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.04), transparent 60%);
+      overflow-y: auto;
     }
 
     .chat-bubble {
-      max-width: 80%;
+      max-width: 82%;
       padding: 10px 14px;
       border-radius: 18px;
       font-size: 14px;
-      line-height: 1.4;
+      line-height: 1.45;
       font-family: var(--font-bn);
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .bubble-in {
       background: #1e293b;
@@ -172,13 +198,13 @@
     }
 
     .text-input-bar {
-      margin: 8px 12px 14px 12px;
+      margin: 6px 12px 10px 12px;
       background: #1e293b;
       border-radius: 24px;
-      padding: 10px 16px;
+      padding: 9px 16px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       border: 1px solid var(--border);
     }
     .input-field {
@@ -190,36 +216,77 @@
       font-size: 16px;
       outline: none;
     }
-    .input-field::placeholder { color: #64748b; font-family: var(--font-main); }
+    .input-field::placeholder { color: #64748b; font-family: var(--font-main); font-size: 14px; }
 
-    /* Lekhani Keyboard */
+    /* Keyboard Container */
     .keyboard-container {
       background: var(--kb-bg);
       border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      padding-bottom: 8px;
+      position: relative;
     }
 
+    /* Quick Toolbar */
+    .quick-toolbar {
+      height: 38px;
+      background: var(--toolbar-bg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .toolbar-tools {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .tool-icon {
+      font-size: 16px;
+      cursor: pointer;
+      color: #94a3b8;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tool-icon:hover, .tool-icon.active {
+      color: var(--accent);
+      transform: scale(1.1);
+    }
+    .layout-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.12);
+      padding: 3px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    /* Candidate Strip */
     .candidate-strip {
-      height: 48px;
+      height: 44px;
       background: var(--candidate-bg);
       display: flex;
       align-items: center;
       padding: 0 8px;
-      gap: 8px;
+      gap: 6px;
       overflow-x: auto;
       border-bottom: 1px solid var(--border);
     }
+    .candidate-strip::-webkit-scrollbar { display: none; }
     .candidate-chip {
-      padding: 6px 14px;
-      border-radius: 18px;
+      padding: 5px 12px;
+      border-radius: 16px;
       font-family: var(--font-bn);
-      font-size: 15px;
+      font-size: 14px;
       color: var(--key-text);
       cursor: pointer;
       white-space: nowrap;
-      transition: all 0.15s;
+      transition: all 0.12s;
+      background: rgba(255, 255, 255, 0.04);
     }
     .candidate-chip:hover, .candidate-chip.primary {
       background: var(--candidate-active);
@@ -228,15 +295,28 @@
       box-shadow: 0 0 10px var(--accent-glow);
     }
 
+    /* Keys Grid */
     .keys-grid {
       display: flex;
       flex-direction: column;
-      gap: 7px;
+      gap: 6px;
       padding: 10px 6px 4px 6px;
+      position: relative;
     }
+
+    /* Ergonomic Zones overlay */
+    .ergonomics-active .vowel-key {
+      background: #142838 !important;
+      border-top: 2px solid #38bdf8 !important;
+    }
+    .ergonomics-active .consonant-key {
+      background: #201a3d !important;
+      border-top: 2px solid #a78bfa !important;
+    }
+
     .key-row {
       display: flex;
-      gap: 5px;
+      gap: 4px;
       justify-content: center;
     }
 
@@ -251,33 +331,118 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      font-family: var(--font-bn);
       font-size: 16px;
       font-weight: 500;
       cursor: pointer;
       box-shadow: 0 2px 0 var(--key-shadow);
-      transition: all 0.08s;
+      transition: all 0.06s ease;
       position: relative;
     }
     .key:active, .key.pressed {
       transform: translateY(2px);
       box-shadow: 0 0 0 var(--key-shadow);
-      background: var(--accent);
-      color: #04101e;
+      background: var(--accent) !important;
+      color: #04101e !important;
     }
     .key-sub {
       font-family: var(--font-bn);
-      font-size: 10px;
+      font-size: 9px;
       color: var(--key-sub);
       line-height: 1;
       margin-top: 1px;
     }
 
-    .key-wide { flex: 1.4; max-width: 58px; background: #181e2e; }
-    .key-space { flex: 5; max-width: 190px; font-size: 13px; color: var(--key-sub); }
-    .key-action { background: var(--candidate-active); color: #ffffff; flex: 1.4; max-width: 58px; }
+    .key-wide { flex: 1.35; max-width: 56px; background: var(--key-alt-bg); font-family: var(--font-main); font-size: 13px; }
+    .key-space { flex: 4.8; max-width: 180px; font-size: 12px; color: var(--key-sub); font-family: var(--font-main); letter-spacing: 0.5px; }
+    .key-action { background: var(--candidate-active); color: #ffffff; flex: 1.35; max-width: 56px; }
+    .key-hasanta { background: #2a344d; color: #38bdf8; font-weight: 700; }
+
+    /* Modals & Overlays */
+    .sheet-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 290px;
+      background: var(--kb-bg);
+      border-top: 1px solid var(--border);
+      display: none;
+      flex-direction: column;
+      padding: 12px;
+      z-index: 50;
+      animation: slideUp 0.18s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .sheet-overlay.active { display: flex; }
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .sheet-close {
+      cursor: pointer;
+      font-size: 18px;
+      color: #94a3b8;
+    }
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      overflow-y: auto;
+      font-size: 24px;
+      text-align: center;
+      padding: 4px;
+    }
+    .emoji-item {
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 8px;
+      transition: transform 0.1s;
+    }
+    .emoji-item:hover { transform: scale(1.2); }
+
+    /* Voice Wave Overlay */
+    .voice-sheet {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      height: 100%;
+    }
+    .wave-bars {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      height: 48px;
+    }
+    .wave-bar {
+      width: 5px;
+      height: 12px;
+      background: var(--accent);
+      border-radius: 4px;
+      animation: wave 0.8s infinite ease-in-out alternate;
+    }
+    .wave-bar:nth-child(2) { animation-delay: 0.15s; height: 32px; }
+    .wave-bar:nth-child(3) { animation-delay: 0.3s; height: 44px; }
+    .wave-bar:nth-child(4) { animation-delay: 0.45s; height: 26px; }
+    .wave-bar:nth-child(5) { animation-delay: 0.6s; height: 16px; }
+    @keyframes wave {
+      from { height: 8px; }
+      to { height: 44px; }
+    }
 
     .nav-bar-indicator {
-      width: 130px;
+      width: 120px;
       height: 4px;
       background: #475569;
       border-radius: 4px;
@@ -290,15 +455,23 @@
 
   <div class="header">
     <h1>Lekhani for Android</h1>
-    <p>World-Class Pure Rust Bengali Input Method & Mobile Keyboard Prototype</p>
+    <p>World-Class Bengali Mobile Keyboard Prototype • Ergonomics, AI & Zero-Latency</p>
   </div>
 
-  <div class="controls">
-    <button class="btn-pill active" onclick="setTheme('dark', this)">Deep Dark</button>
-    <button class="btn-pill" onclick="setTheme('oled', this)">AMOLED Black</button>
-    <button class="btn-pill" onclick="setTheme('avro', this)">Classic Avro Blue</button>
-    <button class="btn-pill" onclick="setTheme('indigo', this)">Cyber Indigo</button>
-    <button class="btn-pill" onclick="toggleLayout(this)">Layout: Avro Phonetic</button>
+  <div class="controls-wrapper">
+    <div class="controls-row">
+      <button class="btn-pill active" id="btnProbaho" onclick="setLayout('probaho', this)">⚡ Lekhani প্রবাহ (Flow)</button>
+      <button class="btn-pill" id="btnAvro" onclick="setLayout('avro', this)">Avro Phonetic</button>
+      <button class="btn-pill" id="btnJatiya" onclick="setLayout('jatiya', this)">জাতীয় (National)</button>
+      <button class="btn-pill" id="btnGboard" onclick="setLayout('gboard', this)">Gboard Style</button>
+    </div>
+    <div class="controls-row">
+      <button class="btn-pill" onclick="setTheme('dark', this)">Deep Dark</button>
+      <button class="btn-pill" onclick="setTheme('oled', this)">AMOLED Black</button>
+      <button class="btn-pill" onclick="setTheme('avro', this)">Avro Blue</button>
+      <button class="btn-pill" onclick="setTheme('indigo', this)">Cyber Indigo</button>
+      <button class="btn-pill" id="btnErgo" onclick="toggleErgonomics(this)">👁️ Ergonomics Guide</button>
+    </div>
   </div>
 
   <div class="phone-frame">
@@ -313,11 +486,25 @@
     </div>
 
     <div class="text-input-bar">
-      <input type="text" id="phoneInput" class="input-field" placeholder="বাংলায় লিখুন (Try 'amader bangla')..." autofocus />
+      <input type="text" id="phoneInput" class="input-field" placeholder="টাইপ করুন..." autofocus />
     </div>
 
-    <!-- Lekhani Android Virtual Keyboard -->
-    <div class="keyboard-container">
+    <!-- Lekhani Virtual Keyboard -->
+    <div class="keyboard-container" id="kbContainer">
+      
+      <!-- Quick Action Toolbar -->
+      <div class="quick-toolbar">
+        <div class="toolbar-tools">
+          <span class="tool-icon" title="Offline Voice Typing" onclick="openVoiceSheet()">🎙️</span>
+          <span class="tool-icon" title="Emoji & Kaomoji" onclick="openEmojiSheet()">😊</span>
+          <span class="tool-icon" title="Local Clipboard" onclick="openClipSheet()">📋</span>
+          <span class="tool-icon" title="Themes" onclick="cycleTheme()">🎨</span>
+          <span class="tool-icon" title="One-Handed Mode" onclick="toggleOneHanded()">📱</span>
+        </div>
+        <div class="layout-badge" id="layoutBadge">লেখনী প্রবাহ</div>
+      </div>
+
+      <!-- Candidate Strip -->
       <div class="candidate-strip" id="candidateStrip">
         <span class="candidate-chip primary" onclick="pickCandidate(this.innerText)">আমাদের</span>
         <span class="candidate-chip" onclick="pickCandidate(this.innerText)">আমি</span>
@@ -326,62 +513,68 @@
         <span class="candidate-chip" onclick="pickCandidate(this.innerText)">ভালো</span>
       </div>
 
-      <div class="keys-grid">
-        <div class="key-row">
-          <div class="key" onclick="press('1')">1<span class="key-sub">১</span></div>
-          <div class="key" onclick="press('2')">2<span class="key-sub">২</span></div>
-          <div class="key" onclick="press('3')">3<span class="key-sub">৩</span></div>
-          <div class="key" onclick="press('4')">4<span class="key-sub">৪</span></div>
-          <div class="key" onclick="press('5')">5<span class="key-sub">৫</span></div>
-          <div class="key" onclick="press('6')">6<span class="key-sub">৬</span></div>
-          <div class="key" onclick="press('7')">7<span class="key-sub">৭</span></div>
-          <div class="key" onclick="press('8')">8<span class="key-sub">৮</span></div>
-          <div class="key" onclick="press('9')">9<span class="key-sub">৯</span></div>
-          <div class="key" onclick="press('0')">0<span class="key-sub">০</span></div>
+      <!-- Dynamic Keys Grid -->
+      <div class="keys-grid" id="keysGrid"></div>
+
+      <!-- Bottom Nav Indicator -->
+      <div class="nav-bar-indicator"></div>
+
+      <!-- Emoji / Kaomoji Sheet -->
+      <div class="sheet-overlay" id="emojiSheet">
+        <div class="sheet-header">
+          <span>ইমোজি ও কাওমোজি (Unicode 15.1)</span>
+          <span class="sheet-close" onclick="closeSheets()">✕</span>
         </div>
-        <div class="key-row">
-          <div class="key" onclick="press('q')">Q<span class="key-sub">আ</span></div>
-          <div class="key" onclick="press('w')">W<span class="key-sub">স</span></div>
-          <div class="key" onclick="press('e')">E<span class="key-sub">দ</span></div>
-          <div class="key" onclick="press('r')">R<span class="key-sub">ফ</span></div>
-          <div class="key" onclick="press('t')">T<span class="key-sub">ট</span></div>
-          <div class="key" onclick="press('y')">Y<span class="key-sub">ল</span></div>
-          <div class="key" onclick="press('u')">U<span class="key-sub">ঘ</span></div>
-          <div class="key" onclick="press('i')">I<span class="key-sub">হ</span></div>
-          <div class="key" onclick="press('o')">O<span class="key-sub">ত</span></div>
-          <div class="key" onclick="press('p')">P<span class="key-sub">প</span></div>
-        </div>
-        <div class="key-row">
-          <div class="key" onclick="press('a')">A<span class="key-sub">া</span></div>
-          <div class="key" onclick="press('s')">S<span class="key-sub">শ</span></div>
-          <div class="key" onclick="press('d')">D<span class="key-sub">ড</span></div>
-          <div class="key" onclick="press('f')">F<span class="key-sub">ভ</span></div>
-          <div class="key" onclick="press('g')">G<span class="key-sub">গ</span></div>
-          <div class="key" onclick="press('h')">H<span class="key-sub">হ</span></div>
-          <div class="key" onclick="press('j')">J<span class="key-sub">জ</span></div>
-          <div class="key" onclick="press('k')">K<span class="key-sub">ক</span></div>
-          <div class="key" onclick="press('l')">L<span class="key-sub">ল</span></div>
-        </div>
-        <div class="key-row">
-          <div class="key key-wide" onclick="shift()">⇧</div>
-          <div class="key" onclick="press('z')">Z<span class="key-sub">য</span></div>
-          <div class="key" onclick="press('x')">X<span class="key-sub">ক্স</span></div>
-          <div class="key" onclick="press('c')">C<span class="key-sub">চ</span></div>
-          <div class="key" onclick="press('v')">V<span class="key-sub">ভ</span></div>
-          <div class="key" onclick="press('b')">B<span class="key-sub">ব</span></div>
-          <div class="key" onclick="press('n')">N<span class="key-sub">ন</span></div>
-          <div class="key" onclick="press('m')">M<span class="key-sub">ম</span></div>
-          <div class="key key-wide" onclick="backspace()">⌫</div>
-        </div>
-        <div class="key-row">
-          <div class="key key-wide">?123</div>
-          <div class="key">🌐</div>
-          <div class="key key-space" onclick="press(' ')">Lekhani • বাংলা</div>
-          <div class="key">.</div>
-          <div class="key key-action" onclick="commitMessage()">⏎</div>
+        <div class="emoji-grid">
+          <span class="emoji-item" onclick="insertEmoji('😀')">😀</span>
+          <span class="emoji-item" onclick="insertEmoji('😂')">😂</span>
+          <span class="emoji-item" onclick="insertEmoji('🥰')">🥰</span>
+          <span class="emoji-item" onclick="insertEmoji('🔥')">🔥</span>
+          <span class="emoji-item" onclick="insertEmoji('👍')">👍</span>
+          <span class="emoji-item" onclick="insertEmoji('🇧🇩')">🇧🇩</span>
+          <span class="emoji-item" onclick="insertEmoji('❤️')">❤️</span>
+          <span class="emoji-item" onclick="insertEmoji('✨')">✨</span>
+          <span class="emoji-item" onclick="insertEmoji('🚀')">🚀</span>
+          <span class="emoji-item" onclick="insertEmoji('🎉')">🎉</span>
+          <span class="emoji-item" onclick="insertEmoji('🙏')">🙏</span>
+          <span class="emoji-item" onclick="insertEmoji('😎')">😎</span>
+          <span class="emoji-item" onclick="insertEmoji('(◕‿◕)')">(◕‿◕)</span>
+          <span class="emoji-item" onclick="insertEmoji('¯\\_(ツ)_/¯')">¯\_(ツ)_/¯</span>
         </div>
       </div>
-      <div class="nav-bar-indicator"></div>
+
+      <!-- Local Voice Typing Sheet -->
+      <div class="sheet-overlay" id="voiceSheet">
+        <div class="sheet-header">
+          <span>১০০% অন-ডিভাইস ভয়েস টাইপিং (জিরো ইন্টারনেট)</span>
+          <span class="sheet-close" onclick="closeSheets()">✕</span>
+        </div>
+        <div class="voice-sheet">
+          <div class="wave-bars">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+          </div>
+          <p style="font-size: 14px; color: #94a3b8; font-family: var(--font-bn);">শুনছি... বাংলায় বলুন (Speaking...)</p>
+          <button class="btn-pill active" onclick="simulateVoiceCommit()">"বাংলা আমার মাতৃভাষা।" প্রবেশ করান</button>
+        </div>
+      </div>
+
+      <!-- Clipboard Sheet -->
+      <div class="sheet-overlay" id="clipSheet">
+        <div class="sheet-header">
+          <span>লোকাল ক্লিপবোর্ড (পিন করা তথ্য)</span>
+          <span class="sheet-close" onclick="closeSheets()">✕</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px; overflow-y:auto;">
+          <div class="candidate-chip" onclick="insertEmoji('বাংলাদেশ আমার অহংকার।')">📌 বাংলাদেশ আমার অহংকার।</div>
+          <div class="candidate-chip" onclick="insertEmoji('https://github.com/syntenieum/lekhani')">📌 https://github.com/syntenieum/lekhani</div>
+          <div class="candidate-chip" onclick="insertEmoji('sub-millisecond keystroke responsiveness')">📌 sub-millisecond keystroke responsiveness</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -389,8 +582,94 @@
     const input = document.getElementById('phoneInput');
     const strip = document.getElementById('candidateStrip');
     const chat = document.getElementById('chatScreen');
+    const grid = document.getElementById('keysGrid');
+    const badge = document.getElementById('layoutBadge');
+    const kbContainer = document.getElementById('kbContainer');
 
-    // Simple Avro phonetic dictionary for interactive mockup
+    let currentLayout = 'probaho';
+    let isShifted = false;
+    let isErgonomicsOn = false;
+
+    // Layout Definitions
+    const layouts = {
+      probaho: {
+        name: 'লেখনী প্রবাহ',
+        base: [
+          [ {k:'আ', z:'v'}, {k:'ো', z:'v'}, {k:'ী', z:'v'}, {k:'ূ', z:'v'}, {k:'ৈ', z:'v'}, {k:'প', z:'c'}, {k:'ব', z:'c'}, {k:'ম', z:'c'}, {k:'দ', z:'c'}, {k:'ল', z:'c'} ],
+          [ {k:'অ', z:'v'}, {k:'া', z:'v'}, {k:'ি', z:'v'}, {k:'ু', z:'v'}, {k:'ে', z:'v'}, {k:'র', z:'c'}, {k:'ত', z:'c'}, {k:'ন', z:'c'}, {k:'স', z:'c'}, {k:'ক', z:'c'} ],
+          [ {k:'⇧', action:'shift', wide:true}, {k:'ৌ', z:'v'}, {k:'ং', z:'v'}, {k:'ঁ', z:'v'}, {k:'ঃ', z:'v'}, {k:'চ', z:'c'}, {k:'জ', z:'c'}, {k:'ট', z:'c'}, {k:'ড', z:'c'}, {k:'⌫', action:'backspace', wide:true} ],
+          [ {k:'?123', wide:true}, {k:'🌐', action:'cycleLayout'}, {k:','}, {k:'Lekhani প্রবাহ', action:'space', space:true}, {k:'্', z:'c', hasanta:true}, {k:'।'}, {k:'⏎', action:'commit', actionKey:true} ]
+        ],
+        shift: [
+          [ {k:'ঔ', z:'v'}, {k:'ঐ', z:'v'}, {k:'ঊ', z:'v'}, {k:'ঈ', z:'v'}, {k:'ৠ', z:'v'}, {k:'ফ', z:'c'}, {k:'ভ', z:'c'}, {k:'গ', z:'c'}, {k:'ধ', z:'c'}, {k:'ঘ', z:'c'} ],
+          [ {k:'ঋ', z:'v'}, {k:'ঽ', z:'v'}, {k:'য়', z:'v'}, {k:'ৎ', z:'v'}, {k:'য', z:'v'}, {k:'ড়', z:'c'}, {k:'থ', z:'c'}, {k:'ণ', z:'c'}, {k:'শ', z:'c'}, {k:'খ', z:'c'} ],
+          [ {k:'⇧', action:'shift', wide:true, active:true}, {k:'ঞ', z:'v'}, {k:'ঙ', z:'v'}, {k:'ZWJ', z:'v'}, {k:'ZWNJ', z:'v'}, {k:'ছ', z:'c'}, {k:'ঝ', z:'c'}, {k:'ঠ', z:'c'}, {k:'ঢ', z:'c'}, {k:'⌫', action:'backspace', wide:true} ],
+          [ {k:'?123', wide:true}, {k:'🌐', action:'cycleLayout'}, {k:';'}, {k:'Lekhani প্রবাহ', action:'space', space:true}, {k:'হ', z:'c'}, {k:'!'}, {k:'⏎', action:'commit', actionKey:true} ]
+        ]
+      },
+      avro: {
+        name: 'Avro Phonetic',
+        base: [
+          [ {k:'q', s:'আ'}, {k:'w', s:'স'}, {k:'e', s:'দ'}, {k:'r', s:'র'}, {k:'t', s:'ট'}, {k:'y', s:'য'}, {k:'u', s:'উ'}, {k:'i', s:'ই'}, {k:'o', s:'ও'}, {k:'p', s:'প'} ],
+          [ {k:'a', s:'া'}, {k:'s', s:'শ'}, {k:'d', s:'ড'}, {k:'f', s:'ফ'}, {k:'g', s:'গ'}, {k:'h', s:'হ'}, {k:'j', s:'জ'}, {k:'k', s:'ক'}, {k:'l', s:'ল'} ],
+          [ {k:'⇧', action:'shift', wide:true}, {k:'z', s:'য'}, {k:'x', s:'ক্স'}, {k:'c', s:'চ'}, {k:'v', s:'ভ'}, {k:'b', s:'ব'}, {k:'n', s:'ন'}, {k:'m', s:'ম'}, {k:'⌫', action:'backspace', wide:true} ],
+          [ {k:'?123', wide:true}, {k:'🌐', action:'cycleLayout'}, {k:'Avro • বাংলা', action:'space', space:true}, {k:'.'}, {k:'⏎', action:'commit', actionKey:true} ]
+        ],
+        shift: [
+          [ {k:'Q', s:'আ'}, {k:'W', s:'স'}, {k:'E', s:'ধ'}, {k:'R', s:'ড়'}, {k:'T', s:'ঠ'}, {k:'Y', s:'য়'}, {k:'U', s:'ঊ'}, {k:'I', s:'ঈ'}, {k:'O', s:'ঐ'}, {k:'P', s:'ফ'} ],
+          [ {k:'A', s:'অ'}, {k:'S', s:'ষ'}, {k:'D', s:'ঢ'}, {k:'F', s:'ভ'}, {k:'G', s:'ঘ'}, {k:'H', s:'হ'}, {k:'J', s:'ঝ'}, {k:'K', s:'খ'}, {k:'L', s:'ল'} ],
+          [ {k:'⇧', action:'shift', wide:true, active:true}, {k:'Z', s:'য'}, {k:'X', s:'ক্স'}, {k:'C', s:'ছ'}, {k:'V', s:'ভ'}, {k:'B', s:'ভ'}, {k:'N', s:'ণ'}, {k:'M', s:'ম'}, {k:'⌫', action:'backspace', wide:true} ],
+          [ {k:'?123', wide:true}, {k:'🌐', action:'cycleLayout'}, {k:'Avro • বাংলা', action:'space', space:true}, {k:'!'}, {k:'⏎', action:'commit', actionKey:true} ]
+        ]
+      },
+      jatiya: {
+        name: 'জাতীয় (National)',
+        base: [
+          [ {k:'১'}, {k:'২'}, {k:'৩'}, {k:'৪'}, {k:'৫'}, {k:'৬'}, {k:'৭'}, {k:'৮'}, {k:'৯'}, {k:'০'} ],
+          [ {k:'ড'}, {k:'ঢ'}, {k:'ে'}, {k:'র'}, {k:'ট'}, {k:'ঠ'}, {k:'ু'}, {k:'ি'}, {k:'ী'}, {k:'প'} ],
+          [ {k:'া'}, {k:'স'}, {k:'দ'}, {k:'ত'}, {k:'থ'}, {k:'হ'}, {k:'জ'}, {k:'ক'}, {k:'ল'} ],
+          [ {k:'⇧', action:'shift', wide:true}, {k:'য'}, {k:'শ'}, {k:'চ'}, {k:'ছ'}, {k:'ব'}, {k:'ন'}, {k:'ম'}, {k:'⌫', action:'backspace', wide:true} ],
+          [ {k:'?123', wide:true}, {k:'🌐', action:'cycleLayout'}, {k:'স্পেস', action:'space', space:true}, {k:'্'}, {k:'।'}, {k:'⏎', action:'commit', actionKey:true} ]
+        ],
+        shift: [
+          [ {k:'!'}, {k:'@'}, {k:'#'}, {k:'$'}, {k:'%'}, {k:'^'}, {k:'&'}, {k:'*'}, {k:'('}, {k:')'} ],
+          [ {k:'ঈ'}, {k:'ঐ'}, {k:'ঊ'}, {k:'ঋ'}, {k:'ঔ'}, {k:'উ'}, {k:'ূ'}, {k:'ৈ'}, {k:'ো'}, {k:'ফ'} ],
+          [ {k:'আ'}, {k:'ষ'}, {k:'ধ'}, {k:'খ'}, {k:'ঘ'}, {k:'ঝ'}, {k:'ঞ'}, {k:'ঙ'}, {k:'ণ'} ],
+          [ {k:'⇧', action:'shift', wide:true, active:true}, {k:'য়'}, {k:'ৎ'}, {k:'ড়'}, {k:'ঢ়'}, {k:'ভ'}, {k:'ঁ'}, {k:'ঃ'}, {k:'⌫', action:'backspace', wide:true} ],
+          [ {k:'?123', wide:true}, {k:'🌐', action:'cycleLayout'}, {k:'স্পেস', action:'space', space:true}, {k:'্'}, {k:'॥'}, {k:'⏎', action:'commit', actionKey:true} ]
+        ]
+      },
+      gboard: {
+        name: 'Gboard Style',
+        base: [
+          [ {k:'ক'}, {k:'খ'}, {k:'গ'}, {k:'ঘ'}, {k:'ঙ'}, {k:'চ'}, {k:'ছ'}, {k:'জ'}, {k:'ঝ'}, {k:'ঞ'} ],
+          [ {k:'ট'}, {k:'ঠ'}, {k:'ড'}, {k:'ঢ'}, {k:'ণ'}, {k:'ত'}, {k:'থ'}, {k:'দ'}, {k:'ধ'}, {k:'ন'} ],
+          [ {k:'⇧', action:'shift', wide:true}, {k:'প'}, {k:'ফ'}, {k:'ব'}, {k:'ভ'}, {k:'ম'}, {k:'য'}, {k:'র'}, {k:'ল'}, {k:'⌫', action:'backspace', wide:true} ],
+          [ {k:'?123', wide:true}, {k:'🌐', action:'cycleLayout'}, {k:'া'}, {k:'বাংলা', action:'space', space:true}, {k:'ি'}, {k:'।'}, {k:'⏎', action:'commit', actionKey:true} ]
+        ],
+        shift: [
+          [ {k:'অ'}, {k:'আ'}, {k:'ই'}, {k:'ঈ'}, {k:'উ'}, {k:'ঊ'}, {k:'ঋ'}, {k:'এ'}, {k:'ঐ'}, {k:'ও'} ],
+          [ {k:'ৌ'}, {k:'শ'}, {k:'ষ'}, {k:'স'}, {k:'হ'}, {k:'ড়'}, {k:'ঢ়'}, {k:'য়'}, {k:'ৎ'}, {k:'ং'} ],
+          [ {k:'⇧', action:'shift', wide:true, active:true}, {k:'ঃ'}, {k:'ঁ'}, {k:'ু'}, {k:'ূ'}, {k:'ৃ'}, {k:'ে'}, {k:'ৈ'}, {k:'ো'}, {k:'⌫', action:'backspace', wide:true} ],
+          [ {k:'?123', wide:true}, {k:'🌐', action:'cycleLayout'}, {k:'ৌ'}, {k:'বাংলা', action:'space', space:true}, {k:'্'}, {k:'?'}, {k:'⏎', action:'commit', actionKey:true} ]
+        ]
+      }
+    };
+
+    // Smart Kar-to-Vowel Promotion Map
+    const smartKarMap = {
+      'া': 'আ',
+      'ি': 'ই',
+      'ী': 'ঈ',
+      'ু': 'উ',
+      'ূ': 'ঊ',
+      'ে': 'এ',
+      'ৈ': 'ঐ',
+      'ো': 'ও',
+      'ৌ': 'ঔ'
+    };
+
+    // Mock Avro Dictionary
     const mockAvro = {
       'ami': ['আমি', 'আমী'],
       'amader': ['আমাদের', 'আমদের'],
@@ -400,17 +679,140 @@
       'bhalo': ['ভালো', 'ভাল'],
       'shikkhok': ['শিক্ষক'],
       'porikkha': ['পরীক্ষা', 'পরিক্ষা'],
-      'lekha': ['লেখা'],
       'kemon': ['কেমন'],
-      'achho': ['আছো', 'আছ'],
       'achi': ['আছি'],
-      'desh': ['দেশ'],
-      'gaan': ['গান'],
+      'dhaka': ['ঢাকা']
     };
 
-    input.addEventListener('input', () => {
+    function renderKeyboard() {
+      const layoutData = layouts[currentLayout];
+      const rows = isShifted ? layoutData.shift : layoutData.base;
+      badge.innerText = layoutData.name;
+
+      grid.innerHTML = '';
+      rows.forEach(row => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'key-row';
+
+        row.forEach(item => {
+          const keyEl = document.createElement('div');
+          keyEl.className = 'key';
+
+          if (item.wide) keyEl.classList.add('key-wide');
+          if (item.space) keyEl.classList.add('key-space');
+          if (item.actionKey) keyEl.classList.add('key-action');
+          if (item.hasanta) keyEl.classList.add('key-hasanta');
+          if (item.active) keyEl.classList.add('pressed');
+
+          // Ergonomic zone classes
+          if (item.z === 'v') keyEl.classList.add('vowel-key');
+          if (item.z === 'c') keyEl.classList.add('consonant-key');
+
+          keyEl.innerText = item.k;
+          if (item.s) {
+            const sub = document.createElement('span');
+            sub.className = 'key-sub';
+            sub.innerText = item.s;
+            keyEl.appendChild(sub);
+          }
+
+          keyEl.onclick = () => handleKey(item);
+          rowEl.appendChild(keyEl);
+        });
+
+        grid.appendChild(rowEl);
+      });
+    }
+
+    function handleKey(item) {
+      if (item.action === 'shift') {
+        isShifted = !isShifted;
+        renderKeyboard();
+        return;
+      }
+      if (item.action === 'backspace') {
+        backspace();
+        return;
+      }
+      if (item.action === 'space') {
+        press(' ');
+        return;
+      }
+      if (item.action === 'commit') {
+        commitMessage();
+        return;
+      }
+      if (item.action === 'cycleLayout') {
+        cycleLayout();
+        return;
+      }
+
+      let charToInsert = item.k;
+
+      // Smart Kar promotion: if starting a word in Lekhani Probaho with a kar, promote to independent vowel!
+      if (currentLayout === 'probaho' && smartKarMap[charToInsert]) {
+        const val = input.value;
+        if (val.length === 0 || val.endsWith(' ') || val.endsWith('\n')) {
+          charToInsert = smartKarMap[charToInsert];
+        }
+      }
+
+      // Conjunct assist for Hasanta
+      if (charToInsert === '্') {
+        showConjunctSuggestions();
+      }
+
+      press(charToInsert);
+
+      // Auto un-shift after single keypress if shifted
+      if (isShifted) {
+        isShifted = false;
+        renderKeyboard();
+      }
+    }
+
+    function showConjunctSuggestions() {
+      const val = input.value;
+      const lastChar = val.slice(-1);
+      if (lastChar === 'ক') {
+        strip.innerHTML = `
+          <span class="candidate-chip primary" onclick="replaceLast('ক্ত')">ক্ত</span>
+          <span class="candidate-chip" onclick="replaceLast('ক্ষ')">ক্ষ</span>
+          <span class="candidate-chip" onclick="replaceLast('ক্র')">ক্র</span>
+          <span class="candidate-chip" onclick="replaceLast('ক্ল')">ক্ল</span>
+        `;
+      } else if (lastChar === 'স') {
+        strip.innerHTML = `
+          <span class="candidate-chip primary" onclick="replaceLast('স্ত')">স্ত</span>
+          <span class="candidate-chip" onclick="replaceLast('স্প')">স্প</span>
+          <span class="candidate-chip" onclick="replaceLast('স্খ')">স্খ</span>
+        `;
+      } else if (lastChar === 'ন') {
+        strip.innerHTML = `
+          <span class="candidate-chip primary" onclick="replaceLast('ন্ট')">ন্ট</span>
+          <span class="candidate-chip" onclick="replaceLast('ন্দ')">ন্দ</span>
+          <span class="candidate-chip" onclick="replaceLast('ন্ত')">ন্ত</span>
+        `;
+      }
+    }
+
+    function replaceLast(conjunct) {
+      input.value = input.value.slice(0, -1) + conjunct;
+      updateCandidates('');
+      input.focus();
+    }
+
+    function press(char) {
+      input.value += char;
       updateCandidates(input.value.trim().toLowerCase());
-    });
+      input.focus();
+    }
+
+    function backspace() {
+      input.value = input.value.slice(0, -1);
+      updateCandidates(input.value.trim().toLowerCase());
+      input.focus();
+    }
 
     function updateCandidates(val) {
       if (!val) {
@@ -432,25 +834,12 @@
           `<span class="candidate-chip ${i===0?'primary':''}" onclick="pickCandidate('${c}')">${c}</span>`
         ).join('');
       } else {
-        // Fallback approximate
         strip.innerHTML = `
           <span class="candidate-chip primary" onclick="pickCandidate('${cur}')">${cur}</span>
           <span class="candidate-chip" onclick="pickCandidate('বাংলা')">বাংলা</span>
           <span class="candidate-chip" onclick="pickCandidate('বাংলাদেশ')">বাংলাদেশ</span>
         `;
       }
-    }
-
-    function press(char) {
-      input.value += char;
-      updateCandidates(input.value.trim().toLowerCase());
-      input.focus();
-    }
-
-    function backspace() {
-      input.value = input.value.slice(0, -1);
-      updateCandidates(input.value.trim().toLowerCase());
-      input.focus();
     }
 
     function pickCandidate(word) {
@@ -472,19 +861,86 @@
       chat.scrollTop = chat.scrollHeight;
     }
 
-    function setTheme(theme, btn) {
-      document.body.setAttribute('data-theme', theme);
-      document.querySelectorAll('.controls .btn-pill').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+    function setLayout(layoutKey, btn) {
+      currentLayout = layoutKey;
+      isShifted = false;
+      document.querySelectorAll('.controls-row .btn-pill').forEach(b => {
+        if (b.id && b.id.startsWith('btn')) b.classList.remove('active');
+      });
+      if (btn) btn.classList.add('active');
+      renderKeyboard();
     }
 
-    function toggleLayout(btn) {
-      if (btn.innerText.includes('Avro')) {
-        btn.innerText = 'Layout: জাতীয় (Fixed)';
-      } else {
-        btn.innerText = 'Layout: Avro Phonetic';
-      }
+    function cycleLayout() {
+      const keys = ['probaho', 'avro', 'jatiya', 'gboard'];
+      const nextIdx = (keys.indexOf(currentLayout) + 1) % keys.length;
+      setLayout(keys[nextIdx], document.getElementById('btn' + capitalize(keys[nextIdx])));
     }
+
+    function capitalize(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function setTheme(theme, btn) {
+      document.body.setAttribute('data-theme', theme);
+      document.querySelectorAll('.controls-row button').forEach(b => {
+        if (['Deep Dark', 'AMOLED Black', 'Avro Blue', 'Cyber Indigo'].includes(b.innerText)) {
+          b.classList.remove('active');
+        }
+      });
+      if (btn) btn.classList.add('active');
+    }
+
+    function cycleTheme() {
+      const themes = ['dark', 'oled', 'avro', 'indigo'];
+      const cur = document.body.getAttribute('data-theme') || 'dark';
+      const next = themes[(themes.indexOf(cur) + 1) % themes.length];
+      document.body.setAttribute('data-theme', next);
+    }
+
+    function toggleErgonomics(btn) {
+      isErgonomicsOn = !isErgonomicsOn;
+      kbContainer.classList.toggle('ergonomics-active', isErgonomicsOn);
+      btn.classList.toggle('active', isErgonomicsOn);
+    }
+
+    function toggleOneHanded() {
+      alert("একহাতে টাইপিং মোড (One-Handed Mode) সক্রিয় হয়েছে!");
+    }
+
+    function openVoiceSheet() {
+      closeSheets();
+      document.getElementById('voiceSheet').classList.add('active');
+    }
+
+    function openEmojiSheet() {
+      closeSheets();
+      document.getElementById('emojiSheet').classList.add('active');
+    }
+
+    function openClipSheet() {
+      closeSheets();
+      document.getElementById('clipSheet').classList.add('active');
+    }
+
+    function closeSheets() {
+      document.querySelectorAll('.sheet-overlay').forEach(s => s.classList.remove('active'));
+    }
+
+    function insertEmoji(em) {
+      input.value += em;
+      closeSheets();
+      input.focus();
+    }
+
+    function simulateVoiceCommit() {
+      input.value += 'বাংলা আমার মাতৃভাষা। ';
+      closeSheets();
+      input.focus();
+    }
+
+    // Initialize keyboard
+    renderKeyboard();
   </script>
 </body>
 </html>

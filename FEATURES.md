@@ -1,6 +1,7 @@
 # Lekhani Android: Complete Feature Specification
 
 ## 1. Input Layouts & Switching
+- **Lekhani প্রবাহ (Flow)**: Scientifically engineered custom layout for ultra-fast two-thumb mobile typing. Left-thumb vowel zone, right-thumb consonant engine, and smart Kar-to-vowel auto-promotion.
 - **Avro Phonetic (Classic Muscle Memory)**: 100% faithful transliteration (`ami` -> `আমি`, `shikkhok` -> `শিক্ষক`, `brriShTi` -> `বৃষ্টি`).
 - **Fixed National (জাতীয়)**: Official standard Bangladeshi layout with illuminated Shift & AltGr key states.
 - **Fixed Probhat (प्रभात)**: Popular phonetic fixed layout with dead-key combinations.

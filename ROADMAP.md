@@ -40,6 +40,7 @@
   - Conjunct-aware grapheme cluster backspace (cleanly delete complex conjuncts like `ক্ষ`).
   - Automatic Unicode NFC canonicalization before text commitment.
 - [ ] **Core Layout Implementations**:
+  - **Lekhani প্রবাহ (Flow)**: Custom ergonomic two-thumb layout with vowel/consonant hand separation and Smart Kar promotion ([LAYOUT_PROBAHO.md](LAYOUT_PROBAHO.md)).
   - **Avro Phonetic**: Dynamic phonetic transliteration engine.
   - **Fixed National (জাতীয়)**: Standard layout with Shift & AltGr states.
   - **Fixed Probhat (प्रभात)**: Popular layout with dead-key combinations.

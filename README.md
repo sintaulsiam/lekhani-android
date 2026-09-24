@@ -14,6 +14,7 @@
   <a href="ARCHITECTURE.md">Architecture</a> •
   <a href="ROADMAP.md">Roadmap</a> •
   <a href="FEATURES.md">Feature Spec</a> •
+  <a href="LAYOUT_PROBAHO.md">Lekhani প্রবাহ (Flow)</a> •
   <a href="mockups/index.html">Interactive Mockup</a> •
   <a href="#license">License</a>
 </p>
