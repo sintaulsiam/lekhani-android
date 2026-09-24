@@ -20,13 +20,12 @@
       --key-shadow: #080a0f;
       --accent: #38bdf8;
       --accent-glow: rgba(56, 189, 248, 0.35);
-      --candidate-bg: #181f2f;
+      --candidate-bg: #151b29;
       --candidate-active: #0284c7;
       --border: rgba(255, 255, 255, 0.08);
-      --vowel-zone: rgba(56, 189, 248, 0.08);
-      --consonant-zone: rgba(129, 140, 248, 0.08);
       --font-main: 'Inter', -apple-system, sans-serif;
       --font-bn: 'Noto Sans Bengali', 'SolaimanLipi', sans-serif;
+      --key-height: 40px;
     }
 
     [data-theme="oled"] {
@@ -72,6 +71,17 @@
       --accent-glow: rgba(167, 139, 250, 0.4);
     }
 
+    /* Height Profiles */
+    [data-height="compact"] {
+      --key-height: 35px;
+    }
+    [data-height="balanced"] {
+      --key-height: 40px;
+    }
+    [data-height="spacious"] {
+      --key-height: 45px;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
       background: var(--bg);
@@ -86,7 +96,7 @@
 
     .header {
       text-align: center;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
     .header h1 {
       font-size: 26px;
@@ -105,10 +115,10 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
+      gap: 8px;
+      margin-bottom: 18px;
       width: 100%;
-      max-width: 600px;
+      max-width: 650px;
     }
     .controls-row {
       display: flex;
@@ -116,11 +126,21 @@
       flex-wrap: wrap;
       justify-content: center;
     }
+    .control-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      margin-right: 4px;
+    }
     .btn-pill {
       background: #1e293b;
       border: 1px solid var(--border);
       color: #cbd5e1;
-      padding: 6px 14px;
+      padding: 5px 13px;
       border-radius: 20px;
       font-size: 12px;
       cursor: pointer;
@@ -136,8 +156,8 @@
     /* Phone Device Mockup */
     .phone-frame {
       width: 100%;
-      max-width: 416px;
-      height: 770px;
+      max-width: 412px;
+      height: 760px;
       background: var(--phone-bg);
       border-radius: 44px;
       border: 6px solid #2a3347;
@@ -149,7 +169,7 @@
     }
 
     .status-bar {
-      height: 36px;
+      height: 34px;
       padding: 0 22px;
       display: flex;
       justify-content: space-between;
@@ -160,6 +180,7 @@
       z-index: 10;
     }
 
+    /* Chat Area - Maximized Screen Visibility */
     .chat-screen {
       flex: 1;
       padding: 16px;
@@ -173,9 +194,9 @@
 
     .chat-bubble {
       max-width: 82%;
-      padding: 10px 14px;
-      border-radius: 18px;
-      font-size: 14px;
+      padding: 9px 13px;
+      border-radius: 16px;
+      font-size: 13.5px;
       line-height: 1.45;
       font-family: var(--font-bn);
       animation: fadeIn 0.2s ease-out;
@@ -198,10 +219,10 @@
     }
 
     .text-input-bar {
-      margin: 6px 12px 10px 12px;
+      margin: 4px 12px 8px 12px;
       background: #1e293b;
       border-radius: 24px;
-      padding: 9px 16px;
+      padding: 8px 14px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -213,12 +234,12 @@
       border: none;
       color: #ffffff;
       font-family: var(--font-bn);
-      font-size: 16px;
+      font-size: 15px;
       outline: none;
     }
-    .input-field::placeholder { color: #64748b; font-family: var(--font-main); font-size: 14px; }
+    .input-field::placeholder { color: #64748b; font-family: var(--font-main); font-size: 13.5px; }
 
-    /* Keyboard Container */
+    /* Compact Balanced Keyboard Container */
     .keyboard-container {
       background: var(--kb-bg);
       border-top: 1px solid var(--border);
@@ -227,23 +248,33 @@
       position: relative;
     }
 
-    /* Quick Toolbar */
-    .quick-toolbar {
+    /* Smart Header Bar (Toolbar & Candidate Strip Merged into ONE single 38px bar) */
+    .smart-header-bar {
       height: 38px;
       background: var(--toolbar-bg);
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0 12px;
+      padding: 0 8px;
       border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Toolbar View */
+    .header-toolbar-view {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
     }
     .toolbar-tools {
       display: flex;
-      gap: 16px;
+      gap: 15px;
       align-items: center;
     }
     .tool-icon {
-      font-size: 16px;
+      font-size: 15px;
       cursor: pointer;
       color: #94a3b8;
       transition: all 0.15s;
@@ -251,7 +282,7 @@
       align-items: center;
       justify-content: center;
     }
-    .tool-icon:hover, .tool-icon.active {
+    .tool-icon:hover {
       color: var(--accent);
       transform: scale(1.1);
     }
@@ -260,28 +291,39 @@
       font-weight: 600;
       color: var(--accent);
       background: rgba(56, 189, 248, 0.12);
-      padding: 3px 8px;
+      padding: 2px 8px;
       border-radius: 12px;
       border: 1px solid rgba(56, 189, 248, 0.25);
     }
 
-    /* Candidate Strip */
-    .candidate-strip {
-      height: 44px;
-      background: var(--candidate-bg);
-      display: flex;
+    /* Candidate Strip View */
+    .header-candidate-view {
+      display: none;
+      width: 100%;
       align-items: center;
-      padding: 0 8px;
       gap: 6px;
       overflow-x: auto;
-      border-bottom: 1px solid var(--border);
     }
-    .candidate-strip::-webkit-scrollbar { display: none; }
-    .candidate-chip {
-      padding: 5px 12px;
-      border-radius: 16px;
-      font-family: var(--font-bn);
+    .header-candidate-view::-webkit-scrollbar { display: none; }
+    .smart-header-bar.candidate-mode .header-toolbar-view { display: none; }
+    .smart-header-bar.candidate-mode .header-candidate-view { display: flex; }
+
+    .btn-toggle-tools {
+      cursor: pointer;
       font-size: 14px;
+      color: #94a3b8;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      margin-right: 4px;
+    }
+    .btn-toggle-tools:hover { color: var(--accent); }
+
+    .candidate-chip {
+      padding: 4px 11px;
+      border-radius: 14px;
+      font-family: var(--font-bn);
+      font-size: 13.5px;
       color: var(--key-text);
       cursor: pointer;
       white-space: nowrap;
@@ -292,19 +334,19 @@
       background: var(--candidate-active);
       color: #ffffff;
       font-weight: 600;
-      box-shadow: 0 0 10px var(--accent-glow);
+      box-shadow: 0 0 8px var(--accent-glow);
     }
 
     /* Keys Grid */
     .keys-grid {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      padding: 10px 6px 4px 6px;
+      gap: 4px;
+      padding: 6px 4px 4px 4px;
       position: relative;
     }
 
-    /* Ergonomic Zones overlay */
+    /* Ergonomic Zones visual guide */
     .ergonomics-active .vowel-key {
       background: #142838 !important;
       border-top: 2px solid #38bdf8 !important;
@@ -316,46 +358,46 @@
 
     .key-row {
       display: flex;
-      gap: 4px;
+      gap: 3.5px;
       justify-content: center;
     }
 
     .key {
       flex: 1;
-      height: 44px;
+      height: var(--key-height);
       max-width: 42px;
       background: var(--key-bg);
       color: var(--key-text);
-      border-radius: 8px;
+      border-radius: 7px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       font-family: var(--font-bn);
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 500;
       cursor: pointer;
-      box-shadow: 0 2px 0 var(--key-shadow);
+      box-shadow: 0 1.5px 0 var(--key-shadow);
       transition: all 0.06s ease;
       position: relative;
     }
     .key:active, .key.pressed {
-      transform: translateY(2px);
+      transform: translateY(1.5px);
       box-shadow: 0 0 0 var(--key-shadow);
       background: var(--accent) !important;
       color: #04101e !important;
     }
     .key-sub {
       font-family: var(--font-bn);
-      font-size: 9px;
+      font-size: 8.5px;
       color: var(--key-sub);
       line-height: 1;
       margin-top: 1px;
     }
 
-    .key-wide { flex: 1.35; max-width: 56px; background: var(--key-alt-bg); font-family: var(--font-main); font-size: 13px; }
-    .key-space { flex: 4.8; max-width: 180px; font-size: 12px; color: var(--key-sub); font-family: var(--font-main); letter-spacing: 0.5px; }
-    .key-action { background: var(--candidate-active); color: #ffffff; flex: 1.35; max-width: 56px; }
+    .key-wide { flex: 1.35; max-width: 54px; background: var(--key-alt-bg); font-family: var(--font-main); font-size: 12.5px; }
+    .key-space { flex: 4.8; max-width: 175px; font-size: 11.5px; color: var(--key-sub); font-family: var(--font-main); letter-spacing: 0.5px; }
+    .key-action { background: var(--candidate-active); color: #ffffff; flex: 1.35; max-width: 54px; }
     .key-hasanta { background: #2a344d; color: #38bdf8; font-weight: 700; }
 
     /* Modals & Overlays */
@@ -364,14 +406,14 @@
       bottom: 0;
       left: 0;
       right: 0;
-      height: 290px;
+      height: 270px;
       background: var(--kb-bg);
       border-top: 1px solid var(--border);
       display: none;
       flex-direction: column;
       padding: 12px;
       z-index: 50;
-      animation: slideUp 0.18s ease-out;
+      animation: slideUp 0.16s ease-out;
     }
     @keyframes slideUp {
       from { transform: translateY(100%); }
@@ -416,56 +458,69 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 14px;
+      gap: 12px;
       height: 100%;
     }
     .wave-bars {
       display: flex;
       gap: 5px;
       align-items: center;
-      height: 48px;
+      height: 40px;
     }
     .wave-bar {
-      width: 5px;
-      height: 12px;
+      width: 4px;
+      height: 10px;
       background: var(--accent);
       border-radius: 4px;
       animation: wave 0.8s infinite ease-in-out alternate;
     }
-    .wave-bar:nth-child(2) { animation-delay: 0.15s; height: 32px; }
-    .wave-bar:nth-child(3) { animation-delay: 0.3s; height: 44px; }
-    .wave-bar:nth-child(4) { animation-delay: 0.45s; height: 26px; }
-    .wave-bar:nth-child(5) { animation-delay: 0.6s; height: 16px; }
+    .wave-bar:nth-child(2) { animation-delay: 0.15s; height: 28px; }
+    .wave-bar:nth-child(3) { animation-delay: 0.3s; height: 38px; }
+    .wave-bar:nth-child(4) { animation-delay: 0.45s; height: 24px; }
+    .wave-bar:nth-child(5) { animation-delay: 0.6s; height: 14px; }
     @keyframes wave {
       from { height: 8px; }
-      to { height: 44px; }
+      to { height: 38px; }
     }
 
     .nav-bar-indicator {
-      width: 120px;
+      width: 110px;
       height: 4px;
       background: #475569;
       border-radius: 4px;
       align-self: center;
-      margin: 8px 0 4px 0;
+      margin: 6px 0 4px 0;
     }
   </style>
 </head>
-<body data-theme="dark">
+<body data-theme="dark" data-height="balanced">
 
   <div class="header">
     <h1>Lekhani for Android</h1>
-    <p>World-Class Bengali Mobile Keyboard Prototype • Ergonomics, AI & Zero-Latency</p>
+    <p>World-Class Bengali Mobile Keyboard Prototype • Ergonomics, Balanced Height & Zero-Latency</p>
   </div>
 
   <div class="controls-wrapper">
+    <!-- Layout Selection -->
     <div class="controls-row">
+      <span class="control-label">Layout:</span>
       <button class="btn-pill active" id="btnProbaho" onclick="setLayout('probaho', this)">⚡ Lekhani প্রবাহ (Flow)</button>
       <button class="btn-pill" id="btnAvro" onclick="setLayout('avro', this)">Avro Phonetic</button>
       <button class="btn-pill" id="btnJatiya" onclick="setLayout('jatiya', this)">জাতীয় (National)</button>
       <button class="btn-pill" id="btnGboard" onclick="setLayout('gboard', this)">Gboard Style</button>
     </div>
+
+    <!-- Height Profile Selection -->
     <div class="controls-row">
+      <span class="control-label">Height:</span>
+      <button class="btn-pill" onclick="setHeight('compact', this)">Compact (34%)</button>
+      <button class="btn-pill active" onclick="setHeight('balanced', this)">Balanced (38%) [Golden Ratio]</button>
+      <button class="btn-pill" onclick="setHeight('spacious', this)">Spacious (42%)</button>
+    </div>
+
+    <!-- Theme Selection & Ergonomics -->
+    <div class="controls-row">
+      <span class="control-label">Theme:</span>
       <button class="btn-pill" onclick="setTheme('dark', this)">Deep Dark</button>
       <button class="btn-pill" onclick="setTheme('oled', this)">AMOLED Black</button>
       <button class="btn-pill" onclick="setTheme('avro', this)">Avro Blue</button>
@@ -483,34 +538,41 @@
     <div class="chat-screen" id="chatScreen">
       <div class="chat-bubble bubble-in">Lekhani কেমন কাজ করছে?</div>
       <div class="chat-bubble bubble-out">বিন্দু পরিমাণ ল্যাগ নেই, সাব-মিলিসেকেন্ড স্পিড! 🚀</div>
+      <div class="chat-bubble bubble-in">কিবোর্ডের হাইট এখন কেমন লাগছে? স্ক্রিন বেশ ফাঁকা ও স্পষ্ট!</div>
     </div>
 
     <div class="text-input-bar">
-      <input type="text" id="phoneInput" class="input-field" placeholder="টাইপ করুন..." autofocus />
+      <input type="text" id="phoneInput" class="input-field" placeholder="টাইপ করুন (Try 'amader' or 'বাংলা')..." autofocus />
     </div>
 
     <!-- Lekhani Virtual Keyboard -->
     <div class="keyboard-container" id="kbContainer">
       
-      <!-- Quick Action Toolbar -->
-      <div class="quick-toolbar">
-        <div class="toolbar-tools">
-          <span class="tool-icon" title="Offline Voice Typing" onclick="openVoiceSheet()">🎙️</span>
-          <span class="tool-icon" title="Emoji & Kaomoji" onclick="openEmojiSheet()">😊</span>
-          <span class="tool-icon" title="Local Clipboard" onclick="openClipSheet()">📋</span>
-          <span class="tool-icon" title="Themes" onclick="cycleTheme()">🎨</span>
-          <span class="tool-icon" title="One-Handed Mode" onclick="toggleOneHanded()">📱</span>
+      <!-- Unified Smart Header Bar (Single 38px bar that morphs between Tools and Candidates) -->
+      <div class="smart-header-bar" id="smartHeader">
+        
+        <!-- Idle State: Quick Action Tools -->
+        <div class="header-toolbar-view">
+          <div class="toolbar-tools">
+            <span class="tool-icon" title="Offline Voice Typing" onclick="openVoiceSheet()">🎙️</span>
+            <span class="tool-icon" title="Emoji & Kaomoji" onclick="openEmojiSheet()">😊</span>
+            <span class="tool-icon" title="Local Clipboard" onclick="openClipSheet()">📋</span>
+            <span class="tool-icon" title="Theme Quick Switch" onclick="cycleTheme()">🎨</span>
+            <span class="tool-icon" title="One-Handed Mode" onclick="toggleOneHanded()">📱</span>
+          </div>
+          <div class="layout-badge" id="layoutBadge">লেখনী প্রবাহ</div>
         </div>
-        <div class="layout-badge" id="layoutBadge">লেখনী প্রবাহ</div>
-      </div>
 
-      <!-- Candidate Strip -->
-      <div class="candidate-strip" id="candidateStrip">
-        <span class="candidate-chip primary" onclick="pickCandidate(this.innerText)">আমাদের</span>
-        <span class="candidate-chip" onclick="pickCandidate(this.innerText)">আমি</span>
-        <span class="candidate-chip" onclick="pickCandidate(this.innerText)">বাংলাদেশ</span>
-        <span class="candidate-chip" onclick="pickCandidate(this.innerText)">আমরা</span>
-        <span class="candidate-chip" onclick="pickCandidate(this.innerText)">ভালো</span>
+        <!-- Composing State: Candidate Suggestions Strip -->
+        <div class="header-candidate-view" id="candidateView">
+          <span class="btn-toggle-tools" title="Show Tools" onclick="forceToggleTools()">❮</span>
+          <span class="candidate-chip primary" onclick="pickCandidate('আমাদের')">আমাদের</span>
+          <span class="candidate-chip" onclick="pickCandidate('আমি')">আমি</span>
+          <span class="candidate-chip" onclick="pickCandidate('বাংলাদেশ')">বাংলাদেশ</span>
+          <span class="candidate-chip" onclick="pickCandidate('আমরা')">আমরা</span>
+          <span class="candidate-chip" onclick="pickCandidate('ভালো')">ভালো</span>
+        </div>
+
       </div>
 
       <!-- Dynamic Keys Grid -->
@@ -557,7 +619,7 @@
             <div class="wave-bar"></div>
             <div class="wave-bar"></div>
           </div>
-          <p style="font-size: 14px; color: #94a3b8; font-family: var(--font-bn);">শুনছি... বাংলায় বলুন (Speaking...)</p>
+          <p style="font-size: 13.5px; color: #94a3b8; font-family: var(--font-bn);">শুনছি... বাংলায় বলুন (Speaking...)</p>
           <button class="btn-pill active" onclick="simulateVoiceCommit()">"বাংলা আমার মাতৃভাষা।" প্রবেশ করান</button>
         </div>
       </div>
@@ -580,7 +642,8 @@
 
   <script>
     const input = document.getElementById('phoneInput');
-    const strip = document.getElementById('candidateStrip');
+    const smartHeader = document.getElementById('smartHeader');
+    const candidateView = document.getElementById('candidateView');
     const chat = document.getElementById('chatScreen');
     const grid = document.getElementById('keysGrid');
     const badge = document.getElementById('layoutBadge');
@@ -774,21 +837,25 @@
     function showConjunctSuggestions() {
       const val = input.value;
       const lastChar = val.slice(-1);
+      smartHeader.classList.add('candidate-mode');
       if (lastChar === 'ক') {
-        strip.innerHTML = `
+        candidateView.innerHTML = `
+          <span class="btn-toggle-tools" onclick="forceToggleTools()">❮</span>
           <span class="candidate-chip primary" onclick="replaceLast('ক্ত')">ক্ত</span>
           <span class="candidate-chip" onclick="replaceLast('ক্ষ')">ক্ষ</span>
           <span class="candidate-chip" onclick="replaceLast('ক্র')">ক্র</span>
           <span class="candidate-chip" onclick="replaceLast('ক্ল')">ক্ল</span>
         `;
       } else if (lastChar === 'স') {
-        strip.innerHTML = `
+        candidateView.innerHTML = `
+          <span class="btn-toggle-tools" onclick="forceToggleTools()">❮</span>
           <span class="candidate-chip primary" onclick="replaceLast('স্ত')">স্ত</span>
           <span class="candidate-chip" onclick="replaceLast('স্প')">স্প</span>
           <span class="candidate-chip" onclick="replaceLast('স্খ')">স্খ</span>
         `;
       } else if (lastChar === 'ন') {
-        strip.innerHTML = `
+        candidateView.innerHTML = `
+          <span class="btn-toggle-tools" onclick="forceToggleTools()">❮</span>
           <span class="candidate-chip primary" onclick="replaceLast('ন্ট')">ন্ট</span>
           <span class="candidate-chip" onclick="replaceLast('ন্দ')">ন্দ</span>
           <span class="candidate-chip" onclick="replaceLast('ন্ত')">ন্ত</span>
@@ -801,6 +868,10 @@
       updateCandidates('');
       input.focus();
     }
+
+    input.addEventListener('input', () => {
+      updateCandidates(input.value.trim().toLowerCase());
+    });
 
     function press(char) {
       input.value += char;
@@ -816,30 +887,34 @@
 
     function updateCandidates(val) {
       if (!val) {
-        strip.innerHTML = `
-          <span class="candidate-chip primary" onclick="pickCandidate('আমাদের')">আমাদের</span>
-          <span class="candidate-chip" onclick="pickCandidate('আমি')">আমি</span>
-          <span class="candidate-chip" onclick="pickCandidate('বাংলাদেশ')">বাংলাদেশ</span>
-          <span class="candidate-chip" onclick="pickCandidate('আমরা')">আমরা</span>
-          <span class="candidate-chip" onclick="pickCandidate('ভালো')">ভালো</span>
-        `;
+        smartHeader.classList.remove('candidate-mode');
         return;
       }
 
+      smartHeader.classList.add('candidate-mode');
       const words = val.split(' ');
       const cur = words[words.length - 1];
 
       if (mockAvro[cur]) {
-        strip.innerHTML = mockAvro[cur].map((c, i) =>
-          `<span class="candidate-chip ${i===0?'primary':''}" onclick="pickCandidate('${c}')">${c}</span>`
-        ).join('');
+        candidateView.innerHTML = `
+          <span class="btn-toggle-tools" onclick="forceToggleTools()">❮</span>
+          ${mockAvro[cur].map((c, i) =>
+            `<span class="candidate-chip ${i===0?'primary':''}" onclick="pickCandidate('${c}')">${c}</span>`
+          ).join('')}
+        `;
       } else {
-        strip.innerHTML = `
+        candidateView.innerHTML = `
+          <span class="btn-toggle-tools" onclick="forceToggleTools()">❮</span>
           <span class="candidate-chip primary" onclick="pickCandidate('${cur}')">${cur}</span>
           <span class="candidate-chip" onclick="pickCandidate('বাংলা')">বাংলা</span>
           <span class="candidate-chip" onclick="pickCandidate('বাংলাদেশ')">বাংলাদেশ</span>
+          <span class="candidate-chip" onclick="pickCandidate('আমাদের')">আমাদের</span>
         `;
       }
+    }
+
+    function forceToggleTools() {
+      smartHeader.classList.toggle('candidate-mode');
     }
 
     function pickCandidate(word) {
@@ -879,6 +954,12 @@
 
     function capitalize(str) {
       return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function setHeight(heightProfile, btn) {
+      document.body.setAttribute('data-height', heightProfile);
+      btn.parentElement.querySelectorAll('.btn-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
     }
 
     function setTheme(theme, btn) {
