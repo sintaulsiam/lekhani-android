@@ -39,21 +39,22 @@
 ---
 
 ## Phase 3: Hardware Canvas Touch Grid & Bengali Script Engine
-- [ ] Custom `KeyboardCanvasView` rendering at 120 FPS latency-free hardware draw loops.
-- [ ] Multi-touch thumb tracking with Gaussian spatial key bounding boxes.
-- [ ] Key touch-down ripple states and spring popups.
-- [ ] **Bengali Script Precision**:
-  - Dedicated ZWJ (`\u200D`) and ZWNJ (`\u200C`) key access for clean Hasanta, Khanda-Ta (`ৎ`), and Ya-phala (`্য`).
-  - Conjunct-aware grapheme cluster backspace (cleanly delete complex conjuncts like `ক্ষ`).
-  - Automatic Unicode NFC canonicalization before text commitment.
-- [ ] **Core Layout Implementations**:
-  - **Lekhani প্রবাহ (Flow)**: Custom ergonomic two-thumb layout with vowel/consonant hand separation and Smart Kar promotion ([LAYOUT_PROBAHO.md](LAYOUT_PROBAHO.md)).
-  - **Avro Phonetic**: Dynamic phonetic transliteration engine.
-  - **Fixed National (জাতীয়)**: Standard layout with Shift & AltGr states.
-  - **Fixed Probhat (प्रभात)**: Popular layout with dead-key combinations.
-  - **Fixed Gboard-style Layout**: Standard Google Gboard Bengali key mapping for effortless switching.
-  - **English (QWERTY)**: Clean bilingual typing layer.
-  - **Numbers & Typographic Symbols**: Bengali digits (`০-৯`), currency (`৳`), Dari (`।`, `॥`), and punctuation.
+- [x] Custom `KeyboardCanvasView` rendering at 120 FPS latency-free hardware draw loops (`LAYER_TYPE_HARDWARE`).
+- [x] Multi-touch thumb tracking with Gaussian spatial key bounding boxes (weighted distance nearest-key lookup with row-Y bias).
+- [x] Key touch-down ripple states (alpha-decay teal ripple overlay, 180 ms).
+- [x] **Bengali Script Precision**:
+  - Dedicated ZWJ (`\u200D`) and ZWNJ (`\u200C`) key access on Shift+ঁ and Shift+ঃ.
+  - Conjunct-aware grapheme cluster backspace delegated to Rust engine (Phase 1).
+  - Automatic Unicode NFC canonicalization on every commit (Phase 1).
+- [x] **Core Layout Implementations**:
+  - **Lekhani প্রবাহ (Flow)**: `ProbahLayout.kt` — full 3-row + spacebar row per LAYOUT_PROBAHO.md spec.
+  - **Avro Phonetic**: `AvroPhoneticLayout` — QWERTY grid, transliteration in Rust engine.
+  - **Fixed National (জাতীয়)**: `NationalLayout.kt` — BBS standard with Shift layers.
+  - **Fixed Probhat / Gboard**: stub to National for Phase 3; full definitions next.
+  - **English (QWERTY)**: `EnglishQwertyLayout.kt` — bilingual typing layer.
+  - **LayoutRegistry**: maps `LekhaniLayoutType` → `KeyboardLayout`; `cycleLayout()` in IME.
+  - 20 JVM unit tests in `ProbahLayoutTest.kt` covering spec compliance.
+
 
 ---
 

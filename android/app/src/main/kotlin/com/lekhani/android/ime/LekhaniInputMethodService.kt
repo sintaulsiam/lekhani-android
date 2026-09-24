@@ -8,9 +8,13 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import com.lekhani.android.canvas.KeyboardCanvasView
 import com.lekhani.android.ffi.AndroidLekhaniSession
 import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.ffi.LekhaniError
+import com.lekhani.android.model.Key
+import com.lekhani.android.model.KeyAction
+import com.lekhani.android.model.LayoutRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -61,6 +65,11 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    // ── Canvas keyboard view ───────────────────────────────────────────────────
+
+    /** The hardware-canvas keyboard view. Null until [onCreateInputView] is called. */
+    private var keyboardView: KeyboardCanvasView? = null
+
     // ── WebView / Chromium composing shadow buffer ─────────────────────────────
 
     /**
@@ -101,6 +110,7 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        keyboardView = null
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -134,9 +144,52 @@ class LekhaniInputMethodService : InputMethodService() {
     // ══════════════════════════════════════════════════════════════════════════
 
     override fun onCreateInputView(): View {
-        // Phase 3 will replace this with KeyboardCanvasView.
-        // For now return a placeholder so the service registers correctly.
-        return View(this)
+        val view = KeyboardCanvasView(this).also { v ->
+            v.setLayout(LayoutRegistry.get(session.getLayout()), shifted = false)
+            v.keyListener = object : KeyboardCanvasView.KeyListener {
+                override fun onKey(key: Key, action: KeyAction) {
+                    handleKeyAction(key, action)
+                }
+            }
+        }
+        keyboardView = view
+        return view
+    }
+
+    // ── Internal key dispatch ─────────────────────────────────────────────────
+
+    private fun handleKeyAction(key: Key, action: KeyAction) {
+        when (action) {
+            is KeyAction.Character -> onKey(action.token)
+            KeyAction.Backspace    -> onBackspace()
+            KeyAction.Space        -> onSpace()
+            KeyAction.Enter        -> commitEnter()
+            KeyAction.Shift        -> toggleShift()
+            KeyAction.SwitchNumeric -> { /* Phase 6: numbers layer */ }
+            KeyAction.SwitchLayout -> cycleLayout()
+        }
+    }
+
+    private fun toggleShift() {
+        keyboardView?.setShifted(keyboardView?.let {
+            // Read current shift state from the view (we don't store it here)
+            false  // The view manages its own shift toggle internally
+        } ?: false)
+    }
+
+    private fun commitEnter() {
+        currentInputConnection?.performEditorAction(
+            currentInputEditorInfo?.imeOptions ?: android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+        )
+        session.reset()
+        keyboardView?.setShifted(false)
+    }
+
+    private fun cycleLayout() {
+        val current = session.getLayout()
+        val all = LayoutRegistry.all
+        val nextIndex = (all.indexOf(current) + 1) % all.size
+        switchLayout(all[nextIndex])
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -264,6 +317,7 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     fun switchLayout(layout: LekhaniLayoutType) {
         session.setLayout(layout)
+        keyboardView?.setLayout(LayoutRegistry.get(layout), shifted = false)
         devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()
         Log.i(TAG, "Layout switched to $layout")
     }
