@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="mockups/lekhani_android_dark.jpg" alt="Lekhani Android Keyboard Dark Mode" width="700" style="border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+  <img src="mockups/lekhani_android_flagship.jpg" alt="Lekhani Android Flagship Keyboard Mockup" width="700" style="border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6);" />
 </p>
 
 <p align="center">
@@ -41,16 +41,19 @@ Lekhani Android is engineered to become the definitive mobile Bengali typing exp
 
 ## 📱 Visual Mockups & UI Showcase
 
-### 1. Dark Mode Mobile Keyboard with Contextual Candidate Strip
-![Dark Mode Keyboard](mockups/lekhani_android_dark.jpg)
+### 1. Flagship Real-World View (Modern Bezel-Less Android 15)
+![Flagship Mockup](mockups/lekhani_android_flagship.jpg)
 
 ### 2. Lekhani প্রবাহ (Flow) Ergonomic Two-Thumb Layout
 ![Lekhani Probaho Layout](mockups/lekhani_android_probaho.jpg)
 
-### 3. Settings & Theme Studio (Material You & OLED Themes)
+### 3. Dark Mode Mobile Keyboard with Contextual Candidate Strip
+![Dark Mode Keyboard](mockups/lekhani_android_dark.jpg)
+
+### 4. Settings & Theme Studio (Material You & OLED Themes)
 ![Settings & Themes](mockups/lekhani_android_themes.jpg)
 
-### 4. Interactive Web Mockup
+### 5. Interactive Web Mockup
 You can test the interactive prototype directly in your browser by opening [`mockups/index.html`](mockups/index.html).
 
 ---
