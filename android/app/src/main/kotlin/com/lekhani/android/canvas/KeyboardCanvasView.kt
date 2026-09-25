@@ -497,6 +497,21 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * Triggers a re-computation of pixel bounds and a redraw.
      * Called from LekhaniInputMethodService on layout switch.
      */
+    var isGboardKarsActive: Boolean = false
+        private set
+
+    fun setGboardKarsActive(active: Boolean) {
+        if (isGboardKarsActive != active) {
+            isGboardKarsActive = active
+            if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
+                if (width > 0 && height > 0) {
+                    computeKeyBounds()
+                    invalidate()
+                }
+            }
+        }
+    }
+
     fun setLayout(
         newLayout: KeyboardLayout,
         newLayoutType: com.lekhani.android.ffi.LekhaniLayoutType = com.lekhani.android.ffi.LekhaniLayoutType.PROBAHO,
@@ -505,6 +520,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         layout = newLayout
         layoutType = newLayoutType
         isShifted = shifted
+        isGboardKarsActive = false
         if (width > 0 && height > 0) {
             computeKeyBounds()
             invalidate()
@@ -681,7 +697,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val standardUnitWidth = (availableRowW - standardGaps) / maxKeysInRow
 
         var currentRowTop = yOffset + keyMarginV
-        for ((rowIndex, row) in currentLayout.rows.withIndex()) {
+        for ((rowIndex, originalRow) in currentLayout.rows.withIndex()) {
+            val row = if (rowIndex == 0 && layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD && isGboardKarsActive) {
+                com.lekhani.android.model.GboardBengaliLayout.karsRow
+            } else {
+                originalRow
+            }
             val hasShiftAtStart = row.isNotEmpty() && row.first().action == KeyAction.Shift
             val hasBackspaceAtEnd = row.isNotEmpty() && row.last().action == KeyAction.Backspace
 
@@ -781,7 +802,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val rightClusterOrigin = clusterW + centerGap
 
         var currentRowTop = keyMarginV
-        for (row in currentLayout.rows) {
+        for ((rowIndex, originalRow) in currentLayout.rows.withIndex()) {
+            val row = if (rowIndex == 0 && layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD && isGboardKarsActive) {
+                com.lekhani.android.model.GboardBengaliLayout.karsRow
+            } else {
+                originalRow
+            }
             val halfCount = (row.size + 1) / 2
             val leftKeys = row.take(halfCount)
             val rightKeys = row.drop(halfCount)
@@ -947,53 +973,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         canvas.drawOval(scratchRect, strokePaint)
     }
 
-    private fun drawVectorHasanta(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        val sw = strokePaint.strokeWidth
-        val density = resources.displayMetrics.density
-        strokePaint.strokeWidth = 2.4f * density
-        val lineHalfW = size * 0.28f
-        // Baseline guide dash
-        canvas.drawLine(cx - lineHalfW, cy - 2f * density, cx + lineHalfW, cy - 2f * density, strokePaint)
-        // Virama slash beneath the line
-        canvas.drawLine(cx, cy, cx + lineHalfW * 0.75f, cy + size * 0.32f, strokePaint)
-        strokePaint.strokeWidth = sw
-    }
-
-    private fun drawVectorChandraBindu(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint, fillPaint: Paint) {
-        val sw = strokePaint.strokeWidth
-        val density = resources.displayMetrics.density
-        strokePaint.strokeWidth = 2.2f * density
-        // Dot at top
-        val dotRadius = 2.4f * density
-        canvas.drawCircle(cx, cy - 6f * density, dotRadius, fillPaint)
-        // Crescent arc at bottom
-        vectorIconPath.rewind()
-        val arcHalfW = 8f * density
-        val arcH = 5.5f * density
-        vectorIconPath.moveTo(cx - arcHalfW, cy - 2f * density)
-        vectorIconPath.quadTo(cx, cy + arcH, cx + arcHalfW, cy - 2f * density)
-        canvas.drawPath(vectorIconPath, strokePaint)
-        strokePaint.strokeWidth = sw
-    }
-
-    private fun sanitizeLabelForDisplay(label: String): String {
-        if (label.length == 1) {
-            return when (label[0]) {
-                'া' -> "আ"
-                'ি' -> "ই"
-                'ী' -> "ঈ"
-                'ু' -> "উ"
-                'ূ' -> "ঊ"
-                'ৃ' -> "ঋ"
-                'ে' -> "এ"
-                'ৈ' -> "ঐ"
-                'ো' -> "ও"
-                'ৌ' -> "ঔ"
-                else -> label
-            }
-        }
-        return label
-    }
+    private fun sanitizeLabelForDisplay(label: String): String = label
 
     // ══════════════════════════════════════════════════════════════════════════
     // Drawing — ZERO allocations permitted here
@@ -1146,31 +1126,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     canvas.drawText(labelText, cx, cy, labelPaintSmall)
                 }
                 else -> {
-                    when (labelText) {
-                        "্" -> {
-                            val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
-                            drawVectorHasanta(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                        }
-                        "ঁ" -> {
-                            val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
-                            drawVectorChandraBindu(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint, vectorIconFillPaint)
-                        }
-                        else -> {
-                            canvas.drawText(labelText, cx, cy, labelPaint)
-                        }
-                    }
+                    canvas.drawText(labelText, cx, cy, labelPaint)
                     val hint = key.hintLabel ?: if (!isShifted && key.shiftedLabel != null && key.shiftedLabel != key.label && key.shiftedLabel.isNotEmpty()) key.shiftedLabel else null
                     if (hint != null) {
                         val displayHint = sanitizeLabelForDisplay(hint)
                         val hintX = drawBounds.right - 5f * density
                         val hintY = drawBounds.top + 13f * density
-                        if (displayHint == "্") {
-                            drawVectorHasanta(canvas, hintX - 6f * density, hintY - 4f * density, 11f * density, vectorIconStrokePaint)
-                        } else if (displayHint == "ঁ") {
-                            drawVectorChandraBindu(canvas, hintX - 6f * density, hintY - 4f * density, 11f * density, vectorIconStrokePaint, vectorIconFillPaint)
-                        } else {
-                            canvas.drawText(displayHint, hintX, hintY, hintPaint)
-                        }
+                        canvas.drawText(displayHint, hintX, hintY, hintPaint)
                     }
                 }
             }
@@ -1221,14 +1183,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
                 // Popup character
                 val charStr = sanitizeLabelForDisplay(pKey.displayLabel(isShifted))
-                if (charStr == "্") {
-                    drawVectorHasanta(canvas, keyPopupRect.centerX(), keyPopupRect.centerY(), popupH * 0.45f, vectorIconStrokePaint)
-                } else if (charStr == "ঁ") {
-                    drawVectorChandraBindu(canvas, keyPopupRect.centerX(), keyPopupRect.centerY(), popupH * 0.45f, vectorIconStrokePaint, vectorIconFillPaint)
-                } else {
-                    val pTextY = keyPopupRect.centerY() - (keyPopupTextPaint.ascent() + keyPopupTextPaint.descent()) / 2f
-                    canvas.drawText(charStr, keyPopupRect.centerX(), pTextY, keyPopupTextPaint)
-                }
+                val pTextY = keyPopupRect.centerY() - (keyPopupTextPaint.ascent() + keyPopupTextPaint.descent()) / 2f
+                canvas.drawText(charStr, keyPopupRect.centerX(), pTextY, keyPopupTextPaint)
             }
         }
 

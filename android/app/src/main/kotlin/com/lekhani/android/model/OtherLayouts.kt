@@ -60,16 +60,16 @@ object EnglishQwertyLayout {
                 widthWeight = 1.4f, contentDesc = "Numbers and symbols",
             ),
             Key(
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                widthWeight = 1.0f, contentDesc = "Switch layout",
+            ),
+            Key(
                 label = ",", shiftedLabel = ";", hintLabel = "😊",
                 action = KeyAction.Character(","),
                 shiftedAction = KeyAction.Character(";"),
                 longPressAction = KeyAction.SwitchEmoji,
                 widthWeight = 1.0f, contentDesc = "Comma, long press for emoji",
-            ),
-            Key(
-                label = "🌐", shiftedLabel = "🌐",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
-                widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
                 label = "Space", shiftedLabel = "Space",
@@ -186,23 +186,23 @@ object NationalLayout {
 }
 
 /**
- * Probhat (प्रभात) Layout — Mobile 10-Key Refactored Standard
+ * Probhat (प्रभात) Layout — Official 12-Key Ergonomic Bengali Layout
  * ══════════════════════════════════════════════════════════════════════════════
- * Refactored for mobile ergonomics (maximum 10 keys per row, no piano teeth).
- * Crucially includes Hasanta (্) and Chandra Bindu (ঁ) for complete conjuncts.
+ * Features full standard letter coverage including ে/ৈ and ো/ৌ on top row,
+ * dedicated Hasanta (্) and Chandra Bindu (ঁ) in row 3, and standardized spacebar.
  */
 object ProbhatLayout {
 
     val layout: KeyboardLayout = KeyboardLayout(
         name = "Probhat",
         rows = listOf(
-            // Row 1 (10 keys: Top consonants & high-frequency long/short vowels)
+            // Row 1 (12 keys: দ ূ ী র ট এ ু ি ও প ে ো)
             listOf(
                 Ch("দ", "ধ"), Ch("ূ", "ঊ"), Ch("ী", "ঈ"), Ch("র", "ড়"),
                 Ch("ট", "ঠ"), Ch("এ", "ঐ"), Ch("ু", "উ"), Ch("ি", "ই"),
-                Ch("ও", "ঔ"), Ch("প", "ফ"),
+                Ch("ও", "ঔ"), Ch("প", "ফ"), Ch("ে", "ৈ"), Ch("ো", "ৌ"),
             ),
-            // Row 2 (Home: a s d f g h j k l — 9 keys centered)
+            // Row 2 (Home: া স ড ত গ হ জ ক ল — 9 keys centered)
             listOf(
                 Ch("া", "অ", homeRow = true), Ch("স", "ষ", homeRow = true),
                 Ch("ড", "ঢ", homeRow = true), Ch("ত", "থ", homeRow = true),
@@ -210,7 +210,7 @@ object ProbhatLayout {
                 Ch("জ", "ঝ", homeRow = true), Ch("ক", "খ", homeRow = true),
                 Ch("ল", "ং", homeRow = true),
             ),
-            // Row 3 (Shift, 8 letters + Hasanta/ChandraBindu + Backspace = 10 keys)
+            // Row 3 (Shift, 8 letters + Hasanta + Backspace = 10 keys)
             listOf(
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
@@ -241,13 +241,17 @@ object ProbhatLayout {
                 longPressAction = KeyAction.SwitchClipboard,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
-            Ch("ে", "ৈ", desc = "E-kar, shifted Oi-kar"),
+            Key(
+                label = ",", shiftedLabel = ";",
+                action = KeyAction.Character(","),
+                shiftedAction = KeyAction.Character(";"),
+                widthWeight = 1.0f, contentDesc = "Comma",
+            ),
             Key(
                 label = "স্পেস • প্রভাত", shiftedLabel = "স্পেস • প্রভাত",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
                 widthWeight = 4.2f, contentDesc = "Space",
             ),
-            Ch("ো", "ৌ", desc = "O-kar, shifted Ou-kar"),
             Ch("।", "?", desc = "Dari, shifted question"),
             Key(
                 label = "↵", shiftedLabel = "↵",
@@ -261,47 +265,66 @@ object ProbhatLayout {
 /**
  * Gboard Bengali (জি-বোর্ড বাংলা) Layout
  * ══════════════════════════════════════════════════════════════════════════════
- * Standard Gboard Bengali fixed mapping with complete consonant coverage.
+ * Official Gboard Bengali Varnamala Layout with Dynamic Vowel/Kar Row.
+ * - In default/initial state: Row 1 displays independent vowels (অ..ঔ).
+ * - After a consonant is typed: Row 1 dynamically morphs into vowel kars (া..ৌ).
  */
 object GboardBengaliLayout {
 
+    // Default independent vowels for Row 1
+    val vowelsRow: List<Key> = listOf(
+        Ch("অ", "অ"), Ch("আ", "আ"), Ch("ই", "ই"), Ch("ঈ", "ঈ"),
+        Ch("উ", "উ"), Ch("ঊ", "ঊ"), Ch("এ", "এ"), Ch("ঐ", "ঐ"),
+        Ch("ও", "ও"), Ch("ঔ", "ঔ"),
+    )
+
+    // Dynamic vowel kars for Row 1 (activated immediately after typing any consonant)
+    val karsRow: List<Key> = listOf(
+        Ch("া", "া"), Ch("ি", "ি"), Ch("ী", "ী"), Ch("ু", "ু"),
+        Ch("ূ", "ূ"), Ch("ৃ", "ৃ"), Ch("ে", "ে"), Ch("ৈ", "ৈ"),
+        Ch("ো", "ো"), Ch("ৌ", "ৌ"),
+    )
+
     val layout: KeyboardLayout = KeyboardLayout(
-        name = "Gboard Style",
+        name = "জি-বোর্ড বাংলা",
         rows = listOf(
-            // Row 1 (10 keys)
+            // Row 1 (10 keys: Dynamic Vowels অ..ঔ / Kars া..ৌ)
+            vowelsRow,
+            // Row 2 (10 keys: ক খ গ ঘ ঙ চ ছ জ ঝ ঞ)
             listOf(
-                Ch("ৌ", "ঔ"), Ch("ৈ", "ঐ"), Ch("া", "আ"), Ch("ী", "ঈ"),
-                Ch("ূ", "ঊ"), Ch("ব", "ভ"), Ch("হ", "ঃ"), Ch("গ", "ঘ"),
-                Ch("দ", "ধ"), Ch("জ", "ঝ"),
+                Ch("ক", "ক"), Ch("খ", "খ"), Ch("গ", "গ"), Ch("ঘ", "ঘ"),
+                Ch("ঙ", "ঙ"), Ch("চ", "চ"), Ch("ছ", "ছ"), Ch("জ", "জ"),
+                Ch("ঝ", "ঝ"), Ch("ঞ", "ঞ"),
             ),
-            // Row 2 (Home — 9 keys centered)
+            // Row 3 (10 keys: ট ঠ ড ঢ ণ ত থ দ ধ ন)
             listOf(
-                Ch("ো", "ও", homeRow = true), Ch("ে", "এ", homeRow = true),
-                Ch("্", "অ", homeRow = true), Ch("ি", "ই", homeRow = true),
-                Ch("ু", "উ", homeRow = true), Ch("র", "ড়", homeRow = true),
-                Ch("ক", "খ", homeRow = true), Ch("ত", "থ", homeRow = true),
-                Ch("চ", "ছ", homeRow = true),
+                Ch("ট", "ট"), Ch("ঠ", "ঠ"), Ch("ড", "ড"), Ch("ঢ", "ঢ"),
+                Ch("ণ", "ণ"), Ch("ত", "ত"), Ch("থ", "থ"), Ch("দ", "দ"),
+                Ch("ধ", "ধ"), Ch("ন", "ন"),
             ),
-            // Row 3 (Shift, 8 letters + Backspace = 10 keys)
+            // Row 4 (10 keys: প ফ ব ভ ম য র ল শ ষ)
             listOf(
-                Key(
-                    label = "⇧", shiftedLabel = "⇧",
-                    action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.4f, contentDesc = "Shift",
-                ),
-                Ch("ট", "ঠ"), Ch("ড", "ঢ"), Ch("ণ", "ৎ"),
-                Ch("প", "ফ"), Ch("ন", "ঙ"), Ch("ল", "ং"),
-                Ch("স", "ষ"), Ch("ম", "শ"),
+                Ch("প", "প"), Ch("ফ", "ফ"), Ch("ব", "ব"), Ch("ভ", "ভ"),
+                Ch("ম", "ম"), Ch("য", "য"), Ch("র", "র"), Ch("ল", "ল"),
+                Ch("শ", "শ"), Ch("ষ", "ষ"),
+            ),
+            // Row 5 (10 keys: স হ ড় ঢ় য় ৎ ্য ্ব ্র ⌫)
+            listOf(
+                Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ড়"), Ch("ঢ়", "ঢ়"),
+                Ch("য়", "য়"), Ch("ৎ", "ৎ"),
+                Ch("্য", "্য", desc = "Ya-phala"),
+                Ch("্ব", "্ব", desc = "Ba-phala"),
+                Ch("্র", "্র", desc = "Ra-phala"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.4f, contentDesc = "Backspace",
+                    widthWeight = 1.0f, contentDesc = "Backspace",
                 ),
             ),
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "😊", hintLabel = "😊",
+                label = "?১২৩", shiftedLabel = "😊", hintLabel = "😊",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
                 longPressAction = KeyAction.SwitchEmoji,
                 widthWeight = 1.4f, contentDesc = "Numbers",
@@ -319,7 +342,7 @@ object GboardBengaliLayout {
                 widthWeight = 1.0f, contentDesc = "Comma",
             ),
             Key(
-                label = "স্পেস • জিবোর্ড", shiftedLabel = "স্পেস • জিবোর্ড",
+                label = "বাংলা", shiftedLabel = "বাংলা",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
                 widthWeight = 4.2f, contentDesc = "Space",
             ),

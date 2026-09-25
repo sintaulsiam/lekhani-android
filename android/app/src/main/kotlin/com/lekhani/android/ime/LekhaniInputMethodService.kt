@@ -245,6 +245,7 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onStartInputView(info, restarting)
         // Re-apply policy in case the editor info changed after the view appeared
         applyInputTypePolicy(info)
+        keyboardView?.setGboardKarsActive(false)
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
         updateCandidatesVisibility()
     }
@@ -539,6 +540,7 @@ class LekhaniInputMethodService : InputMethodService() {
         )
         session.reset()
         keyboardView?.setShifted(false)
+        keyboardView?.setGboardKarsActive(false)
     }
 
     fun getEnabledLayouts(): List<LekhaniLayoutType> {
@@ -679,6 +681,8 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
+        updateGboardDynamicRow(keyToken)
+
         result.commitText?.let { text ->
             ic.beginBatchEdit()
             try {
@@ -715,6 +719,9 @@ class LekhaniInputMethodService : InputMethodService() {
         } else {
             // Nothing composing — delete character in the target app
             ic.deleteSurroundingText(1, 0)
+            if (session.getLayout() == LekhaniLayoutType.GBOARD) {
+                keyboardView?.setGboardKarsActive(false)
+            }
         }
     }
 
@@ -723,6 +730,7 @@ class LekhaniInputMethodService : InputMethodService() {
      * Commits the current composing buffer (NFC-normalized + space appended).
      */
     fun onSpace() {
+        keyboardView?.setGboardKarsActive(false)
         val ic = currentInputConnection ?: return
 
         val result = try {
@@ -818,8 +826,22 @@ class LekhaniInputMethodService : InputMethodService() {
     fun switchLayout(layout: LekhaniLayoutType) {
         session.setLayout(layout)
         keyboardView?.setLayout(LayoutRegistry.get(layout), layout, shifted = false)
+        keyboardView?.setGboardKarsActive(false)
         devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()
         Log.i(TAG, "Layout switched to $layout")
+    }
+
+    private fun updateGboardDynamicRow(keyToken: String) {
+        if (session.getLayout() != LekhaniLayoutType.GBOARD) return
+        if (keyToken.isEmpty()) return
+        val ch = keyToken[0]
+        val isConsonant = (ch in '\u0995'..'\u09B9') || (ch in '\u09DC'..'\u09DF') || ch == '\u09CE' || ch == '\u09CD' || keyToken.startsWith("্য") || keyToken.startsWith("্ব") || keyToken.startsWith("্র")
+        val isKarOrVowel = (ch in '\u09BE'..'\u09CC') || (ch in '\u0985'..'\u0994')
+        if (isConsonant) {
+            keyboardView?.setGboardKarsActive(true)
+        } else if (isKarOrVowel) {
+            keyboardView?.setGboardKarsActive(false)
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════════
