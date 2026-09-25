@@ -49,6 +49,19 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    sourceSets {
+        getByName("main") {
+            assets.srcDirs(
+                "src/main/assets",
+                file("${rootDir.parentFile}/data")
+            )
+        }
+    }
+
+    androidResources {
+        noCompress += listOf("bin", "json")
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -81,6 +94,7 @@ val cargoBuild = tasks.register<Exec>("cargoBuild") {
     val cmd = mutableListOf(
         "cargo", "ndk",
         "-t", "arm64-v8a",
+        "-t", "armeabi-v7a",
         "-t", "x86_64",
         "-o", "android/app/src/main/jniLibs",
         "build",
