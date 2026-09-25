@@ -52,9 +52,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -177,7 +178,7 @@ fun CandidateStripView(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Show Candidates",
-                            tint = Color(0xFF00E5B8),
+                            tint = Color(theme.accentColor),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -301,15 +302,18 @@ private fun CandidatePill(
     }
 
     val primaryBg = Color(theme.accentColor)
-    val secondaryBg = if (theme.isDark) Color(0x1FFFFFFF) else Color(0x14000000)
-    val primaryText = if (theme.isDark) Color(0xFF000000) else Color(0xFFFFFFFF)
+    val lum = (primaryBg.red * 0.299f + primaryBg.green * 0.587f + primaryBg.blue * 0.114f)
+    val primaryText = if (lum > 0.5f) Color(0xFF000000) else Color(0xFFFFFFFF)
+
+    // Blend secondary pills with keycap background of active theme
+    val secondaryBg = Color(theme.keyNormalColor)
     val normalText = Color(theme.labelColor)
 
     Box(
         modifier = Modifier
             .alpha(pillAlpha)
-            .wrapContentSize()
-            .clip(RoundedCornerShape(CornerRadius))
+            .height(34.dp)
+            .clip(RoundedCornerShape(17.dp))
             .background(if (item.isPrimary) primaryBg else secondaryBg)
             .combinedClickable(
                 onClick = onClick,
@@ -318,24 +322,33 @@ private fun CandidatePill(
                     onLongClick()
                 },
             )
-            .padding(
-                horizontal = if (item.isPrimary) PrimaryPillHPad else 14.dp,
-                vertical = PrimaryPillVPad,
-            )
-            .semantics { contentDescription = semanticDesc },
+            .padding(horizontal = if (item.isPrimary) 16.dp else 13.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
             Text(
                 text = item.text,
-                fontSize = if (item.isPrimary) 17.sp else 15.sp,
+                fontSize = if (item.isPrimary) 16.sp else 15.sp,
                 fontWeight = if (item.isPrimary) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (item.isPrimary) primaryText else normalText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                style = TextStyle(
+                    platformStyle = PlatformTextStyle(
+                        includeFontPadding = false
+                    ),
+                    lineHeightStyle = LineHeightStyle(
+                        alignment = LineHeightStyle.Alignment.Center,
+                        trim = LineHeightStyle.Trim.Both
+                    )
+                )
             )
             // Homophone disambiguation badge
             if (item.homophones != null) {
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.width(4.dp))
                 HomophoneBadge(alternate = item.homophones)
             }
         }

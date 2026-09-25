@@ -14,6 +14,8 @@ import android.view.inputmethod.InputConnection
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
@@ -118,6 +120,12 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     private val _candidateState = MutableStateFlow<CandidateStripState>(CandidateStripState.Empty)
     val candidateState: StateFlow<CandidateStripState> = _candidateState.asStateFlow()
+
+    /** Dynamic theme StateFlow observed by CandidateStripView and auxiliary sheets. */
+    private val _themeFlow by lazy {
+        MutableStateFlow(ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId))
+    }
+    val themeFlow: StateFlow<com.lekhani.android.theme.KeyboardTheme> get() = _themeFlow.asStateFlow()
 
     /** Persists long-press blacklisted candidates to Device Protected Storage. */
     private val blacklist: CandidateBlacklist by lazy { CandidateBlacklist(this) }
@@ -245,6 +253,9 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onStartInputView(info, restarting)
         // Re-apply policy in case the editor info changed after the view appeared
         applyInputTypePolicy(info)
+        val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
+        _themeFlow.value = activeTheme
+        keyboardView?.applyTheme(activeTheme)
         keyboardView?.setGboardKarsActive(false)
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
         updateCandidatesVisibility()
@@ -299,6 +310,7 @@ class LekhaniInputMethodService : InputMethodService() {
             attachLifecycleOwner(this)
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
+                val currentTheme by _themeFlow.collectAsState()
                 Box {
                     CandidateStripView(
                         stateFlow = candidateState,
@@ -315,7 +327,7 @@ class LekhaniInputMethodService : InputMethodService() {
                                     CandidateStripState.Candidates(filtered)
                             }
                         },
-                        theme = activeTheme,
+                        theme = currentTheme,
                         activeTools = keyboardPrefs.getActiveToolbarTools(),
                         onToolClick = { tool -> handleToolbarToolClick(tool) },
                     )
@@ -835,12 +847,12 @@ class LekhaniInputMethodService : InputMethodService() {
         if (session.getLayout() != LekhaniLayoutType.GBOARD) return
         if (keyToken.isEmpty()) return
         val ch = keyToken[0]
-        val isConsonant = (ch in '\u0995'..'\u09B9') || (ch in '\u09DC'..'\u09DF') || ch == '\u09CE' || ch == '\u09CD' || keyToken.startsWith("্য") || keyToken.startsWith("্ব") || keyToken.startsWith("্র")
-        val isKarOrVowel = (ch in '\u09BE'..'\u09CC') || (ch in '\u0985'..'\u0994')
+        val isConsonant = (ch in '\u0995'..'\u09B9') || (ch in '\u09DC'..'\u09DF') || ch == '\u09CE' || ch == '\u09CD'
+        val isKarOrVowel = (ch in '\u09BE'..'\u09CC') || (ch in '\u0985'..'\u0994') || keyToken.contains("\u09CD\u09AF") || keyToken.contains("\u09CD\u09AC") || keyToken.contains("\u09CD\u09B0")
         if (isConsonant) {
-            keyboardView?.setGboardKarsActive(true)
+            keyboardView?.setGboardKarsActive(true, consonant = keyToken)
         } else if (isKarOrVowel) {
-            keyboardView?.setGboardKarsActive(false)
+            keyboardView?.setGboardKarsActive(false, consonant = "")
         }
     }
 
@@ -1009,6 +1021,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val nextId = if (idx == -1 || idx == themeIds.lastIndex) themeIds.first() else themeIds[idx + 1]
         keyboardPrefs.themeId = nextId
         val nextTheme = ThemeRegistry.resolveTheme(this, nextId)
+        _themeFlow.value = nextTheme
         keyboardView?.applyTheme(nextTheme)
     }
 

@@ -499,10 +499,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
      */
     var isGboardKarsActive: Boolean = false
         private set
+    var gboardActiveConsonant: String = ""
+        private set
 
-    fun setGboardKarsActive(active: Boolean) {
-        if (isGboardKarsActive != active) {
+    fun setGboardKarsActive(active: Boolean, consonant: String = "") {
+        if (isGboardKarsActive != active || gboardActiveConsonant != consonant) {
             isGboardKarsActive = active
+            gboardActiveConsonant = consonant
             if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
                 if (width > 0 && height > 0) {
                     computeKeyBounds()
@@ -521,7 +524,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
         layoutType = newLayoutType
         isShifted = shifted
         isGboardKarsActive = false
+        gboardActiveConsonant = ""
         if (width > 0 && height > 0) {
+            requestLayout()
             computeKeyBounds()
             invalidate()
         }
@@ -548,7 +553,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val density = resources.displayMetrics.density
         val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val defaultHeightDp = (if (isLandscape) 180f else 280f) * heightScale + bottomChinPaddingDp
+        val rowCount = (layout?.rows?.size ?: 3) + 1
+        val isSixRow = rowCount >= 6
+        val baseHeightDp = if (isLandscape) {
+            if (isSixRow) 220f else 180f
+        } else {
+            if (isSixRow) 330f else 280f
+        }
+        val defaultHeightDp = baseHeightDp * heightScale + bottomChinPaddingDp
         val desiredHeight = (defaultHeightDp * density).toInt()
 
         val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
@@ -698,8 +710,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         var currentRowTop = yOffset + keyMarginV
         for ((rowIndex, originalRow) in currentLayout.rows.withIndex()) {
-            val row = if (rowIndex == 0 && layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD && isGboardKarsActive) {
-                com.lekhani.android.model.GboardBengaliLayout.karsRow
+            val row = if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
+                when (rowIndex) {
+                    0 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicVowelsRow(gboardActiveConsonant) else originalRow
+                    4 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicRow5(gboardActiveConsonant) else originalRow
+                    else -> originalRow
+                }
             } else {
                 originalRow
             }
@@ -727,30 +743,38 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     keyLeft += keyWidth + keyMarginH
                 }
             } else {
-                // Middle row padding / centering across all layouts:
-                // For rows with fewer keys (e.g. English/National 9-keys), center with standard key width.
-                // For 10-key middle rows (e.g. Probaho, Gboard), apply elegant side insets for ergonomic thumb rest.
                 val rowWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
                 val totalGaps = (row.size - 1) * keyMarginH
-
                 val isStandardCharRow = row.all { it.widthWeight == 1.0f }
-                val isMiddleRow = (rowIndex == 1 && currentLayout.rows.size >= 3)
 
-                val rowContentWidth = when {
+                val (rowSideInset, unitWidth) = when {
+                    // Gboard: 10 keys per row, uniform width across all rows, no insets
+                    layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD -> {
+                        val w = (availableRowW - totalGaps) / rowWeight
+                        Pair(0f, w)
+                    }
+                    // Probhat Row 1 (9 keys below 12 keys): gentle 0.5-key QWERTY offset, keys expand naturally
+                    layoutType == com.lekhani.android.ffi.LekhaniLayoutType.PROBHAT && rowIndex == 1 -> {
+                        val halfKeyOffset = standardUnitWidth * 0.5f
+                        val contentW = availableRowW - 2f * halfKeyOffset
+                        val w = (contentW - totalGaps) / rowWeight
+                        Pair(halfKeyOffset, w)
+                    }
+                    // English / National 9-key home row below 10-key row: gentle 0.5-key QWERTY offset
+                    isStandardCharRow && row.size == maxKeysInRow - 1 -> {
+                        val halfKeyOffset = standardUnitWidth * 0.5f
+                        Pair(halfKeyOffset, standardUnitWidth)
+                    }
+                    // Default fallback
                     isStandardCharRow && row.size < maxKeysInRow -> {
-                        row.size * standardUnitWidth + totalGaps
+                        val contentW = row.size * standardUnitWidth + totalGaps
+                        val inset = ((availableRowW - contentW) / 2f).coerceAtLeast(0f)
+                        Pair(inset, standardUnitWidth)
                     }
-                    isMiddleRow -> {
-                        availableRowW - (standardUnitWidth * 0.6f)
+                    else -> {
+                        val w = (availableRowW - totalGaps) / rowWeight
+                        Pair(0f, w)
                     }
-                    else -> availableRowW
-                }
-
-                val rowSideInset = ((availableRowW - rowContentWidth) / 2f).coerceAtLeast(0f)
-                val unitWidth = if (isStandardCharRow && row.size < maxKeysInRow) {
-                    standardUnitWidth
-                } else {
-                    (rowContentWidth - totalGaps) / rowWeight
                 }
 
                 var keyLeft = originX + sidePadding + rowSideInset
@@ -803,8 +827,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         var currentRowTop = keyMarginV
         for ((rowIndex, originalRow) in currentLayout.rows.withIndex()) {
-            val row = if (rowIndex == 0 && layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD && isGboardKarsActive) {
-                com.lekhani.android.model.GboardBengaliLayout.karsRow
+            val row = if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
+                when (rowIndex) {
+                    0 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicVowelsRow(gboardActiveConsonant) else originalRow
+                    4 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicRow5(gboardActiveConsonant) else originalRow
+                    else -> originalRow
+                }
             } else {
                 originalRow
             }
@@ -1035,7 +1063,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 key.action == KeyAction.Enter || key.action == KeyAction.SwitchEmoji ||
                 key.action == KeyAction.SwitchClipboard -> keyShiftBgPaint
                 key.action == KeyAction.Space -> keySpaceBgPaint
-                key.action is KeyAction.Character && key.label == "্" -> keyHasantaBgPaint
                 else -> keyBgPaint
             }
 

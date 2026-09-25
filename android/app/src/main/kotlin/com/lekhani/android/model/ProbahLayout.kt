@@ -78,11 +78,10 @@ object ProbahLayout {
                 contentDesc = "Numbers and symbols, shifted emoji picker",
             ),
             Key(
-                label = "🌐", shiftedLabel = "📋", hintLabel = "📋",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
-                longPressAction = KeyAction.SwitchClipboard,
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
                 widthWeight = 1.0f,
-                contentDesc = "Switch keyboard layout, shifted clipboard",
+                contentDesc = "Switch keyboard layout",
             ),
             Key(
                 label = ",", shiftedLabel = ";",

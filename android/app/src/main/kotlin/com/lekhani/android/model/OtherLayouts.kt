@@ -159,9 +159,8 @@ object NationalLayout {
                 widthWeight = 1.4f, contentDesc = "Numbers",
             ),
             Key(
-                label = "🌐", shiftedLabel = "📋", hintLabel = "📋",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
-                longPressAction = KeyAction.SwitchClipboard,
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
@@ -236,9 +235,8 @@ object ProbhatLayout {
                 widthWeight = 1.4f, contentDesc = "Numbers",
             ),
             Key(
-                label = "🌐", shiftedLabel = "📋", hintLabel = "📋",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
-                longPressAction = KeyAction.SwitchClipboard,
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
@@ -279,11 +277,57 @@ object GboardBengaliLayout {
     )
 
     // Dynamic vowel kars for Row 1 (activated immediately after typing any consonant)
-    val karsRow: List<Key> = listOf(
-        Ch("া", "া"), Ch("ি", "ি"), Ch("ী", "ী"), Ch("ু", "ু"),
-        Ch("ূ", "ূ"), Ch("ৃ", "ৃ"), Ch("ে", "ে"), Ch("ৈ", "ৈ"),
-        Ch("ো", "ো"), Ch("ৌ", "ৌ"),
-    )
+    // If an active consonant is present (e.g. 'ম'), renders as 'মা', 'মি', 'মী'..., emitting the kar token on press
+    fun getDynamicVowelsRow(activeConsonant: String = ""): List<Key> {
+        val c = activeConsonant
+        if (c.isEmpty()) {
+            return listOf(
+                Key(label = "া", action = KeyAction.Character("া")),
+                Key(label = "ি", action = KeyAction.Character("ি")),
+                Key(label = "ী", action = KeyAction.Character("ী")),
+                Key(label = "ু", action = KeyAction.Character("ু")),
+                Key(label = "ূ", action = KeyAction.Character("ূ")),
+                Key(label = "ৃ", action = KeyAction.Character("ৃ")),
+                Key(label = "ে", action = KeyAction.Character("ে")),
+                Key(label = "ৈ", action = KeyAction.Character("ৈ")),
+                Key(label = "ো", action = KeyAction.Character("ো")),
+                Key(label = "ৌ", action = KeyAction.Character("ৌ")),
+            )
+        }
+        return listOf(
+            Key(label = "$c\u09BE", action = KeyAction.Character("\u09BE"), contentDesc = "$c-kar A"),
+            Key(label = "$c\u09BF", action = KeyAction.Character("\u09BF"), contentDesc = "$c-kar I"),
+            Key(label = "$c\u09C0", action = KeyAction.Character("\u09C0"), contentDesc = "$c-kar II"),
+            Key(label = "$c\u09C1", action = KeyAction.Character("\u09C1"), contentDesc = "$c-kar U"),
+            Key(label = "$c\u09C2", action = KeyAction.Character("\u09C2"), contentDesc = "$c-kar UU"),
+            Key(label = "$c\u09C3", action = KeyAction.Character("\u09C3"), contentDesc = "$c-kar R"),
+            Key(label = "$c\u09C7", action = KeyAction.Character("\u09C7"), contentDesc = "$c-kar E"),
+            Key(label = "$c\u09C8", action = KeyAction.Character("\u09C8"), contentDesc = "$c-kar AI"),
+            Key(label = "$c\u09CB", action = KeyAction.Character("\u09CB"), contentDesc = "$c-kar O"),
+            Key(label = "$c\u09CC", action = KeyAction.Character("\u09CC"), contentDesc = "$c-kar OU"),
+        )
+    }
+
+    // Dynamic Row 5 for Gboard: converts phalas to active consonant ligatures (e.g. 'ম্য', 'ম্ব', 'ম্র')
+    fun getDynamicRow5(activeConsonant: String = ""): List<Key> {
+        val c = activeConsonant
+        val jaPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09AF" else "◌্য"
+        val baPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09AC" else "◌্ব"
+        val roPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09B0" else "◌্র"
+
+        return listOf(
+            Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ড়"), Ch("ঢ়", "ঢ়"),
+            Ch("য়", "য়"), Ch("ৎ", "ৎ"),
+            Key(label = jaPhalaLabel, action = KeyAction.Character("\u09CD\u09AF"), contentDesc = "Ya-phala"),
+            Key(label = baPhalaLabel, action = KeyAction.Character("\u09CD\u09AC"), contentDesc = "Ba-phala"),
+            Key(label = roPhalaLabel, action = KeyAction.Character("\u09CD\u09B0"), contentDesc = "Ra-phala"),
+            Key(
+                label = "⌫", shiftedLabel = "⌫",
+                action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                widthWeight = 1.0f, contentDesc = "Backspace",
+            ),
+        )
+    }
 
     val layout: KeyboardLayout = KeyboardLayout(
         name = "জি-বোর্ড বাংলা",
@@ -330,9 +374,8 @@ object GboardBengaliLayout {
                 widthWeight = 1.4f, contentDesc = "Numbers",
             ),
             Key(
-                label = "🌐", shiftedLabel = "📋", hintLabel = "📋",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
-                longPressAction = KeyAction.SwitchClipboard,
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
