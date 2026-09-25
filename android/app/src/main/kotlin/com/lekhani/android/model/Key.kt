@@ -49,10 +49,12 @@ sealed class KeyAction {
 data class Key(
     val label: String,
     val shiftedLabel: String? = null,
+    val hintLabel: String? = null,
     val action: KeyAction,
     val shiftedAction: KeyAction = shiftedLabel
         ?.let { KeyAction.Character(it) }
         ?: action,
+    val longPressAction: KeyAction? = null,
     val widthWeight: Float = 1.0f,
     val isHomeRow: Boolean = false,
     val contentDesc: String = label,

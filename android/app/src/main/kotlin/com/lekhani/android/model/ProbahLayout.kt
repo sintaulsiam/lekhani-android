@@ -71,14 +71,16 @@ object ProbahLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "😊",
+                label = "?123", shiftedLabel = "😊", hintLabel = "😊",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
-                widthWeight = 1.5f,
+                longPressAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.4f,
                 contentDesc = "Numbers and symbols, shifted emoji picker",
             ),
             Key(
-                label = "🌐", shiftedLabel = "📋",
+                label = "🌐", shiftedLabel = "📋", hintLabel = "📋",
                 action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
+                longPressAction = KeyAction.SwitchClipboard,
                 widthWeight = 1.0f,
                 contentDesc = "Switch keyboard layout, shifted clipboard",
             ),
@@ -92,7 +94,7 @@ object ProbahLayout {
             Key(
                 label = "স্পেস", shiftedLabel = "স্পেস",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.5f,    // spacebar takes majority of the row
+                widthWeight = 4.2f,    // spacebar takes majority of the row
                 contentDesc = "Space",
             ),
             Key(
@@ -113,7 +115,7 @@ object ProbahLayout {
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 1.5f,
+                widthWeight = 1.4f,
                 contentDesc = "Enter",
             ),
         ),

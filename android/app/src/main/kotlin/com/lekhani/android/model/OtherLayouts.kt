@@ -12,34 +12,44 @@ object EnglishQwertyLayout {
     val layout: KeyboardLayout = KeyboardLayout(
         name = "English",
         rows = listOf(
-            // Row 1
+            // Row 1 (Top) - 10 keys with 1..0 number hints
             listOf(
-                Ch("q", "Q"), Ch("w", "W"), Ch("e", "E"), Ch("r", "R"), Ch("t", "T"),
-                Ch("y", "Y"), Ch("u", "U"), Ch("i", "I"), Ch("o", "O"), Ch("p", "P"),
+                Ch("q", "Q", hint = "1"),
+                Ch("w", "W", hint = "2"),
+                Ch("e", "E", hint = "3"),
+                Ch("r", "R", hint = "4"),
+                Ch("t", "T", hint = "5"),
+                Ch("y", "Y", hint = "6"),
+                Ch("u", "U", hint = "7"),
+                Ch("i", "I", hint = "8"),
+                Ch("o", "O", hint = "9"),
+                Ch("p", "P", hint = "0"),
             ),
-            // Row 2 (Home)
+            // Row 2 (Home) - EXACTLY 9 keys: a s d f g h j k l
             listOf(
-                Ch("a", "A", homeRow = true), Ch("s", "S", homeRow = true),
-                Ch("d", "D", homeRow = true), Ch("f", "F", homeRow = true),
-                Ch("g", "G", homeRow = true), Ch("h", "H", homeRow = true),
-                Ch("j", "J", homeRow = true), Ch("k", "K", homeRow = true),
+                Ch("a", "A", homeRow = true),
+                Ch("s", "S", homeRow = true),
+                Ch("d", "D", homeRow = true),
+                Ch("f", "F", homeRow = true),
+                Ch("g", "G", homeRow = true),
+                Ch("h", "H", homeRow = true),
+                Ch("j", "J", homeRow = true),
+                Ch("k", "K", homeRow = true),
                 Ch("l", "L", homeRow = true),
-                Ch("'", "\"", homeRow = true, desc = "Apostrophe, shifted quote"),
             ),
-            // Row 3
+            // Row 3 (Bottom) - Shift, EXACTLY 7 letters: z x c v b n m, Backspace
             listOf(
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.5f, contentDesc = "Shift",
+                    widthWeight = 1.4f, contentDesc = "Shift",
                 ),
                 Ch("z", "Z"), Ch("x", "X"), Ch("c", "C"), Ch("v", "V"),
                 Ch("b", "B"), Ch("n", "N"), Ch("m", "M"),
-                Ch(",", "!", desc = "Comma, shifted exclamation"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.5f, contentDesc = "Backspace",
+                    widthWeight = 1.4f, contentDesc = "Backspace",
                 ),
             ),
         ),
@@ -47,7 +57,14 @@ object EnglishQwertyLayout {
             Key(
                 label = "?123", shiftedLabel = "?123",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
-                widthWeight = 1.5f, contentDesc = "Numbers and symbols",
+                widthWeight = 1.4f, contentDesc = "Numbers and symbols",
+            ),
+            Key(
+                label = ",", shiftedLabel = ";", hintLabel = "😊",
+                action = KeyAction.Character(","),
+                shiftedAction = KeyAction.Character(";"),
+                longPressAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.0f, contentDesc = "Comma, long press for emoji",
             ),
             Key(
                 label = "🌐", shiftedLabel = "🌐",
@@ -55,21 +72,20 @@ object EnglishQwertyLayout {
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
-                label = ".", shiftedLabel = "?",
-                action = KeyAction.Character("."),
-                shiftedAction = KeyAction.Character("?"),
-                widthWeight = 1.0f, contentDesc = "Period, shifted question mark",
-            ),
-            Key(
                 label = "Space", shiftedLabel = "Space",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.5f, contentDesc = "Space",
+                widthWeight = 4.2f, contentDesc = "Space",
             ),
-            Ch("@", "#", desc = "At sign, shifted hash"),
+            Key(
+                label = ".", shiftedLabel = "?", hintLabel = "!",
+                action = KeyAction.Character("."),
+                shiftedAction = KeyAction.Character("?"),
+                widthWeight = 1.0f, contentDesc = "Period",
+            ),
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 2.0f, contentDesc = "Enter",
+                widthWeight = 1.4f, contentDesc = "Enter",
             ),
         ),
     )
@@ -137,13 +153,15 @@ object NationalLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "?123",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
-                widthWeight = 1.5f, contentDesc = "Numbers",
+                label = "?123", shiftedLabel = "😊", hintLabel = "😊",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
+                longPressAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.4f, contentDesc = "Numbers",
             ),
             Key(
-                label = "🌐", shiftedLabel = "🌐",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                label = "🌐", shiftedLabel = "📋", hintLabel = "📋",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
+                longPressAction = KeyAction.SwitchClipboard,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
@@ -155,14 +173,14 @@ object NationalLayout {
             Key(
                 label = "স্পেস • জাতীয়", shiftedLabel = "স্পেস • জাতীয়",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.5f, contentDesc = "Space",
+                widthWeight = 4.2f, contentDesc = "Space",
             ),
             Ch("্", "্", desc = "Hasanta"),
             Ch("।", "!", desc = "Dari, shifted exclamation"),
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 1.5f, contentDesc = "Enter",
+                widthWeight = 1.4f, contentDesc = "Enter",
             ),
         ),
     )
@@ -198,7 +216,7 @@ object ProbhatLayout {
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.3f, contentDesc = "Shift",
+                    widthWeight = 1.4f, contentDesc = "Shift",
                 ),
                 Ch("য়", "য"), Ch("শ", "ঢ়"), Ch("চ", "ছ"),
                 Ch("আ", "ঋ"), Ch("ব", "ভ"), Ch("ন", "ণ"),
@@ -206,26 +224,28 @@ object ProbhatLayout {
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.3f, contentDesc = "Backspace",
+                    widthWeight = 1.4f, contentDesc = "Backspace",
                 ),
             ),
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "?123",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
+                label = "?123", shiftedLabel = "😊", hintLabel = "😊",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
+                longPressAction = KeyAction.SwitchEmoji,
                 widthWeight = 1.4f, contentDesc = "Numbers",
             ),
             Key(
-                label = "🌐", shiftedLabel = "🌐",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                label = "🌐", shiftedLabel = "📋", hintLabel = "📋",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
+                longPressAction = KeyAction.SwitchClipboard,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Ch(",", "!", desc = "Comma"),
             Key(
                 label = "স্পেস • প্রভাত", shiftedLabel = "স্পেস • প্রভাত",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.6f, contentDesc = "Space",
+                widthWeight = 4.2f, contentDesc = "Space",
             ),
             Ch("।", "?", desc = "Dari, shifted question"),
             Key(
@@ -266,7 +286,7 @@ object GboardBengaliLayout {
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.5f, contentDesc = "Shift",
+                    widthWeight = 1.4f, contentDesc = "Shift",
                 ),
                 Ch("ং", "ঞ"), Ch("ঁ", "ঢ়"), Ch("ম", "ণ"),
                 Ch("ন", "ঙ"), Ch("ল", "ৎ"), Ch("স", "ষ"),
@@ -274,19 +294,21 @@ object GboardBengaliLayout {
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.5f, contentDesc = "Backspace",
+                    widthWeight = 1.4f, contentDesc = "Backspace",
                 ),
             ),
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "?123",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
-                widthWeight = 1.5f, contentDesc = "Numbers",
+                label = "?123", shiftedLabel = "😊", hintLabel = "😊",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
+                longPressAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.4f, contentDesc = "Numbers",
             ),
             Key(
-                label = "🌐", shiftedLabel = "🌐",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                label = "🌐", shiftedLabel = "📋", hintLabel = "📋",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
+                longPressAction = KeyAction.SwitchClipboard,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
@@ -298,13 +320,13 @@ object GboardBengaliLayout {
             Key(
                 label = "স্পেস • জিবোর্ড", shiftedLabel = "স্পেস • জিবোর্ড",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.5f, contentDesc = "Space",
+                widthWeight = 4.2f, contentDesc = "Space",
             ),
             Ch("।", "?", desc = "Dari, shifted question"),
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 2.0f, contentDesc = "Enter",
+                widthWeight = 1.4f, contentDesc = "Enter",
             ),
         ),
     )

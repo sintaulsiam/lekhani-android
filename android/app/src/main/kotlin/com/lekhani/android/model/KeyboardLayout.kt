@@ -23,13 +23,16 @@ data class KeyboardLayout(
 fun Ch(
     label: String,
     shifted: String? = null,
+    hint: String? = null,
     homeRow: Boolean = false,
     desc: String = label,
 ): Key = Key(
     label = label,
     shiftedLabel = shifted,
+    hintLabel = hint,
     action = KeyAction.Character(label),
     shiftedAction = shifted?.let { KeyAction.Character(it) } ?: KeyAction.Character(label),
+    longPressAction = hint?.let { KeyAction.Character(it) },
     isHomeRow = homeRow,
     contentDesc = desc,
 )

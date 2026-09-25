@@ -313,14 +313,25 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private var isSpaceSwiping: Boolean = false
     private var swipeThresholdPx: Float = 0f
 
-    /** Pre-allocated long-press runnable for Spacebar quick layout selector (zero allocation) */
+    /** Pre-allocated long-press runnable for alternate hints and actions (zero allocation) */
     private val longPressRunnable = Runnable {
         if (pressedKeyIndex in resolvedKeys.indices) {
             val key = resolvedKeys[pressedKeyIndex].key
-            if (key.action == KeyAction.Space) {
-                isLongPressTriggered = true
-                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                keyListener?.onSpaceLongPress()
+            isLongPressTriggered = true
+            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            when {
+                key.action == KeyAction.Space -> {
+                    keyListener?.onSpaceLongPress()
+                }
+                key.longPressAction != null -> {
+                    keyListener?.onKey(key, key.longPressAction)
+                }
+                key.hintLabel != null -> {
+                    keyListener?.onKey(key, KeyAction.Character(key.hintLabel))
+                }
+                key.shiftedLabel != null && key.shiftedLabel != key.label -> {
+                    keyListener?.onKey(key, key.shiftedAction)
+                }
             }
         }
     }
@@ -623,22 +634,68 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val sidePadding = (keyMarginH * 0.75f).coerceAtLeast(2f * density)
         val availableRowW = (totalW - 2f * sidePadding).coerceAtLeast(10f)
 
+        // Find reference key width based on the primary 10-key row (or the widest character row)
+        val maxKeysInRow = currentLayout.rows.maxOfOrNull { it.size }?.coerceAtLeast(10) ?: 10
+        val standardGaps = (maxKeysInRow - 1) * keyMarginH
+        val standardUnitWidth = (availableRowW - standardGaps) / maxKeysInRow
+
         var currentRowTop = yOffset + keyMarginV
         for (row in currentLayout.rows) {
-            val rowWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
-            val totalGaps = (row.size - 1) * keyMarginH
-            val unitWidth = (availableRowW - totalGaps) / rowWeight
+            val hasShiftAtStart = row.isNotEmpty() && row.first().action == KeyAction.Shift
+            val hasBackspaceAtEnd = row.isNotEmpty() && row.last().action == KeyAction.Backspace
 
-            var keyLeft = originX + sidePadding
-            for (key in row) {
-                val keyWidth = unitWidth * key.widthWeight
-                resolvedKeys.add(
-                    ResolvedKey(
-                        key = key,
-                        bounds = RectF(keyLeft, currentRowTop, keyLeft + keyWidth, currentRowTop + kHeight)
+            if (hasShiftAtStart && hasBackspaceAtEnd && row.size > 2) {
+                // Bottom letter row: [Shift] ... [letters] ... [Backspace]
+                // All middle letters have standardUnitWidth; Shift and Backspace expand to fill edges flush with Row 0
+                val middleLetterCount = row.size - 2
+                val middleTotalWidth = middleLetterCount * standardUnitWidth + (middleLetterCount - 1) * keyMarginH
+                val remainingFuncWidth = availableRowW - middleTotalWidth - 2f * keyMarginH
+                val funcKeyWidth = (remainingFuncWidth / 2f).coerceAtLeast(standardUnitWidth)
+
+                var keyLeft = originX + sidePadding
+                for (i in row.indices) {
+                    val key = row[i]
+                    val keyWidth = if (i == 0 || i == row.lastIndex) funcKeyWidth else standardUnitWidth
+                    resolvedKeys.add(
+                        ResolvedKey(
+                            key = key,
+                            bounds = RectF(keyLeft, currentRowTop, keyLeft + keyWidth, currentRowTop + kHeight)
+                        )
                     )
-                )
-                keyLeft += keyWidth + keyMarginH
+                    keyLeft += keyWidth + keyMarginH
+                }
+            } else {
+                // Check if row has fewer keys than maxKeysInRow (e.g. middle row a..l with 9 keys vs 10 keys)
+                // In standard keyboards, the middle row is centered with half a key width padding on both sides
+                val rowWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
+                val totalGaps = (row.size - 1) * keyMarginH
+
+                // If all keys in this row are unit-width (e.g. 9 letter keys) and row has fewer keys than max:
+                val isStandardCharRow = row.all { it.widthWeight == 1.0f }
+                val rowContentWidth = if (isStandardCharRow && row.size < maxKeysInRow) {
+                    row.size * standardUnitWidth + totalGaps
+                } else {
+                    availableRowW
+                }
+
+                val rowSideInset = ((availableRowW - rowContentWidth) / 2f).coerceAtLeast(0f)
+                val unitWidth = if (isStandardCharRow && row.size < maxKeysInRow) {
+                    standardUnitWidth
+                } else {
+                    (availableRowW - totalGaps) / rowWeight
+                }
+
+                var keyLeft = originX + sidePadding + rowSideInset
+                for (key in row) {
+                    val keyWidth = unitWidth * key.widthWeight
+                    resolvedKeys.add(
+                        ResolvedKey(
+                            key = key,
+                            bounds = RectF(keyLeft, currentRowTop, keyLeft + keyWidth, currentRowTop + kHeight)
+                        )
+                    )
+                    keyLeft += keyWidth + keyMarginH
+                }
             }
             currentRowTop += kHeight + keyMarginV
         }
@@ -891,7 +948,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
             // Select background paint
             val bgPaint = when {
                 key.action == KeyAction.Backspace || key.action == KeyAction.Shift ||
-                key.action == KeyAction.SwitchNumeric -> keyShiftBgPaint
+                key.action == KeyAction.SwitchNumeric || key.action == KeyAction.SwitchLayout ||
+                key.action == KeyAction.Enter || key.action == KeyAction.SwitchEmoji ||
+                key.action == KeyAction.SwitchClipboard -> keyShiftBgPaint
                 key.action == KeyAction.Space -> keySpaceBgPaint
                 key.action is KeyAction.Character && key.label == "্" -> keyHasantaBgPaint
                 else -> keyBgPaint
@@ -966,11 +1025,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 else -> {
                     canvas.drawText(labelText, cx, cy, labelPaint)
-                    val shiftedLbl = key.shiftedLabel
-                    if (!isShifted && shiftedLbl != null && shiftedLbl != key.label && shiftedLbl.isNotEmpty()) {
+                    val hint = key.hintLabel ?: if (!isShifted && key.shiftedLabel != null && key.shiftedLabel != key.label && key.shiftedLabel.isNotEmpty()) key.shiftedLabel else null
+                    if (hint != null) {
                         val hintX = drawBounds.right - 5f * density
                         val hintY = drawBounds.top + 13f * density
-                        canvas.drawText(shiftedLbl, hintX, hintY, hintPaint)
+                        canvas.drawText(hint, hintX, hintY, hintPaint)
                     }
                 }
             }
