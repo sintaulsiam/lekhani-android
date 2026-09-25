@@ -11,6 +11,7 @@ import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import androidx.core.content.res.ResourcesCompat
 import com.lekhani.android.model.Key
 import com.lekhani.android.model.KeyAction
@@ -135,6 +136,21 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     /** Reusable scratch RectF for hit-testing math */
     private val scratchRect = RectF()
+
+    /** Whether the current touch has triggered a long-press (suppresses tap) */
+    private var isLongPressTriggered: Boolean = false
+
+    /** Pre-allocated long-press runnable for Spacebar voice trigger (zero allocation) */
+    private val longPressRunnable = Runnable {
+        if (pressedKeyIndex in resolvedKeys.indices) {
+            val key = resolvedKeys[pressedKeyIndex].key
+            if (key.action == KeyAction.Space) {
+                isLongPressTriggered = true
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                keyListener?.onKey(key, KeyAction.VoiceTyping)
+            }
+        }
+    }
 
     // ── Dimensions (set in onSizeChanged) ────────────────────────────────────
 
@@ -365,24 +381,32 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 if (idx >= 0) {
                     pressedKeyIndex = idx
                     pressStartTime = SystemClock.uptimeMillis()
+                    isLongPressTriggered = false
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    if (resolvedKeys[idx].key.action == KeyAction.Space) {
+                        postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
+                    }
                     invalidate()
                 }
                 return true
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                removeCallbacks(longPressRunnable)
                 val idx = findKeyIndex(event.x, event.y)
-                if (idx >= 0 && idx == pressedKeyIndex) {
+                if (idx >= 0 && idx == pressedKeyIndex && !isLongPressTriggered) {
                     dispatchKey(resolvedKeys[idx].key)
                 }
                 pressedKeyIndex = -1
+                isLongPressTriggered = false
                 invalidate()
                 return true
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(longPressRunnable)
                 pressedKeyIndex = -1
+                isLongPressTriggered = false
                 invalidate()
                 return true
             }

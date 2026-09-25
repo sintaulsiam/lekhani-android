@@ -21,6 +21,8 @@ sealed class KeyAction {
     data object SwitchNumeric : KeyAction()
     /** Cycle to the next enabled layout (Globe key) */
     data object SwitchLayout : KeyAction()
+    /** Trigger 100% offline on-device speech-to-text voice typing */
+    data object VoiceTyping : KeyAction()
 }
 
 /**

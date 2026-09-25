@@ -1,8 +1,10 @@
+pub mod audio;
 pub mod error;
 pub mod layout;
 pub mod probaho;
 pub mod session;
 
+pub use audio::{AsrAudioProcessor, AudioAnalysisResult, restore_bengali_punctuation};
 pub use error::LekhaniError;
 pub use layout::LekhaniLayoutType;
 pub use session::{AndroidLekhaniSession, TypingResult};

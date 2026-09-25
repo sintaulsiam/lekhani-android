@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelStore
@@ -29,6 +30,8 @@ import com.lekhani.android.ui.candidate.CandidateBlacklist
 import com.lekhani.android.ui.candidate.CandidateStripState
 import com.lekhani.android.ui.candidate.CandidateStripView
 import com.lekhani.android.ui.candidate.HomophoneAnnotator
+import com.lekhani.android.ui.voice.VoiceWaveformOverlay
+import com.lekhani.android.voice.AudioStreamingManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -100,6 +103,9 @@ class LekhaniInputMethodService : InputMethodService() {
     /** Persists long-press blacklisted candidates to Device Protected Storage. */
     private val blacklist: CandidateBlacklist by lazy { CandidateBlacklist(this) }
 
+    /** Audio streaming manager for 100% offline voice typing (Phase 5). */
+    private val audioManager: AudioStreamingManager by lazy { AudioStreamingManager(this) }
+
     // ── WebView / Chromium composing shadow buffer ─────────────────────────────
 
     /**
@@ -140,6 +146,7 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        audioManager.cancelStreaming()
         keyboardView = null
         serviceScope.cancel()
         super.onDestroy()
@@ -158,6 +165,7 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     override fun onFinishInput() {
+        audioManager.cancelStreaming()
         session.reset()
         preeditShadow = ""
         clearCandidates()
@@ -209,22 +217,38 @@ class LekhaniInputMethodService : InputMethodService() {
             setViewTreeSavedStateRegistryOwner(lifecycleOwner)
 
             setContent {
-                CandidateStripView(
-                    stateFlow = candidateState,
-                    onCandidateClick = { text -> onCandidateSelected(text) },
-                    onBlacklist = { text ->
-                        blacklist.add(text)
-                        // Re-publish current candidates with the blacklisted word removed
-                        val current = _candidateState.value
-                        if (current is CandidateStripState.Candidates) {
-                            val filtered = current.items.filter { it.text != text }
-                            _candidateState.value = if (filtered.isEmpty())
-                                CandidateStripState.Empty
-                            else
-                                CandidateStripState.Candidates(filtered)
-                        }
-                    },
-                )
+                Box {
+                    CandidateStripView(
+                        stateFlow = candidateState,
+                        onCandidateClick = { text -> onCandidateSelected(text) },
+                        onBlacklist = { text ->
+                            blacklist.add(text)
+                            // Re-publish current candidates with the blacklisted word removed
+                            val current = _candidateState.value
+                            if (current is CandidateStripState.Candidates) {
+                                val filtered = current.items.filter { it.text != text }
+                                _candidateState.value = if (filtered.isEmpty())
+                                    CandidateStripState.Empty
+                                else
+                                    CandidateStripState.Candidates(filtered)
+                            }
+                        },
+                    )
+
+                    VoiceWaveformOverlay(
+                        voiceStateFlow = audioManager.voiceState,
+                        onDone = {
+                            val result = audioManager.stopStreaming()
+                            if (result.isNotBlank()) {
+                                currentInputConnection?.finishComposingText()
+                                currentInputConnection?.commitText(result, 1)
+                            }
+                        },
+                        onCancel = {
+                            audioManager.cancelStreaming()
+                        },
+                    )
+                }
             }
         }
     }
@@ -240,6 +264,25 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyAction.Shift        -> toggleShift()
             KeyAction.SwitchNumeric -> { /* Phase 6: numbers layer */ }
             KeyAction.SwitchLayout -> cycleLayout()
+            KeyAction.VoiceTyping  -> startVoiceTyping()
+        }
+    }
+
+    /**
+     * Starts offline voice typing capture and displays waveform overlay.
+     */
+    private fun startVoiceTyping() {
+        if (!audioManager.hasRecordPermission()) {
+            Log.w(TAG, "RECORD_AUDIO permission not granted; cannot start voice typing")
+            return
+        }
+
+        setCandidatesViewShown(true)
+        audioManager.startStreaming { finalTranscript ->
+            if (finalTranscript.isNotBlank()) {
+                currentInputConnection?.finishComposingText()
+                currentInputConnection?.commitText(finalTranscript, 1)
+            }
         }
     }
 
