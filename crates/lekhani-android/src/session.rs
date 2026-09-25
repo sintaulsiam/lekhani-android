@@ -8,7 +8,23 @@ use crate::probaho::{get_conjunct_suggestions, nfc_normalize, promote_kar_if_nee
 static CORE_DB: OnceLock<PhoneticDatabase> = OnceLock::new();
 
 pub fn get_core_database() -> &'static PhoneticDatabase {
-    CORE_DB.get_or_init(PhoneticDatabase::new)
+    CORE_DB.get_or_init(|| {
+        let mut db = PhoneticDatabase::new();
+        let candidate_dirs = [
+            std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries"),
+            std::path::Path::new("/data/user/0/com.lekhani.android/files/dictionaries"),
+            std::path::Path::new("./data/dictionaries"),
+            std::path::Path::new("../data/dictionaries"),
+            std::path::Path::new("../../data/dictionaries"),
+        ];
+        for dir in candidate_dirs {
+            if dir.exists() {
+                let _ = db.load_from_dir(dir);
+                break;
+            }
+        }
+        db
+    })
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
