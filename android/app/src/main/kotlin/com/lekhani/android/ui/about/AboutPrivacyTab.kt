@@ -1,6 +1,9 @@
 package com.lekhani.android.ui.about
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,15 +20,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,7 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,9 +46,11 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun AboutPrivacyTab(
+    isEnglish: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     Column(
         modifier = modifier
@@ -56,10 +60,10 @@ fun AboutPrivacyTab(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Brand Header ────────────────────────────────────────────────────────
+        // ── Brand Header (With 'লে' Logo) ───────────────────────────────────────
         Box(
             modifier = Modifier
-                .size(76.dp)
+                .size(80.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.radialGradient(
@@ -69,8 +73,8 @@ fun AboutPrivacyTab(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "ল",
-                fontSize = 42.sp,
+                text = "লে",
+                fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
@@ -78,19 +82,20 @@ fun AboutPrivacyTab(
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "লেখনী কীবোর্ড",
+                text = if (isEnglish) "Lekhani Bengali Keyboard" else "লেখনী কীবোর্ড",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
             )
             Text(
-                text = "Lekhani Bengali Keyboard • 2026 Edition",
+                text = if (isEnglish) "Next-Gen Ergonomic Bengali Keyboard • 2026 Edition"
+                       else "নেক্সট-জেন এরগনোমিক বাংলা কীবোর্ড • ২০২৬ এডিশন",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = Color(0xFF00E5B8).copy(alpha = 0.15f)
@@ -101,12 +106,121 @@ fun AboutPrivacyTab(
                         color = Color(0xFF00E5B8),
                         fontWeight = FontWeight.SemiBold
                     ),
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
                 )
             }
         }
 
-        // ── Privacy & Security Guarantee Card ──────────────────────────────────
+        // ── Developer & Organization Profile Card (Syntenieum & BRUR CSE) ───────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Business,
+                        contentDescription = "Organization",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (isEnglish) "Developer & Organization" else "ডেভেলপার ও প্রতিষ্ঠান",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Organization: Syntenieum
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        text = if (isEnglish) "Organization:" else "প্রতিষ্ঠান:",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.width(110.dp)
+                    )
+                    Text(
+                        text = "Syntenieum",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF00E5B8)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Author Academic Background: BRUR CSE
+                Row(verticalAlignment = Alignment.Top) {
+                    Icon(
+                        imageVector = Icons.Filled.School,
+                        contentDescription = "Education",
+                        modifier = Modifier
+                            .size(18.dp)
+                            .padding(top = 2.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Department of Computer Science & Engineering (CSE)"
+                                   else "কম্পিউটার সায়েন্স অ্যান্ড ইঞ্জিনিয়ারিং বিভাগ (CSE)",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Begum Rokeya University, Rangpur (BRUR)"
+                                   else "বেগম রোকেয়া বিশ্ববিদ্যালয়, রংপুর (BRUR)",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Email Contact Link
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:syntenieum@gmail.com")
+                                putExtra(Intent.EXTRA_SUBJECT, "Lekhani Keyboard Feedback / Inquiry")
+                            }
+                            runCatching { context.startActivity(intent) }
+                        }
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Email,
+                        contentDescription = "Email",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFF00E5B8)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "syntenieum@gmail.com",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF00E5B8)
+                        )
+                    )
+                }
+            }
+        }
+
+        // ── 100% Offline & Privacy Guarantee Card ──────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
@@ -120,11 +234,11 @@ fun AboutPrivacyTab(
                         imageVector = Icons.Filled.VerifiedUser,
                         contentDescription = "Privacy",
                         tint = Color(0xFF00E5B8),
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "গোপনীয়তা ও নিরাপত্তা (Privacy Guarantee)",
+                        text = if (isEnglish) "100% Offline & Privacy Guarantee" else "১০০% অফলাইন ও সম্পূর্ণ গোপনীয়তা",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF8CF4CB)
@@ -135,16 +249,19 @@ fun AboutPrivacyTab(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 PrivacyFeatureItem(
-                    title = "১০০% অফলাইন (Zero Network)",
-                    desc = "এই অ্যাপ্লিকেশনে কোনো ইন্টারনেট পারমিশন (android.permission.INTERNET) নেই। আপনার কোনো ডেটা ক্লাউডে পাঠানো সম্ভব নয়।"
+                    title = if (isEnglish) "Zero Network Permission" else "শূন্য নেটওয়ার্ক পারমিশন (Zero Network)",
+                    desc = if (isEnglish) "The app has no INTERNET permission. No keystrokes or data can ever leave your device."
+                           else "অ্যাপটিতে কোনো ইন্টারনেট অনুমতি নেই। কোনো কি-স্ট্রোক বা ডেটা ডিভাইস থেকে বের হওয়া অসম্ভব।"
                 )
                 PrivacyFeatureItem(
-                    title = "অন-ডিভাইস এআই (On-Device AI)",
-                    desc = "N-gram ভাষা মডেল ও ব্যাকরণ অ্যালগরিদম সরাসরি আপনার ফোনে এক্সিকিউট হয়, কোনো সার্ভার কল ছাড়াই।"
+                    title = if (isEnglish) "On-Device Engine & Scorer" else "অন-ডিভাইস ইঞ্জিন ও স্কোরার",
+                    desc = if (isEnglish) "Grammar parsing and N-gram scoring run 100% locally via native Rust binaries."
+                           else "ব্যাকরণ ও N-gram প্রেডিকশন সরাসরি ফোনের প্রসেসরে স্থানীয়ভাবে এক্সিকিউট হয়।"
                 )
                 PrivacyFeatureItem(
-                    title = "নিরাপদ কি-স্ট্রোক (No Keylogging)",
-                    desc = "টাইপিং হিস্ট্রি ও ক্লিপবোর্ড ডেটা কেবল আপনার ডিভাইসের এনক্রিপ্টেড স্টোরেজে স্থানীয়ভাবে সংরক্ষিত থাকে।"
+                    title = if (isEnglish) "Device-Protected Storage" else "ডিভাইস সুরক্ষিত স্টোরেজ",
+                    desc = if (isEnglish) "Direct Boot compliant: User dictionary is encrypted in private app storage."
+                           else "ডিরেক্ট বুট সম্বলিত: ব্যক্তিগত ডিকশনারি ও ক্লিপবোর্ড লোকাল এনক্রিপশনে সুরক্ষিত থাকে।"
                 )
             }
         }
@@ -154,7 +271,7 @@ fun AboutPrivacyTab(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
             Column(modifier = Modifier.padding(18.dp)) {
@@ -163,56 +280,13 @@ fun AboutPrivacyTab(
                         imageVector = Icons.Filled.Memory,
                         contentDescription = "Architecture",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "ইঞ্জিন আর্কিটেকচার (Architecture)",
+                        text = if (isEnglish) "Three-Tier Architecture" else "থ্রি-টিয়ার আর্কিটেকচার",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                ArchitectureTierItem(
-                    tier = "Tier 1: Pure Rust Engine",
-                    detail = "lekhani-parser (11 ns Avro trie) • lekhani-ai (N-gram Scorer) • lekhani-core (IME state machine)"
-                )
-                ArchitectureTierItem(
-                    tier = "Tier 2: Native FFI Bridge",
-                    detail = "crates/lekhani-android (Zero-allocation UniFFI C-ABI) • AndroidLekhaniSession"
-                )
-                ArchitectureTierItem(
-                    tier = "Tier 3: Android Native Layer",
-                    detail = "LekhaniInputMethodService • KeyboardCanvasView (Hardware Canvas 120 FPS) • Jetpack Compose M3"
-                )
-            }
-        }
-
-        // ── Layout Standards Card ──────────────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Keyboard,
-                        contentDescription = "Layouts",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "সমর্থিত লেআউট স্ট্যান্ডার্ডস (Layouts)",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     )
@@ -220,22 +294,22 @@ fun AboutPrivacyTab(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                Text(
-                    text = "• Lekhani প্রবাহ (Flow): এরগনোমিক টু-থাম্ব স্বরবর্ণ ও ব্যঞ্জনবর্ণ ইঞ্জিন\n" +
-                           "• অভ্র ফোনেটিক (Avro): পরিচিত ফোনেটিক ট্রান্সলিটারেশন ও ডিকশনারি\n" +
-                           "• জাতীয় (BBS National): বাংলাদেশ সরকারি মানসম্মত স্ট্যান্ডার্ড\n" +
-                           "• প্রভাত (Probhat): জনপ্রিয় ফিক্সড ফোনেটিক লেআউট\n" +
-                           "• জি-বোর্ড বাংলা (Gboard Style): পরিচিত গুগল কি-ম্যাপিং\n" +
-                           "• ইংরেজি (English QWERTY): দ্বিভাষিক আলফানিউমেরিক টাইপিং",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 22.sp
-                    )
+                ArchitectureTierItem(
+                    tier = "Tier 1: Pure Rust Engine",
+                    detail = "lekhani-parser (11 ns trie) • lekhani-ai (N-gram Scorer) • lekhani-core"
+                )
+                ArchitectureTierItem(
+                    tier = "Tier 2: Native FFI Bridge",
+                    detail = "crates/lekhani-android (Zero-allocation UniFFI C-ABI) • AndroidLekhaniSession"
+                )
+                ArchitectureTierItem(
+                    tier = "Tier 3: Android Native Layer",
+                    detail = "KeyboardCanvasView (120 FPS Hardware Canvas) • Material 3 Expressive UI"
                 )
             }
         }
 
-        // ── Credits & Licenses ─────────────────────────────────────────────────
+        // ── Open Source & Community ────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
@@ -249,17 +323,20 @@ fun AboutPrivacyTab(
                         imageVector = Icons.Filled.Code,
                         contentDescription = "Open Source",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "স্বত্ব ও মুক্ত উৎস (Open Source)",
+                        text = if (isEnglish) "Open Source & Standards" else "ওপেন সোর্স ও স্ট্যান্ডার্ড",
                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Lekhani Project is open source under MIT / Apache-2.0 licenses. Special thanks to OpenBangla keyboard community and BBS for phonetic standards and corpus data.",
+                    text = if (isEnglish)
+                        "Lekhani is open source under MIT / Apache-2.0. Compliant with BBS National Bengali Standard and OpenBangla keyboard corpus."
+                    else
+                        "লেখনী প্রজেক্ট MIT ও Apache-2.0 লাইসেন্সে উন্মুক্ত। বাংলাদেশ সরকারি বিবিএস জাতীয় মান এবং ওপেনবাংলা কিবোর্ড স্ট্যান্ডার্ড অনুযায়ী নির্মিত।",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

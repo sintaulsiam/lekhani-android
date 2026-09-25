@@ -8,6 +8,7 @@ import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -130,18 +131,118 @@ fun LekhaniSettingsScreen(
     val keyboardPrefs = remember { KeyboardPreferences.get(context) }
     val dictManager = remember { LekhaniDictionaryManager() }
 
+    var uiLanguage by remember { mutableStateOf(keyboardPrefs.uiLanguage) }
+    val isEnglish = uiLanguage == "en"
+
     var showDictionarySheet by remember { mutableStateOf(false) }
     var showToolbarSheet by remember { mutableStateOf(false) }
 
-    val navItems = listOf(
-        Triple("লেআউট", Icons.Filled.Keyboard, "Layouts"),
-        Triple("থিম", Icons.Filled.Palette, "Themes"),
-        Triple("মোড", Icons.Filled.AspectRatio, "Modes"),
-        Triple("টুল", Icons.Filled.Tune, "Tools"),
-        Triple("সম্পর্কে", Icons.Filled.Info, "About")
-    )
+    val navItems = if (isEnglish) {
+        listOf(
+            Triple("Layouts", Icons.Filled.Keyboard, "Layouts"),
+            Triple("Themes", Icons.Filled.Palette, "Themes"),
+            Triple("Modes", Icons.Filled.AspectRatio, "Modes"),
+            Triple("Tools", Icons.Filled.Tune, "Tools"),
+            Triple("About", Icons.Filled.Info, "About")
+        )
+    } else {
+        listOf(
+            Triple("লেআউট", Icons.Filled.Keyboard, "Layouts"),
+            Triple("থিম", Icons.Filled.Palette, "Themes"),
+            Triple("মোড", Icons.Filled.AspectRatio, "Modes"),
+            Triple("টুলস", Icons.Filled.Tune, "Tools"),
+            Triple("সম্পর্কে", Icons.Filled.Info, "About")
+        )
+    }
 
     Scaffold(
+        topBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(9.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF00E5B8), Color(0xFF006C50))
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "লে",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    // Bilingual Language Switcher Segment
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (!isEnglish) Color(0xFF00A87E) else Color.Transparent)
+                                    .clickable {
+                                        uiLanguage = "bn"
+                                        keyboardPrefs.uiLanguage = "bn"
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "বাংলা",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (!isEnglish) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (!isEnglish) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (isEnglish) Color(0xFF00A87E) else Color.Transparent)
+                                    .clickable {
+                                        uiLanguage = "en"
+                                        keyboardPrefs.uiLanguage = "en"
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "EN",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isEnglish) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isEnglish) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
         bottomBar = {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface,
@@ -182,6 +283,7 @@ fun LekhaniSettingsScreen(
                 0 -> LayoutsTabContent(
                     context = context,
                     prefs = prefs,
+                    isEnglish = isEnglish,
                     onOpenImeSettings = onOpenImeSettings,
                     onOpenImePicker = onOpenImePicker
                 )
@@ -196,10 +298,13 @@ fun LekhaniSettingsScreen(
                 3 -> ToolsFeedbackTab(
                     prefs = keyboardPrefs,
                     dictManager = dictManager,
+                    isEnglish = isEnglish,
                     onOpenToolbarCustomizer = { showToolbarSheet = true },
                     onOpenDictionaryManager = { showDictionarySheet = true }
                 )
-                4 -> AboutPrivacyTab()
+                4 -> AboutPrivacyTab(
+                    isEnglish = isEnglish
+                )
             }
         }
     }
@@ -233,6 +338,7 @@ fun LekhaniSettingsScreen(
 private fun LayoutsTabContent(
     context: Context,
     prefs: android.content.SharedPreferences,
+    isEnglish: Boolean = false,
     onOpenImeSettings: () -> Unit,
     onOpenImePicker: () -> Unit
 ) {
@@ -265,11 +371,11 @@ private fun LayoutsTabContent(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 18.dp, vertical = 20.dp),
+            .padding(horizontal = 18.dp, vertical = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Brand Header ────────────────────────────────────────────────────────
+        // ── Brand Header (With 'লে' Glyph) ──────────────────────────────────────
         Box(
             modifier = Modifier
                 .size(72.dp)
@@ -282,8 +388,8 @@ private fun LayoutsTabContent(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "ল",
-                fontSize = 40.sp,
+                text = "লে",
+                fontSize = 38.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
@@ -291,14 +397,15 @@ private fun LayoutsTabContent(
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "লেখনি কীবোর্ড",
+                text = if (isEnglish) "Lekhani Bengali Keyboard" else "লেখনী কীবোর্ড",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
             )
             Text(
-                text = "Lekhani Bengali Keyboard • 2026 Edition",
+                text = if (isEnglish) "Bengali Next-Gen Ergonomic Keyboard • 2026 Edition"
+                       else "নেক্সট-জেন এরগনোমিক বাংলা কীবোর্ড • ২০২৬ এডিশন",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -315,7 +422,7 @@ private fun LayoutsTabContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "কীবোর্ড সেটআপ (Setup Status)",
+                    text = if (isEnglish) "Keyboard Setup Status" else "কীবোর্ড সেটআপ স্ট্যাটাস",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
 
@@ -329,11 +436,12 @@ private fun LayoutsTabContent(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "১. লেখনি সক্রিয় করুন (Enable Lekhani)",
+                            text = if (isEnglish) "1. Enable Lekhani Keyboard" else "১. লেখনী কীবোর্ড সক্রিয় করুন",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnabled) "সক্রিয় করা আছে (Enabled)" else "সিস্টেম সেটিংসে সক্ষম করুন",
+                            text = if (isEnabled) (if (isEnglish) "Enabled in System Settings" else "সিস্টেম সেটিংসে সক্রিয় করা আছে")
+                                   else (if (isEnglish) "Action required in Settings" else "সিস্টেম সেটিংসে সক্ষম করুন"),
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = if (isEnabled) Color(0xFF00E5B8) else MaterialTheme.colorScheme.error
                             )
@@ -345,7 +453,7 @@ private fun LayoutsTabContent(
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Text("সক্ষম করুন")
+                            Text(if (isEnglish) "Enable" else "সক্ষম করুন")
                         }
                     } else {
                         Text("✓", color = Color(0xFF00E5B8), fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -362,11 +470,12 @@ private fun LayoutsTabContent(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "২. ডিফল্ট কীবোর্ড নির্বাচন করুন (Set Default)",
+                            text = if (isEnglish) "2. Select as Default Keyboard" else "২. ডিফল্ট কীবোর্ড হিসেবে বেছে নিন",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isDefault) "ডিফল্ট হিসেবে সক্রিয় (Active)" else "প্রধান কীবোর্ড হিসেবে বেছে নিন",
+                            text = if (isDefault) (if (isEnglish) "Active as Default" else "ডিফল্ট হিসেবে সক্রিয়")
+                                   else (if (isEnglish) "Tap to select Lekhani" else "প্রধান কীবোর্ড হিসেবে বেছে নিন"),
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = if (isDefault) Color(0xFF00E5B8) else MaterialTheme.colorScheme.primary
                             )
@@ -378,7 +487,7 @@ private fun LayoutsTabContent(
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Text("ডিফল্ট করুন")
+                            Text(if (isEnglish) "Set Default" else "ডিফল্ট করুন")
                         }
                     } else {
                         Text("✓", color = Color(0xFF00E5B8), fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -397,11 +506,12 @@ private fun LayoutsTabContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "কীবোর্ড লেআউট নির্বাচন (Keyboard Layouts)",
+                    text = if (isEnglish) "Keyboard Layouts" else "কীবোর্ড লেআউটসমূহ",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
                 Text(
-                    text = "যে লেআউটগুলো সক্রিয় রাখবেন সেগুলো চালু করুন (স্পেসবারে সোয়াইপ বা গ্লোব বাটনে পরিবর্তন হবে):",
+                    text = if (isEnglish) "Select enabled layouts (switch via Spacebar swipe, Globe key or Toolbar):"
+                           else "সক্রিয় লেআউটসমূহ বেছে নিন (স্পেসবার সোয়াইপ, গ্লোব কি বা টুলবারে পরিবর্তন হবে):",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
@@ -409,12 +519,12 @@ private fun LayoutsTabContent(
                 )
 
                 val allLayouts = listOf(
-                    Triple(LekhaniLayoutType.PROBAHO, "লেখনি প্রবাহ (Lekhani Probaho)", "দ্বি-অঙ্গুলি আধুনিক প্রবাহ লেআউট (বাঁয়ে স্বরবর্ণ, ডানে ব্যঞ্জনবর্ণ)"),
-                    Triple(LekhaniLayoutType.AVRO, "অভ্র ফোনেটিক (Avro Phonetic)", "রোমান ইংরেজি অক্ষরে ক্লাসিক ফোনেটিক প্রতিবর্ণীকরণ (ami → আমি)"),
-                    Triple(LekhaniLayoutType.NATIONAL, "জাতীয় (BBS) (National BBS)", "বাংলাদেশ সরকারি BBS মানসম্মত অফিশিয়াল ফিক্সড লেআউট"),
-                    Triple(LekhaniLayoutType.PROBHAT, "প্রভাত (प्रभात) (Probhat)", "জনপ্রিয় ফোনেটিক ফিক্সড লেআউট (প্রভাত স্ট্যান্ডার্ড)"),
-                    Triple(LekhaniLayoutType.GBOARD, "জি-বোর্ড বাংলা (Gboard Style)", "অ্যান্ড্রয়েড ব্যবহারকারীদের পরিচিত গুগল জি-বোর্ড ম্যাপিং"),
-                    Triple(LekhaniLayoutType.ENGLISH, "ইংরেজি (QWERTY) (English QWERTY)", "আন্তর্জাতিক মানসম্মত ইংরেজি বর্ণমালা ও পাসওয়ার্ড লেয়ার"),
+                    Triple(LekhaniLayoutType.PROBAHO, "Lekhani প্রবাহ (Probaho)", if (isEnglish) "Ergonomic two-thumb engine (vowels left, consonants right)" else "দ্বি-অঙ্গুলি আধুনিক প্রবাহ লেআউট (বাঁয়ে স্বরবর্ণ, ডানে ব্যঞ্জনবর্ণ)"),
+                    Triple(LekhaniLayoutType.AVRO, "অভ্র ফোনেটিক (Avro)", if (isEnglish) "Classic phonetic transliteration (ami → আমি)" else "রোমান ইংরেজি অক্ষরে ক্লাসিক ফোনেটিক প্রতিবর্ণীকরণ (ami → আমি)"),
+                    Triple(LekhaniLayoutType.NATIONAL, "জাতীয় (BBS National)", if (isEnglish) "Bangladesh Government BBS official standard layout" else "বাংলাদেশ সরকারি BBS মানসম্মত অফিশিয়াল ফিক্সড লেআউট"),
+                    Triple(LekhaniLayoutType.PROBHAT, "প্রভাত (Probhat)", if (isEnglish) "Popular phonetic fixed layout" else "জনপ্রিয় ফোনেটিক ফিক্সড লেআউট (প্রভাত স্ট্যান্ডার্ড)"),
+                    Triple(LekhaniLayoutType.GBOARD, "জি-বোর্ড বাংলা (Gboard Style)", if (isEnglish) "Familiar Google Gboard Bengali key mapping" else "অ্যান্ড্রয়েড ব্যবহারকারীদের পরিচিত গুগল জি-বোর্ড ম্যাপিং"),
+                    Triple(LekhaniLayoutType.ENGLISH, "English (QWERTY)", if (isEnglish) "Standard alphanumeric QWERTY and password layer" else "আন্তর্জাতিক মানসম্মত ইংরেজি বর্ণমালা ও পাসওয়ার্ড লেয়ার"),
                 )
 
                 allLayouts.forEachIndexed { index, (type, title, desc) ->
@@ -463,11 +573,12 @@ private fun LayoutsTabContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "টাইপিং পরীক্ষা (Test Typing)",
+                    text = if (isEnglish) "Interactive Typing Test" else "টাইপিং পরীক্ষা (Test Typing)",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
                 Text(
-                    text = "এখানে ট্যাপ করে লেখনি কীবোর্ড পরীক্ষা করুন:",
+                    text = if (isEnglish) "Tap below to test Lekhani Keyboard live:"
+                           else "নিচে ট্যাপ করে লেখনী কীবোর্ড সরাসরি পরীক্ষা করুন:",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
@@ -480,7 +591,7 @@ private fun LayoutsTabContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
-                    placeholder = { Text("এখানে বাংলা লিখুন...") },
+                    placeholder = { Text(if (isEnglish) "Type here to test..." else "এখানে বাংলা লিখে পরীক্ষা করুন...") },
                     trailingIcon = {
                         if (testText.isNotEmpty()) {
                             IconButton(onClick = { testText = "" }) {

@@ -48,6 +48,7 @@ import com.lekhani.android.data.settings.KeyboardPreferences
 fun ToolsFeedbackTab(
     prefs: KeyboardPreferences,
     dictManager: LekhaniDictionaryManager,
+    isEnglish: Boolean = false,
     onOpenToolbarCustomizer: () -> Unit,
     onOpenDictionaryManager: () -> Unit,
     modifier: Modifier = Modifier
@@ -93,11 +94,11 @@ fun ToolsFeedbackTab(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "হ্যাপটিক ফিডব্যাক (Haptics)",
+                                text = if (isEnglish) "Haptic Feedback" else "হ্যাপটিক ফিডব্যাক (Haptics)",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(
-                                text = "কি-প্রেসে ভাইব্রেশন রেসপন্স",
+                                text = if (isEnglish) "Vibrate on keystroke" else "কি-প্রেসে স্পর্শ অনুভূতি",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -115,7 +116,8 @@ fun ToolsFeedbackTab(
                 if (hapticEnabled) {
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "ভাইব্রেশন মাত্রা: ${hapticDuration.toInt()} ms",
+                        text = if (isEnglish) "Vibration strength: ${hapticDuration.toInt()} ms"
+                               else "ভাইব্রেশন মাত্রা: ${hapticDuration.toInt()} ms",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                     )
                     Slider(
@@ -155,11 +157,11 @@ fun ToolsFeedbackTab(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "কি-প্রেস সাউন্ড (Key Sounds)",
+                                text = if (isEnglish) "Key Sounds" else "কি-প্রেস সাউন্ড (Key Sounds)",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(
-                                text = "বোতামে ট্যাপের অডিও ফিডব্যাক",
+                                text = if (isEnglish) "Audio click on key tap" else "বোতাম স্পর্শে অডিও ফিডব্যাক",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -177,19 +179,29 @@ fun ToolsFeedbackTab(
                 if (soundEnabled) {
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "সাউন্ড প্রোফাইল (Sound Pack)",
+                        text = if (isEnglish) "Sound Profile" else "সাউন্ড প্রোফাইল (Sound Pack)",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    val soundPacks = listOf(
-                        KeyboardPreferences.SOUND_SYSTEM to "সিস্টেম স্ট্যান্ডার্ড (System Click)",
-                        KeyboardPreferences.SOUND_BUBBLE to "সফট বাবল (Soft Bubble)",
-                        KeyboardPreferences.SOUND_MECHANICAL to "মেকানিক্যাল সুইচ (Mechanical Click)",
-                        KeyboardPreferences.SOUND_TYPEWRITER to "টাইপরাইটার (Typewriter)",
-                        KeyboardPreferences.SOUND_WOODBLOCK to "উডেন ক্ল্যাক (Wooden Clack)"
-                    )
+                    val soundPacks = if (isEnglish) {
+                        listOf(
+                            KeyboardPreferences.SOUND_SYSTEM to "System Click",
+                            KeyboardPreferences.SOUND_BUBBLE to "Soft Bubble",
+                            KeyboardPreferences.SOUND_MECHANICAL to "Mechanical Switch",
+                            KeyboardPreferences.SOUND_TYPEWRITER to "Classic Typewriter",
+                            KeyboardPreferences.SOUND_WOODBLOCK to "Wooden Clack"
+                        )
+                    } else {
+                        listOf(
+                            KeyboardPreferences.SOUND_SYSTEM to "সিস্টেম স্ট্যান্ডার্ড (System Click)",
+                            KeyboardPreferences.SOUND_BUBBLE to "সফট বাবল (Soft Bubble)",
+                            KeyboardPreferences.SOUND_MECHANICAL to "মেকানিক্যাল সুইচ (Mechanical Click)",
+                            KeyboardPreferences.SOUND_TYPEWRITER to "টাইপরাইটার (Typewriter)",
+                            KeyboardPreferences.SOUND_WOODBLOCK to "উডেন ক্ল্যাক (Wooden Clack)"
+                        )
+                    }
 
                     soundPacks.forEach { (id, label) ->
                         Row(
@@ -232,11 +244,12 @@ fun ToolsFeedbackTab(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "কুইক টুলবার (Toolbar Shortcuts)",
+                            text = if (isEnglish) "Quick Toolbar" else "কুইক টুলবার (Toolbar Shortcuts)",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Text(
-                            text = "কীবোর্ড স্ট্রিপের শর্টকাট টুল সক্রিয় ও সাজান",
+                            text = if (isEnglish) "Customize shortcut tools on keyboard strip"
+                                   else "কীবোর্ড স্ট্রিপের শর্টকাট টুল সক্রিয় ও সাজান",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -250,7 +263,7 @@ fun ToolsFeedbackTab(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("টুলবার সাজান (Customize Toolbar)")
+                    Text(if (isEnglish) "Customize Toolbar" else "টুলবার সাজান (Customize Toolbar)")
                 }
             }
         }
@@ -274,11 +287,12 @@ fun ToolsFeedbackTab(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "ব্যক্তিগত অভিধান (User Dictionary)",
+                            text = if (isEnglish) "Personal Dictionary" else "ব্যক্তিগত অভিধান (User Dictionary)",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Text(
-                            text = "$userWordsCount টি নিজস্ব শব্দ সংরক্ষিত",
+                            text = if (isEnglish) "$userWordsCount custom words stored"
+                                   else "$userWordsCount টি নিজস্ব শব্দ সংরক্ষিত",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -292,7 +306,7 @@ fun ToolsFeedbackTab(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("শব্দতালিকা ও ব্যাকআপ (Manage & Backup)")
+                    Text(if (isEnglish) "Manage & Backup Vocabulary" else "শব্দতালিকা ও ব্যাকআপ (Manage & Backup)")
                 }
             }
         }
