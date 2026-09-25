@@ -201,6 +201,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
     }
 
+    fun toggleShift(): Boolean {
+        isShifted = !isShifted
+        invalidate()
+        return isShifted
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // Measurement & Size change
     // ══════════════════════════════════════════════════════════════════════════

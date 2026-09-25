@@ -220,6 +220,23 @@ class LekhaniInputMethodService : InputMethodService() {
         applyInputTypePolicy(info)
     }
 
+    override fun onUpdateSelection(
+        oldSelStart: Int,
+        oldSelEnd: Int,
+        newSelStart: Int,
+        newSelEnd: Int,
+        candidatesStart: Int,
+        candidatesEnd: Int
+    ) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        // If cursor moved outside the active composing region or composing was dismissed
+        if (candidatesStart < 0 && candidatesEnd < 0 && session.isComposing()) {
+            session.reset()
+            preeditShadow = ""
+            clearCandidates()
+        }
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // UI — keyboard view (stub; KeyboardCanvasView implemented in Phase 3)
     // ══════════════════════════════════════════════════════════════════════════
@@ -427,10 +444,7 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun toggleShift() {
-        keyboardView?.setShifted(keyboardView?.let {
-            // Read current shift state from the view (we don't store it here)
-            false  // The view manages its own shift toggle internally
-        } ?: false)
+        keyboardView?.toggleShift()
     }
 
     private fun commitEnter() {
@@ -489,12 +503,15 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         result.commitText?.let { text ->
-            ic.finishComposingText()
-            ic.commitText(text, 1)
-            preeditShadow = ""
+            ic.beginBatchEdit()
+            try {
+                ic.commitText(text, 1)
+                preeditShadow = ""
+            } finally {
+                ic.endBatchEdit()
+            }
             clearCandidates()
         } ?: run {
-            // Update composing text with Chromium/WebView resilience guard
             setComposingTextSafe(ic, result.preedit)
             publishCandidates(result.candidates)
         }
@@ -539,9 +556,13 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         result.commitText?.let { text ->
-            ic.finishComposingText()
-            ic.commitText(text, 1)
-            preeditShadow = ""
+            ic.beginBatchEdit()
+            try {
+                ic.commitText(text, 1)
+                preeditShadow = ""
+            } finally {
+                ic.endBatchEdit()
+            }
             clearCandidates()
         }
 
@@ -564,9 +585,13 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         result.commitText?.let { text ->
-            ic.finishComposingText()
-            ic.commitText(text, 1)
-            preeditShadow = ""
+            ic.beginBatchEdit()
+            try {
+                ic.commitText(text, 1)
+                preeditShadow = ""
+            } finally {
+                ic.endBatchEdit()
+            }
             clearCandidates()
         }
 
@@ -670,35 +695,25 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     /**
-     * WebView / Chromium composing-text resilience (AGENTS.md §3.4).
-     *
-     * Chromium-based WebViews and some social media inputs (WhatsApp Web,
-     * Facebook comment boxes) silently discard [InputConnection.setComposingText]
-     * calls or reset cursor position unexpectedly, causing "ghost letters" where
-     * the composing text duplicates on screen.
-     *
-     * Mitigation:
-     *   1. Before calling setComposingText(), call finishComposingText() if
-     *      the new preedit differs from our shadow — this forces Chromium to
-     *      flush its internal composing state.
-     *   2. Update the shadow AFTER the call so we can detect future divergences.
+     * Safely updates composing text with atomic batch editing.
+     * Prevents duplicate characters by letting setComposingText replace
+     * existing composing spans without premature commit flushes.
      */
     private fun setComposingTextSafe(ic: InputConnection, preedit: String) {
-        if (preedit.isEmpty()) {
-            if (preeditShadow.isNotEmpty()) {
-                ic.finishComposingText()
-                preeditShadow = ""
+        ic.beginBatchEdit()
+        try {
+            if (preedit.isEmpty()) {
+                if (preeditShadow.isNotEmpty()) {
+                    ic.commitText("", 1)
+                    preeditShadow = ""
+                }
+            } else {
+                ic.setComposingText(preedit, 1)
+                preeditShadow = preedit
             }
-            return
+        } finally {
+            ic.endBatchEdit()
         }
-
-        // If shadow diverges from what we're about to set, force a flush first.
-        if (preeditShadow != preedit && preeditShadow.isNotEmpty()) {
-            ic.finishComposingText()
-        }
-
-        ic.setComposingText(preedit, 1)
-        preeditShadow = preedit
     }
 
     // ══════════════════════════════════════════════════════════════════════════
