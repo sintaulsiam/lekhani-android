@@ -2,7 +2,7 @@
 
 **Status**: DECIDED  
 **Phase**: 1 (prerequisite for Phase 4 — Candidate Strip & AI Intelligence)  
-**Author**: Lekhani Engineering
+**Developer**: Lekhani Engineering
 
 ---
 
