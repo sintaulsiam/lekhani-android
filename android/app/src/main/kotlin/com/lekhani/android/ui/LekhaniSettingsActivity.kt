@@ -8,13 +8,53 @@ import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,29 +62,26 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
 import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.model.LayoutRegistry
-import com.lekhani.android.theme.ThemeRegistry
+import com.lekhani.android.ui.about.AboutPrivacyTab
 import com.lekhani.android.ui.dictionary.DictionaryManagementSheet
-import com.lekhani.android.ui.theme.ErgonomicsSizingSheet
 import com.lekhani.android.ui.theme.FormFactorGesturesSheet
-import com.lekhani.android.ui.theme.HapticsSoundSheet
 import com.lekhani.android.ui.theme.ThemeStudioSheet
 import com.lekhani.android.ui.theme.ToolbarCustomizationSheet
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import com.lekhani.android.ui.tools.ToolsFeedbackTab
 
 /**
  * LekhaniSettingsActivity
  * ══════════════════════════════════════════════════════════════════════════════
- * Main entry point and Onboarding Hub for Lekhani Keyboard.
- * Modern Material 3 Expressive UI for 2026.
+ * Main entry point and modern 5-tab Material 3 Settings app for Lekhani Keyboard.
  */
 class LekhaniSettingsActivity : ComponentActivity() {
 
@@ -71,14 +108,13 @@ class LekhaniSettingsActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LekhaniSettingsScreen(
     onOpenImeSettings: () -> Unit = {},
     onOpenImePicker: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     val deviceContext = remember {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
@@ -91,30 +127,126 @@ fun LekhaniSettingsScreen(
         deviceContext.getSharedPreferences("lekhani_device_prefs", Context.MODE_PRIVATE)
     }
 
+    val keyboardPrefs = remember { KeyboardPreferences.get(context) }
+    val dictManager = remember { LekhaniDictionaryManager() }
+
+    var showDictionarySheet by remember { mutableStateOf(false) }
+    var showToolbarSheet by remember { mutableStateOf(false) }
+
+    val navItems = listOf(
+        Triple("লেআউট", Icons.Filled.Keyboard, "Layouts"),
+        Triple("থিম", Icons.Filled.Palette, "Themes"),
+        Triple("মোড", Icons.Filled.AspectRatio, "Modes"),
+        Triple("টুল", Icons.Filled.Tune, "Tools"),
+        Triple("সম্পর্কে", Icons.Filled.Info, "About")
+    )
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
+                navItems.forEachIndexed { index, (label, icon, _) ->
+                    NavigationBarItem(
+                        selected = (selectedTab == index),
+                        onClick = { selectedTab = index },
+                        icon = {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            when (selectedTab) {
+                0 -> LayoutsTabContent(
+                    context = context,
+                    prefs = prefs,
+                    onOpenImeSettings = onOpenImeSettings,
+                    onOpenImePicker = onOpenImePicker
+                )
+                1 -> ThemeStudioSheet(
+                    prefs = keyboardPrefs,
+                    onClose = { selectedTab = 0 }
+                )
+                2 -> FormFactorGesturesSheet(
+                    prefs = keyboardPrefs,
+                    onClose = { selectedTab = 0 }
+                )
+                3 -> ToolsFeedbackTab(
+                    prefs = keyboardPrefs,
+                    dictManager = dictManager,
+                    onOpenToolbarCustomizer = { showToolbarSheet = true },
+                    onOpenDictionaryManager = { showDictionarySheet = true }
+                )
+                4 -> AboutPrivacyTab()
+            }
+        }
+    }
+
+    if (showToolbarSheet) {
+        Dialog(
+            onDismissRequest = { showToolbarSheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            ToolbarCustomizationSheet(
+                prefs = keyboardPrefs,
+                onClose = { showToolbarSheet = false }
+            )
+        }
+    }
+
+    if (showDictionarySheet) {
+        Dialog(
+            onDismissRequest = { showDictionarySheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            DictionaryManagementSheet(
+                dictManager = dictManager,
+                onClose = { showDictionarySheet = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun LayoutsTabContent(
+    context: Context,
+    prefs: android.content.SharedPreferences,
+    onOpenImeSettings: () -> Unit,
+    onOpenImePicker: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+
     var enabledLayouts by remember {
         mutableStateOf(
             LayoutRegistry.parseEnabledLayouts(prefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null))
         )
     }
 
-    // Determine IME enable/default status
     var isEnabled by remember { mutableStateOf(false) }
     var isDefault by remember { mutableStateOf(false) }
     var testText by remember { mutableStateOf("") }
-
-    val dictManager = remember { LekhaniDictionaryManager() }
-    var showDictionarySheet by remember { mutableStateOf(false) }
-    var userWordCount by remember { mutableStateOf(dictManager.getUserWords().size) }
-
-    val keyboardPrefs = remember { KeyboardPreferences.get(context) }
-    var showThemeSheet by remember { mutableStateOf(false) }
-    var showErgonomicsSheet by remember { mutableStateOf(false) }
-    var showFormFactorSheet by remember { mutableStateOf(false) }
-    var showHapticsSheet by remember { mutableStateOf(false) }
-    var showToolbarSheet by remember { mutableStateOf(false) }
-    var currentThemeName by remember {
-        mutableStateOf(ThemeRegistry.resolveTheme(context, keyboardPrefs.themeId).nameBengali)
-    }
 
     LaunchedEffect(Unit) {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
@@ -133,54 +265,50 @@ fun LekhaniSettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 18.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
         // ── Brand Header ────────────────────────────────────────────────────────
         Box(
             modifier = Modifier
-                .size(76.dp)
+                .size(72.dp)
                 .clip(CircleShape)
                 .background(
-                    Brush.linearGradient(
-                        colors = listOf(Color(0xFF006C50), Color(0xFF00A87E))
+                    Brush.radialGradient(
+                        colors = listOf(Color(0xFF00E5B8), Color(0xFF006C50), Color(0xFF051C14))
                     )
                 ),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "লে",
-                fontSize = 38.sp,
+                text = "ল",
+                fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "লেখনি কীবোর্ড",
-            style = MaterialTheme.typography.headlineMedium.copy(
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "লেখনি কীবোর্ড",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             )
-        )
-
-        Text(
-            text = "Lekhani Bengali Keyboard • 2026 Edition",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Text(
+                text = "Lekhani Bengali Keyboard • 2026 Edition",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
+        }
 
         // ── Status & Activation Cards ───────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
@@ -207,7 +335,7 @@ fun LekhaniSettingsScreen(
                         Text(
                             text = if (isEnabled) "সক্রিয় করা আছে (Enabled)" else "সিস্টেম সেটিংসে সক্ষম করুন",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = if (isEnabled) Color(0xFF00A87E) else MaterialTheme.colorScheme.error
+                                color = if (isEnabled) Color(0xFF00E5B8) else MaterialTheme.colorScheme.error
                             )
                         )
                     }
@@ -220,7 +348,7 @@ fun LekhaniSettingsScreen(
                             Text("সক্ষম করুন")
                         }
                     } else {
-                        Text("✓", color = Color(0xFF00A87E), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("✓", color = Color(0xFF00E5B8), fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
                 }
 
@@ -240,7 +368,7 @@ fun LekhaniSettingsScreen(
                         Text(
                             text = if (isDefault) "ডিফল্ট হিসেবে সক্রিয় (Active)" else "প্রধান কীবোর্ড হিসেবে বেছে নিন",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = if (isDefault) Color(0xFF00A87E) else MaterialTheme.colorScheme.primary
+                                color = if (isDefault) Color(0xFF00E5B8) else MaterialTheme.colorScheme.primary
                             )
                         )
                     }
@@ -250,21 +378,19 @@ fun LekhaniSettingsScreen(
                             shape = RoundedCornerShape(12.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Text("নির্বাচন")
+                            Text("ডিফল্ট করুন")
                         }
                     } else {
-                        Text("✓", color = Color(0xFF00A87E), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("✓", color = Color(0xFF00E5B8), fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Layout Selection & Ordering Card ────────────────────────────────────
+        // ── Layout Selection ────────────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
@@ -275,255 +401,64 @@ fun LekhaniSettingsScreen(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
                 Text(
-                    text = "যে লেআউটগুলো সক্রিয় রাখবেন সেগুলো নির্বাচন করুন (স্পেসবারে সোয়াইপ বা 🌐 বাটনে পরিবর্তন হবে):",
+                    text = "যে লেআউটগুলো সক্রিয় রাখবেন সেগুলো চালু করুন (স্পেসবারে সোয়াইপ বা গ্লোব বাটনে পরিবর্তন হবে):",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    ),
+                    modifier = Modifier.padding(vertical = 6.dp)
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                val allLayouts = listOf(
+                    Triple(LekhaniLayoutType.PROBAHO, "লেখনি প্রবাহ (Lekhani Probaho)", "দ্বি-অঙ্গুলি আধুনিক প্রবাহ লেআউট (বাঁয়ে স্বরবর্ণ, ডানে ব্যঞ্জনবর্ণ)"),
+                    Triple(LekhaniLayoutType.AVRO, "অভ্র ফোনেটিক (Avro Phonetic)", "রোমান ইংরেজি অক্ষরে ক্লাসিক ফোনেটিক প্রতিবর্ণীকরণ (ami → আমি)"),
+                    Triple(LekhaniLayoutType.NATIONAL, "জাতীয় (BBS) (National BBS)", "বাংলাদেশ সরকারি BBS মানসম্মত অফিশিয়াল ফিক্সড লেআউট"),
+                    Triple(LekhaniLayoutType.PROBHAT, "প্রভাত (प्रभात) (Probhat)", "জনপ্রিয় ফোনেটিক ফিক্সড লেআউট (প্রভাত স্ট্যান্ডার্ড)"),
+                    Triple(LekhaniLayoutType.GBOARD, "জি-বোর্ড বাংলা (Gboard Style)", "অ্যান্ড্রয়েড ব্যবহারকারীদের পরিচিত গুগল জি-বোর্ড ম্যাপিং"),
+                    Triple(LekhaniLayoutType.ENGLISH, "ইংরেজি (QWERTY) (English QWERTY)", "আন্তর্জাতিক মানসম্মত ইংরেজি বর্ণমালা ও পাসওয়ার্ড লেয়ার"),
+                )
 
-                LayoutRegistry.all.forEachIndexed { index, layoutType ->
-                    val isChecked = enabledLayouts.contains(layoutType)
-                    val canDisable = enabledLayouts.size > 1 || !isChecked
-
+                allLayouts.forEachIndexed { index, (type, title, desc) ->
+                    val isChecked = enabledLayouts.contains(type)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(
-                                text = "${LayoutRegistry.getBengaliName(layoutType)} (${LayoutRegistry.getEnglishName(layoutType)})",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = LayoutRegistry.getDescription(layoutType),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 11.sp
-                                )
-                            )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                            Text(text = desc, style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
                         }
-
                         Switch(
                             checked = isChecked,
-                            enabled = canDisable,
                             onCheckedChange = { checked ->
-                                val current = enabledLayouts.toMutableList()
-                                if (checked) {
-                                    if (!current.contains(layoutType)) current.add(layoutType)
+                                val updated = if (checked) {
+                                    enabledLayouts + type
                                 } else {
-                                    if (current.size > 1) current.remove(layoutType)
+                                    if (enabledLayouts.size > 1) enabledLayouts - type else enabledLayouts
                                 }
-                                enabledLayouts = current
+                                enabledLayouts = updated
                                 prefs.edit().putString(
                                     LayoutRegistry.PREF_ENABLED_LAYOUTS,
-                                    LayoutRegistry.serializeEnabledLayouts(current)
+                                    LayoutRegistry.serializeEnabledLayouts(updated)
                                 ).apply()
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF00A87E)
-                            )
+                            }
                         )
                     }
-
-                    if (index < LayoutRegistry.all.size - 1) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+                    if (index < allLayouts.size - 1) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Personal Dictionary & Data Freedom Card ───────────────────────────
+        // ── Interactive Typing Test Box ─────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "ব্যক্তিগত অভিধান ও ব্যাকআপ",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = "User Dictionary • $userWordCount টি ব্যক্তিগত শব্দ সংরক্ষিত",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    onClick = { showDictionarySheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
-                ) {
-                    Text("📖 শব্দতালিকা ও সম্পাদনা (Manage & Migrate)", fontSize = 13.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Theme Studio v2 Card ───────────────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "🎨 থিম ও কালার স্টুডিও (Theme Studio v2)",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = "বর্তমান থিম: $currentThemeName • OLED Black, Avro Blue, Cyber Indigo ও ওয়ালপেপার",
-                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { showThemeSheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
-                ) {
-                    Text("🎨 থিম ও ব্যাকগ্রাউন্ড পরিবর্তন করুন", fontSize = 13.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Ergonomics & Sizing Card ──────────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "📐 কীবোর্ড সাইজ ও আরগোনোমিক্স (Ergonomics)",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = "উচ্চতা: ${(keyboardPrefs.heightScale * 100).toInt()}% • লং-প্রেস: ${keyboardPrefs.longPressDelayMs}ms • ফন্ট ও প্যাডিং",
-                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { showErgonomicsSheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
-                ) {
-                    Text("📐 সাইজ, প্যাডিং ও ফন্ট কাস্টমাইজেশন", fontSize = 13.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Form Factor & Gestures Card (Phase 11) ────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "📱 ফর্ম ফ্যাক্টর ও জেশ্চার (Form Factors & Gestures)",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = "মোড: ${keyboardPrefs.formFactor.titleBengali} • স্পেসবার কার্সর ও সোয়াইপ ডিলিট",
-                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { showFormFactorSheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
-                ) {
-                    Text("📱 একহাতে, ভাসমান, স্প্লিট ও জেশ্চার সেটিংস", fontSize = 13.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Haptics & Sound Feedback Card ──────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "📳 হ্যাপটিক্স ও সাউন্ড ফিডব্যাক",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = "ভাইব্রেশন: ${if (keyboardPrefs.hapticEnabled) "চালু (${keyboardPrefs.hapticDurationMs}ms)" else "বন্ধ"} • সাউন্ড: ${if (keyboardPrefs.soundEnabled) keyboardPrefs.soundPack else "বন্ধ"}",
-                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { showHapticsSheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
-                ) {
-                    Text("📳 ভাইব্রেশন ও সাউন্ড প্যাক টিউনিং", fontSize = 13.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Toolbar Customization Card ────────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "🛠️ কুইক টুলবার কাস্টমাইজেশন",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = "কীবোর্ড স্ট্রিপের শর্টকাট টুল সক্রিয় করুন এবং ড্র্যাগ করে সাজান (ইমোজি, ভয়েস, ক্লিপবোর্ড, থিম, সেটিংস)",
-                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { showToolbarSheet = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
-                ) {
-                    Text("🛠️ টুল সাজান ও নির্বাচন করুন", fontSize = 13.sp)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Live Test Typing Area ───────────────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -535,141 +470,30 @@ fun LekhaniSettingsScreen(
                     text = "এখানে ট্যাপ করে লেখনি কীবোর্ড পরীক্ষা করুন:",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    ),
+                    modifier = Modifier.padding(vertical = 4.dp)
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedTextField(
                     value = testText,
                     onValueChange = { testText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("বাংলা লিখুন (Type here)...") },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF00A87E),
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    placeholder = { Text("এখানে বাংলা লিখুন...") },
+                    trailingIcon = {
+                        if (testText.isNotEmpty()) {
+                            IconButton(onClick = { testText = "" }) {
+                                Icon(Icons.Filled.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ── Features & Privacy Badge ────────────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF00382B).copy(alpha = 0.25f)
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "🛡️ ১০০% গোপনীয় ও সম্পূর্ণ অফলাইন (100% Offline)",
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF00A87E)
-                    )
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "লেখনি কোনো ইন্টারনেট অনুমতি (android.permission.INTERNET) ব্যবহার করে না। আপনার টাইপিং ও ভয়েস ডেটা ডিভাইস থেকে কখনো বাইরে যাবে না।",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        lineHeight = 18.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(30.dp))
-    }
-
-    if (showDictionarySheet) {
-        Dialog(
-            onDismissRequest = {
-                showDictionarySheet = false
-                userWordCount = dictManager.getUserWords().size
-            },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                DictionaryManagementSheet(
-                    dictManager = dictManager,
-                    onClose = {
-                        showDictionarySheet = false
-                        userWordCount = dictManager.getUserWords().size
-                    }
-                )
-            }
-        }
-    }
-
-    if (showThemeSheet) {
-        Dialog(
-            onDismissRequest = {
-                showThemeSheet = false
-                currentThemeName = ThemeRegistry.resolveTheme(context, keyboardPrefs.themeId).nameBengali
-            },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            ThemeStudioSheet(
-                prefs = keyboardPrefs,
-                onClose = {
-                    showThemeSheet = false
-                    currentThemeName = ThemeRegistry.resolveTheme(context, keyboardPrefs.themeId).nameBengali
-                }
-            )
-        }
-    }
-
-    if (showErgonomicsSheet) {
-        Dialog(
-            onDismissRequest = { showErgonomicsSheet = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            ErgonomicsSizingSheet(
-                prefs = keyboardPrefs,
-                onClose = { showErgonomicsSheet = false }
-            )
-        }
-    }
-
-    if (showFormFactorSheet) {
-        Dialog(
-            onDismissRequest = { showFormFactorSheet = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            FormFactorGesturesSheet(
-                prefs = keyboardPrefs,
-                onClose = { showFormFactorSheet = false }
-            )
-        }
-    }
-
-    if (showHapticsSheet) {
-        Dialog(
-            onDismissRequest = { showHapticsSheet = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            HapticsSoundSheet(
-                prefs = keyboardPrefs,
-                onClose = { showHapticsSheet = false }
-            )
-        }
-    }
-
-    if (showToolbarSheet) {
-        Dialog(
-            onDismissRequest = { showToolbarSheet = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            ToolbarCustomizationSheet(
-                prefs = keyboardPrefs,
-                onClose = { showToolbarSheet = false }
-            )
-        }
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -678,13 +502,15 @@ fun LekhaniAppTheme(
     content: @Composable () -> Unit
 ) {
     val darkColorScheme = darkColorScheme(
-        primary = Color(0xFF00A87E),
+        primary = Color(0xFF00E5B8),
         onPrimary = Color(0xFF003829),
         primaryContainer = Color(0xFF00513C),
         onPrimaryContainer = Color(0xFF8CF4CB),
         secondary = Color(0xFFB1CCC0),
-        surface = Color(0xFF191C1B),
-        background = Color(0xFF101413),
+        surface = Color(0xFF161B19),
+        background = Color(0xFF0F1412),
+        surfaceVariant = Color(0xFF1F2925),
+        onSurfaceVariant = Color(0xFF98A6A0),
         onSurface = Color(0xFFE1E3DF),
         onBackground = Color(0xFFE1E3DF)
     )
