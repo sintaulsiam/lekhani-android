@@ -724,16 +724,29 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
             if (hasShiftAtStart && hasBackspaceAtEnd && row.size > 2) {
                 // Bottom letter row: [Shift] ... [letters] ... [Backspace]
-                // All middle letters have standardUnitWidth; Shift and Backspace expand to fill edges flush with Row 0
+                // Distribute width proportionally using ergonomic weights (~1.32x for Shift/Backspace)
+                // so middle letters are comfortable and wide, while Shift and Backspace are balanced,
+                // matching Gboard/iOS gold standards rather than oversized slabs.
                 val middleLetterCount = row.size - 2
-                val middleTotalWidth = middleLetterCount * standardUnitWidth + (middleLetterCount - 1) * keyMarginH
-                val remainingFuncWidth = availableRowW - middleTotalWidth - 2f * keyMarginH
-                val funcKeyWidth = (remainingFuncWidth / 2f).coerceAtLeast(standardUnitWidth)
+                val rawShiftWeight = row.first().widthWeight
+                val rawBackWeight = row.last().widthWeight
+                val funcWeight = if (rawShiftWeight > 1.0f) rawShiftWeight.coerceIn(1.25f, 1.35f) else 1.32f
+                val backWeight = if (rawBackWeight > 1.0f) rawBackWeight.coerceIn(1.25f, 1.35f) else 1.32f
+
+                val rowWeight = funcWeight + backWeight + middleLetterCount * 1.0f
+                val totalGaps = (row.size - 1) * keyMarginH
+                val unitWidth = (availableRowW - totalGaps) / rowWeight
+                val shiftKeyWidth = unitWidth * funcWeight
+                val backKeyWidth = unitWidth * backWeight
 
                 var keyLeft = originX + sidePadding
                 for (i in row.indices) {
                     val key = row[i]
-                    val keyWidth = if (i == 0 || i == row.lastIndex) funcKeyWidth else standardUnitWidth
+                    val keyWidth = when (i) {
+                        0 -> shiftKeyWidth
+                        row.lastIndex -> backKeyWidth
+                        else -> unitWidth * key.widthWeight
+                    }
                     resolvedKeys.add(
                         ResolvedKey(
                             key = key,

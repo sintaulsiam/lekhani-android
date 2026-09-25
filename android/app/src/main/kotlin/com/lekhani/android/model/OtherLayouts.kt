@@ -42,14 +42,14 @@ object EnglishQwertyLayout {
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.4f, contentDesc = "Shift",
+                    widthWeight = 1.32f, contentDesc = "Shift",
                 ),
                 Ch("z", "Z"), Ch("x", "X"), Ch("c", "C"), Ch("v", "V"),
                 Ch("b", "B"), Ch("n", "N"), Ch("m", "M"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.4f, contentDesc = "Backspace",
+                    widthWeight = 1.32f, contentDesc = "Backspace",
                 ),
             ),
         ),
@@ -139,7 +139,7 @@ object NationalLayout {
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.4f, contentDesc = "Shift",
+                    widthWeight = 1.32f, contentDesc = "Shift",
                 ),
                 Ch("ঁ", "ঃ"), Ch("ো", "ৌ"), Ch("ে", "ৈ"),
                 Ch("র", "ল"), Ch("ন", "ণ"), Ch("স", "ষ"),
@@ -147,7 +147,7 @@ object NationalLayout {
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.4f, contentDesc = "Backspace",
+                    widthWeight = 1.32f, contentDesc = "Backspace",
                 ),
             ),
         ),
@@ -214,7 +214,7 @@ object ProbhatLayout {
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.4f, contentDesc = "Shift",
+                    widthWeight = 1.32f, contentDesc = "Shift",
                 ),
                 Ch("য়", "য"), Ch("শ", "ঢ়"), Ch("চ", "ছ"),
                 Ch("আ", "ঋ"), Ch("ব", "ভ"), Ch("ন", "ণ"),
@@ -223,7 +223,7 @@ object ProbhatLayout {
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.4f, contentDesc = "Backspace",
+                    widthWeight = 1.32f, contentDesc = "Backspace",
                 ),
             ),
         ),

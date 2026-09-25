@@ -50,7 +50,7 @@ object ProbahLayout {
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.5f,
+                    widthWeight = 1.32f,
                     contentDesc = "Shift",
                 ),
                 Ch("ৌ", shifted = "ঞ", desc = "ৌ, shifted ঞ"),
@@ -64,7 +64,7 @@ object ProbahLayout {
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.5f,
+                    widthWeight = 1.32f,
                     contentDesc = "Backspace",
                 ),
             ),
