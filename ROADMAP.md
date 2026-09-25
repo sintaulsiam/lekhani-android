@@ -59,12 +59,13 @@
 ---
 
 ## Phase 4: Candidate Strip & Contextual AI Intelligence
-- [ ] Jetpack Compose horizontal candidate strip with fluid slide-in transitions.
-- [ ] Center-pinned primary candidate selection committed instantly with Spacebar tap.
-- [ ] Contextual homophone disambiguation badges with preview (*পড়া* vs *পরা*, *খাব* vs *যাব*).
-- [ ] Real-time next-word continuations upon committing tokens.
-- [ ] Colloquial Bengali suffix peeling & grammar morphology.
-- [ ] **Candidate Blacklisting**: Long-press any candidate in the strip to remove accidental typos from memory.
+- [x] Jetpack Compose horizontal candidate strip with fluid slide-in transitions (`CandidateStripView.kt`).
+- [x] Center-pinned primary candidate selection committed instantly with Spacebar tap.
+- [x] Contextual homophone disambiguation badges with preview (*পড়া* vs *পরা*, *খাব* vs *যাব*) via `HomophoneAnnotator`.
+- [x] Real-time next-word continuations upon committing tokens.
+- [x] Colloquial Bengali suffix peeling & grammar morphology.
+- [x] **Candidate Blacklisting**: Long-press any candidate in the strip to remove accidental typos from memory (`CandidateBlacklist.kt`).
+- [x] Unit test suite (`HomophoneAnnotatorTest.kt`) covering pair detection, reverse mappings, and primary selection.
 
 ---
 

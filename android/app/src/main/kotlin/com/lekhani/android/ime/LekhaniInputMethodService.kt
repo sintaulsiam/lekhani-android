@@ -8,6 +8,16 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.lekhani.android.canvas.KeyboardCanvasView
 import com.lekhani.android.ffi.AndroidLekhaniSession
 import com.lekhani.android.ffi.LekhaniLayoutType
@@ -15,10 +25,17 @@ import com.lekhani.android.ffi.LekhaniError
 import com.lekhani.android.model.Key
 import com.lekhani.android.model.KeyAction
 import com.lekhani.android.model.LayoutRegistry
+import com.lekhani.android.ui.candidate.CandidateBlacklist
+import com.lekhani.android.ui.candidate.CandidateStripState
+import com.lekhani.android.ui.candidate.CandidateStripView
+import com.lekhani.android.ui.candidate.HomophoneAnnotator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -69,6 +86,19 @@ class LekhaniInputMethodService : InputMethodService() {
 
     /** The hardware-canvas keyboard view. Null until [onCreateInputView] is called. */
     private var keyboardView: KeyboardCanvasView? = null
+
+    // ── Candidate strip state ─────────────────────────────────────────────────
+
+    /**
+     * Hot [StateFlow] of [CandidateStripState] observed by [CandidateStripView].
+     * Updated on every [processKey] / [handleBackspace] / [handleSpace] call.
+     * Published on the main thread — no synchronization needed.
+     */
+    private val _candidateState = MutableStateFlow<CandidateStripState>(CandidateStripState.Empty)
+    val candidateState: StateFlow<CandidateStripState> = _candidateState.asStateFlow()
+
+    /** Persists long-press blacklisted candidates to Device Protected Storage. */
+    private val blacklist: CandidateBlacklist by lazy { CandidateBlacklist(this) }
 
     // ── WebView / Chromium composing shadow buffer ─────────────────────────────
 
@@ -130,6 +160,7 @@ class LekhaniInputMethodService : InputMethodService() {
     override fun onFinishInput() {
         session.reset()
         preeditShadow = ""
+        clearCandidates()
         super.onFinishInput()
     }
 
@@ -154,6 +185,48 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         keyboardView = view
         return view
+    }
+
+    /**
+     * Creates the Compose-based candidate strip shown above the keyboard.
+     *
+     * Android IME framework: [onCreateCandidatesView] is called lazily when the
+     * IME first calls [setCandidatesViewShown](true). We eagerly set up the
+     * Compose owner chain (Lifecycle + SavedState) required for Compose to work
+     * inside a Service (which is not a Fragment or Activity).
+     */
+    override fun onCreateCandidatesView(): View {
+        // Compose inside a Service requires a synthetic Lifecycle owner.
+        // We use the pattern recommended by the Compose IME community:
+        // create a minimal LifecycleOwner that stays RESUMED while the strip is visible.
+        return ComposeView(this).apply {
+            // Wire the view tree owners so Compose internals (collectAsState, etc.) work
+            val lifecycleOwner = ImeLifecycleOwner()
+            lifecycleOwner.onCreate()
+            lifecycleOwner.onResume()
+            setViewTreeLifecycleOwner(lifecycleOwner)
+            setViewTreeViewModelStoreOwner(lifecycleOwner)
+            setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+
+            setContent {
+                CandidateStripView(
+                    stateFlow = candidateState,
+                    onCandidateClick = { text -> onCandidateSelected(text) },
+                    onBlacklist = { text ->
+                        blacklist.add(text)
+                        // Re-publish current candidates with the blacklisted word removed
+                        val current = _candidateState.value
+                        if (current is CandidateStripState.Candidates) {
+                            val filtered = current.items.filter { it.text != text }
+                            _candidateState.value = if (filtered.isEmpty())
+                                CandidateStripState.Empty
+                            else
+                                CandidateStripState.Candidates(filtered)
+                        }
+                    },
+                )
+            }
+        }
     }
 
     // ── Internal key dispatch ─────────────────────────────────────────────────
@@ -234,12 +307,12 @@ class LekhaniInputMethodService : InputMethodService() {
             ic.finishComposingText()
             ic.commitText(text, 1)
             preeditShadow = ""
+            clearCandidates()
         } ?: run {
             // Update composing text with Chromium/WebView resilience guard
             setComposingTextSafe(ic, result.preedit)
+            publishCandidates(result.candidates)
         }
-
-        // TODO Phase 4: publish result.candidates to CandidateStripView
     }
 
     /**
@@ -259,6 +332,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 return
             }
             setComposingTextSafe(ic, result.preedit)
+            publishCandidates(result.candidates)
         } else {
             // Nothing composing — delete character in the target app
             ic.deleteSurroundingText(1, 0)
@@ -283,6 +357,7 @@ class LekhaniInputMethodService : InputMethodService() {
             ic.finishComposingText()
             ic.commitText(text, 1)
             preeditShadow = ""
+            clearCandidates()
         }
 
         // After committing a word, refresh surrounding context for AI scorer
@@ -307,6 +382,7 @@ class LekhaniInputMethodService : InputMethodService() {
             ic.finishComposingText()
             ic.commitText(text, 1)
             preeditShadow = ""
+            clearCandidates()
         }
 
         refreshSurroundingContext()
@@ -325,6 +401,28 @@ class LekhaniInputMethodService : InputMethodService() {
     // ══════════════════════════════════════════════════════════════════════════
     // Private helpers
     // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Publishes candidate list to the Compose candidate strip.
+     * Filters out user-blacklisted words and applies homophone disambiguation badges.
+     */
+    private fun publishCandidates(raw: List<String>) {
+        val filtered = raw.filter { !blacklist.isBlacklisted(it) }
+        _candidateState.value = if (filtered.isEmpty()) {
+            CandidateStripState.Empty
+        } else {
+            CandidateStripState.Candidates(HomophoneAnnotator.annotate(filtered))
+        }
+        setCandidatesViewShown(filtered.isNotEmpty())
+    }
+
+    /**
+     * Clears all candidates and hides the candidate strip view.
+     */
+    private fun clearCandidates() {
+        _candidateState.value = CandidateStripState.Empty
+        setCandidatesViewShown(false)
+    }
 
     /**
      * Enforces password / incognito field policy (AGENTS.md §3.2).
