@@ -12,6 +12,7 @@ import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -128,7 +129,9 @@ class LekhaniInputMethodService : InputMethodService() {
     enum class InputViewMode { KEYBOARD, EMOJI, CLIPBOARD }
 
     private var currentMode: InputViewMode = InputViewMode.KEYBOARD
-    private var rootInputContainer: FrameLayout? = null
+    private var rootInputContainer: LinearLayout? = null
+    private var modesContainer: FrameLayout? = null
+    private var candidateStripComposeView: ComposeView? = null
     private var emojiPickerView: ComposeView? = null
     private var clipboardView: ComposeView? = null
     private var isCurrentFieldPrivate: Boolean = false
@@ -235,7 +238,7 @@ class LekhaniInputMethodService : InputMethodService() {
         // Re-apply policy in case the editor info changed after the view appeared
         applyInputTypePolicy(info)
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
-        setCandidatesViewShown(!isCurrentFieldPrivate)
+        updateCandidatesVisibility()
     }
 
     override fun onUpdateSelection(
@@ -272,10 +275,72 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onCreateInputView(): View {
         window?.window?.decorView?.let { attachLifecycleOwner(it) }
+        val rootLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            attachLifecycleOwner(this)
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        rootInputContainer = rootLayout
+
+        val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
+        val candidateStrip = ComposeView(this).apply {
+            attachLifecycleOwner(this)
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                Box {
+                    CandidateStripView(
+                        stateFlow = candidateState,
+                        onCandidateClick = { text -> onCandidateSelected(text) },
+                        onBlacklist = { text ->
+                            blacklist.add(text)
+                            // Re-publish current candidates with the blacklisted word removed
+                            val current = _candidateState.value
+                            if (current is CandidateStripState.Candidates) {
+                                val filtered = current.items.filter { it.text != text }
+                                _candidateState.value = if (filtered.isEmpty())
+                                    CandidateStripState.Empty
+                                else
+                                    CandidateStripState.Candidates(filtered)
+                            }
+                        },
+                        theme = activeTheme,
+                        activeTools = keyboardPrefs.getActiveToolbarTools(),
+                        onToolClick = { tool -> handleToolbarToolClick(tool) },
+                    )
+
+                    VoiceWaveformOverlay(
+                        voiceStateFlow = audioManager.voiceState,
+                        onDone = {
+                            val result = audioManager.stopStreaming()
+                            if (result.isNotBlank()) {
+                                currentInputConnection?.finishComposingText()
+                                currentInputConnection?.commitText(result, 1)
+                            }
+                        },
+                        onCancel = {
+                            audioManager.cancelStreaming()
+                        },
+                    )
+                }
+            }
+        }
+        candidateStripComposeView = candidateStrip
+        candidateStrip.visibility = View.VISIBLE
+        rootLayout.addView(
+            candidateStrip,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
         val container = FrameLayout(this).apply {
             attachLifecycleOwner(this)
         }
-        rootInputContainer = container
+        modesContainer = container
 
         val canvasView = KeyboardCanvasView(this).also { v ->
             val curLayout = session.getLayout()
@@ -323,62 +388,17 @@ class LekhaniInputMethodService : InputMethodService() {
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
         )
-        return container
+        rootLayout.addView(
+            container,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+        return rootLayout
     }
 
-    /**
-     * Creates the Compose-based candidate strip shown above the keyboard.
-     *
-     * Android IME framework: [onCreateCandidatesView] is called lazily when the
-     * IME first calls [setCandidatesViewShown](true). We eagerly set up the
-     * Compose owner chain (Lifecycle + SavedState) required for Compose to work
-     * inside a Service (which is not a Fragment or Activity).
-     */
-    override fun onCreateCandidatesView(): View {
-        window?.window?.decorView?.let { attachLifecycleOwner(it) }
-        return ComposeView(this).apply {
-            attachLifecycleOwner(this)
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-
-            setContent {
-                Box {
-                    CandidateStripView(
-                        stateFlow = candidateState,
-                        onCandidateClick = { text -> onCandidateSelected(text) },
-                        onBlacklist = { text ->
-                            blacklist.add(text)
-                            // Re-publish current candidates with the blacklisted word removed
-                            val current = _candidateState.value
-                            if (current is CandidateStripState.Candidates) {
-                                val filtered = current.items.filter { it.text != text }
-                                _candidateState.value = if (filtered.isEmpty())
-                                    CandidateStripState.Empty
-                                else
-                                    CandidateStripState.Candidates(filtered)
-                            }
-                        },
-                        theme = ThemeRegistry.resolveTheme(this@LekhaniInputMethodService, keyboardPrefs.themeId),
-                        activeTools = keyboardPrefs.getActiveToolbarTools(),
-                        onToolClick = { tool -> handleToolbarToolClick(tool) },
-                    )
-
-                    VoiceWaveformOverlay(
-                        voiceStateFlow = audioManager.voiceState,
-                        onDone = {
-                            val result = audioManager.stopStreaming()
-                            if (result.isNotBlank()) {
-                                currentInputConnection?.finishComposingText()
-                                currentInputConnection?.commitText(result, 1)
-                            }
-                        },
-                        onCancel = {
-                            audioManager.cancelStreaming()
-                        },
-                    )
-                }
-            }
-        }
-    }
+    override fun onCreateCandidatesView(): View? = null
 
     // ── Internal key dispatch ─────────────────────────────────────────────────
 
@@ -402,7 +422,7 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     fun setInputViewMode(mode: InputViewMode) {
         currentMode = mode
-        val container = rootInputContainer ?: return
+        val container = modesContainer ?: return
         val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
 
         when (mode) {
@@ -410,12 +430,12 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.visibility = View.VISIBLE
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
-                setCandidatesViewShown(true)
+                updateCandidatesVisibility()
             }
             InputViewMode.EMOJI -> {
                 keyboardView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
-                setCandidatesViewShown(false)
+                candidateStripComposeView?.visibility = View.GONE
                 if (emojiPickerView == null) {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
@@ -447,7 +467,7 @@ class LekhaniInputMethodService : InputMethodService() {
             InputViewMode.CLIPBOARD -> {
                 keyboardView?.visibility = View.GONE
                 emojiPickerView?.visibility = View.GONE
-                setCandidatesViewShown(false)
+                candidateStripComposeView?.visibility = View.GONE
                 if (clipboardView == null) {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
@@ -478,6 +498,11 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
+    private fun updateCandidatesVisibility() {
+        val show = currentMode == InputViewMode.KEYBOARD
+        candidateStripComposeView?.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
     /**
      * Starts offline voice typing capture and displays waveform overlay.
      */
@@ -487,7 +512,7 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
-        setCandidatesViewShown(true)
+        updateCandidatesVisibility()
         audioManager.startStreaming { finalTranscript ->
             if (finalTranscript.isNotBlank()) {
                 currentInputConnection?.finishComposingText()
@@ -804,7 +829,7 @@ class LekhaniInputMethodService : InputMethodService() {
         } else {
             CandidateStripState.Candidates(HomophoneAnnotator.annotate(filtered))
         }
-        setCandidatesViewShown(!isCurrentFieldPrivate)
+        updateCandidatesVisibility()
     }
 
     /**
@@ -812,7 +837,7 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     private fun clearCandidates() {
         _candidateState.value = CandidateStripState.Empty
-        setCandidatesViewShown(!isCurrentFieldPrivate)
+        updateCandidatesVisibility()
     }
 
     private fun handleToolbarToolClick(tool: KeyboardPreferences.ToolbarTool) {
