@@ -13,7 +13,7 @@
 - [x] UniFFI interface definition (`lekhani.udl` / proc-macros) — `uniffi::setup_scaffolding!()` + `uniffi.toml`.
 - [x] Thread-safe mobile session lifecycle wrappers (`AndroidLekhaniSession`).
 - [x] Surrounding text context extraction (`getTextBeforeCursor`) for in-place sentence re-scoring.
-- [ ] Cross-compilation pipeline via `cargo-ndk` (`arm64-v8a`, `armeabi-v7a`, `x86_64`).
+- [x] Cross-compilation pipeline via `cargo-ndk` (`arm64-v8a`, `armeabi-v7a`, `x86_64`) with 16 KB page-size ELF alignment.
 - [x] Auto-generate idiomatic Kotlin bindings — `uniffi.toml` configured for `com.lekhani.android.ffi`.
 - [x] **CI/CD Pipeline (set once, runs forever)**:
   - GitHub Actions workflow: `cargo clippy --all-targets -- -D warnings`, `cargo test`, and `cargo build --release` on every push.
@@ -25,7 +25,7 @@
 ---
 
 ## Phase 2: Android IME Scaffolding & System Compatibility
-- [x] Android Studio project setup (Gradle 8.x, Kotlin 2.0) — `android/` module with `settings.gradle.kts`, `build.gradle.kts`, `libs.versions.toml`.
+- [x] Modern Android build setup (AGP 9.2, Gradle 9.4.1, Kotlin 2.0, NDK r28) with automated `cargoBuild` integration and Android Studio Run button readiness.
 - [x] `LekhaniInputMethodService` implementation with resilient `InputConnection` lifecycle.
 - [x] **Direct Boot Support (`directBootAware="true"`)**: Device Protected Storage prefs via `createDeviceProtectedStorageContext()`.
 - [x] **Secure & Incognito Mode**:
