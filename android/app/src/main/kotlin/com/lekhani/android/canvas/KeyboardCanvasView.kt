@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
@@ -100,11 +101,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     // Side Dock buttons for One-Handed mode (zero allocation in onDraw)
     enum class SideDockAction { EXPAND_STANDARD, SWAP_SIDE, TOGGLE_FLOATING }
-    private class SideDockButton(var action: SideDockAction, var icon: String, val bounds: RectF = RectF())
+    private class SideDockButton(var action: SideDockAction, val bounds: RectF = RectF())
     private val sideDockButtons = arrayOf(
-        SideDockButton(SideDockAction.EXPAND_STANDARD, "⛶"),
-        SideDockButton(SideDockAction.SWAP_SIDE, "›"),
-        SideDockButton(SideDockAction.TOGGLE_FLOATING, "🪟"),
+        SideDockButton(SideDockAction.EXPAND_STANDARD),
+        SideDockButton(SideDockAction.SWAP_SIDE),
+        SideDockButton(SideDockAction.TOGGLE_FLOATING),
     )
     private var isSideDockVisible: Boolean = false
     private val sideDockBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -114,6 +115,20 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private val sideDockTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFFFFFFFF.toInt()
         textAlign = Paint.Align.CENTER
+    }
+
+    // Pre-allocated vector icon paths and paints for zero-allocation vector drawing
+    private val vectorIconPath = Path()
+    private val vectorIconStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val vectorIconFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+    private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.RIGHT
     }
 
     // Floating mode drag state
@@ -396,6 +411,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyGlowPaint.color = (theme.accentColor and 0x00FFFFFF) or 0x66000000.toInt()
         spaceSlideTrackPaint.color = (theme.accentColor and 0x00FFFFFF) or 0x80000000.toInt()
         spaceSlideThumbPaint.color = theme.accentColor
+        vectorIconStrokePaint.color = theme.labelColor
+        vectorIconFillPaint.color = theme.labelColor
+        hintPaint.color = theme.labelDimColor
         invalidate()
     }
 
@@ -492,6 +510,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyGlowPaint.strokeWidth = 2.2f * density
         sideDockTextPaint.textSize = 20f * density
         backspaceBadgeTextPaint.textSize = 12f * density
+        vectorIconStrokePaint.strokeWidth = 2.2f * density
 
         val currentLayout = layout ?: return
         val rowCount = currentLayout.rows.size       // typically 3
@@ -504,6 +523,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         labelPaint.textSize = labelSize
         labelPaintSmall.textSize = labelSizeSmall
+        hintPaint.textSize = labelSizeSmall * 0.92f
 
         // Zone divider: exactly at x = width / 2 (5 keys left, 5 keys right)
         zoneDividerX = w / 2f
@@ -577,15 +597,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val pad = 4f * resources.displayMetrics.density
 
         sideDockButtons[0].action = SideDockAction.EXPAND_STANDARD
-        sideDockButtons[0].icon = "⛶"
         sideDockButtons[0].bounds.set(left + pad, top + pad, left + width - pad, top + btnH - pad)
 
         sideDockButtons[1].action = SideDockAction.SWAP_SIDE
-        sideDockButtons[1].icon = if (isLeft) "‹" else "›"
         sideDockButtons[1].bounds.set(left + pad, top + btnH + pad, left + width - pad, top + 2f * btnH - pad)
 
         sideDockButtons[2].action = SideDockAction.TOGGLE_FLOATING
-        sideDockButtons[2].icon = "🪟"
         sideDockButtons[2].bounds.set(left + pad, top + 2f * btnH + pad, left + width - pad, top + 3f * btnH - pad)
     }
 
@@ -595,11 +612,20 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val spaceH = totalH * 0.22f
         val kHeight = (totalH - spaceH - keyMarginV * (rowCount + 1)) / rowCount
 
+        val sidePadding = keyMarginH * 1.5f
+        val maxRowWeight = currentLayout.rows.maxOfOrNull { row ->
+            row.sumOf { it.widthWeight.toDouble() }.toFloat()
+        } ?: 10f
+
+        val availableRowW = (totalW - 2f * sidePadding).coerceAtLeast(10f)
+        val unitWidth = (availableRowW - keyMarginH * (maxRowWeight - 1f)) / maxRowWeight
+
         var rowTop = yOffset + keyMarginV
         for (row in currentLayout.rows) {
-            val totalWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
-            val unitWidth = (totalW - keyMarginH * (row.size + 1)) / totalWeight
-            var keyLeft = originX + keyMarginH
+            val rowWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
+            val rowW = (unitWidth * rowWeight) + (row.size - 1) * keyMarginH
+            var keyLeft = originX + (totalW - rowW) / 2f
+
             for (key in row) {
                 val keyWidth = unitWidth * key.widthWeight
                 resolvedKeys.add(
@@ -615,20 +641,20 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         // Spacebar row
         val spaceRow = currentLayout.spacebarRow
-        val totalWeight = spaceRow.sumOf { it.widthWeight.toDouble() }.toFloat()
-        val unitWidth = (totalW - keyMarginH * (spaceRow.size + 1)) / totalWeight
+        val totalSpaceWeight = spaceRow.sumOf { it.widthWeight.toDouble() }.toFloat()
+        val spaceUnitWidth = (availableRowW - keyMarginH * (spaceRow.size - 1)) / totalSpaceWeight
         val spaceRowTop = yOffset + totalH - spaceH - keyMarginV
         val spaceKeyHeight = spaceH - keyMarginV
-        var keyLeft = originX + keyMarginH
+        var spaceKeyLeft = originX + sidePadding
         for (key in spaceRow) {
-            val keyWidth = unitWidth * key.widthWeight
+            val keyWidth = spaceUnitWidth * key.widthWeight
             resolvedKeys.add(
                 ResolvedKey(
                     key = key,
-                    bounds = RectF(keyLeft, spaceRowTop, keyLeft + keyWidth, spaceRowTop + spaceKeyHeight)
+                    bounds = RectF(spaceKeyLeft, spaceRowTop, spaceKeyLeft + keyWidth, spaceRowTop + spaceKeyHeight)
                 )
             )
-            keyLeft += keyWidth + keyMarginH
+            spaceKeyLeft += keyWidth + keyMarginH
         }
     }
 
@@ -697,6 +723,111 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     // ══════════════════════════════════════════════════════════════════════════
+    // Vector Drawing Helpers — Zero allocations permitted
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private fun drawVectorBackspace(canvas: Canvas, cx: Float, cy: Float, size: Float, paint: Paint) {
+        vectorIconPath.rewind()
+        val halfW = size * 0.52f
+        val halfH = size * 0.35f
+        val tipW = size * 0.34f
+
+        vectorIconPath.moveTo(cx - halfW, cy)
+        vectorIconPath.lineTo(cx - halfW + tipW, cy - halfH)
+        vectorIconPath.lineTo(cx + halfW, cy - halfH)
+        vectorIconPath.lineTo(cx + halfW, cy + halfH)
+        vectorIconPath.lineTo(cx - halfW + tipW, cy + halfH)
+        vectorIconPath.close()
+        canvas.drawPath(vectorIconPath, paint)
+
+        val crossHalf = size * 0.14f
+        val crossCx = cx + tipW * 0.32f
+        canvas.drawLine(crossCx - crossHalf, cy - crossHalf, crossCx + crossHalf, cy + crossHalf, paint)
+        canvas.drawLine(crossCx - crossHalf, cy + crossHalf, crossCx + crossHalf, cy - crossHalf, paint)
+    }
+
+    private fun drawVectorShift(canvas: Canvas, cx: Float, cy: Float, size: Float, isShifted: Boolean, isLocked: Boolean, strokePaint: Paint, fillPaint: Paint) {
+        vectorIconPath.rewind()
+        val halfW = size * 0.40f
+        val headH = size * 0.36f
+        val stemHalfW = size * 0.18f
+        val totalHalfH = size * 0.44f
+
+        vectorIconPath.moveTo(cx, cy - totalHalfH)
+        vectorIconPath.lineTo(cx + halfW, cy - totalHalfH + headH)
+        vectorIconPath.lineTo(cx + stemHalfW, cy - totalHalfH + headH)
+        vectorIconPath.lineTo(cx + stemHalfW, cy + totalHalfH)
+        vectorIconPath.lineTo(cx - stemHalfW, cy + totalHalfH)
+        vectorIconPath.lineTo(cx - stemHalfW, cy - totalHalfH + headH)
+        vectorIconPath.lineTo(cx - halfW, cy - totalHalfH + headH)
+        vectorIconPath.close()
+
+        if (isShifted || isLocked) {
+            fillPaint.color = activeTheme.accentColor
+            canvas.drawPath(vectorIconPath, fillPaint)
+        } else {
+            strokePaint.color = activeTheme.labelColor
+            canvas.drawPath(vectorIconPath, strokePaint)
+        }
+    }
+
+    private fun drawVectorEnter(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        vectorIconPath.rewind()
+        val w = size * 0.60f
+        val h = size * 0.42f
+        val left = cx - w / 2f
+        val right = cx + w / 2f
+        val top = cy - h / 2f
+        val bottom = cy + h / 2f
+        val arrowSize = size * 0.20f
+
+        vectorIconPath.moveTo(right, top)
+        vectorIconPath.lineTo(right, bottom)
+        vectorIconPath.lineTo(left, bottom)
+
+        vectorIconPath.moveTo(left + arrowSize, bottom - arrowSize)
+        vectorIconPath.lineTo(left, bottom)
+        vectorIconPath.lineTo(left + arrowSize, bottom + arrowSize)
+
+        canvas.drawPath(vectorIconPath, strokePaint)
+    }
+
+    private fun drawVectorExpand(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        val s = size * 0.40f
+        val b = size * 0.18f
+        vectorIconPath.rewind()
+        vectorIconPath.moveTo(cx - s, cy - s + b); vectorIconPath.lineTo(cx - s, cy - s); vectorIconPath.lineTo(cx - s + b, cy - s)
+        vectorIconPath.moveTo(cx + s - b, cy - s); vectorIconPath.lineTo(cx + s, cy - s); vectorIconPath.lineTo(cx + s, cy - s + b)
+        vectorIconPath.moveTo(cx - s, cy + s - b); vectorIconPath.lineTo(cx - s, cy + s); vectorIconPath.lineTo(cx - s + b, cy + s)
+        vectorIconPath.moveTo(cx + s - b, cy + s); vectorIconPath.lineTo(cx + s, cy + s); vectorIconPath.lineTo(cx + s, cy + s - b)
+        canvas.drawPath(vectorIconPath, strokePaint)
+    }
+
+    private fun drawVectorChevron(canvas: Canvas, cx: Float, cy: Float, size: Float, isLeft: Boolean, strokePaint: Paint) {
+        val w = size * 0.24f
+        val h = size * 0.36f
+        vectorIconPath.rewind()
+        if (isLeft) {
+            vectorIconPath.moveTo(cx + w, cy - h)
+            vectorIconPath.lineTo(cx - w, cy)
+            vectorIconPath.lineTo(cx + w, cy + h)
+        } else {
+            vectorIconPath.moveTo(cx - w, cy - h)
+            vectorIconPath.lineTo(cx + w, cy)
+            vectorIconPath.lineTo(cx - w, cy + h)
+        }
+        canvas.drawPath(vectorIconPath, strokePaint)
+    }
+
+    private fun drawVectorFloating(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        val halfW = size * 0.42f
+        val halfH = size * 0.32f
+        scratchRect.set(cx - halfW, cy - halfH, cx + halfW, cy + halfH)
+        canvas.drawRoundRect(scratchRect, 3f, 3f, strokePaint)
+        canvas.drawLine(cx - halfW, cy - halfH * 0.35f, cx + halfW, cy - halfH * 0.35f, strokePaint)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
     // Drawing — ZERO allocations permitted here
     // ══════════════════════════════════════════════════════════════════════════
 
@@ -725,12 +856,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
             canvas.drawLine(zoneDividerX, firstKeyTop, zoneDividerX, lastMainKey, zoneDividerPaint)
         }
 
-        // ── Side Dock Buttons (One-Handed mode) ───────────────────────────
+        // ── Side Dock Buttons (One-Handed mode, crisp vector rendering) ───
         if (isSideDockVisible) {
+            val dockIconSize = 18f * density
             for (btn in sideDockButtons) {
                 canvas.drawRoundRect(btn.bounds, 10f * density, 10f * density, sideDockBgPaint)
-                val cy = btn.bounds.centerY() - (sideDockTextPaint.ascent() + sideDockTextPaint.descent()) / 2f
-                canvas.drawText(btn.icon, btn.bounds.centerX(), cy, sideDockTextPaint)
+                val bcx = btn.bounds.centerX()
+                val bcy = btn.bounds.centerY()
+                when (btn.action) {
+                    SideDockAction.EXPAND_STANDARD -> drawVectorExpand(canvas, bcx, bcy, dockIconSize, vectorIconStrokePaint)
+                    SideDockAction.SWAP_SIDE -> drawVectorChevron(canvas, bcx, bcy, dockIconSize, isLeft = (formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_LEFT), vectorIconStrokePaint)
+                    SideDockAction.TOGGLE_FLOATING -> drawVectorFloating(canvas, bcx, bcy, dockIconSize, vectorIconStrokePaint)
+                }
             }
         }
 
@@ -741,8 +878,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             val barMidY = floatingTopBarRect.centerY()
             scratchRect.set(barMidX - 16f * density, barMidY - 2.5f * density, barMidX + 16f * density, barMidY + 2.5f * density)
             canvas.drawRoundRect(scratchRect, 2.5f * density, 2.5f * density, sideDockTextPaint)
-            val dockIconY = floatingDockBtnRect.centerY() - (sideDockTextPaint.ascent() + sideDockTextPaint.descent()) / 2f
-            canvas.drawText("⛶", floatingDockBtnRect.centerX(), dockIconY, sideDockTextPaint)
+            drawVectorExpand(canvas, floatingDockBtnRect.centerX(), floatingDockBtnRect.centerY(), 14f * density, vectorIconStrokePaint)
         }
 
         // ── Keys ───────────────────────────────────────────────────────────
@@ -812,7 +948,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
             val cy = drawBounds.centerY() - (labelPaint.ascent() + labelPaint.descent()) / 2f
 
             when (key.action) {
-                KeyAction.Backspace, KeyAction.Enter, KeyAction.Shift,
+                KeyAction.Backspace -> {
+                    val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
+                    drawVectorBackspace(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                }
+                KeyAction.Shift -> {
+                    val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
+                    drawVectorShift(canvas, cx, drawBounds.centerY(), iconSize, isShifted, false, vectorIconStrokePaint, vectorIconFillPaint)
+                }
+                KeyAction.Enter -> {
+                    val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
+                    drawVectorEnter(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                }
                 KeyAction.SwitchNumeric, KeyAction.SwitchLayout, KeyAction.Space -> {
                     canvas.drawText(labelText, cx, cy, labelPaintSmall)
                 }
@@ -820,11 +967,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     canvas.drawText(labelText, cx, cy, labelPaint)
                     val shiftedLbl = key.shiftedLabel
                     if (!isShifted && shiftedLbl != null && shiftedLbl != key.label && shiftedLbl.isNotEmpty()) {
-                        val hintY = drawBounds.top + (drawBounds.height() * 0.28f)
-                        val origAlpha = labelPaintSmall.alpha
-                        labelPaintSmall.alpha = 130
-                        canvas.drawText(shiftedLbl, cx, hintY, labelPaintSmall)
-                        labelPaintSmall.alpha = origAlpha
+                        val hintX = drawBounds.right - 5f * density
+                        val hintY = drawBounds.top + 13f * density
+                        canvas.drawText(shiftedLbl, hintX, hintY, hintPaint)
                     }
                 }
             }
@@ -839,14 +984,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
             // Backspace swipe to delete badge visualization
             if (isBackspaceSwiping && key.action == KeyAction.Backspace && backspaceDeletedWordCount > 0) {
-                val badgeW = 72f * density
+                val badgeW = 60f * density
                 val badgeH = 22f * density
                 val badgeL = bounds.centerX() - badgeW / 2f
                 val badgeT = bounds.top - 18f * density
                 scratchRect.set(badgeL, badgeT, badgeL + badgeW, badgeT + badgeH)
                 canvas.drawRoundRect(scratchRect, 6f * density, 6f * density, backspaceBadgePaint)
                 val textY = scratchRect.centerY() - (backspaceBadgeTextPaint.ascent() + backspaceBadgeTextPaint.descent()) / 2f
-                canvas.drawText("⌫ -$backspaceDeletedWordCount", scratchRect.centerX(), textY, backspaceBadgeTextPaint)
+                canvas.drawText("-$backspaceDeletedWordCount", scratchRect.centerX(), textY, backspaceBadgeTextPaint)
             }
         }
 

@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
@@ -96,7 +96,7 @@ fun ToolbarCustomizationSheet(
             ) {
                 IconButton(onClick = onClose) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "ফিরে যান",
                         tint = MaterialTheme.colorScheme.onBackground
                     )
@@ -104,12 +104,12 @@ fun ToolbarCustomizationSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "টুলবার কাস্টমাইজেশন",
+                        text = "টুলবার সাজান",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "কীবোর্ড স্ট্রিপের শর্টকাট টুল সক্রিয় ও সাজান",
+                        text = "কীবোর্ড শর্টকাট টুল সক্রিয় ও সাজান",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -156,9 +156,11 @@ fun ToolbarCustomizationSheet(
                                     onCheckedChange = { toggleTool(tool) }
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = tool.iconRes,
-                                    fontSize = 24.sp
+                                Icon(
+                                    imageVector = tool.iconVector,
+                                    contentDescription = tool.titleBengali,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {

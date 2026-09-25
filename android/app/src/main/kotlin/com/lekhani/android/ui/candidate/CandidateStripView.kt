@@ -28,8 +28,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.lekhani.android.ui.theme.iconVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -157,10 +160,11 @@ private fun ToolbarContent(
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = tool.iconRes,
-                    fontSize = 20.sp,
-                    modifier = Modifier.semantics { contentDescription = tool.titleBengali }
+                Icon(
+                    imageVector = tool.iconVector,
+                    contentDescription = tool.titleBengali,
+                    modifier = Modifier.size(20.dp),
+                    tint = Color(theme.labelColor).copy(alpha = 0.85f)
                 )
             }
         }
