@@ -49,31 +49,15 @@ pub fn promote_kar_if_needed(kar: &str, is_word_start: bool) -> String {
     }
 }
 
-/// Returns dynamic conjunct suggestions for the candidate strip when Hasanta (`্`) is typed
+/// Returns dynamic conjunct suggestions for the candidate strip when Hasanta (`্`) is typed.
+/// Powered directly by Tier 1 `lekhani-core`'s authentic Bengali `ConjunctCatalog`.
 pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
-    match last_consonant {
-        'ক' => vec!["ক্ত".into(), "ক্ষ".into(), "ক্র".into(), "ক্ল".into()],
-        'গ' => vec!["গ্ধ".into(), "গ্র".into(), "গ্ল".into()],
-        'চ' => vec!["চ্চ".into(), "চ্ছ".into()],
-        'জ' => vec!["জ্জ".into(), "জ্ঞ".into(), "জ্ব".into(), "জ্র".into()],
-        'ট' => vec!["ট্ট".into()],
-        'ড' => vec!["ড্ড".into()],
-        'ত' => vec!["ত্ত".into(), "ত্থ".into(), "ত্র".into(), "ত্ম".into()],
-        'দ' => vec!["দ্দ".into(), "দ্ধ".into(), "দ্ব".into(), "দ্র".into()],
-        'ধ' => vec!["ধ্য".into(), "ধ্র".into()],
-        'ন' => vec!["ন্ট".into(), "ন্ত".into(), "ন্দ".into(), "ন্ন".into()],
-        'প' => vec!["প্ত".into(), "প্প".into(), "প্র".into(), "প্ল".into()],
-        'ব' => vec!["ব্দ".into(), "ব্ব".into(), "ব্র".into(), "ব্ল".into()],
-        'ভ' => vec!["ভ্র".into()],
-        'ম' => vec!["ম্প".into(), "ম্ব".into(), "ম্ভ".into(), "ম্ম".into(), "ম্র".into()],
-        'র' => vec!["র্ক".into(), "র্ত".into(), "র্দ".into(), "র্ম".into()],
-        'ল' => vec!["ল্ক".into(), "ল্প".into(), "ল্ল".into()],
-        'শ' => vec!["শ্চ".into(), "শ্ছ".into(), "শ্ম".into(), "শ্র".into(), "শ্ল".into()],
-        'ষ' => vec!["ষ্ক".into(), "ষ্ট".into(), "ষ্ঠ".into(), "ষ্ণ".into(), "ষ্প".into()],
-        'স' => vec!["স্ক".into(), "স্ত".into(), "স্থ".into(), "স্প".into(), "স্ফ".into(), "স্র".into()],
-        'হ' => vec!["হ্ন".into(), "হ্ম".into(), "হ্য".into(), "হ্র".into(), "হ্ল".into()],
-        _ => Vec::new(),
-    }
+    let prefix = format!("{} + ্", last_consonant);
+    lekhani_core::conjuncts::ConjunctCatalog::all()
+        .into_iter()
+        .filter(|info| info.breakdown.starts_with(&prefix))
+        .map(|info| info.conjunct)
+        .collect()
 }
 
 #[cfg(test)]

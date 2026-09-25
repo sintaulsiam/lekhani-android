@@ -1,8 +1,15 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 use unicode_segmentation::UnicodeSegmentation;
+use lekhani_core::phonetic::PhoneticDatabase;
 use crate::error::LekhaniError;
 use crate::layout::LekhaniLayoutType;
 use crate::probaho::{get_conjunct_suggestions, nfc_normalize, promote_kar_if_needed};
+
+static CORE_DB: OnceLock<PhoneticDatabase> = OnceLock::new();
+
+pub fn get_core_database() -> &'static PhoneticDatabase {
+    CORE_DB.get_or_init(PhoneticDatabase::new)
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Public data types exported to Kotlin via UniFFI
@@ -175,7 +182,16 @@ impl AndroidLekhaniSession {
 
                 if candidates.is_empty() {
                     candidates.push(state.composing_buffer.clone());
-                } else if !state.surrounding_context.is_empty() {
+                    // Tier 1 lekhani-core PrefixTrie lookup for prefix completions
+                    let db = get_core_database();
+                    let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
+                    for (word, _) in prefix_matches {
+                        if !candidates.iter().any(|c| c == word) {
+                            candidates.push(word.to_string());
+                        }
+                    }
+                }
+                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
                     let scorer = lekhani_ai::ContextScorer::new();
                     candidates = scorer.rank_candidates(&words, &candidates);
@@ -218,13 +234,26 @@ impl AndroidLekhaniSession {
             }
 
             _ => {
-                // Fixed / transliteration layouts — accumulate in buffer, commit on space
+                // Fixed / transliteration layouts — accumulate in buffer, query PrefixTrie
                 state.composing_buffer.push_str(&key);
+                let mut candidates = vec![state.composing_buffer.clone()];
+                let db = get_core_database();
+                let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
+                for (word, _) in prefix_matches {
+                    if !candidates.iter().any(|c| c == word) {
+                        candidates.push(word.to_string());
+                    }
+                }
+                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let scorer = lekhani_ai::ContextScorer::new();
+                    candidates = scorer.rank_candidates(&words, &candidates);
+                }
                 let len = state.composing_buffer.graphemes(true).count() as u32;
                 Ok(TypingResult {
                     preedit: state.composing_buffer.clone(),
                     commit_text: None,
-                    candidates: vec![state.composing_buffer.clone()],
+                    candidates,
                     cursor_position: len,
                 })
             }
