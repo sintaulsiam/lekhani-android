@@ -47,13 +47,21 @@
   - Conjunct-aware grapheme cluster backspace delegated to Rust engine (Phase 1).
   - Automatic Unicode NFC canonicalization on every commit (Phase 1).
 - [x] **Core Layout Implementations**:
-  - **Lekhani প্রবাহ (Flow)**: `ProbahLayout.kt` — full 3-row + spacebar row per LAYOUT_PROBAHO.md spec.
+  - **Lekhani প্রবাহ (Flow)**: `ProbahLayout.kt` — full 3-row + spacebar row per LAYOUT_PROBAHO.md spec with long-press hint triggers.
   - **Avro Phonetic**: `AvroPhoneticLayout` — QWERTY grid, transliteration in Rust engine.
-  - **Fixed National (জাতীয়)**: `NationalLayout.kt` — BBS standard with Shift layers.
-  - **Fixed Probhat / Gboard**: stub to National for Phase 3; full definitions next.
-  - **English (QWERTY)**: `EnglishQwertyLayout.kt` — bilingual typing layer.
+  - **Fixed National (জাতীয়)**: `NationalLayout.kt` — BBS standard with Shift layers and Khanda Ta (`ৎ`).
+  - **Fixed Probhat (प्रभात)**: `ProbhatLayout.kt` — 10-key standard with dedicated Hasanta (`্`) and Chandra Bindu (`ঁ`).
+  - **Gboard Style Bengali**: `GboardBengaliLayout.kt` — normalized 10-9-10 grid with `প` and `ফ`.
+  - **English (QWERTY)**: `EnglishQwertyLayout.kt` — bilingual alphanumeric typing layer.
   - **LayoutRegistry**: maps `LekhaniLayoutType` → `KeyboardLayout`; `cycleLayout()` in IME.
   - 20 JVM unit tests in `ProbahLayoutTest.kt` covering spec compliance.
+- [x] **World-Class Visual & Tactile Polish**:
+  - Combining vowel signs mapped to canonical independent vowels to eradicate `◌` (`\u25CC`) dotted circles on keycaps.
+  - Zero-allocation vector paths for Hasanta (`্`) and Chandra Bindu (`ঁ`) keycap rendering.
+  - Material 3 Expressive candidate strip with pill chips and accent highlighting (no pipe dividers).
+  - Hardware-accelerated floating keypress preview bubbles (`KeyPopup`) with elevation drop shadows.
+  - 3D tactile keycap depth with elevated shadows and physical keycap depression on touch.
+  - Custom crisp vector globe icon for layout switching.
 
 
 ---
