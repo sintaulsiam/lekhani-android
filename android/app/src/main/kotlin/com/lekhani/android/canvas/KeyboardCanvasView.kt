@@ -49,6 +49,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
     /** Callback interface implemented by LekhaniInputMethodService */
     interface KeyListener {
         fun onKey(key: Key, action: KeyAction)
+        fun onSpaceSwipe(direction: Int) // -1 for previous layout, +1 for next layout
+        fun onSpaceLongPress()
     }
 
     var keyListener: KeyListener? = null
@@ -56,6 +58,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // ── Layout state ──────────────────────────────────────────────────────────
 
     private var layout: KeyboardLayout? = null
+    private var layoutType: com.lekhani.android.ffi.LekhaniLayoutType = com.lekhani.android.ffi.LekhaniLayoutType.PROBAHO
     private var isShifted: Boolean = false
 
     /**
@@ -140,14 +143,20 @@ class KeyboardCanvasView @JvmOverloads constructor(
     /** Whether the current touch has triggered a long-press (suppresses tap) */
     private var isLongPressTriggered: Boolean = false
 
-    /** Pre-allocated long-press runnable for Spacebar voice trigger (zero allocation) */
+    /** Spacebar swipe gesture detection state (zero allocation) */
+    private var spaceTouchStartX: Float = 0f
+    private var spaceTouchStartY: Float = 0f
+    private var isSpaceSwiping: Boolean = false
+    private var swipeThresholdPx: Float = 0f
+
+    /** Pre-allocated long-press runnable for Spacebar quick layout selector (zero allocation) */
     private val longPressRunnable = Runnable {
         if (pressedKeyIndex in resolvedKeys.indices) {
             val key = resolvedKeys[pressedKeyIndex].key
             if (key.action == KeyAction.Space) {
                 isLongPressTriggered = true
                 performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                keyListener?.onKey(key, KeyAction.VoiceTyping)
+                keyListener?.onSpaceLongPress()
             }
         }
     }
@@ -185,8 +194,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * Triggers a re-computation of pixel bounds and a redraw.
      * Called from LekhaniInputMethodService on layout switch.
      */
-    fun setLayout(newLayout: KeyboardLayout, shifted: Boolean = false) {
+    fun setLayout(
+        newLayout: KeyboardLayout,
+        newLayoutType: com.lekhani.android.ffi.LekhaniLayoutType = com.lekhani.android.ffi.LekhaniLayoutType.PROBAHO,
+        shifted: Boolean = false,
+    ) {
         layout = newLayout
+        layoutType = newLayoutType
         isShifted = shifted
         if (width > 0 && height > 0) {
             computeKeyBounds()
@@ -235,6 +249,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyMarginV = 4f * density
         keyCornerRadius = 9f * density
         homeRowAccentHeight = 2.5f * density
+        swipeThresholdPx = 40f * density
 
         val currentLayout = layout ?: return
         val rowCount = currentLayout.rows.size       // typically 3
@@ -370,14 +385,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
 
             // Draw label
-            val labelText = key.displayLabel(isShifted)
+            val labelText = if (key.action == KeyAction.Space) {
+                com.lekhani.android.model.LayoutRegistry.getSpacebarLabel(layoutType)
+            } else {
+                key.displayLabel(isShifted)
+            }
             val cx = bounds.centerX()
             val cy = bounds.centerY() - (labelPaint.ascent() + labelPaint.descent()) / 2f
 
             when (key.action) {
                 KeyAction.Backspace, KeyAction.Enter, KeyAction.Shift,
-                KeyAction.SwitchNumeric, KeyAction.SwitchLayout -> {
-                    // System keys use smaller label
+                KeyAction.SwitchNumeric, KeyAction.SwitchLayout, KeyAction.Space -> {
+                    // System keys & Spacebar use smaller label
                     canvas.drawText(labelText, cx, cy, labelPaintSmall)
                 }
                 else -> {
@@ -403,8 +422,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     pressedKeyIndex = idx
                     pressStartTime = SystemClock.uptimeMillis()
                     isLongPressTriggered = false
+                    isSpaceSwiping = false
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     if (resolvedKeys[idx].key.action == KeyAction.Space) {
+                        spaceTouchStartX = event.x
+                        spaceTouchStartY = event.y
                         postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
                     }
                     invalidate()
@@ -412,14 +434,36 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 return true
             }
 
+            MotionEvent.ACTION_MOVE -> {
+                if (pressedKeyIndex in resolvedKeys.indices) {
+                    val key = resolvedKeys[pressedKeyIndex].key
+                    if (key.action == KeyAction.Space && !isSpaceSwiping && !isLongPressTriggered) {
+                        val dx = event.x - spaceTouchStartX
+                        val dy = kotlin.math.abs(event.y - spaceTouchStartY)
+                        if (kotlin.math.abs(dx) > swipeThresholdPx && kotlin.math.abs(dx) > dy * 1.3f) {
+                            isSpaceSwiping = true
+                            removeCallbacks(longPressRunnable)
+                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            if (dx > 0) {
+                                keyListener?.onSpaceSwipe(1) // Next layout
+                            } else {
+                                keyListener?.onSpaceSwipe(-1) // Previous layout
+                            }
+                        }
+                    }
+                }
+                return true
+            }
+
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 removeCallbacks(longPressRunnable)
                 val idx = findKeyIndex(event.x, event.y)
-                if (idx >= 0 && idx == pressedKeyIndex && !isLongPressTriggered) {
+                if (idx >= 0 && idx == pressedKeyIndex && !isLongPressTriggered && !isSpaceSwiping) {
                     dispatchKey(resolvedKeys[idx].key)
                 }
                 pressedKeyIndex = -1
                 isLongPressTriggered = false
+                isSpaceSwiping = false
                 invalidate()
                 return true
             }
@@ -428,6 +472,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 removeCallbacks(longPressRunnable)
                 pressedKeyIndex = -1
                 isLongPressTriggered = false
+                isSpaceSwiping = false
                 invalidate()
                 return true
             }

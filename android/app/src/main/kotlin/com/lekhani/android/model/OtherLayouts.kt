@@ -167,3 +167,151 @@ object NationalLayout {
         ),
     )
 }
+
+/**
+ * Probhat (प्रभात) Layout
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Popular phonetic-fixed layout designed for Bengali typing.
+ */
+object ProbhatLayout {
+
+    val layout: KeyboardLayout = KeyboardLayout(
+        name = "Probhat",
+        rows = listOf(
+            // Row 1
+            listOf(
+                Ch("ৎ", "্থ"), Ch("ড", "ঢ"), Ch("ে", "ৈ"), Ch("র", "ড়"),
+                Ch("ট", "ঠ"), Ch("য়", "ঞ"), Ch("ু", "ূ"), Ch("ি", "ী"),
+                Ch("ও", "ঔ"), Ch("প", "ফ"),
+            ),
+            // Row 2 (Home)
+            listOf(
+                Ch("া", "আ", homeRow = true), Ch("স", "শ", homeRow = true),
+                Ch("দ", "ধ", homeRow = true), Ch("ফ", "ভ", homeRow = true),
+                Ch("গ", "ঘ", homeRow = true), Ch("হ", "ঃ", homeRow = true),
+                Ch("জ", "ঝ", homeRow = true), Ch("ক", "খ", homeRow = true),
+                Ch("ল", "ং", homeRow = true),
+            ),
+            // Row 3
+            listOf(
+                Key(
+                    label = "⇧", shiftedLabel = "⇧",
+                    action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
+                    widthWeight = 1.5f, contentDesc = "Shift",
+                ),
+                Ch("য", "্য"), Ch("ষ", "ঢ়"), Ch("চ", "ছ"),
+                Ch("ব", "ভ"), Ch("ন", "ণ"), Ch("ম", "ঁ"),
+                Ch("ঙ", "ৎ"), Ch("।", "?"),
+                Key(
+                    label = "⌫", shiftedLabel = "⌫",
+                    action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                    widthWeight = 1.5f, contentDesc = "Backspace",
+                ),
+            ),
+        ),
+        spacebarRow = listOf(
+            Key(
+                label = "?123", shiftedLabel = "?123",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
+                widthWeight = 1.5f, contentDesc = "Numbers",
+            ),
+            Key(
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                widthWeight = 1.0f, contentDesc = "Switch layout",
+            ),
+            Key(
+                label = "অ", shiftedLabel = "আ",
+                action = KeyAction.Character("অ"),
+                shiftedAction = KeyAction.Character("আ"),
+                widthWeight = 1.0f, contentDesc = "Vowel অ",
+            ),
+            Key(
+                label = "স্পেস • প্রভাত", shiftedLabel = "স্পেস • প্রভাত",
+                action = KeyAction.Space, shiftedAction = KeyAction.Space,
+                widthWeight = 4.5f, contentDesc = "Space",
+            ),
+            Ch("্", "্", desc = "Hasanta"),
+            Ch(",", "!", desc = "Comma, shifted exclamation"),
+            Key(
+                label = "↵", shiftedLabel = "↵",
+                action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
+                widthWeight = 1.5f, contentDesc = "Enter",
+            ),
+        ),
+    )
+}
+
+/**
+ * Gboard Bengali (জি-বোর্ড বাংলা) Layout
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Familiar layout mapping popular with Gboard Bengali users.
+ */
+object GboardBengaliLayout {
+
+    val layout: KeyboardLayout = KeyboardLayout(
+        name = "Gboard Style",
+        rows = listOf(
+            // Row 1
+            listOf(
+                Ch("ৌ", "ঔ"), Ch("ৈ", "ঐ"), Ch("া", "আ"), Ch("ী", "ঈ"),
+                Ch("ূ", "ঊ"), Ch("ব", "ভ"), Ch("হ", "ঃ"), Ch("গ", "ঘ"),
+                Ch("দ", "ধ"), Ch("জ", "ঝ"),
+            ),
+            // Row 2 (Home)
+            listOf(
+                Ch("ো", "ও", homeRow = true), Ch("ে", "এ", homeRow = true),
+                Ch("্", "অ", homeRow = true), Ch("ি", "ই", homeRow = true),
+                Ch("ু", "উ", homeRow = true), Ch("র", "ড়", homeRow = true),
+                Ch("ক", "খ", homeRow = true), Ch("ত", "থ", homeRow = true),
+                Ch("চ", "ছ", homeRow = true), Ch("ট", "ঠ", homeRow = true),
+            ),
+            // Row 3
+            listOf(
+                Key(
+                    label = "⇧", shiftedLabel = "⇧",
+                    action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
+                    widthWeight = 1.5f, contentDesc = "Shift",
+                ),
+                Ch("ং", "ঞ"), Ch("ঁ", "ঢ়"), Ch("ম", "ণ"),
+                Ch("ন", "ঙ"), Ch("ল", "ৎ"), Ch("স", "ষ"),
+                Ch("শ", "য়"), Ch("ড", "ঢ"),
+                Key(
+                    label = "⌫", shiftedLabel = "⌫",
+                    action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                    widthWeight = 1.5f, contentDesc = "Backspace",
+                ),
+            ),
+        ),
+        spacebarRow = listOf(
+            Key(
+                label = "?123", shiftedLabel = "?123",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
+                widthWeight = 1.5f, contentDesc = "Numbers",
+            ),
+            Key(
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                widthWeight = 1.0f, contentDesc = "Switch layout",
+            ),
+            Key(
+                label = ",", shiftedLabel = ";",
+                action = KeyAction.Character(","),
+                shiftedAction = KeyAction.Character(";"),
+                widthWeight = 1.0f, contentDesc = "Comma",
+            ),
+            Key(
+                label = "স্পেস • জিবোর্ড", shiftedLabel = "স্পেস • জিবোর্ড",
+                action = KeyAction.Space, shiftedAction = KeyAction.Space,
+                widthWeight = 4.5f, contentDesc = "Space",
+            ),
+            Ch("।", "?", desc = "Dari, shifted question"),
+            Key(
+                label = "↵", shiftedLabel = "↵",
+                action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
+                widthWeight = 2.0f, contentDesc = "Enter",
+            ),
+        ),
+    )
+}
+

@@ -26,6 +26,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.lekhani.android.ffi.LekhaniLayoutType
+import com.lekhani.android.model.LayoutRegistry
+
 /**
  * LekhaniSettingsActivity
  * ══════════════════════════════════════════════════════════════════════════════
@@ -65,6 +68,23 @@ fun LekhaniSettingsScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    val deviceContext = remember {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            context.createDeviceProtectedStorageContext()
+        } else {
+            context
+        }
+    }
+    val prefs = remember {
+        deviceContext.getSharedPreferences("lekhani_device_prefs", Context.MODE_PRIVATE)
+    }
+
+    var enabledLayouts by remember {
+        mutableStateOf(
+            LayoutRegistry.parseEnabledLayouts(prefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null))
+        )
+    }
 
     // Determine IME enable/default status
     var isEnabled by remember { mutableStateOf(false) }
@@ -209,6 +229,83 @@ fun LekhaniSettingsScreen(
                         }
                     } else {
                         Text("✓", color = Color(0xFF00A87E), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ── Layout Selection & Ordering Card ────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "কীবোর্ড লেআউট নির্বাচন (Keyboard Layouts)",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "যে লেআউটগুলো সক্রিয় রাখবেন সেগুলো নির্বাচন করুন (স্পেসবারে সোয়াইপ বা 🌐 বাটনে পরিবর্তন হবে):",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                LayoutRegistry.all.forEachIndexed { index, layoutType ->
+                    val isChecked = enabledLayouts.contains(layoutType)
+                    val canDisable = enabledLayouts.size > 1 || !isChecked
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(
+                                text = "${LayoutRegistry.getBengaliName(layoutType)} (${LayoutRegistry.getEnglishName(layoutType)})",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = LayoutRegistry.getDescription(layoutType),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
+
+                        Switch(
+                            checked = isChecked,
+                            enabled = canDisable,
+                            onCheckedChange = { checked ->
+                                val current = enabledLayouts.toMutableList()
+                                if (checked) {
+                                    if (!current.contains(layoutType)) current.add(layoutType)
+                                } else {
+                                    if (current.size > 1) current.remove(layoutType)
+                                }
+                                enabledLayouts = current
+                                prefs.edit().putString(
+                                    LayoutRegistry.PREF_ENABLED_LAYOUTS,
+                                    LayoutRegistry.serializeEnabledLayouts(current)
+                                ).apply()
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF00A87E)
+                            )
+                        )
+                    }
+
+                    if (index < LayoutRegistry.all.size - 1) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
                     }
                 }
             }

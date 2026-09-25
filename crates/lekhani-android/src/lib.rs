@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod avro;
 pub mod error;
 pub mod layout;
 pub mod probaho;

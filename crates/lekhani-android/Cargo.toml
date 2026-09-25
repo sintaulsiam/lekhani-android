@@ -18,6 +18,9 @@ serde_json = { workspace = true }
 hashbrown = { workspace = true }
 tracing = { workspace = true }
 unicode-segmentation = { workspace = true }
+lekhani-parser = { workspace = true }
+lekhani-ai = { workspace = true }
+lekhani-core = { workspace = true }
 
 
 [build-dependencies]

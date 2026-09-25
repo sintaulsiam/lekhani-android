@@ -95,17 +95,23 @@
 ---
 
 ## Phase 7: Multi-Layout Switcher & Hardware Keyboard
-- [ ] **Layout Management in Settings**:
-  - Individual toggle switches to enable/disable each layout (Avro, National, Probhat, Gboard-style, English).
-  - Drag-and-drop layout priority reordering.
-  - Per-app or last-used layout memory.
-- [ ] **Ergonomic Switching Controls**:
+- [x] **Tier 1 Pure Rust Crates Integration**:
+  - `lekhani-parser` (11 ns/char Avro Trie grammar engine) workspace integration.
+  - `lekhani-ai` (on-device N-gram contextual scorer & homophone ranker) integration.
+  - `lekhani-core` typing engine & layout databases integrated.
+- [x] **Layout Management in Settings**:
+  - Individual toggle switches to enable/disable each layout (Probaho, Avro, National, Probhat, Gboard-style, English).
+  - Minimum layout protection (at least one layout remains active).
+  - Device Protected Storage persistence (`pref_enabled_layouts_order`).
+- [x] **Ergonomic Switching Controls**:
   - Dedicated Globe key (🌐) for cycling enabled layouts.
-  - Horizontal swipe on Spacebar with visual layout indicator pill.
-  - Long-press Spacebar for quick layout selection bottom sheet.
-- [ ] **Physical / Bluetooth Keyboard Integration**:
+  - Horizontal swipe on Spacebar with visual layout indicator pill and haptic feedback.
+  - Dynamic Spacebar layout label (`স্পেস • প্রবাহ`, `Space • অভ্র`, `স্পেস • জাতীয়`, `স্পেস • প্রভাত`, `স্পেস • জিবোর্ড`, `Space • English`).
+  - Long-press Spacebar for quick layout selection dialog.
+- [x] **Physical / Bluetooth Keyboard Integration**:
   - Intercept physical USB/Bluetooth keyboard input on tablets & Android desktop (DeX).
-  - Map physical typing directly to Avro Phonetic or National Bengali layout.
+  - Map physical typing directly to Avro Phonetic (using `lekhani-parser`), National Bengali, or English layout.
+  - Shift + Space keyboard shortcut to toggle layouts.
 
 ---
 

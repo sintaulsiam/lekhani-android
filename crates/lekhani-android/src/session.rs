@@ -175,11 +175,32 @@ impl AndroidLekhaniSession {
 
                 if candidates.is_empty() {
                     candidates.push(state.composing_buffer.clone());
+                } else if !state.surrounding_context.is_empty() {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let scorer = lekhani_ai::ContextScorer::new();
+                    candidates = scorer.rank_candidates(&words, &candidates);
                 }
 
                 let len = state.composing_buffer.graphemes(true).count() as u32;
                 Ok(TypingResult {
                     preedit: state.composing_buffer.clone(),
+                    commit_text: None,
+                    candidates,
+                    cursor_position: len,
+                })
+            }
+
+            LekhaniLayoutType::Avro => {
+                state.composing_buffer.push_str(&key);
+                let (preedit, mut candidates) = crate::avro::transliterate_avro(&state.composing_buffer);
+                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let scorer = lekhani_ai::ContextScorer::new();
+                    candidates = scorer.rank_candidates(&words, &candidates);
+                }
+                let len = preedit.graphemes(true).count() as u32;
+                Ok(TypingResult {
+                    preedit,
                     commit_text: None,
                     candidates,
                     cursor_position: len,
@@ -225,28 +246,49 @@ impl AndroidLekhaniSession {
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
         if !state.composing_buffer.is_empty() {
-            // Collect grapheme cluster byte-index boundaries
-            let last_grapheme_start = state
-                .composing_buffer
-                .grapheme_indices(true)
-                .next_back()
-                .map(|(i, _)| i)
-                .unwrap_or(0);
-            state.composing_buffer.truncate(last_grapheme_start);
-
-            let len = state.composing_buffer.graphemes(true).count() as u32;
-            let candidates = if state.composing_buffer.is_empty() {
-                Vec::new()
+            if state.layout == LekhaniLayoutType::Avro {
+                state.composing_buffer.pop();
+                if state.composing_buffer.is_empty() {
+                    Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    })
+                } else {
+                    let (preedit, candidates) = crate::avro::transliterate_avro(&state.composing_buffer);
+                    let len = preedit.graphemes(true).count() as u32;
+                    Ok(TypingResult {
+                        preedit,
+                        commit_text: None,
+                        candidates,
+                        cursor_position: len,
+                    })
+                }
             } else {
-                vec![state.composing_buffer.clone()]
-            };
+                // Collect grapheme cluster byte-index boundaries
+                let last_grapheme_start = state
+                    .composing_buffer
+                    .grapheme_indices(true)
+                    .next_back()
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                state.composing_buffer.truncate(last_grapheme_start);
 
-            Ok(TypingResult {
-                preedit: state.composing_buffer.clone(),
-                commit_text: None,
-                candidates,
-                cursor_position: len,
-            })
+                let len = state.composing_buffer.graphemes(true).count() as u32;
+                let candidates = if state.composing_buffer.is_empty() {
+                    Vec::new()
+                } else {
+                    vec![state.composing_buffer.clone()]
+                };
+
+                Ok(TypingResult {
+                    preedit: state.composing_buffer.clone(),
+                    commit_text: None,
+                    candidates,
+                    cursor_position: len,
+                })
+            }
         } else {
             // Buffer empty — signal Android to delete the preceding character
             // in the target application's InputConnection.
@@ -273,7 +315,12 @@ impl AndroidLekhaniSession {
             // Reallocate the buffer to its pre-allocated capacity to avoid
             // the composing buffer shrinking to zero capacity after `take`.
             state.composing_buffer = String::with_capacity(64);
-            let mut normalized = nfc_normalize(&raw);
+            let mut normalized = if state.layout == LekhaniLayoutType::Avro {
+                let (transliterated, _) = crate::avro::transliterate_avro(&raw);
+                nfc_normalize(&transliterated)
+            } else {
+                nfc_normalize(&raw)
+            };
             normalized.push(' ');
 
             Ok(TypingResult {
@@ -439,6 +486,25 @@ mod tests {
         let _ = session.process_key("ব".into()).unwrap();
         assert!(session.is_composing());
         session.reset();
+        assert!(!session.is_composing());
+    }
+
+    #[test]
+    fn test_avro_phonetic_typing() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+        assert_eq!(session.get_layout(), LekhaniLayoutType::Avro);
+
+        // Type 'a' -> 'm' -> 'i'
+        let _ = session.process_key("a".into()).unwrap();
+        let _ = session.process_key("m".into()).unwrap();
+        let res = session.process_key("i".into()).unwrap();
+        assert_eq!(res.preedit, "আমি");
+        assert!(session.is_composing());
+
+        // Space commits "আমি "
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(space_res.commit_text, Some("আমি ".into()));
         assert!(!session.is_composing());
     }
 }

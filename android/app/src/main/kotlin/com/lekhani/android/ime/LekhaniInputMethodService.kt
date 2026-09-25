@@ -5,6 +5,7 @@ import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.text.InputType
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.view.Window
 import android.view.inputmethod.EditorInfo
@@ -260,10 +261,19 @@ class LekhaniInputMethodService : InputMethodService() {
         rootInputContainer = container
 
         val canvasView = KeyboardCanvasView(this).also { v ->
-            v.setLayout(LayoutRegistry.get(session.getLayout()), shifted = false)
+            val curLayout = session.getLayout()
+            v.setLayout(LayoutRegistry.get(curLayout), curLayout, shifted = false)
             v.keyListener = object : KeyboardCanvasView.KeyListener {
                 override fun onKey(key: Key, action: KeyAction) {
                     handleKeyAction(key, action)
+                }
+
+                override fun onSpaceSwipe(direction: Int) {
+                    cycleLayout(direction)
+                }
+
+                override fun onSpaceLongPress() {
+                    showQuickLayoutPicker()
                 }
             }
         }
@@ -455,11 +465,93 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.setShifted(false)
     }
 
-    private fun cycleLayout() {
+    fun getEnabledLayouts(): List<LekhaniLayoutType> {
+        val saved = devicePrefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null)
+        return LayoutRegistry.parseEnabledLayouts(saved)
+    }
+
+    private fun cycleLayout(direction: Int = 1) {
         val current = session.getLayout()
-        val all = LayoutRegistry.all
-        val nextIndex = (all.indexOf(current) + 1) % all.size
-        switchLayout(all[nextIndex])
+        val enabled = getEnabledLayouts()
+        val currentIndex = enabled.indexOf(current)
+        val nextIndex = if (currentIndex >= 0) {
+            (currentIndex + direction + enabled.size) % enabled.size
+        } else {
+            0
+        }
+        switchLayout(enabled[nextIndex])
+    }
+
+    private fun showQuickLayoutPicker() {
+        val enabled = getEnabledLayouts()
+        val names = enabled.map { 
+            "${LayoutRegistry.getBengaliName(it)} • ${LayoutRegistry.getEnglishName(it)}" 
+        }.toTypedArray()
+        val currentIdx = enabled.indexOf(session.getLayout()).coerceAtLeast(0)
+
+        val dialog = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("কীবোর্ড লেআউট নির্বাচন (Select Layout)")
+            .setSingleChoiceItems(names, currentIdx) { d, which ->
+                switchLayout(enabled[which])
+                d.dismiss()
+            }
+            .setNegativeButton("বাতিল", null)
+            .create()
+
+        dialog.window?.let { w ->
+            w.attributes?.token = rootInputContainer?.windowToken
+            w.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG)
+        }
+        dialog.show()
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Physical / Bluetooth Hardware Keyboard Integration (Phase 7)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        // Allow system shortcuts (Ctrl+C, Ctrl+V, Alt+Tab, Home, Back, etc.) to pass through
+        if (event.isCtrlPressed || event.isAltPressed || keyCode == KeyEvent.KEYCODE_BACK) {
+            return super.onKeyDown(keyCode, event)
+        }
+
+        // Layout cycle shortcut: Shift + Space
+        if (keyCode == KeyEvent.KEYCODE_SPACE && event.isShiftPressed) {
+            cycleLayout(1)
+            return true
+        }
+
+        when (keyCode) {
+            KeyEvent.KEYCODE_DEL -> {
+                onBackspace()
+                return true
+            }
+            KeyEvent.KEYCODE_SPACE -> {
+                onSpace()
+                return true
+            }
+            KeyEvent.KEYCODE_ENTER -> {
+                commitEnter()
+                return true
+            }
+        }
+
+        // Process printable characters
+        val unicode = event.unicodeChar
+        if (unicode > 0 && !Character.isISOControl(unicode)) {
+            val charStr = unicode.toChar().toString()
+            onKey(charStr)
+            return true
+        }
+
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
+            keyboardView?.setShifted(false)
+        }
+        return super.onKeyUp(keyCode, event)
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -603,7 +695,7 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     fun switchLayout(layout: LekhaniLayoutType) {
         session.setLayout(layout)
-        keyboardView?.setLayout(LayoutRegistry.get(layout), shifted = false)
+        keyboardView?.setLayout(LayoutRegistry.get(layout), layout, shifted = false)
         devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()
         Log.i(TAG, "Layout switched to $layout")
     }
