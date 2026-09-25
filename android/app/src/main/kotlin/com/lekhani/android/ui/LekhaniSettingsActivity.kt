@@ -88,6 +88,9 @@ class LekhaniSettingsActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        try {
+            com.lekhani.android.data.dictionary.LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
+        } catch (_: Exception) {}
         setContent {
             LekhaniAppTheme {
                 Surface(

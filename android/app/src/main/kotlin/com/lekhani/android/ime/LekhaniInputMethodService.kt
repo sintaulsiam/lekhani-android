@@ -27,6 +27,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.lekhani.android.canvas.KeyboardCanvasView
 import com.lekhani.android.data.clipboard.LekhaniClipboardStore
+import com.lekhani.android.data.dictionary.LekhaniAssetInstaller
 import com.lekhani.android.data.emoji.EmojiRecentsManager
 import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.feedback.LekhaniFeedbackManager
@@ -180,6 +181,13 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onCreate()
         imeLifecycleOwner.onCreate()
         imeLifecycleOwner.onResume()
+
+        // Unpack bundled offline dictionaries and layouts to application storage
+        try {
+            LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error installing offline assets: ${e.message}")
+        }
 
         // Restore the user's last-used layout from Device Protected Storage.
         val savedLayout = devicePrefs.getString(PREF_LAYOUT, null)
