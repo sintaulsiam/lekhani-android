@@ -141,7 +141,8 @@
   - Sound packs (Classic Keypress, Modern Bubble, Mechanical Click, Typewriter, Soft Woodblock, Mute).
 - [x] **Customizable Toolbar**:
   - Drag-and-drop to reorder/toggle quick tools (Emoji, Local Mic, Clipboard, Themes, One-Handed, Settings).
-- [x] **Theme Studio**:
+- [x] **Theme Studio & Brand Identity**:
+  - Official brand icon and launcher glyph updated to authentic Bengali 'লে' (Le) across all adaptive densities.
   - Material You Dynamic Color extraction from wallpaper.
   - Deep OLED Pure Black mode.
   - Classic Avro Blue and Cyber Indigo presets.
@@ -152,10 +153,13 @@
 
 ## Phase 11: World-Class Modern UI/UX & Form Factors
 - [x] Material 3 Expressive aesthetic with fluid 120 FPS spring physics and key glow/ripple effects.
+- [x] Bilingual UI toggle (English | বাংলা) across all Settings tabs and sheets.
+- [x] Developer & Organization showcase: Syntenieum profile and BRUR CSE author credentials.
 - [x] One-handed mode with quick-dock arrows (left/right handed).
 - [x] Floating keyboard mode (freely movable, resizable anywhere on screen).
 - [x] Split keyboard mode optimized for foldables and tablets.
-- [x] Spacebar cursor slide navigation (fine-grained cursor tracking).
+- [x] Mutually exclusive Spacebar gesture mode (`SpacebarSwipeMode`: Cursor Slide vs Layout Switch).
+- [x] Persistent candidate strip chevron toggle between active word predictions and quick toolbar shortcuts.
 - [x] Swipe-to-delete gesture on Backspace with word highlight preview.
 
 ---
