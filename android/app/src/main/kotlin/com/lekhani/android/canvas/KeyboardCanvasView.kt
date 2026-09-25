@@ -77,8 +77,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var feedbackManager: LekhaniFeedbackManager? = null
 
     var heightScale: Float = 1.0f
-    var marginHDp: Float = 5.0f
-    var marginVDp: Float = 6.5f
+    var marginHDp: Float = 3.0f
+    var marginVDp: Float = 4.0f
     var bottomChinPaddingDp: Float = 0f
     var fontScale: Float = 1.0f
     var showKeyBorders: Boolean = false
@@ -481,7 +481,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val density = resources.displayMetrics.density
         val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val defaultHeightDp = (if (isLandscape) 180f else 260f) * heightScale + bottomChinPaddingDp
+        val defaultHeightDp = (if (isLandscape) 180f else 280f) * heightScale + bottomChinPaddingDp
         val desiredHeight = (defaultHeightDp * density).toInt()
 
         val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
@@ -520,10 +520,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val rowCount = currentLayout.rows.size       // typically 3
         val chinPx = bottomChinPaddingDp * density
         val availableH = (h - chinPx).coerceAtLeast(100f)
-        spacebarRowHeight = availableH * 0.22f                // spacebar row ~22% of height
-        keyHeight = (availableH - spacebarRowHeight - keyMarginV * (rowCount + 1)) / rowCount
+        val totalRows = rowCount + 1
+        val totalMarginsV = (totalRows + 1) * keyMarginV
+        keyHeight = ((availableH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
+        spacebarRowHeight = keyHeight
         labelSize = keyHeight * 0.38f * fontScale
-        labelSizeSmall = keyHeight * 0.20f * fontScale
+        labelSizeSmall = keyHeight * 0.22f * fontScale
 
         labelPaint.textSize = labelSize
         labelPaintSmall.textSize = labelSizeSmall
@@ -612,43 +614,43 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     private fun layoutKeysStandard(originX: Float, totalW: Float, totalH: Float, yOffset: Float = 0f) {
         val currentLayout = layout ?: return
+        val density = resources.displayMetrics.density
         val rowCount = currentLayout.rows.size
-        val spaceH = totalH * 0.22f
-        val kHeight = (totalH - spaceH - keyMarginV * (rowCount + 1)) / rowCount
+        val totalRows = rowCount + 1
+        val totalMarginsV = (totalRows + 1) * keyMarginV
+        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
 
-        val sidePadding = keyMarginH * 1.5f
-        val maxRowWeight = currentLayout.rows.maxOfOrNull { row ->
-            row.sumOf { it.widthWeight.toDouble() }.toFloat()
-        } ?: 10f
-
+        val sidePadding = (keyMarginH * 0.75f).coerceAtLeast(2f * density)
         val availableRowW = (totalW - 2f * sidePadding).coerceAtLeast(10f)
-        val unitWidth = (availableRowW - keyMarginH * (maxRowWeight - 1f)) / maxRowWeight
 
-        var rowTop = yOffset + keyMarginV
+        var currentRowTop = yOffset + keyMarginV
         for (row in currentLayout.rows) {
             val rowWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
-            val rowW = (unitWidth * rowWeight) + (row.size - 1) * keyMarginH
-            var keyLeft = originX + (totalW - rowW) / 2f
+            val totalGaps = (row.size - 1) * keyMarginH
+            val unitWidth = (availableRowW - totalGaps) / rowWeight
 
+            var keyLeft = originX + sidePadding
             for (key in row) {
                 val keyWidth = unitWidth * key.widthWeight
                 resolvedKeys.add(
                     ResolvedKey(
                         key = key,
-                        bounds = RectF(keyLeft, rowTop, keyLeft + keyWidth, rowTop + kHeight)
+                        bounds = RectF(keyLeft, currentRowTop, keyLeft + keyWidth, currentRowTop + kHeight)
                     )
                 )
                 keyLeft += keyWidth + keyMarginH
             }
-            rowTop += kHeight + keyMarginV
+            currentRowTop += kHeight + keyMarginV
         }
 
         // Spacebar row
         val spaceRow = currentLayout.spacebarRow
         val totalSpaceWeight = spaceRow.sumOf { it.widthWeight.toDouble() }.toFloat()
-        val spaceUnitWidth = (availableRowW - keyMarginH * (spaceRow.size - 1)) / totalSpaceWeight
-        val spaceRowTop = yOffset + totalH - spaceH - keyMarginV
-        val spaceKeyHeight = spaceH - keyMarginV
+        val spaceGaps = (spaceRow.size - 1) * keyMarginH
+        val spaceUnitWidth = (availableRowW - spaceGaps) / totalSpaceWeight
+        val spaceRowTop = currentRowTop
+        val spaceKeyHeight = (yOffset + totalH - keyMarginV - spaceRowTop).coerceAtLeast(kHeight)
+
         var spaceKeyLeft = originX + sidePadding
         for (key in spaceRow) {
             val keyWidth = spaceUnitWidth * key.widthWeight
@@ -664,15 +666,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     private fun layoutKeysSplit(totalW: Float, totalH: Float) {
         val currentLayout = layout ?: return
+        val density = resources.displayMetrics.density
         val rowCount = currentLayout.rows.size
-        val spaceH = totalH * 0.22f
-        val kHeight = (totalH - spaceH - keyMarginV * (rowCount + 1)) / rowCount
+        val totalRows = rowCount + 1
+        val totalMarginsV = (totalRows + 1) * keyMarginV
+        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
 
-        val centerGap = totalW * 0.16f
+        val centerGap = totalW * 0.14f
         val clusterW = (totalW - centerGap) / 2f
         val rightClusterOrigin = clusterW + centerGap
 
-        var rowTop = keyMarginV
+        var currentRowTop = keyMarginV
         for (row in currentLayout.rows) {
             val halfCount = (row.size + 1) / 2
             val leftKeys = row.take(halfCount)
@@ -683,7 +687,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             var keyLeft = keyMarginH
             for (key in leftKeys) {
                 val keyW = leftUnitW * key.widthWeight
-                resolvedKeys.add(ResolvedKey(key, RectF(keyLeft, rowTop, keyLeft + keyW, rowTop + kHeight)))
+                resolvedKeys.add(ResolvedKey(key, RectF(keyLeft, currentRowTop, keyLeft + keyW, currentRowTop + kHeight)))
                 keyLeft += keyW + keyMarginH
             }
 
@@ -692,11 +696,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
             var rightKeyLeft = rightClusterOrigin + keyMarginH
             for (key in rightKeys) {
                 val keyW = rightUnitW * key.widthWeight
-                resolvedKeys.add(ResolvedKey(key, RectF(rightKeyLeft, rowTop, rightKeyLeft + keyW, rowTop + kHeight)))
+                resolvedKeys.add(ResolvedKey(key, RectF(rightKeyLeft, currentRowTop, rightKeyLeft + keyW, currentRowTop + kHeight)))
                 rightKeyLeft += keyW + keyMarginH
             }
 
-            rowTop += kHeight + keyMarginV
+            currentRowTop += kHeight + keyMarginV
         }
 
         // Spacebar row in Split mode
@@ -704,8 +708,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val halfCount = (spaceRow.size + 1) / 2
         val leftSpaceKeys = spaceRow.take(halfCount)
         val rightSpaceKeys = spaceRow.drop(halfCount)
-        val spaceRowTop = totalH - spaceH - keyMarginV
-        val spaceKeyHeight = spaceH - keyMarginV
+        val spaceRowTop = currentRowTop
+        val spaceKeyHeight = (totalH - keyMarginV - spaceRowTop).coerceAtLeast(kHeight)
 
         val leftWeight = leftSpaceKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
         val leftUnitW = (clusterW - keyMarginH * (leftSpaceKeys.size + 1)) / leftWeight
@@ -1320,6 +1324,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * operates on pre-computed centre coordinates stored in [resolvedKeys].
      */
     private fun findKeyIndex(x: Float, y: Float): Int {
+        // Fast direct hit-test
+        for (i in resolvedKeys.indices) {
+            if (resolvedKeys[i].bounds.contains(x, y)) {
+                return i
+            }
+        }
+
         var bestIdx = -1
         var bestScore = Float.MAX_VALUE
 

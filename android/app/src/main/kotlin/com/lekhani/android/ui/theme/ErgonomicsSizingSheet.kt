@@ -336,8 +336,8 @@ fun ErgonomicsSizingSheet(
                         onClick = {
                             heightScale = 1.0f
                             prefs.heightScale = 1.0f
-                            marginH = 3.5f
-                            prefs.keyMarginH = 3.5f
+                            marginH = 3.0f
+                            prefs.keyMarginH = 3.0f
                             marginV = 4.0f
                             prefs.keyMarginV = 4.0f
                             chinPadding = 0f

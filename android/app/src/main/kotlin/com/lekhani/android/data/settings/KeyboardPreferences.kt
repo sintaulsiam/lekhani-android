@@ -42,11 +42,11 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putFloat(KEY_HEIGHT_SCALE, value).apply()
 
     var keyMarginH: Float
-        get() = prefs.getFloat(KEY_MARGIN_H, 5.0f)
+        get() = prefs.getFloat(KEY_MARGIN_H, 3.0f)
         set(value) = prefs.edit().putFloat(KEY_MARGIN_H, value).apply()
 
     var keyMarginV: Float
-        get() = prefs.getFloat(KEY_MARGIN_V, 6.5f)
+        get() = prefs.getFloat(KEY_MARGIN_V, 4.0f)
         set(value) = prefs.edit().putFloat(KEY_MARGIN_V, value).apply()
 
     var bottomChinPadding: Float
