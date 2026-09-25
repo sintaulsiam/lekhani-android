@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -20,6 +21,8 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.lekhani.android.canvas.KeyboardCanvasView
+import com.lekhani.android.data.clipboard.LekhaniClipboardStore
+import com.lekhani.android.data.emoji.EmojiRecentsManager
 import com.lekhani.android.ffi.AndroidLekhaniSession
 import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.ffi.LekhaniError
@@ -30,6 +33,8 @@ import com.lekhani.android.ui.candidate.CandidateBlacklist
 import com.lekhani.android.ui.candidate.CandidateStripState
 import com.lekhani.android.ui.candidate.CandidateStripView
 import com.lekhani.android.ui.candidate.HomophoneAnnotator
+import com.lekhani.android.ui.clipboard.ClipboardSheetView
+import com.lekhani.android.ui.emoji.EmojiPickerView
 import com.lekhani.android.ui.voice.VoiceWaveformOverlay
 import com.lekhani.android.voice.AudioStreamingManager
 import kotlinx.coroutines.CoroutineScope
@@ -106,6 +111,19 @@ class LekhaniInputMethodService : InputMethodService() {
     /** Audio streaming manager for 100% offline voice typing (Phase 5). */
     private val audioManager: AudioStreamingManager by lazy { AudioStreamingManager(this) }
 
+    // ── Input modes & auxiliary views (Phase 6) ──────────────────────────────
+
+    enum class InputViewMode { KEYBOARD, EMOJI, CLIPBOARD }
+
+    private var currentMode: InputViewMode = InputViewMode.KEYBOARD
+    private var rootInputContainer: FrameLayout? = null
+    private var emojiPickerView: ComposeView? = null
+    private var clipboardView: ComposeView? = null
+    private var isCurrentFieldPrivate: Boolean = false
+
+    private val recentsManager: EmojiRecentsManager by lazy { EmojiRecentsManager(this) }
+    private val clipboardStore: LekhaniClipboardStore by lazy { LekhaniClipboardStore(this) }
+
     // ── WebView / Chromium composing shadow buffer ─────────────────────────────
 
     /**
@@ -143,6 +161,20 @@ class LekhaniInputMethodService : InputMethodService() {
             ?: LekhaniLayoutType.PROBAHO
         session.setLayout(savedLayout)
         Log.i(TAG, "Lekhani IME created; layout = $savedLayout")
+
+        // Listen for system clipboard updates; guard against private field capture
+        val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        sysClipboard?.addPrimaryClipChangedListener {
+            if (!isCurrentFieldPrivate) {
+                val clip = sysClipboard.primaryClip
+                if (clip != null && clip.itemCount > 0) {
+                    val text = clip.getItemAt(0)?.text?.toString()
+                    if (!text.isNullOrBlank()) {
+                        clipboardStore.addClip(text)
+                    }
+                }
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -160,6 +192,7 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onStartInput(info, restarting)
         session.reset()
         preeditShadow = ""
+        setInputViewMode(InputViewMode.KEYBOARD)
         applyInputTypePolicy(info)
         refreshSurroundingContext()
     }
@@ -183,7 +216,10 @@ class LekhaniInputMethodService : InputMethodService() {
     // ══════════════════════════════════════════════════════════════════════════
 
     override fun onCreateInputView(): View {
-        val view = KeyboardCanvasView(this).also { v ->
+        val container = FrameLayout(this)
+        rootInputContainer = container
+
+        val canvasView = KeyboardCanvasView(this).also { v ->
             v.setLayout(LayoutRegistry.get(session.getLayout()), shifted = false)
             v.keyListener = object : KeyboardCanvasView.KeyListener {
                 override fun onKey(key: Key, action: KeyAction) {
@@ -191,8 +227,15 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
             }
         }
-        keyboardView = view
-        return view
+        keyboardView = canvasView
+        container.addView(
+            canvasView,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+        return container
     }
 
     /**
@@ -265,6 +308,95 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyAction.SwitchNumeric -> { /* Phase 6: numbers layer */ }
             KeyAction.SwitchLayout -> cycleLayout()
             KeyAction.VoiceTyping  -> startVoiceTyping()
+            KeyAction.SwitchEmoji  -> setInputViewMode(InputViewMode.EMOJI)
+            KeyAction.SwitchClipboard -> setInputViewMode(InputViewMode.CLIPBOARD)
+        }
+    }
+
+    /**
+     * Toggles between Keyboard Canvas, Emoji/Symbol Picker, and Clipboard History.
+     */
+    fun setInputViewMode(mode: InputViewMode) {
+        currentMode = mode
+        val container = rootInputContainer ?: return
+
+        when (mode) {
+            InputViewMode.KEYBOARD -> {
+                keyboardView?.visibility = View.VISIBLE
+                emojiPickerView?.visibility = View.GONE
+                clipboardView?.visibility = View.GONE
+                setCandidatesViewShown(true)
+            }
+            InputViewMode.EMOJI -> {
+                keyboardView?.visibility = View.GONE
+                clipboardView?.visibility = View.GONE
+                setCandidatesViewShown(false)
+                if (emojiPickerView == null) {
+                    val compose = ComposeView(this).apply {
+                        val lifecycleOwner = ImeLifecycleOwner()
+                        lifecycleOwner.onCreate()
+                        lifecycleOwner.onResume()
+                        setViewTreeLifecycleOwner(lifecycleOwner)
+                        setViewTreeViewModelStoreOwner(lifecycleOwner)
+                        setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+
+                        setContent {
+                            EmojiPickerView(
+                                recentsManager = recentsManager,
+                                onEmojiSelected = { emoji ->
+                                    currentInputConnection?.commitText(emoji, 1)
+                                },
+                                onBackspace = { onBackspace() },
+                                onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                            )
+                        }
+                    }
+                    emojiPickerView = compose
+                    container.addView(
+                        compose,
+                        FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT
+                        )
+                    )
+                }
+                emojiPickerView?.visibility = View.VISIBLE
+            }
+            InputViewMode.CLIPBOARD -> {
+                keyboardView?.visibility = View.GONE
+                emojiPickerView?.visibility = View.GONE
+                setCandidatesViewShown(false)
+                if (clipboardView == null) {
+                    val compose = ComposeView(this).apply {
+                        val lifecycleOwner = ImeLifecycleOwner()
+                        lifecycleOwner.onCreate()
+                        lifecycleOwner.onResume()
+                        setViewTreeLifecycleOwner(lifecycleOwner)
+                        setViewTreeViewModelStoreOwner(lifecycleOwner)
+                        setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+
+                        setContent {
+                            ClipboardSheetView(
+                                clipboardStore = clipboardStore,
+                                onPaste = { text ->
+                                    currentInputConnection?.commitText(text, 1)
+                                    setInputViewMode(InputViewMode.KEYBOARD)
+                                },
+                                onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                            )
+                        }
+                    }
+                    clipboardView = compose
+                    container.addView(
+                        compose,
+                        FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT
+                        )
+                    )
+                }
+                clipboardView?.visibility = View.VISIBLE
+            }
         }
     }
 
@@ -489,6 +621,7 @@ class LekhaniInputMethodService : InputMethodService() {
         )
         val isPrivate = isPasswordField || noSuggestions
 
+        isCurrentFieldPrivate = isPrivate
         session.setPrivateField(isPrivate)
 
         if (!isPrivate) {

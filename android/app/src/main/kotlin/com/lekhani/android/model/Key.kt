@@ -23,6 +23,10 @@ sealed class KeyAction {
     data object SwitchLayout : KeyAction()
     /** Trigger 100% offline on-device speech-to-text voice typing */
     data object VoiceTyping : KeyAction()
+    /** Switch to Unicode 15.1+ emoji / kaomoji / symbol picker */
+    data object SwitchEmoji : KeyAction()
+    /** Switch to local clipboard history sheet */
+    data object SwitchClipboard : KeyAction()
 }
 
 /**

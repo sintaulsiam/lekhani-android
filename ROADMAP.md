@@ -83,13 +83,14 @@
 ---
 
 ## Phase 6: Emoji, Kaomoji, Symbols & Clipboard Suite
-- [ ] Full Unicode 15.1+ emoji palette with category tabs (Smileys, People, Nature, Food, Travel, Activities, Objects, Symbols, Flags).
-- [ ] Instant bilingual search (Bengali e.g. "হাসি", "আগুন" + English keywords).
-- [ ] Recents & favorites shelf with local persistence.
-- [ ] Long-press skin-tone and gender modifiers.
-- [ ] Kaomoji & emoticons picker (`(◕‿◕)`, `¯\_(ツ)_/¯`, `(ノಠ益ಠ)ノ彡┻━┻`).
-- [ ] Specialized math, currency (`৳`, `$`, `€`, `¥`, `₹`), and Bengali typographical symbols.
-- [ ] Smart local clipboard manager with clip pinning and auto-clearing sensitive content.
+- [x] Full Unicode 15.1+ emoji palette with category tabs (Smileys, People, Nature, Food, Travel, Activities, Objects, Symbols, Flags) in `EmojiData.kt`.
+- [x] Instant bilingual search (Bengali e.g. "হাসি", "আগুন" + English keywords).
+- [x] Recents & favorites shelf with local DPS persistence (`EmojiRecentsManager.kt`).
+- [x] Long-press skin-tone and gender modifiers popup.
+- [x] Kaomoji & emoticons picker (`(◕‿◕)`, `¯\_(ツ)_/¯`, `(ノಠ益ಠ)ノ彡┻━┻`) in `KaomojiData.kt`.
+- [x] Specialized math, currency (`৳`, `$`, `€`, `¥`, `₹`), and Bengali typographical symbols in `SymbolData.kt`.
+- [x] Smart local clipboard manager (`LekhaniClipboardStore.kt` & `ClipboardSheetView.kt`) with clip pinning and auto-clearing sensitive content.
+- [x] Unit test suites in `EmojiSearchTest.kt` and `ClipboardStoreTest.kt`.
 
 ---
 

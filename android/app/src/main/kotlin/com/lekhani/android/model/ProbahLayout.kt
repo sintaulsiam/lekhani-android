@@ -71,16 +71,16 @@ object ProbahLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "?123",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
+                label = "?123", shiftedLabel = "😊",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
                 widthWeight = 1.5f,
-                contentDesc = "Numbers and symbols",
+                contentDesc = "Numbers and symbols, shifted emoji picker",
             ),
             Key(
-                label = "🌐", shiftedLabel = "🌐",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                label = "🌐", shiftedLabel = "📋",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchClipboard,
                 widthWeight = 1.0f,
-                contentDesc = "Switch keyboard layout",
+                contentDesc = "Switch keyboard layout, shifted clipboard",
             ),
             Key(
                 label = ",", shiftedLabel = ";",
