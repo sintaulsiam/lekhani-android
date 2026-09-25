@@ -117,6 +117,8 @@ fun CandidateStripView(
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     activeTools: List<KeyboardPreferences.ToolbarTool> = KeyboardPreferences.DEFAULT_TOOL_LIST,
     onToolClick: ((KeyboardPreferences.ToolbarTool) -> Unit)? = null,
+    onEmojiSearchClose: (() -> Unit)? = null,
+    onEmojiSearchClear: (() -> Unit)? = null,
 ) {
     val state by stateFlow.collectAsState()
     val hasItems = state is CandidateStripState.Candidates
@@ -132,7 +134,17 @@ fun CandidateStripView(
             .height(StripHeight)
             .background(Color(theme.backgroundColor)),
     ) {
-        if (hasItems && !showToolbarOverride) {
+        if (state is CandidateStripState.EmojiSearch) {
+            val emojiState = state as CandidateStripState.EmojiSearch
+            EmojiSearchStrip(
+                query = emojiState.query,
+                emojis = emojiState.emojis,
+                onEmojiClick = onCandidateClick,
+                onBack = { onEmojiSearchClose?.invoke() },
+                onClearQuery = { onEmojiSearchClear?.invoke() },
+                theme = theme,
+            )
+        } else if (hasItems && !showToolbarOverride) {
             Row(
                 modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
@@ -191,6 +203,94 @@ fun CandidateStripView(
                         tools = activeTools,
                         onToolClick = onToolClick,
                         theme = theme,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmojiSearchStrip(
+    query: String,
+    emojis: List<String>,
+    onEmojiClick: (String) -> Unit,
+    onBack: () -> Unit,
+    onClearQuery: () -> Unit,
+    theme: KeyboardTheme,
+) {
+    Row(
+        modifier = Modifier.fillMaxSize(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Back button returning to full Emoji palette
+        Box(
+            modifier = Modifier
+                .size(StripHeight)
+                .clip(CircleShape)
+                .clickable { onBack() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "ইমোজিতে ফিরে যান",
+                tint = Color(theme.accentColor),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+
+        // Active search query indicator badge
+        Box(
+            modifier = Modifier
+                .padding(vertical = 4.dp, horizontal = 4.dp)
+                .clip(RoundedCornerShape(CornerRadius))
+                .background(Color(theme.keyNormalColor))
+                .clickable { if (query.isNotEmpty()) onClearQuery() }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (query.isEmpty()) "🔍 ইমোজি..." else "🔍 $query",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (query.isEmpty()) Color(theme.labelDimColor) else Color(theme.accentColor),
+                    style = TextStyle(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    ),
+                )
+                if (query.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "✕",
+                        fontSize = 11.sp,
+                        color = Color(theme.labelDimColor),
+                    )
+                }
+            }
+        }
+
+        // Horizontal scrolling emoji results
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            for (emoji in emojis) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onEmojiClick(emoji) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = emoji,
+                        fontSize = 22.sp,
                     )
                 }
             }

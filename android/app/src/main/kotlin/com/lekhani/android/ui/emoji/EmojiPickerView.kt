@@ -53,7 +53,12 @@ import com.lekhani.android.data.emoji.SymbolData
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextOverflow
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeRegistry
 
@@ -78,6 +83,7 @@ fun EmojiPickerView(
     onEmojiSelected: (String) -> Unit,
     onBackspace: () -> Unit,
     onClose: () -> Unit,
+    onSearchClick: () -> Unit = {},
     onSpace: () -> Unit = {},
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     modifier: Modifier = Modifier,
@@ -107,36 +113,45 @@ fun EmojiPickerView(
             .background(pickerBg)
             .semantics { contentDescription = "ইমোজি এবং প্রতীক প্যালেট" },
     ) {
-        // ── Search Bar ───────────────────────────────────────────────────────
+        // ── Search Pill ───────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = {
-                    Text(
-                        "ইমোজি খুঁজুন (যেমন: হাসি, আগুন, love, flag)...",
-                        fontSize = 12.sp,
-                        color = inactiveTabText
-                    )
-                },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = searchBg,
-                    unfocusedContainerColor = searchBg,
-                    focusedBorderColor = activeTabPill,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = textColor,
-                    unfocusedTextColor = textColor,
-                ),
-                shape = RoundedCornerShape(20.dp),
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp),
-            )
+                    .height(42.dp)
+                    .clip(RoundedCornerShape(21.dp))
+                    .background(searchBg)
+                    .clickable { onSearchClick() }
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = activeTabPill,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "ইমোজি খুঁজুন (যেমন: হাসি, আগুন, love, flag)...",
+                    fontSize = 13.sp,
+                    color = inactiveTabText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = TextStyle(
+                        lineHeight = 18.sp,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.Both,
+                        ),
+                    ),
+                )
+            }
         }
 
         // ── Category Tab Bar ─────────────────────────────────────────────────
@@ -367,7 +382,7 @@ fun EmojiPickerView(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(theme.keyNormalColor))
                     .clickable { onClose() }
-                    .padding(horizontal = 18.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
                     .semantics { contentDescription = "কিবোর্ডে ফিরে যান" },
                 contentAlignment = Alignment.Center,
             ) {
@@ -376,6 +391,24 @@ fun EmojiPickerView(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor,
+                )
+            }
+
+            // Dedicated Search button
+            Box(
+                modifier = Modifier
+                    .size(width = 44.dp, height = 38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(theme.keyNormalColor))
+                    .clickable { onSearchClick() }
+                    .semantics { contentDescription = "ইমোজি অনুসন্ধান" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "ইমোজি অনুসন্ধান",
+                    tint = activeTabPill,
+                    modifier = Modifier.size(18.dp),
                 )
             }
 

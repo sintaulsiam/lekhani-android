@@ -30,6 +30,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.lekhani.android.canvas.KeyboardCanvasView
 import com.lekhani.android.data.clipboard.LekhaniClipboardStore
 import com.lekhani.android.data.dictionary.LekhaniAssetInstaller
+import com.lekhani.android.data.emoji.EmojiData
 import com.lekhani.android.data.emoji.EmojiRecentsManager
 import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.feedback.LekhaniFeedbackManager
@@ -135,9 +136,11 @@ class LekhaniInputMethodService : InputMethodService() {
 
     // ── Input modes & auxiliary views (Phase 6) ──────────────────────────────
 
-    enum class InputViewMode { KEYBOARD, EMOJI, CLIPBOARD }
+    enum class InputViewMode { KEYBOARD, EMOJI, EMOJI_SEARCH, CLIPBOARD }
 
     private var currentMode: InputViewMode = InputViewMode.KEYBOARD
+    private var emojiSearchQuery: String = ""
+    private var emojiSearchSession: AndroidLekhaniSession? = null
     private var rootInputContainer: LinearLayout? = null
     private var modesContainer: FrameLayout? = null
     private var candidateStripComposeView: ComposeView? = null
@@ -330,6 +333,14 @@ class LekhaniInputMethodService : InputMethodService() {
                         theme = currentTheme,
                         activeTools = keyboardPrefs.getActiveToolbarTools(),
                         onToolClick = { tool -> handleToolbarToolClick(tool) },
+                        onEmojiSearchClose = {
+                            setInputViewMode(InputViewMode.EMOJI)
+                        },
+                        onEmojiSearchClear = {
+                            emojiSearchQuery = ""
+                            emojiSearchSession?.reset()
+                            updateEmojiSearchStrip()
+                        },
                     )
 
                     VoiceWaveformOverlay(
@@ -424,6 +435,89 @@ class LekhaniInputMethodService : InputMethodService() {
     // ── Internal key dispatch ─────────────────────────────────────────────────
 
     private fun handleKeyAction(key: Key, action: KeyAction) {
+        if (currentMode == InputViewMode.EMOJI_SEARCH) {
+            when (action) {
+                is KeyAction.Character -> {
+                    val sSession = emojiSearchSession ?: AndroidLekhaniSession().apply {
+                        setLayout(session.getLayout())
+                        emojiSearchSession = this
+                    }
+                    val res = try {
+                        sSession.processKey(action.token)
+                    } catch (e: Exception) {
+                        null
+                    }
+                    if (res != null) {
+                        if (res.preedit.isNotEmpty()) {
+                            emojiSearchQuery = res.preedit
+                        } else if (!res.commitText.isNullOrEmpty()) {
+                            emojiSearchQuery += res.commitText
+                        } else {
+                            emojiSearchQuery += action.token
+                        }
+                    } else {
+                        emojiSearchQuery += action.token
+                    }
+                    updateEmojiSearchStrip()
+                    return
+                }
+                KeyAction.Backspace -> {
+                    val sSession = emojiSearchSession
+                    if (sSession != null && sSession.isComposing()) {
+                        val res = try {
+                            sSession.handleBackspace()
+                        } catch (e: Exception) {
+                            null
+                        }
+                        emojiSearchQuery = res?.preedit ?: ""
+                        updateEmojiSearchStrip()
+                    } else if (emojiSearchQuery.isNotEmpty()) {
+                        emojiSearchQuery = emojiSearchQuery.dropLast(1)
+                        updateEmojiSearchStrip()
+                    } else {
+                        setInputViewMode(InputViewMode.EMOJI)
+                    }
+                    return
+                }
+                KeyAction.Space -> {
+                    emojiSearchQuery += " "
+                    updateEmojiSearchStrip()
+                    return
+                }
+                KeyAction.Enter -> {
+                    val cur = _candidateState.value
+                    if (cur is CandidateStripState.EmojiSearch && cur.emojis.isNotEmpty()) {
+                        onCandidateSelected(cur.emojis.first())
+                    } else {
+                        setInputViewMode(InputViewMode.KEYBOARD)
+                    }
+                    return
+                }
+                KeyAction.Shift -> {
+                    toggleShift()
+                    return
+                }
+                KeyAction.SwitchNumeric -> { /* Phase 6: numbers layer */ return }
+                KeyAction.SwitchLayout -> {
+                    cycleLayout()
+                    emojiSearchSession?.setLayout(session.getLayout())
+                    return
+                }
+                KeyAction.VoiceTyping -> {
+                    startVoiceTyping()
+                    return
+                }
+                KeyAction.SwitchEmoji -> {
+                    setInputViewMode(InputViewMode.EMOJI)
+                    return
+                }
+                KeyAction.SwitchClipboard -> {
+                    setInputViewMode(InputViewMode.CLIPBOARD)
+                    return
+                }
+            }
+        }
+
         when (action) {
             is KeyAction.Character -> onKey(action.token)
             KeyAction.Backspace    -> onBackspace()
@@ -451,12 +545,27 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.visibility = View.VISIBLE
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
+                emojiSearchQuery = ""
+                emojiSearchSession = null
+                clearCandidates()
                 updateCandidatesVisibility()
+            }
+            InputViewMode.EMOJI_SEARCH -> {
+                keyboardView?.visibility = View.VISIBLE
+                emojiPickerView?.visibility = View.GONE
+                clipboardView?.visibility = View.GONE
+                candidateStripComposeView?.visibility = View.VISIBLE
+                emojiSearchSession = AndroidLekhaniSession().apply {
+                    setLayout(session.getLayout())
+                }
+                updateEmojiSearchStrip()
             }
             InputViewMode.EMOJI -> {
                 keyboardView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
+                emojiSearchQuery = ""
+                emojiSearchSession = null
                 if (emojiPickerView == null) {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
@@ -481,6 +590,7 @@ class LekhaniInputMethodService : InputMethodService() {
                         onBackspace = { onBackspace() },
                         onSpace = { onSpace() },
                         onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                        onSearchClick = { setInputViewMode(InputViewMode.EMOJI_SEARCH) },
                     )
                 }
                 emojiPickerView?.visibility = View.VISIBLE
@@ -489,6 +599,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.visibility = View.GONE
                 emojiPickerView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
+                emojiSearchQuery = ""
+                emojiSearchSession = null
                 if (clipboardView == null) {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
@@ -520,8 +632,21 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun updateCandidatesVisibility() {
-        val show = currentMode == InputViewMode.KEYBOARD
+        val show = currentMode == InputViewMode.KEYBOARD || currentMode == InputViewMode.EMOJI_SEARCH
         candidateStripComposeView?.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
+    private fun updateEmojiSearchStrip() {
+        val results = if (emojiSearchQuery.isBlank()) {
+            val recents = recentsManager.getRecents()
+            if (recents.isNotEmpty()) recents else EmojiData.categories.flatMap { it.items }.map { it.emoji }.take(25)
+        } else {
+            EmojiData.search(emojiSearchQuery).map { it.emoji }
+        }
+        _candidateState.value = CandidateStripState.EmojiSearch(
+            query = emojiSearchQuery,
+            emojis = results
+        )
     }
 
     /**
@@ -602,6 +727,10 @@ class LekhaniInputMethodService : InputMethodService() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         // Intercept back key when inside Emoji or Clipboard view to return to Keyboard
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (currentMode == InputViewMode.EMOJI_SEARCH) {
+                setInputViewMode(InputViewMode.EMOJI)
+                return true
+            }
             if (currentMode != InputViewMode.KEYBOARD) {
                 setInputViewMode(InputViewMode.KEYBOARD)
                 return true
@@ -611,6 +740,61 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // Allow system shortcuts (Ctrl+C, Ctrl+V, Alt+Tab, Home, etc.) to pass through
         if (event.isCtrlPressed || event.isAltPressed) {
+            return super.onKeyDown(keyCode, event)
+        }
+
+        // Handle physical keyboard input while in Emoji Search mode
+        if (currentMode == InputViewMode.EMOJI_SEARCH) {
+            if (keyCode == KeyEvent.KEYCODE_DEL) {
+                val sSession = emojiSearchSession
+                if (sSession != null && sSession.isComposing()) {
+                    val res = try { sSession.handleBackspace() } catch (e: Exception) { null }
+                    emojiSearchQuery = res?.preedit ?: ""
+                    updateEmojiSearchStrip()
+                } else if (emojiSearchQuery.isNotEmpty()) {
+                    emojiSearchQuery = emojiSearchQuery.dropLast(1)
+                    updateEmojiSearchStrip()
+                } else {
+                    setInputViewMode(InputViewMode.EMOJI)
+                }
+                return true
+            }
+            if (keyCode == KeyEvent.KEYCODE_SPACE) {
+                emojiSearchQuery += " "
+                updateEmojiSearchStrip()
+                return true
+            }
+            if (keyCode == KeyEvent.KEYCODE_ENTER) {
+                val cur = _candidateState.value
+                if (cur is CandidateStripState.EmojiSearch && cur.emojis.isNotEmpty()) {
+                    onCandidateSelected(cur.emojis.first())
+                } else {
+                    setInputViewMode(InputViewMode.KEYBOARD)
+                }
+                return true
+            }
+            val unicode = event.unicodeChar
+            if (unicode > 0 && !Character.isISOControl(unicode)) {
+                val charStr = unicode.toChar().toString()
+                val sSession = emojiSearchSession ?: AndroidLekhaniSession().apply {
+                    setLayout(session.getLayout())
+                    emojiSearchSession = this
+                }
+                val res = try { sSession.processKey(charStr) } catch (e: Exception) { null }
+                if (res != null) {
+                    if (res.preedit.isNotEmpty()) {
+                        emojiSearchQuery = res.preedit
+                    } else if (!res.commitText.isNullOrEmpty()) {
+                        emojiSearchQuery += res.commitText
+                    } else {
+                        emojiSearchQuery += charStr
+                    }
+                } else {
+                    emojiSearchQuery += charStr
+                }
+                updateEmojiSearchStrip()
+                return true
+            }
             return super.onKeyDown(keyCode, event)
         }
 
@@ -814,6 +998,12 @@ class LekhaniInputMethodService : InputMethodService() {
      * Clears composing state and commits the NFC-normalized candidate + space.
      */
     fun onCandidateSelected(candidate: String) {
+        if (currentMode == InputViewMode.EMOJI_SEARCH) {
+            currentInputConnection?.commitText(candidate, 1)
+            recentsManager.addRecent(candidate)
+            return
+        }
+
         val ic = currentInputConnection ?: return
 
         val result = try {
@@ -846,6 +1036,7 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     fun switchLayout(layout: LekhaniLayoutType) {
         session.setLayout(layout)
+        emojiSearchSession?.setLayout(layout)
         keyboardView?.setLayout(LayoutRegistry.get(layout), layout, shifted = false)
         keyboardView?.setGboardKarsActive(false)
         devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()

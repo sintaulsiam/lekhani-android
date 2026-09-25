@@ -31,4 +31,10 @@ sealed class CandidateStripState {
      * [items] is always non-empty when this state is active.
      */
     data class Candidates(val items: List<CandidateItem>) : CandidateStripState()
+
+    /**
+     * Real-time Emoji Search Mode.
+     * Displays current search query and live matching emojis above the keyboard.
+     */
+    data class EmojiSearch(val query: String, val emojis: List<String>) : CandidateStripState()
 }
