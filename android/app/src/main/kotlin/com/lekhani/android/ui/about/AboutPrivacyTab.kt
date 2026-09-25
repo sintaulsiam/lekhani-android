@@ -23,7 +23,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Card
@@ -139,12 +141,44 @@ fun AboutPrivacyTab(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
+                // Author: Sintaul Mahdi Siam
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Person,
+                        contentDescription = "Author",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFF00E5B8)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isEnglish) "Author:" else "লেখক / নির্মাতা:",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.width(100.dp)
+                    )
+                    Text(
+                        text = if (isEnglish) "Sintaul Mahdi Siam" else "সিনতাউল মাহদী সিয়াম",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 // Organization: Syntenieum
-                Row(verticalAlignment = Alignment.Top) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Business,
+                        contentDescription = "Organization",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFF00E5B8)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isEnglish) "Organization:" else "প্রতিষ্ঠান:",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                        modifier = Modifier.width(110.dp)
+                        modifier = Modifier.width(100.dp)
                     )
                     Text(
                         text = "Syntenieum",
@@ -155,7 +189,7 @@ fun AboutPrivacyTab(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Author Academic Background: BRUR CSE
                 Row(verticalAlignment = Alignment.Top) {
@@ -184,17 +218,17 @@ fun AboutPrivacyTab(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Email Contact Link
+                // Author Email Contact Link
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
                         .clickable {
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                data = Uri.parse("mailto:syntenieum@gmail.com")
-                                putExtra(Intent.EXTRA_SUBJECT, "Lekhani Keyboard Feedback / Inquiry")
+                                data = Uri.parse("mailto:sintaulsiam@gmail.com")
+                                putExtra(Intent.EXTRA_SUBJECT, "Lekhani Keyboard - Inquiry for Sintaul Mahdi Siam")
                             }
                             runCatching { context.startActivity(intent) }
                         }
@@ -209,13 +243,59 @@ fun AboutPrivacyTab(
                         tint = Color(0xFF00E5B8)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "syntenieum@gmail.com",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF00E5B8)
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Author Email" else "লেখকের ইমেইল",
+                            style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
+                        Text(
+                            text = "sintaulsiam@gmail.com",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00E5B8)
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Organization Email Contact Link
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("mailto:syntenieum@gmail.com")
+                                putExtra(Intent.EXTRA_SUBJECT, "Lekhani Keyboard - Syntenieum Support")
+                            }
+                            runCatching { context.startActivity(intent) }
+                        }
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.MailOutline,
+                        contentDescription = "Organization Email",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Organization Email" else "প্রতিষ্ঠানের ইমেইল",
+                            style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        )
+                        Text(
+                            text = "syntenieum@gmail.com",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                    }
                 }
             }
         }
