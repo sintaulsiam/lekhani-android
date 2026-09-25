@@ -297,6 +297,22 @@ class LekhaniInputMethodService : InputMethodService() {
                 override fun onGlideGesture(keys: List<String>) {
                     handleGlideGesture(keys)
                 }
+
+                override fun onCursorMove(deltaChars: Int) {
+                    handleCursorMove(deltaChars)
+                }
+
+                override fun onSwipeDelete(wordCount: Int) {
+                    handleSwipeDelete(wordCount)
+                }
+
+                override fun onSwipeDeletePreview(wordCount: Int) {
+                    // Preview feedback handled in canvas badge and haptics
+                }
+
+                override fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor) {
+                    setFormFactor(newFormFactor)
+                }
             }
         }
         keyboardView = canvasView
@@ -815,6 +831,31 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyboardPreferences.ToolbarTool.THEME -> {
                 cycleTheme()
             }
+            KeyboardPreferences.ToolbarTool.ONE_HANDED -> {
+                val nextForm = when (keyboardPrefs.formFactor) {
+                    KeyboardPreferences.FormFactor.STANDARD -> KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT
+                    KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT -> KeyboardPreferences.FormFactor.ONE_HANDED_LEFT
+                    KeyboardPreferences.FormFactor.ONE_HANDED_LEFT -> KeyboardPreferences.FormFactor.STANDARD
+                    else -> KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT
+                }
+                setFormFactor(nextForm)
+            }
+            KeyboardPreferences.ToolbarTool.FLOATING -> {
+                val nextForm = if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+                    KeyboardPreferences.FormFactor.STANDARD
+                } else {
+                    KeyboardPreferences.FormFactor.FLOATING
+                }
+                setFormFactor(nextForm)
+            }
+            KeyboardPreferences.ToolbarTool.SPLIT -> {
+                val nextForm = if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.SPLIT) {
+                    KeyboardPreferences.FormFactor.STANDARD
+                } else {
+                    KeyboardPreferences.FormFactor.SPLIT
+                }
+                setFormFactor(nextForm)
+            }
             KeyboardPreferences.ToolbarTool.SETTINGS -> {
                 val intent = Intent(this, LekhaniSettingsActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -822,6 +863,71 @@ class LekhaniInputMethodService : InputMethodService() {
                 startActivity(intent)
             }
         }
+    }
+
+    private fun handleCursorMove(deltaChars: Int) {
+        val ic = currentInputConnection ?: return
+        if (deltaChars < 0) {
+            for (i in 0 until (-deltaChars)) {
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT))
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_LEFT))
+            }
+        } else if (deltaChars > 0) {
+            for (i in 0 until deltaChars) {
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
+                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_RIGHT))
+            }
+        }
+    }
+
+    private fun handleSwipeDelete(wordCount: Int) {
+        if (wordCount <= 0) return
+        var remainingWords = wordCount
+
+        // 1. If currently composing Bengali in session, discard composition first
+        if (preeditShadow.isNotEmpty()) {
+            session.reset()
+            preeditShadow = ""
+            currentInputConnection?.setComposingText("", 0)
+            clearCandidates()
+            remainingWords--
+        }
+
+        // 2. Delete remaining words from committed text
+        if (remainingWords > 0) {
+            val ic = currentInputConnection ?: return
+            val before = ic.getTextBeforeCursor(512, 0)?.toString() ?: ""
+            if (before.isNotEmpty()) {
+                var charsToDelete = 0
+                var wordsFound = 0
+                var inWord = false
+                for (i in before.length - 1 downTo 0) {
+                    val ch = before[i]
+                    val isSpace = ch.isWhitespace()
+                    if (!isSpace) {
+                        inWord = true
+                    } else if (inWord) {
+                        wordsFound++
+                        inWord = false
+                        if (wordsFound >= remainingWords) {
+                            break
+                        }
+                    }
+                    charsToDelete++
+                }
+                if (charsToDelete > 0) {
+                    ic.deleteSurroundingText(charsToDelete, 0)
+                }
+            }
+        }
+        refreshSurroundingContext()
+    }
+
+    fun setFormFactor(newForm: KeyboardPreferences.FormFactor) {
+        keyboardPrefs.formFactor = newForm
+        keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
+        keyboardView?.requestLayout()
+        keyboardView?.invalidate()
     }
 
     private fun cycleTheme() {

@@ -151,12 +151,12 @@
 ---
 
 ## Phase 11: World-Class Modern UI/UX & Form Factors
-- [ ] Material 3 Expressive aesthetic with fluid 120 FPS spring physics and key glow/ripple effects.
-- [ ] One-handed mode with quick-dock arrows (left/right handed).
-- [ ] Floating keyboard mode (freely movable, resizable anywhere on screen).
-- [ ] Split keyboard mode optimized for foldables and tablets.
-- [ ] Spacebar cursor slide navigation (fine-grained cursor tracking).
-- [ ] Swipe-to-delete gesture on Backspace with word highlight preview.
+- [x] Material 3 Expressive aesthetic with fluid 120 FPS spring physics and key glow/ripple effects.
+- [x] One-handed mode with quick-dock arrows (left/right handed).
+- [x] Floating keyboard mode (freely movable, resizable anywhere on screen).
+- [x] Split keyboard mode optimized for foldables and tablets.
+- [x] Spacebar cursor slide navigation (fine-grained cursor tracking).
+- [x] Swipe-to-delete gesture on Backspace with word highlight preview.
 
 ---
 

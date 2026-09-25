@@ -60,11 +60,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
         fun onSpaceSwipe(direction: Int) // -1 for previous layout, +1 for next layout
         fun onSpaceLongPress()
         fun onGlideGesture(keys: List<String>)
+        fun onCursorMove(deltaChars: Int)
+        fun onSwipeDelete(wordCount: Int)
+        fun onSwipeDeletePreview(wordCount: Int)
+        fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor)
     }
 
     var keyListener: KeyListener? = null
 
-    // ── Theme & Ergonomics state ──────────────────────────────────────────────
+    // ── Theme, Ergonomics & Form Factor state ──────────────────────────────────
 
     var activeTheme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL
         private set
@@ -78,6 +82,85 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var fontScale: Float = 1.0f
     var showKeyBorders: Boolean = true
     var longPressDelayMs: Long = 300L
+
+    var formFactor: KeyboardPreferences.FormFactor = KeyboardPreferences.FormFactor.STANDARD
+        set(value) {
+            if (field != value) {
+                field = value
+                if (width > 0 && height > 0) {
+                    computeKeyBounds()
+                    invalidate()
+                }
+            }
+        }
+
+    var spaceCursorSlideEnabled: Boolean = true
+    var swipeToDeleteEnabled: Boolean = true
+    var keyGlowRippleEnabled: Boolean = true
+
+    // Side Dock buttons for One-Handed mode (zero allocation in onDraw)
+    enum class SideDockAction { EXPAND_STANDARD, SWAP_SIDE, TOGGLE_FLOATING }
+    private class SideDockButton(var action: SideDockAction, var icon: String, val bounds: RectF = RectF())
+    private val sideDockButtons = arrayOf(
+        SideDockButton(SideDockAction.EXPAND_STANDARD, "⛶"),
+        SideDockButton(SideDockAction.SWAP_SIDE, "›"),
+        SideDockButton(SideDockAction.TOGGLE_FLOATING, "🪟"),
+    )
+    private var isSideDockVisible: Boolean = false
+    private val sideDockBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0x1AFFFFFF.toInt()
+    }
+    private val sideDockTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFFFFF.toInt()
+        textAlign = Paint.Align.CENTER
+    }
+
+    // Floating mode drag state
+    private var floatingOffsetX: Float = 0f
+    private var floatingOffsetY: Float = 0f
+    private var isDraggingFloatingBar: Boolean = false
+    private var floatingDragStartX: Float = 0f
+    private var floatingDragStartY: Float = 0f
+    private val floatingTopBarRect = RectF()
+    private val floatingDockBtnRect = RectF()
+
+    // Spacebar cursor slide navigation state
+    private var isSpaceCursorMoving: Boolean = false
+    private var spaceSlideLastX: Float = 0f
+    private var spaceSlideStepPx: Float = 0f
+    private var spaceSlideThresholdPx: Float = 0f
+    private val spaceSlideTrackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+        color = 0x8000E5B8.toInt()
+    }
+    private val spaceSlideThumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0xFF00E5B8.toInt()
+    }
+
+    // Backspace swipe to delete state
+    private var isBackspaceSwiping: Boolean = false
+    private var backspaceSwipeStartX: Float = 0f
+    private var backspaceDeletedWordCount: Int = 0
+    private var backspaceSwipeStepPx: Float = 0f
+    private val backspaceBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0xFFE53935.toInt()
+    }
+    private val backspaceBadgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFFFFFFFF.toInt()
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.DEFAULT_BOLD
+    }
+
+    // Key Glow paint (Material 3 Expressive press effect)
+    private val keyGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2.5f
+        color = 0x6600E5B8.toInt()
+    }
 
     private var wallpaperBitmap: Bitmap? = null
     private var wallpaperOpacity: Float = 0.25f
@@ -266,6 +349,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.marginVDp = prefs.keyMarginV
         this.bottomChinPaddingDp = prefs.bottomChinPadding
         this.fontScale = prefs.fontScale
+        this.formFactor = prefs.formFactor
+        this.spaceCursorSlideEnabled = prefs.spaceCursorSlideEnabled
+        this.swipeToDeleteEnabled = prefs.swipeToDeleteEnabled
+        this.keyGlowRippleEnabled = prefs.keyGlowRippleEnabled
 
         val tf = when (prefs.fontStyle) {
             KeyboardPreferences.FONT_SERIF -> Typeface.SERIF
@@ -305,6 +392,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
         glideStrokePaint.color = theme.glideStrokeColor
         glideGlowPaint.color = theme.glideGlowColor
         zoneDividerPaint.color = theme.keySpaceColor
+
+        keyGlowPaint.color = (theme.accentColor and 0x00FFFFFF) or 0x66000000.toInt()
+        spaceSlideTrackPaint.color = (theme.accentColor and 0x00FFFFFF) or 0x80000000.toInt()
+        spaceSlideThumbPaint.color = theme.accentColor
         invalidate()
     }
 
@@ -388,12 +479,19 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyMarginV = marginVDp * density
         keyCornerRadius = 9f * density
         homeRowAccentHeight = 2.5f * density
-        swipeThresholdPx = 40f * density
+        swipeThresholdPx = 36f * density
+        spaceSlideThresholdPx = 16f * density
+        spaceSlideStepPx = 16f * density
+        backspaceSwipeStepPx = 28f * density
 
         glideStrokePaint.strokeWidth = 4.5f * density
         glideGlowPaint.strokeWidth = 11f * density
         glideMinDistancePx = 16f * density
         glideSampleDistSq = (8f * density) * (8f * density)
+        spaceSlideTrackPaint.strokeWidth = 2.5f * density
+        keyGlowPaint.strokeWidth = 2.2f * density
+        sideDockTextPaint.textSize = 20f * density
+        backspaceBadgeTextPaint.textSize = 12f * density
 
         val currentLayout = layout ?: return
         val rowCount = currentLayout.rows.size       // typically 3
@@ -414,51 +512,114 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     /**
-     * Compute pixel [RectF] for every key in the current layout.
-     * Result stored in [resolvedKeys]. Called from [onSizeChanged] and [setLayout].
+     * Compute pixel [RectF] for every key in the current layout according to [formFactor].
+     * Result stored in [resolvedKeys]. Called from [onSizeChanged], [applyPreferences], and [setLayout].
      * Must NOT be called from [onDraw] or [onTouchEvent].
      */
     private fun computeKeyBounds() {
         resolvedKeys.clear()
         val currentLayout = layout ?: return
         val w = width.toFloat()
+        val h = height.toFloat()
+        if (w <= 0f || h <= 0f) return
 
-        var rowTop = keyMarginV
+        val density = resources.displayMetrics.density
+        val chinPx = bottomChinPaddingDp * density
+        val availableH = (h - chinPx).coerceAtLeast(100f)
 
-        // ── Main key rows ──────────────────────────────────────────────────
+        when (formFactor) {
+            KeyboardPreferences.FormFactor.ONE_HANDED_LEFT -> {
+                isSideDockVisible = true
+                val kbW = w * 0.82f
+                val dockLeft = kbW
+                val dockW = w - kbW
+                setupSideDockButtons(dockLeft, 0f, dockW, availableH, isLeft = false)
+                layoutKeysStandard(0f, kbW, availableH)
+            }
+            KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT -> {
+                isSideDockVisible = true
+                val dockW = w * 0.18f
+                val kbLeft = dockW
+                val kbW = w - dockW
+                setupSideDockButtons(0f, 0f, dockW, availableH, isLeft = true)
+                layoutKeysStandard(kbLeft, kbW, availableH)
+            }
+            KeyboardPreferences.FormFactor.FLOATING -> {
+                isSideDockVisible = false
+                val floatingW = (w * 0.76f).coerceAtLeast(260f * density).coerceAtMost(w)
+                val topBarH = 26f * density
+                val floatingH = availableH * 0.86f
+                val minX = 0f
+                val maxX = (w - floatingW).coerceAtLeast(0f)
+                val startX = ((w - floatingW) / 2f + floatingOffsetX).coerceIn(minX, maxX)
+                val startY = floatingOffsetY.coerceIn(0f, (h - floatingH).coerceAtLeast(0f))
+
+                floatingTopBarRect.set(startX, startY, startX + floatingW, startY + topBarH)
+                floatingDockBtnRect.set(startX + floatingW - 32f * density, startY, startX + floatingW, startY + topBarH)
+
+                val kbAreaTop = startY + topBarH
+                val kbAreaH = floatingH - topBarH
+                layoutKeysStandard(startX, floatingW, kbAreaH, yOffset = kbAreaTop)
+            }
+            KeyboardPreferences.FormFactor.SPLIT -> {
+                isSideDockVisible = false
+                layoutKeysSplit(w, availableH)
+            }
+            KeyboardPreferences.FormFactor.STANDARD -> {
+                isSideDockVisible = false
+                layoutKeysStandard(0f, w, availableH)
+            }
+        }
+    }
+
+    private fun setupSideDockButtons(left: Float, top: Float, width: Float, height: Float, isLeft: Boolean) {
+        val btnH = (height / 3f).coerceAtLeast(30f)
+        val pad = 4f * resources.displayMetrics.density
+
+        sideDockButtons[0].action = SideDockAction.EXPAND_STANDARD
+        sideDockButtons[0].icon = "⛶"
+        sideDockButtons[0].bounds.set(left + pad, top + pad, left + width - pad, top + btnH - pad)
+
+        sideDockButtons[1].action = SideDockAction.SWAP_SIDE
+        sideDockButtons[1].icon = if (isLeft) "‹" else "›"
+        sideDockButtons[1].bounds.set(left + pad, top + btnH + pad, left + width - pad, top + 2f * btnH - pad)
+
+        sideDockButtons[2].action = SideDockAction.TOGGLE_FLOATING
+        sideDockButtons[2].icon = "🪟"
+        sideDockButtons[2].bounds.set(left + pad, top + 2f * btnH + pad, left + width - pad, top + 3f * btnH - pad)
+    }
+
+    private fun layoutKeysStandard(originX: Float, totalW: Float, totalH: Float, yOffset: Float = 0f) {
+        val currentLayout = layout ?: return
+        val rowCount = currentLayout.rows.size
+        val spaceH = totalH * 0.22f
+        val kHeight = (totalH - spaceH - keyMarginV * (rowCount + 1)) / rowCount
+
+        var rowTop = yOffset + keyMarginV
         for (row in currentLayout.rows) {
             val totalWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
-            val unitWidth = (w - keyMarginH * (row.size + 1)) / totalWeight
-
-            var keyLeft = keyMarginH
+            val unitWidth = (totalW - keyMarginH * (row.size + 1)) / totalWeight
+            var keyLeft = originX + keyMarginH
             for (key in row) {
                 val keyWidth = unitWidth * key.widthWeight
                 resolvedKeys.add(
                     ResolvedKey(
                         key = key,
-                        bounds = RectF(
-                            keyLeft,
-                            rowTop,
-                            keyLeft + keyWidth,
-                            rowTop + keyHeight,
-                        )
+                        bounds = RectF(keyLeft, rowTop, keyLeft + keyWidth, rowTop + kHeight)
                     )
                 )
                 keyLeft += keyWidth + keyMarginH
             }
-            rowTop += keyHeight + keyMarginV
+            rowTop += kHeight + keyMarginV
         }
 
-        // ── Spacebar row ───────────────────────────────────────────────────
+        // Spacebar row
         val spaceRow = currentLayout.spacebarRow
         val totalWeight = spaceRow.sumOf { it.widthWeight.toDouble() }.toFloat()
-        val unitWidth = (w - keyMarginH * (spaceRow.size + 1)) / totalWeight
-        val chinPx = bottomChinPaddingDp * resources.displayMetrics.density
-        val availableH = (height - chinPx).coerceAtLeast(100f)
-        val spaceRowTop = availableH - spacebarRowHeight - keyMarginV
-        val spaceKeyHeight = spacebarRowHeight - keyMarginV
-
-        var keyLeft = keyMarginH
+        val unitWidth = (totalW - keyMarginH * (spaceRow.size + 1)) / totalWeight
+        val spaceRowTop = yOffset + totalH - spaceH - keyMarginV
+        val spaceKeyHeight = spaceH - keyMarginV
+        var keyLeft = originX + keyMarginH
         for (key in spaceRow) {
             val keyWidth = unitWidth * key.widthWeight
             resolvedKeys.add(
@@ -468,6 +629,70 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 )
             )
             keyLeft += keyWidth + keyMarginH
+        }
+    }
+
+    private fun layoutKeysSplit(totalW: Float, totalH: Float) {
+        val currentLayout = layout ?: return
+        val rowCount = currentLayout.rows.size
+        val spaceH = totalH * 0.22f
+        val kHeight = (totalH - spaceH - keyMarginV * (rowCount + 1)) / rowCount
+
+        val centerGap = totalW * 0.16f
+        val clusterW = (totalW - centerGap) / 2f
+        val rightClusterOrigin = clusterW + centerGap
+
+        var rowTop = keyMarginV
+        for (row in currentLayout.rows) {
+            val halfCount = (row.size + 1) / 2
+            val leftKeys = row.take(halfCount)
+            val rightKeys = row.drop(halfCount)
+
+            val leftWeight = leftKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
+            val leftUnitW = (clusterW - keyMarginH * (leftKeys.size + 1)) / leftWeight
+            var keyLeft = keyMarginH
+            for (key in leftKeys) {
+                val keyW = leftUnitW * key.widthWeight
+                resolvedKeys.add(ResolvedKey(key, RectF(keyLeft, rowTop, keyLeft + keyW, rowTop + kHeight)))
+                keyLeft += keyW + keyMarginH
+            }
+
+            val rightWeight = rightKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
+            val rightUnitW = (clusterW - keyMarginH * (rightKeys.size + 1)) / rightWeight
+            var rightKeyLeft = rightClusterOrigin + keyMarginH
+            for (key in rightKeys) {
+                val keyW = rightUnitW * key.widthWeight
+                resolvedKeys.add(ResolvedKey(key, RectF(rightKeyLeft, rowTop, rightKeyLeft + keyW, rowTop + kHeight)))
+                rightKeyLeft += keyW + keyMarginH
+            }
+
+            rowTop += kHeight + keyMarginV
+        }
+
+        // Spacebar row in Split mode
+        val spaceRow = currentLayout.spacebarRow
+        val halfCount = (spaceRow.size + 1) / 2
+        val leftSpaceKeys = spaceRow.take(halfCount)
+        val rightSpaceKeys = spaceRow.drop(halfCount)
+        val spaceRowTop = totalH - spaceH - keyMarginV
+        val spaceKeyHeight = spaceH - keyMarginV
+
+        val leftWeight = leftSpaceKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
+        val leftUnitW = (clusterW - keyMarginH * (leftSpaceKeys.size + 1)) / leftWeight
+        var keyLeft = keyMarginH
+        for (key in leftSpaceKeys) {
+            val keyW = leftUnitW * key.widthWeight
+            resolvedKeys.add(ResolvedKey(key, RectF(keyLeft, spaceRowTop, keyLeft + keyW, spaceRowTop + spaceKeyHeight)))
+            keyLeft += keyW + keyMarginH
+        }
+
+        val rightWeight = rightSpaceKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
+        val rightUnitW = (clusterW - keyMarginH * (rightSpaceKeys.size + 1)) / rightWeight
+        var rightKeyLeft = rightClusterOrigin + keyMarginH
+        for (key in rightSpaceKeys) {
+            val keyW = rightUnitW * key.widthWeight
+            resolvedKeys.add(ResolvedKey(key, RectF(rightKeyLeft, spaceRowTop, rightKeyLeft + keyW, spaceRowTop + spaceKeyHeight)))
+            rightKeyLeft += keyW + keyMarginH
         }
     }
 
@@ -491,12 +716,33 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         val now = SystemClock.uptimeMillis()
+        val density = resources.displayMetrics.density
 
-        // ── Zone divider line ──────────────────────────────────────────────
-        if (layout?.rows?.isNotEmpty() == true) {
+        // ── Zone divider line (in standard mode) ───────────────────────────
+        if (formFactor == KeyboardPreferences.FormFactor.STANDARD && layout?.rows?.isNotEmpty() == true) {
             val firstKeyTop = resolvedKeys.firstOrNull()?.bounds?.top ?: 0f
             val lastMainKey = resolvedKeys.lastOrNull { !isSpacebarKey(it.key) }?.bounds?.bottom ?: height.toFloat()
             canvas.drawLine(zoneDividerX, firstKeyTop, zoneDividerX, lastMainKey, zoneDividerPaint)
+        }
+
+        // ── Side Dock Buttons (One-Handed mode) ───────────────────────────
+        if (isSideDockVisible) {
+            for (btn in sideDockButtons) {
+                canvas.drawRoundRect(btn.bounds, 10f * density, 10f * density, sideDockBgPaint)
+                val cy = btn.bounds.centerY() - (sideDockTextPaint.ascent() + sideDockTextPaint.descent()) / 2f
+                canvas.drawText(btn.icon, btn.bounds.centerX(), cy, sideDockTextPaint)
+            }
+        }
+
+        // ── Floating Mode Top Drag Bar ────────────────────────────────────
+        if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+            canvas.drawRoundRect(floatingTopBarRect, 8f * density, 8f * density, sideDockBgPaint)
+            val barMidX = floatingTopBarRect.centerX()
+            val barMidY = floatingTopBarRect.centerY()
+            scratchRect.set(barMidX - 16f * density, barMidY - 2.5f * density, barMidX + 16f * density, barMidY + 2.5f * density)
+            canvas.drawRoundRect(scratchRect, 2.5f * density, 2.5f * density, sideDockTextPaint)
+            val dockIconY = floatingDockBtnRect.centerY() - (sideDockTextPaint.ascent() + sideDockTextPaint.descent()) / 2f
+            canvas.drawText("⛶", floatingDockBtnRect.centerX(), dockIconY, sideDockTextPaint)
         }
 
         // ── Keys ───────────────────────────────────────────────────────────
@@ -514,21 +760,33 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 else -> keyBgPaint
             }
 
+            // Key spring inset and glow halo
+            val drawBounds = if (i == pressedKeyIndex) {
+                if (keyGlowRippleEnabled) {
+                    scratchRect.set(bounds.left - 2.5f, bounds.top - 2.5f, bounds.right + 2.5f, bounds.bottom + 2.5f)
+                    canvas.drawRoundRect(scratchRect, keyCornerRadius + 2.5f, keyCornerRadius + 2.5f, keyGlowPaint)
+                }
+                scratchRect.set(bounds.left + 1.2f, bounds.top + 1.2f, bounds.right - 1.2f, bounds.bottom - 1.2f)
+                scratchRect
+            } else {
+                bounds
+            }
+
             // Draw key background with rounded corners
-            canvas.drawRoundRect(bounds, keyCornerRadius, keyCornerRadius, bgPaint)
+            canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, bgPaint)
 
             // Draw key border
             if (showKeyBorders) {
-                canvas.drawRoundRect(bounds, keyCornerRadius, keyCornerRadius, keyBorderPaint)
+                canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, keyBorderPaint)
             }
 
             // Home row accent underline
             if (key.isHomeRow) {
                 scratchRect.set(
-                    bounds.left + keyCornerRadius,
-                    bounds.bottom - homeRowAccentHeight,
-                    bounds.right - keyCornerRadius,
-                    bounds.bottom,
+                    drawBounds.left + keyCornerRadius,
+                    drawBounds.bottom - homeRowAccentHeight,
+                    drawBounds.right - keyCornerRadius,
+                    drawBounds.bottom,
                 )
                 canvas.drawRect(scratchRect, homeRowAccentPaint)
             }
@@ -539,9 +797,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val fraction = elapsed.toFloat() / RIPPLE_DURATION_MS
                 val rippleAlpha = ((1f - fraction) * RIPPLE_MAX_ALPHA).toInt().coerceIn(0, 255)
                 ripplePaint.alpha = rippleAlpha
-                rippleRect.set(bounds)
+                rippleRect.set(drawBounds)
                 canvas.drawRoundRect(rippleRect, keyCornerRadius, keyCornerRadius, ripplePaint)
-                // Continue invalidating while ripple is animating
                 if (fraction < 1f) invalidate()
             }
 
@@ -551,27 +808,45 @@ class KeyboardCanvasView @JvmOverloads constructor(
             } else {
                 key.displayLabel(isShifted)
             }
-            val cx = bounds.centerX()
-            val cy = bounds.centerY() - (labelPaint.ascent() + labelPaint.descent()) / 2f
+            val cx = drawBounds.centerX()
+            val cy = drawBounds.centerY() - (labelPaint.ascent() + labelPaint.descent()) / 2f
 
             when (key.action) {
                 KeyAction.Backspace, KeyAction.Enter, KeyAction.Shift,
                 KeyAction.SwitchNumeric, KeyAction.SwitchLayout, KeyAction.Space -> {
-                    // System keys & Spacebar use smaller label
                     canvas.drawText(labelText, cx, cy, labelPaintSmall)
                 }
                 else -> {
                     canvas.drawText(labelText, cx, cy, labelPaint)
-                    // Draw hint (shifted alternate character) in upper area if unshifted
                     val shiftedLbl = key.shiftedLabel
                     if (!isShifted && shiftedLbl != null && shiftedLbl != key.label && shiftedLbl.isNotEmpty()) {
-                        val hintY = bounds.top + (bounds.height() * 0.28f)
+                        val hintY = drawBounds.top + (drawBounds.height() * 0.28f)
                         val origAlpha = labelPaintSmall.alpha
                         labelPaintSmall.alpha = 130
                         canvas.drawText(shiftedLbl, cx, hintY, labelPaintSmall)
                         labelPaintSmall.alpha = origAlpha
                     }
                 }
+            }
+
+            // Spacebar cursor slide visualization
+            if (isSpaceCursorMoving && key.action == KeyAction.Space) {
+                val midY = bounds.centerY()
+                canvas.drawLine(bounds.left + 16f * density, midY, bounds.right - 16f * density, midY, spaceSlideTrackPaint)
+                val dotX = glideCurX.coerceIn(bounds.left + 24f * density, bounds.right - 24f * density)
+                canvas.drawCircle(dotX, midY, 6f * density, spaceSlideThumbPaint)
+            }
+
+            // Backspace swipe to delete badge visualization
+            if (isBackspaceSwiping && key.action == KeyAction.Backspace && backspaceDeletedWordCount > 0) {
+                val badgeW = 72f * density
+                val badgeH = 22f * density
+                val badgeL = bounds.centerX() - badgeW / 2f
+                val badgeT = bounds.top - 18f * density
+                scratchRect.set(badgeL, badgeT, badgeL + badgeW, badgeT + badgeH)
+                canvas.drawRoundRect(scratchRect, 6f * density, 6f * density, backspaceBadgePaint)
+                val textY = scratchRect.centerY() - (backspaceBadgeTextPaint.ascent() + backspaceBadgeTextPaint.descent()) / 2f
+                canvas.drawText("⌫ -$backspaceDeletedWordCount", scratchRect.centerX(), textY, backspaceBadgeTextPaint)
             }
         }
 
@@ -619,17 +894,54 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 visitedGlideKeys.clear()
                 lastVisitedKeyIdx = -1
 
+                // Side Dock Buttons hit-testing (One-Handed mode)
+                if (isSideDockVisible) {
+                    for (btn in sideDockButtons) {
+                        if (btn.bounds.contains(event.x, event.y)) {
+                            feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            when (btn.action) {
+                                SideDockAction.EXPAND_STANDARD -> keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.STANDARD)
+                                SideDockAction.SWAP_SIDE -> {
+                                    val next = if (formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_LEFT) {
+                                        KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT
+                                    } else {
+                                        KeyboardPreferences.FormFactor.ONE_HANDED_LEFT
+                                    }
+                                    keyListener?.onFormFactorChange(next)
+                                }
+                                SideDockAction.TOGGLE_FLOATING -> keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.FLOATING)
+                            }
+                            return true
+                        }
+                    }
+                }
+
+                // Floating mode top bar / dock button hit-testing
+                if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+                    if (floatingDockBtnRect.contains(event.x, event.y)) {
+                        feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.STANDARD)
+                        return true
+                    }
+                    if (floatingTopBarRect.contains(event.x, event.y)) {
+                        isDraggingFloatingBar = true
+                        floatingDragStartX = event.x - floatingOffsetX
+                        floatingDragStartY = event.y - floatingOffsetY
+                        return true
+                    }
+                }
+
                 val idx = findKeyIndex(event.x, event.y)
                 if (idx >= 0) {
                     pressedKeyIndex = idx
                     pressStartTime = SystemClock.uptimeMillis()
                     isLongPressTriggered = false
                     isSpaceSwiping = false
-                    if (feedbackManager != null) {
-                        feedbackManager?.onKeyFeedback(this)
-                    } else {
-                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    }
+                    isSpaceCursorMoving = false
+                    isBackspaceSwiping = false
+                    backspaceDeletedWordCount = 0
+
+                    feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
 
                     val key = resolvedKeys[idx].key
                     val action = key.activeAction(isShifted)
@@ -642,7 +954,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     } else if (key.action == KeyAction.Space) {
                         spaceTouchStartX = event.x
                         spaceTouchStartY = event.y
+                        spaceSlideLastX = event.x
                         postDelayed(longPressRunnable, longPressDelayMs)
+                    } else if (key.action == KeyAction.Backspace) {
+                        backspaceSwipeStartX = event.x
                     }
                     invalidate()
                 }
@@ -655,10 +970,71 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 glideCurX = curX
                 glideCurY = curY
 
-                // Spacebar layout swipe detection
+                // Floating mode window dragging
+                if (isDraggingFloatingBar) {
+                    floatingOffsetX = curX - floatingDragStartX
+                    floatingOffsetY = curY - floatingDragStartY
+                    computeKeyBounds()
+                    invalidate()
+                    return true
+                }
+
                 if (pressedKeyIndex in resolvedKeys.indices) {
                     val key = resolvedKeys[pressedKeyIndex].key
-                    if (key.action == KeyAction.Space && !isSpaceSwiping && !isLongPressTriggered) {
+
+                    // Spacebar cursor slide navigation
+                    if (key.action == KeyAction.Space && spaceCursorSlideEnabled) {
+                        val dx = curX - spaceTouchStartX
+                        val absDx = kotlin.math.abs(dx)
+                        if (!isSpaceCursorMoving && absDx > spaceSlideThresholdPx) {
+                            isSpaceCursorMoving = true
+                            isSpaceSwiping = false
+                            removeCallbacks(longPressRunnable)
+                        }
+                        if (isSpaceCursorMoving) {
+                            val stepDelta = curX - spaceSlideLastX
+                            if (stepDelta >= spaceSlideStepPx) {
+                                val steps = (stepDelta / spaceSlideStepPx).toInt()
+                                keyListener?.onCursorMove(steps)
+                                spaceSlideLastX += steps * spaceSlideStepPx
+                                feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                invalidate()
+                            } else if (stepDelta <= -spaceSlideStepPx) {
+                                val steps = (-stepDelta / spaceSlideStepPx).toInt()
+                                keyListener?.onCursorMove(-steps)
+                                spaceSlideLastX -= steps * spaceSlideStepPx
+                                feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                invalidate()
+                            }
+                            return true
+                        }
+                    }
+
+                    // Swipe-to-delete gesture on Backspace
+                    if (key.action == KeyAction.Backspace && swipeToDeleteEnabled) {
+                        val dx = curX - backspaceSwipeStartX
+                        if (dx < -swipeThresholdPx) {
+                            isBackspaceSwiping = true
+                            val words = ((-dx - swipeThresholdPx) / backspaceSwipeStepPx).toInt() + 1
+                            val clamped = words.coerceIn(1, 20)
+                            if (clamped != backspaceDeletedWordCount) {
+                                backspaceDeletedWordCount = clamped
+                                keyListener?.onSwipeDeletePreview(backspaceDeletedWordCount)
+                                feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                invalidate()
+                            }
+                            return true
+                        } else if (isBackspaceSwiping && dx > -swipeThresholdPx * 0.4f) {
+                            isBackspaceSwiping = false
+                            backspaceDeletedWordCount = 0
+                            keyListener?.onSwipeDeletePreview(0)
+                            invalidate()
+                            return true
+                        }
+                    }
+
+                    // Spacebar layout swipe detection
+                    if (key.action == KeyAction.Space && !isSpaceSwiping && !isSpaceCursorMoving && !isLongPressTriggered) {
                         val dx = curX - spaceTouchStartX
                         val dy = kotlin.math.abs(curY - spaceTouchStartY)
                         if (kotlin.math.abs(dx) > swipeThresholdPx && kotlin.math.abs(dx) > dy * 1.3f) {
@@ -679,7 +1055,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val totalDy = curY - touchStartY
                 val totalDistSq = totalDx * totalDx + totalDy * totalDy
 
-                if (!isGliding && !isSpaceSwiping && totalDistSq > glideMinDistancePx * glideMinDistancePx) {
+                if (!isGliding && !isSpaceSwiping && !isSpaceCursorMoving && !isBackspaceSwiping &&
+                    totalDistSq > glideMinDistancePx * glideMinDistancePx) {
                     if (pressedKeyIndex in resolvedKeys.indices &&
                         resolvedKeys[pressedKeyIndex].key.activeAction(isShifted) is KeyAction.Character) {
                         isGliding = true
@@ -717,6 +1094,28 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 removeCallbacks(longPressRunnable)
+                isDraggingFloatingBar = false
+
+                if (isSpaceCursorMoving) {
+                    isSpaceCursorMoving = false
+                    pressedKeyIndex = -1
+                    invalidate()
+                    return true
+                }
+
+                if (isBackspaceSwiping) {
+                    if (backspaceDeletedWordCount > 0) {
+                        keyListener?.onSwipeDelete(backspaceDeletedWordCount)
+                        feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    }
+                    isBackspaceSwiping = false
+                    backspaceDeletedWordCount = 0
+                    keyListener?.onSwipeDeletePreview(0)
+                    pressedKeyIndex = -1
+                    invalidate()
+                    return true
+                }
+
                 if (isGliding) {
                     if (visitedGlideKeys.size >= 2) {
                         keyListener?.onGlideGesture(visitedGlideKeys.toList())
@@ -748,11 +1147,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
             MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(longPressRunnable)
                 isGliding = false
-                glidePointCount = 0
-                visitedGlideKeys.clear()
-                lastVisitedKeyIdx = -1
-                pressedKeyIndex = -1
-                isLongPressTriggered = false
+                isSpaceCursorMoving = false
+                isBackspaceSwiping = false
+                isDraggingFloatingBar = false
+                backspaceDeletedWordCount = 0
+                keyListener?.onSwipeDeletePreview(0)
                 isSpaceSwiping = false
                 invalidate()
                 return true

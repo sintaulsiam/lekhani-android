@@ -33,6 +33,7 @@ import com.lekhani.android.model.LayoutRegistry
 import com.lekhani.android.theme.ThemeRegistry
 import com.lekhani.android.ui.dictionary.DictionaryManagementSheet
 import com.lekhani.android.ui.theme.ErgonomicsSizingSheet
+import com.lekhani.android.ui.theme.FormFactorGesturesSheet
 import com.lekhani.android.ui.theme.HapticsSoundSheet
 import com.lekhani.android.ui.theme.ThemeStudioSheet
 import com.lekhani.android.ui.theme.ToolbarCustomizationSheet
@@ -108,6 +109,7 @@ fun LekhaniSettingsScreen(
     val keyboardPrefs = remember { KeyboardPreferences.get(context) }
     var showThemeSheet by remember { mutableStateOf(false) }
     var showErgonomicsSheet by remember { mutableStateOf(false) }
+    var showFormFactorSheet by remember { mutableStateOf(false) }
     var showHapticsSheet by remember { mutableStateOf(false) }
     var showToolbarSheet by remember { mutableStateOf(false) }
     var currentThemeName by remember {
@@ -429,6 +431,35 @@ fun LekhaniSettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // ── Form Factor & Gestures Card (Phase 11) ────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "📱 ফর্ম ফ্যাক্টর ও জেশ্চার (Form Factors & Gestures)",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "মোড: ${keyboardPrefs.formFactor.titleBengali} • স্পেসবার কার্সর ও সোয়াইপ ডিলিট",
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { showFormFactorSheet = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
+                ) {
+                    Text("📱 একহাতে, ভাসমান, স্প্লিট ও জেশ্চার সেটিংস", fontSize = 13.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // ── Haptics & Sound Feedback Card ──────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -601,6 +632,18 @@ fun LekhaniSettingsScreen(
             ErgonomicsSizingSheet(
                 prefs = keyboardPrefs,
                 onClose = { showErgonomicsSheet = false }
+            )
+        }
+    }
+
+    if (showFormFactorSheet) {
+        Dialog(
+            onDismissRequest = { showFormFactorSheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            FormFactorGesturesSheet(
+                prefs = keyboardPrefs,
+                onClose = { showFormFactorSheet = false }
             )
         }
     }

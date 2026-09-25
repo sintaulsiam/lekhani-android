@@ -90,6 +90,26 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getFloat(KEY_SOUND_VOLUME, 0.5f)
         set(value) = prefs.edit().putFloat(KEY_SOUND_VOLUME, value).apply()
 
+    // ── Form Factor & Gesture Settings ────────────────────────────────────────
+    var formFactor: FormFactor
+        get() {
+            val name = prefs.getString(KEY_FORM_FACTOR, FormFactor.STANDARD.name) ?: FormFactor.STANDARD.name
+            return runCatching { FormFactor.valueOf(name) }.getOrDefault(FormFactor.STANDARD)
+        }
+        set(value) = prefs.edit().putString(KEY_FORM_FACTOR, value.name).apply()
+
+    var spaceCursorSlideEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SPACE_CURSOR_SLIDE, true)
+        set(value) = prefs.edit().putBoolean(KEY_SPACE_CURSOR_SLIDE, value).apply()
+
+    var swipeToDeleteEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SWIPE_TO_DELETE, true)
+        set(value) = prefs.edit().putBoolean(KEY_SWIPE_TO_DELETE, value).apply()
+
+    var keyGlowRippleEnabled: Boolean
+        get() = prefs.getBoolean(KEY_KEY_GLOW_RIPPLE, true)
+        set(value) = prefs.edit().putBoolean(KEY_KEY_GLOW_RIPPLE, value).apply()
+
     // ── Toolbar Settings ──────────────────────────────────────────────────────
     var toolbarTools: String
         get() = prefs.getString(KEY_TOOLBAR_TOOLS, DEFAULT_TOOLBAR) ?: DEFAULT_TOOLBAR
@@ -106,11 +126,22 @@ class KeyboardPreferences private constructor(context: Context) {
         toolbarTools = tools.joinToString(",") { it.name }
     }
 
+    enum class FormFactor(val titleBengali: String, val iconRes: String) {
+        STANDARD("মানক পূর্ণ স্ক্রিন", "📱"),
+        ONE_HANDED_LEFT("একহাতে (বাম)", "👈"),
+        ONE_HANDED_RIGHT("একহাতে (ডান)", "👉"),
+        FLOATING("ভাসমান উইন্ডো", "🪟"),
+        SPLIT("দ্বিখণ্ডিত (ট্যাবলেট)", "✂️"),
+    }
+
     enum class ToolbarTool(val titleBengali: String, val iconRes: String) {
         EMOJI("ইমোজি", "😊"),
         VOICE("ভয়েস", "🎙️"),
         CLIPBOARD("ক্লিপবোর্ড", "📋"),
         THEME("থিম", "🎨"),
+        ONE_HANDED("একহাতে", "✋"),
+        FLOATING("ভাসমান", "🪟"),
+        SPLIT("বিভক্ত", "✂️"),
         SETTINGS("সেটিংস", "⚙️"),
     }
 
@@ -129,6 +160,11 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SHOW_KEY_BORDERS = "show_key_borders"
         const val KEY_FONT_STYLE = "font_style"
         const val KEY_FONT_SCALE = "font_scale"
+
+        const val KEY_FORM_FACTOR = "keyboard_form_factor"
+        const val KEY_SPACE_CURSOR_SLIDE = "space_cursor_slide"
+        const val KEY_SWIPE_TO_DELETE = "swipe_to_delete"
+        const val KEY_KEY_GLOW_RIPPLE = "key_glow_ripple"
 
         const val KEY_HAPTIC_ENABLED = "haptic_enabled"
         const val KEY_HAPTIC_DURATION_MS = "haptic_duration_ms"
@@ -154,6 +190,7 @@ class KeyboardPreferences private constructor(context: Context) {
             ToolbarTool.VOICE,
             ToolbarTool.CLIPBOARD,
             ToolbarTool.THEME,
+            ToolbarTool.ONE_HANDED,
             ToolbarTool.SETTINGS,
         )
 
