@@ -752,6 +752,20 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -777,14 +791,28 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_lekhani_android_fn_constructor_androidlekhanisession_new(uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_add_user_word(`ptr`: Pointer,`word`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_clear_user_dictionary(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_decode_glide(`ptr`: Pointer,`keys`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_delete_user_word(`ptr`: Pointer,`word`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_export_dictionary_json(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_layout(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_user_words(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_backspace(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_space(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_import_dictionary_json(`ptr`: Pointer,`jsonContent`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_import_raw_words(`ptr`: Pointer,`words`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_composing(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_private_field(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -927,13 +955,27 @@ internal interface UniffiLib : Library {
     ): Unit
     fun ffi_lekhani_android_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_user_dictionary(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_decode_glide(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_user_word(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_user_words(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_backspace(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_dictionary_json(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_raw_words(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_composing(
     ): Short
@@ -980,16 +1022,37 @@ private fun uniffiCheckContractApiVersion(lib: UniffiLib) {
 
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: UniffiLib) {
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word() != 58732.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_user_dictionary() != 24410.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_decode_glide() != 15021.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_user_word() != 53550.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json() != 62876.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout() != 51391.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_user_words() != 7879.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_backspace() != 7915.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space() != 16343.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_import_dictionary_json() != 23372.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_import_raw_words() != 4384.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_composing() != 7700.toShort()) {
@@ -1408,6 +1471,16 @@ private class JavaLangRefCleanable(
 public interface AndroidLekhaniSessionInterface {
     
     /**
+     * Add a custom word to the user dictionary with high initial priority.
+     */
+    fun `addUserWord`(`word`: kotlin.String): kotlin.Boolean
+    
+    /**
+     * Clear all user-learned vocabulary and associations.
+     */
+    fun `clearUserDictionary`(): kotlin.Boolean
+    
+    /**
      * Decode a continuous swipe/glide path represented by visited key tokens.
      * Returns the top decoded candidate word to commit immediately, along
      * with alternative candidates for the candidate strip.
@@ -1415,9 +1488,24 @@ public interface AndroidLekhaniSessionInterface {
     fun `decodeGlide`(`keys`: List<kotlin.String>): TypingResult
     
     /**
+     * Delete a word from the user dictionary and memory.
+     */
+    fun `deleteUserWord`(`word`: kotlin.String): kotlin.Boolean
+    
+    /**
+     * Export the personal learned dictionary and bigram associations to JSON.
+     */
+    fun `exportDictionaryJson`(): kotlin.String
+    
+    /**
      * Return the currently active layout.
      */
     fun `getLayout`(): LekhaniLayoutType
+    
+    /**
+     * Get all user-learned and custom words.
+     */
+    fun `getUserWords`(): List<kotlin.String>
     
     /**
      * Handle Backspace keypress.
@@ -1433,6 +1521,16 @@ public interface AndroidLekhaniSessionInterface {
      * Handle Spacebar tap: NFC-normalize and commit the current composing buffer.
      */
     fun `handleSpace`(): TypingResult
+    
+    /**
+     * Import learned dictionary from JSON.
+     */
+    fun `importDictionaryJson`(`jsonContent`: kotlin.String): kotlin.UInt
+    
+    /**
+     * Import a list of raw words (from Ridmik Keyboard backup, Avro .txt, or word list).
+     */
+    fun `importRawWords`(`words`: List<kotlin.String>): kotlin.UInt
     
     /**
      * Returns whether the keyboard is currently composing a word.
@@ -1593,6 +1691,38 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Add a custom word to the user dictionary with high initial priority.
+     */
+    @Throws(LekhaniException::class)override fun `addUserWord`(`word`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_add_user_word(
+        it, FfiConverterString.lower(`word`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Clear all user-learned vocabulary and associations.
+     */
+    @Throws(LekhaniException::class)override fun `clearUserDictionary`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_clear_user_dictionary(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Decode a continuous swipe/glide path represented by visited key tokens.
      * Returns the top decoded candidate word to commit immediately, along
      * with alternative candidates for the candidate strip.
@@ -1611,12 +1741,60 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Delete a word from the user dictionary and memory.
+     */
+    @Throws(LekhaniException::class)override fun `deleteUserWord`(`word`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_delete_user_word(
+        it, FfiConverterString.lower(`word`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Export the personal learned dictionary and bigram associations to JSON.
+     */
+    @Throws(LekhaniException::class)override fun `exportDictionaryJson`(): kotlin.String {
+            return FfiConverterString.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_export_dictionary_json(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Return the currently active layout.
      */override fun `getLayout`(): LekhaniLayoutType {
             return FfiConverterTypeLekhaniLayoutType.lift(
     callWithPointer {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_layout(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Get all user-learned and custom words.
+     */
+    @Throws(LekhaniException::class)override fun `getUserWords`(): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_user_words(
         it, _status)
 }
     }
@@ -1655,6 +1833,38 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_handle_space(
         it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Import learned dictionary from JSON.
+     */
+    @Throws(LekhaniException::class)override fun `importDictionaryJson`(`jsonContent`: kotlin.String): kotlin.UInt {
+            return FfiConverterUInt.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_import_dictionary_json(
+        it, FfiConverterString.lower(`jsonContent`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Import a list of raw words (from Ridmik Keyboard backup, Avro .txt, or word list).
+     */
+    @Throws(LekhaniException::class)override fun `importRawWords`(`words`: List<kotlin.String>): kotlin.UInt {
+            return FfiConverterUInt.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_import_raw_words(
+        it, FfiConverterSequenceString.lower(`words`),_status)
 }
     }
     )

@@ -26,8 +26,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
 import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.model.LayoutRegistry
+import com.lekhani.android.ui.dictionary.DictionaryManagementSheet
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 /**
  * LekhaniSettingsActivity
@@ -90,6 +94,10 @@ fun LekhaniSettingsScreen(
     var isEnabled by remember { mutableStateOf(false) }
     var isDefault by remember { mutableStateOf(false) }
     var testText by remember { mutableStateOf("") }
+
+    val dictManager = remember { LekhaniDictionaryManager() }
+    var showDictionarySheet by remember { mutableStateOf(false) }
+    var userWordCount by remember { mutableStateOf(dictManager.getUserWords().size) }
 
     LaunchedEffect(Unit) {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
@@ -313,6 +321,41 @@ fun LekhaniSettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // ── Personal Dictionary & Data Freedom Card ───────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "ব্যক্তিগত অভিধান ও ব্যাকআপ",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "User Dictionary • $userWordCount টি ব্যক্তিগত শব্দ সংরক্ষিত",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = { showDictionarySheet = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
+                ) {
+                    Text("📖 শব্দতালিকা ও সম্পাদনা (Manage & Migrate)", fontSize = 13.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // ── Live Test Typing Area ───────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -379,6 +422,26 @@ fun LekhaniSettingsScreen(
         }
 
         Spacer(modifier = Modifier.height(30.dp))
+    }
+
+    if (showDictionarySheet) {
+        Dialog(
+            onDismissRequest = {
+                showDictionarySheet = false
+                userWordCount = dictManager.getUserWords().size
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                DictionaryManagementSheet(
+                    dictManager = dictManager,
+                    onClose = {
+                        showDictionarySheet = false
+                        userWordCount = dictManager.getUserWords().size
+                    }
+                )
+            }
+        }
     }
 }
 

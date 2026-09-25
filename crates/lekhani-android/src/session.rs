@@ -335,6 +335,91 @@ impl AndroidLekhaniSession {
         }
     }
 
+    // ── Dictionary Management & User Data Freedom (Phase 9) ──────────────────
+
+    /// Get all user-learned and custom words.
+    pub fn get_user_words(&self) -> Result<Vec<String>, LekhaniError> {
+        let db = get_core_database();
+        let learner = db
+            .learner
+            .read()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        Ok(learner.get_user_words())
+    }
+
+    /// Add a custom word to the user dictionary with high initial priority.
+    pub fn add_user_word(&self, word: String) -> Result<bool, LekhaniError> {
+        let clean = word.trim();
+        if clean.chars().count() < 2 {
+            return Ok(false);
+        }
+        let db = get_core_database();
+        let mut learner = db
+            .learner
+            .write()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        learner.add_user_word(clean);
+        Ok(true)
+    }
+
+    /// Delete a word from the user dictionary and memory.
+    pub fn delete_user_word(&self, word: String) -> Result<bool, LekhaniError> {
+        let clean = word.trim();
+        let db = get_core_database();
+        let mut learner = db
+            .learner
+            .write()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        Ok(learner.delete_user_word(clean))
+    }
+
+    /// Export the personal learned dictionary and bigram associations to JSON.
+    pub fn export_dictionary_json(&self) -> Result<String, LekhaniError> {
+        let db = get_core_database();
+        let learner = db
+            .learner
+            .read()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        learner
+            .to_json()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))
+    }
+
+    /// Import learned dictionary from JSON.
+    pub fn import_dictionary_json(&self, json_content: String) -> Result<u32, LekhaniError> {
+        let db = get_core_database();
+        let other = lekhani_core::phonetic::AutonomousLearner::from_json(&json_content)
+            .map_err(|e| LekhaniError::SessionError(format!("Invalid dictionary JSON: {}", e)))?;
+        let count = other.learned_words.len() as u32;
+        let mut learner = db
+            .learner
+            .write()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        learner.merge(&other);
+        Ok(count)
+    }
+
+    /// Import a list of raw words (from Ridmik Keyboard backup, Avro .txt, or word list).
+    pub fn import_raw_words(&self, words: Vec<String>) -> Result<u32, LekhaniError> {
+        let db = get_core_database();
+        let mut learner = db
+            .learner
+            .write()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        Ok(learner.import_word_list(&words))
+    }
+
+    /// Clear all user-learned vocabulary and associations.
+    pub fn clear_user_dictionary(&self) -> Result<bool, LekhaniError> {
+        let db = get_core_database();
+        let mut learner = db
+            .learner
+            .write()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        learner.clear_user_data();
+        Ok(true)
+    }
+
     // ── Backspace ────────────────────────────────────────────────────────────
 
     /// Handle Backspace keypress.
@@ -619,6 +704,25 @@ mod tests {
         let res = session.decode_glide(vec!["a".into(), "m".into(), "i".into()]).unwrap();
         assert_eq!(res.preedit, "আমি");
         assert_eq!(res.commit_text, Some("আমি ".into()));
+    }
+
+    #[test]
+    fn test_dictionary_management_session() {
+        let session = AndroidLekhaniSession::new();
+        session.add_user_word("টেস্টওয়ার্ড".into()).unwrap();
+        let words = session.get_user_words().unwrap();
+        assert!(words.contains(&"টেস্টওয়ার্ড".to_string()));
+
+        let json = session.export_dictionary_json().unwrap();
+        assert!(json.contains("টেস্টওয়ার্ড"));
+
+        let deleted = session.delete_user_word("টেস্টওয়ার্ড".into()).unwrap();
+        assert!(deleted);
+        assert!(!session.get_user_words().unwrap().contains(&"টেস্টওয়ার্ড".to_string()));
+
+        let imported = session.import_raw_words(vec!["শব্দএক".into(), "শব্দদুই".into()]).unwrap();
+        assert_eq!(imported, 2);
+        assert!(session.get_user_words().unwrap().contains(&"শব্দএক".to_string()));
     }
 }
 

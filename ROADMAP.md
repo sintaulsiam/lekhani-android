@@ -123,10 +123,10 @@
 ---
 
 ## Phase 9: Dictionary Management & User Data Freedom
-- [ ] **One-Click Migration**: Import user dictionaries from Ridmik Keyboard and desktop Avro.
-- [ ] **Offline Backup & Export**: Export personal learned words to human-readable JSON.
-- [ ] **Personal Word Editor**: View, search, add, or delete learned words in Settings.
-- [ ] 100% offline local encryption: Personal vocabulary never leaves device storage.
+- [x] **One-Click Migration**: Import user dictionaries from Ridmik Keyboard and desktop Avro.
+- [x] **Offline Backup & Export**: Export personal learned words to human-readable JSON.
+- [x] **Personal Word Editor**: View, search, add, or delete learned words in Settings.
+- [x] 100% offline local encryption: Personal vocabulary never leaves device storage.
 
 ---
 
