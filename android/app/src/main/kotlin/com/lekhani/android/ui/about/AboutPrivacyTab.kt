@@ -141,17 +141,17 @@ fun AboutPrivacyTab(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Author: Sintaul Mahdi Siam
+                // Developer: Sintaul Mahdi Siam
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Person,
-                        contentDescription = "Author",
+                        contentDescription = "Developer",
                         modifier = Modifier.size(18.dp),
                         tint = Color(0xFF00E5B8)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isEnglish) "Author:" else "লেখক / নির্মাতা:",
+                        text = if (isEnglish) "Developer:" else "ডেভেলপার:",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         modifier = Modifier.width(100.dp)
                     )
@@ -191,7 +191,7 @@ fun AboutPrivacyTab(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Author Academic Background: BRUR CSE
+                // Academic Background: BRUR CSE
                 Row(verticalAlignment = Alignment.Top) {
                     Icon(
                         imageVector = Icons.Filled.School,
@@ -220,7 +220,7 @@ fun AboutPrivacyTab(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Author Email Contact Link
+                // Developer Email Contact Link
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -245,7 +245,7 @@ fun AboutPrivacyTab(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = if (isEnglish) "Author Email" else "লেখকের ইমেইল",
+                            text = if (isEnglish) "Developer Email" else "ডেভেলপারের ইমেইল",
                             style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
                         Text(
