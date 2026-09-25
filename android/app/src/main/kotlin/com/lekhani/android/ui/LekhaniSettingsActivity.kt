@@ -68,11 +68,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
+import com.lekhani.android.data.clipboard.LekhaniClipboardStore
 import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
 import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.model.LayoutRegistry
 import com.lekhani.android.ui.about.AboutPrivacyTab
+import com.lekhani.android.ui.clipboard.ClipboardManagerSheet
 import com.lekhani.android.ui.dictionary.DictionaryManagementSheet
 import com.lekhani.android.ui.theme.FormFactorGesturesSheet
 import com.lekhani.android.ui.theme.ThemeStudioSheet
@@ -133,12 +135,14 @@ fun LekhaniSettingsScreen(
 
     val keyboardPrefs = remember { KeyboardPreferences.get(context) }
     val dictManager = remember { LekhaniDictionaryManager() }
+    val clipboardStore = remember { LekhaniClipboardStore(context) }
 
     var uiLanguage by remember { mutableStateOf(keyboardPrefs.uiLanguage) }
     val isEnglish = uiLanguage == "en"
 
     var showDictionarySheet by remember { mutableStateOf(false) }
     var showToolbarSheet by remember { mutableStateOf(false) }
+    var showClipboardSheet by remember { mutableStateOf(false) }
 
     val navItems = if (isEnglish) {
         listOf(
@@ -303,7 +307,8 @@ fun LekhaniSettingsScreen(
                     dictManager = dictManager,
                     isEnglish = isEnglish,
                     onOpenToolbarCustomizer = { showToolbarSheet = true },
-                    onOpenDictionaryManager = { showDictionarySheet = true }
+                    onOpenDictionaryManager = { showDictionarySheet = true },
+                    onOpenClipboardManager = { showClipboardSheet = true }
                 )
                 4 -> AboutPrivacyTab(
                     isEnglish = isEnglish
@@ -332,6 +337,20 @@ fun LekhaniSettingsScreen(
             DictionaryManagementSheet(
                 dictManager = dictManager,
                 onClose = { showDictionarySheet = false }
+            )
+        }
+    }
+
+    if (showClipboardSheet) {
+        Dialog(
+            onDismissRequest = { showClipboardSheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            ClipboardManagerSheet(
+                clipboardStore = clipboardStore,
+                prefs = keyboardPrefs,
+                isEnglish = isEnglish,
+                onClose = { showClipboardSheet = false }
             )
         }
     }

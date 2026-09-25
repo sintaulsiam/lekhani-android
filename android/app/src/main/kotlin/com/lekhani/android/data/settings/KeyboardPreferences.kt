@@ -128,6 +128,11 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_KEY_GLOW_RIPPLE, true)
         set(value) = prefs.edit().putBoolean(KEY_KEY_GLOW_RIPPLE, value).apply()
 
+    // ── Clipboard Settings ────────────────────────────────────────────────────
+    var clipboardRetentionMinutes: Int
+        get() = prefs.getInt(KEY_CLIPBOARD_RETENTION_MINUTES, 60)
+        set(value) = prefs.edit().putInt(KEY_CLIPBOARD_RETENTION_MINUTES, value).apply()
+
     // ── Toolbar Settings ──────────────────────────────────────────────────────
     var toolbarTools: String
         get() = prefs.getString(KEY_TOOLBAR_TOOLS, DEFAULT_TOOLBAR) ?: DEFAULT_TOOLBAR
@@ -192,6 +197,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SPACEBAR_SWIPE_MODE = "spacebar_swipe_mode"
         const val KEY_SWIPE_TO_DELETE = "swipe_to_delete"
         const val KEY_KEY_GLOW_RIPPLE = "key_glow_ripple"
+        const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
 
         const val KEY_HAPTIC_ENABLED = "haptic_enabled"
         const val KEY_HAPTIC_DURATION_MS = "haptic_duration_ms"

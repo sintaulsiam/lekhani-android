@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Build
@@ -51,6 +52,7 @@ fun ToolsFeedbackTab(
     isEnglish: Boolean = false,
     onOpenToolbarCustomizer: () -> Unit,
     onOpenDictionaryManager: () -> Unit,
+    onOpenClipboardManager: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -307,6 +309,49 @@ fun ToolsFeedbackTab(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(if (isEnglish) "Manage & Backup Vocabulary" else "শব্দতালিকা ও ব্যাকআপ (Manage & Backup)")
+                }
+            }
+        }
+
+        // ── Powerful Clipboard Suite Card ──────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Assignment,
+                        contentDescription = "Clipboard Suite",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Clipboard Suite & Vault" else "ক্লিপবোর্ড ও ভল্ট (Clipboard Suite)",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                        Text(
+                            text = if (isEnglish) "Configurable auto-clear, snapshots, link extractor & text combiner"
+                                   else "স্বয়ংক্রিয় ক্লিয়ার, স্ন্যাপশট ব্যাকআপ, লিংক এক্সট্র্যাক্ট ও টেক্সট কম্বাইনার",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Button(
+                    onClick = onOpenClipboardManager,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(if (isEnglish) "Open Clipboard Manager" else "ক্লিপবোর্ড ম্যানেজার খুলুন (Open Clipboard)")
                 }
             }
         }

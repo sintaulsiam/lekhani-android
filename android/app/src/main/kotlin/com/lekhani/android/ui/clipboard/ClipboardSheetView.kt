@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,14 +32,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lekhani.android.data.clipboard.ClipItem
-import com.lekhani.android.data.clipboard.LekhaniClipboardStore
-
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
+import com.lekhani.android.data.clipboard.ClipItem
+import com.lekhani.android.data.clipboard.LekhaniClipboardStore
+import com.lekhani.android.data.clipboard.RetentionPeriod
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeRegistry
 
@@ -76,6 +80,10 @@ fun ClipboardSheetView(
     val textSecondary = Color(theme.labelDimColor)
     val sensitiveBadge = Color(0xFFFF9500)
 
+    val retentionLabel = remember(clipboardStore.retentionMinutes) {
+        RetentionPeriod.fromMinutes(clipboardStore.retentionMinutes).labelBengali
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -107,6 +115,28 @@ fun ClipboardSheetView(
                     fontWeight = FontWeight.Bold,
                     color = textPrimary,
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                // Retention auto-clear indicator
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(cardBg.copy(alpha = 0.6f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Timer,
+                        contentDescription = null,
+                        tint = textSecondary,
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = retentionLabel,
+                        fontSize = 10.sp,
+                        color = textSecondary,
+                    )
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -162,6 +192,7 @@ fun ClipboardSheetView(
                         clip = clip,
                         onPaste = { onPaste(clip.text) },
                         onTogglePin = { clipboardStore.togglePin(clip.id) },
+                        onToggleSave = { clipboardStore.toggleSave(clip.id) },
                         onDelete = { clipboardStore.deleteClip(clip.id) },
                         cardBg = cardBg,
                         cardPinnedBg = cardPinnedBg,
@@ -181,6 +212,7 @@ private fun ClipCard(
     clip: ClipItem,
     onPaste: () -> Unit,
     onTogglePin: () -> Unit,
+    onToggleSave: () -> Unit,
     onDelete: () -> Unit,
     cardBg: Color,
     cardPinnedBg: Color,
@@ -189,6 +221,8 @@ private fun ClipCard(
     accentColor: Color,
     sensitiveBadge: Color,
 ) {
+    val containsLinks = remember(clip.text) { LekhaniClipboardStore.URL_REGEX.containsMatchIn(clip.text) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -200,15 +234,42 @@ private fun ClipCard(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            if (clip.isSensitive) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(sensitiveBadge.copy(alpha = 0.2f))
-                        .padding(horizontal = 6.dp, vertical = 1.dp),
-                ) {
-                    Text("সংবেদনশীল / OTP", fontSize = 9.sp, color = sensitiveBadge, fontWeight = FontWeight.Medium)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (clip.isSensitive) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(sensitiveBadge.copy(alpha = 0.2f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                    ) {
+                        Text("সংবেদনশীল / OTP", fontSize = 9.sp, color = sensitiveBadge, fontWeight = FontWeight.Medium)
+                    }
                 }
+                if (clip.isSaved) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFFFB703).copy(alpha = 0.2f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                    ) {
+                        Text("💾 ভল্ট", fontSize = 9.sp, color = Color(0xFFFFB703), fontWeight = FontWeight.Bold)
+                    }
+                }
+                if (containsLinks) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF00B4D8).copy(alpha = 0.2f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                    ) {
+                        Text("🔗 লিংক", fontSize = 9.sp, color = Color(0xFF0096C7), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            if (clip.isSensitive || clip.isSaved || containsLinks) {
                 Spacer(Modifier.height(2.dp))
             }
 
@@ -225,7 +286,7 @@ private fun ClipCard(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             // Pin Toggle Button
             Box(
@@ -240,6 +301,23 @@ private fun ClipCard(
                     imageVector = Icons.Filled.PushPin,
                     contentDescription = if (clip.isPinned) "Unpin" else "Pin",
                     tint = if (clip.isPinned) accentColor else textSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            // Save / Vault Toggle Button
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(cardBg)
+                    .clickable { onToggleSave() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (clip.isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                    contentDescription = if (clip.isSaved) "Unsave" else "Save to Vault",
+                    tint = if (clip.isSaved) Color(0xFFFFB703) else textSecondary,
                     modifier = Modifier.size(16.dp)
                 )
             }
