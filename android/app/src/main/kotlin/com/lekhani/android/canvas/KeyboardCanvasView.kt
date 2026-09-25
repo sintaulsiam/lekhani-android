@@ -765,6 +765,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         val halfKeyOffset = standardUnitWidth * 0.5f
                         Pair(halfKeyOffset, standardUnitWidth)
                     }
+                    // Probaho and 10-key home rows: elegant second row side padding like other layouts
+                    rowIndex == 1 && currentLayout.rows.size >= 3 -> {
+                        val halfKeyOffset = standardUnitWidth * 0.35f
+                        val contentW = availableRowW - 2f * halfKeyOffset
+                        val w = (contentW - totalGaps) / rowWeight
+                        Pair(halfKeyOffset, w)
+                    }
                     // Default fallback
                     isStandardCharRow && row.size < maxKeysInRow -> {
                         val contentW = row.size * standardUnitWidth + totalGaps
