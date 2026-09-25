@@ -734,6 +734,7 @@ class LekhaniInputMethodService : InputMethodService() {
             if (session.getLayout() == LekhaniLayoutType.GBOARD) {
                 keyboardView?.setGboardKarsActive(false)
             }
+            clearCandidates()
         }
     }
 
@@ -760,7 +761,11 @@ class LekhaniInputMethodService : InputMethodService() {
             } finally {
                 ic.endBatchEdit()
             }
-            clearCandidates()
+            if (result.candidates.isNotEmpty()) {
+                publishCandidates(result.candidates)
+            } else {
+                clearCandidates()
+            }
         }
 
         // After committing a word, refresh surrounding context for AI scorer
@@ -826,7 +831,11 @@ class LekhaniInputMethodService : InputMethodService() {
             } finally {
                 ic.endBatchEdit()
             }
-            clearCandidates()
+            if (result.candidates.isNotEmpty()) {
+                publishCandidates(result.candidates)
+            } else {
+                clearCandidates()
+            }
         }
 
         refreshSurroundingContext()

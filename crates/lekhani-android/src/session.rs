@@ -526,19 +526,33 @@ impl AndroidLekhaniSession {
             } else {
                 nfc_normalize(&raw)
             };
+            let word = normalized.clone();
             normalized.push(' ');
+
+            if !state.surrounding_context.is_empty() {
+                state.surrounding_context.push(' ');
+            }
+            state.surrounding_context.push_str(&word);
+
+            let predictor = lekhani_ai::NextWordPredictor::new();
+            let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+            let next_words = predictor.predict_next(&words, 5);
 
             Ok(TypingResult {
                 preedit: String::new(),
                 commit_text: Some(normalized),
-                candidates: Vec::new(),
+                candidates: next_words,
                 cursor_position: 0,
             })
         } else {
+            let predictor = lekhani_ai::NextWordPredictor::new();
+            let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+            let next_words = predictor.predict_next(&words, 5);
+
             Ok(TypingResult {
                 preedit: String::new(),
                 commit_text: Some(" ".to_string()),
-                candidates: Vec::new(),
+                candidates: next_words,
                 cursor_position: 0,
             })
         }
@@ -556,12 +570,22 @@ impl AndroidLekhaniSession {
 
         state.composing_buffer.clear();
         state.composing_buffer = String::with_capacity(64);
-        let commit = format!("{} ", nfc_normalize(&candidate));
+        let normalized = nfc_normalize(&candidate);
+        let commit = format!("{} ", normalized);
+
+        if !state.surrounding_context.is_empty() {
+            state.surrounding_context.push(' ');
+        }
+        state.surrounding_context.push_str(&normalized);
+
+        let predictor = lekhani_ai::NextWordPredictor::new();
+        let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+        let next_words = predictor.predict_next(&words, 5);
 
         Ok(TypingResult {
             preedit: String::new(),
             commit_text: Some(commit),
-            candidates: Vec::new(),
+            candidates: next_words,
             cursor_position: 0,
         })
     }
