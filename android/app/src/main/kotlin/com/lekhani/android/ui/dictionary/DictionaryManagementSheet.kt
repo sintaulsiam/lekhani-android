@@ -14,6 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -163,9 +167,16 @@ fun DictionaryManagementSheet(
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("📥 ইমপোর্ট", fontSize = 12.sp)
+                    Icon(
+                        imageVector = Icons.Filled.FileDownload,
+                        contentDescription = "Import",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("ইমপোর্ট", fontSize = 12.sp)
                 }
 
                 OutlinedButton(
@@ -179,18 +190,32 @@ fun DictionaryManagementSheet(
                         context.startActivity(Intent.createChooser(shareIntent, "ব্যাকআপ এক্সপোর্ট করুন"))
                     },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("📤 এক্সপোর্ট", fontSize = 12.sp)
+                    Icon(
+                        imageVector = Icons.Filled.FileUpload,
+                        contentDescription = "Export",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("এক্সপোর্ট", fontSize = 12.sp)
                 }
 
                 OutlinedButton(
                     onClick = { showClearConfirm = true },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("🗑️ মুছুন", fontSize = 12.sp)
+                    Icon(
+                        imageVector = Icons.Filled.DeleteSweep,
+                        contentDescription = "Clear",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("মুছুন", fontSize = 12.sp)
                 }
             }
 
@@ -201,13 +226,58 @@ fun DictionaryManagementSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .padding(horizontal = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = if (searchQuery.isBlank()) "কোনো শব্দ যুক্ত করা হয়নি" else "শব্দ পাওয়া যায়নি",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    )
+                    Card(
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color(0xFF00E5B8).copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.MenuBook,
+                                    contentDescription = "Dictionary",
+                                    tint = Color(0xFF00E5B8),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+
+                            Text(
+                                text = if (searchQuery.isBlank()) "ব্যক্তিগত শব্দভাণ্ডার খালি" else "শব্দ পাওয়া যায়নি",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Text(
+                                text = if (searchQuery.isBlank())
+                                    "টাইপ করার সাথে সাথে নতুন শব্দগুলো লোকাল স্টোরেজে স্বয়ংক্রিয়ভাবে সংরক্ষিত হবে অথবা ওপরের ইনপুট বক্সে লিখে যোগ করুন।"
+                                else
+                                    "'$searchQuery' এর সাথে মিল থাকা কোনো শব্দ পাওয়া যায়নি। নতুন শব্দ হিসেবে যোগ করতে পারেন।",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 18.sp
+                                ),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
                 }
             } else {
                 LazyColumn(

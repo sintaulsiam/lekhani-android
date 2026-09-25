@@ -28,12 +28,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import com.lekhani.android.ui.theme.iconVector
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -111,6 +117,11 @@ fun CandidateStripView(
 ) {
     val state by stateFlow.collectAsState()
     val hasItems = state is CandidateStripState.Candidates
+    var showToolbarOverride by remember { mutableStateOf(false) }
+
+    LaunchedEffect(hasItems) {
+        if (!hasItems) showToolbarOverride = false
+    }
 
     Box(
         modifier = Modifier
@@ -118,20 +129,68 @@ fun CandidateStripView(
             .height(StripHeight)
             .background(Color(theme.backgroundColor)),
     ) {
-        if (hasItems) {
-            val items = (state as? CandidateStripState.Candidates)?.items ?: emptyList()
-            StripContent(
-                items = items,
-                onCandidateClick = onCandidateClick,
-                onBlacklist = onBlacklist,
-                theme = theme,
-            )
+        if (hasItems && !showToolbarOverride) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Persistent toolbar expand button on far left
+                Box(
+                    modifier = Modifier
+                        .size(StripHeight)
+                        .clip(CircleShape)
+                        .clickable { showToolbarOverride = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Show Toolbar",
+                        tint = Color(theme.labelColor).copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                val items = (state as? CandidateStripState.Candidates)?.items ?: emptyList()
+                Box(modifier = Modifier.weight(1f)) {
+                    StripContent(
+                        items = items,
+                        onCandidateClick = onCandidateClick,
+                        onBlacklist = onBlacklist,
+                        theme = theme,
+                    )
+                }
+            }
         } else {
-            ToolbarContent(
-                tools = activeTools,
-                onToolClick = onToolClick,
-                theme = theme,
-            )
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (hasItems) {
+                    // Collapse toolbar button back to candidates
+                    Box(
+                        modifier = Modifier
+                            .size(StripHeight)
+                            .clip(CircleShape)
+                            .clickable { showToolbarOverride = false },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Show Candidates",
+                            tint = Color(0xFF00E5B8),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    ToolbarContent(
+                        tools = activeTools,
+                        onToolClick = onToolClick,
+                        theme = theme,
+                    )
+                }
+            }
         }
     }
 }

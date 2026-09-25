@@ -9,16 +9,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Smartphone
+import androidx.compose.material.icons.filled.VerticalSplit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,7 +54,7 @@ import com.lekhani.android.data.settings.KeyboardPreferences
  * - One-handed mode with quick-dock arrows (left/right)
  * - Floating keyboard mode
  * - Split keyboard mode for foldables & tablets
- * - Spacebar cursor slide navigation
+ * - Spacebar swipe mode (Cursor Slide vs Layout Swap mutex)
  * - Swipe-to-delete gesture on Backspace
  * - Key glow and spring ripple effects
  */
@@ -57,7 +64,7 @@ fun FormFactorGesturesSheet(
     onClose: () -> Unit,
 ) {
     var formFactor by remember { mutableStateOf(prefs.formFactor) }
-    var spaceCursorSlide by remember { mutableStateOf(prefs.spaceCursorSlideEnabled) }
+    var spacebarSwipeMode by remember { mutableStateOf(prefs.spacebarSwipeMode) }
     var swipeToDelete by remember { mutableStateOf(prefs.swipeToDeleteEnabled) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
 
@@ -78,20 +85,27 @@ fun FormFactorGesturesSheet(
                 IconButton(onClick = onClose) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "ফর্ম ফ্যাক্টর ও অঙ্গভঙ্গি",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
+                Column {
+                    Text(
+                        text = "কীবোর্ড মোড ও জেশ্চার",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground
                     )
-                )
+                    Text(
+                        text = "ফর্ম ফ্যাক্টর এবং উন্নত সোয়াইপ জেশ্চার",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(onClick = {
                     formFactor = KeyboardPreferences.FormFactor.STANDARD
-                    spaceCursorSlide = true
+                    spacebarSwipeMode = KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV
                     swipeToDelete = true
                     keyGlowRipple = true
                 }) {
@@ -114,14 +128,14 @@ fun FormFactorGesturesSheet(
                 // ── Form Factors Section ─────────────────────────────────────
                 item {
                     Text(
-                        text = "কীবোর্ড মোড ও ফর্ম ফ্যাক্টর (Form Factors)",
+                        text = "কীবোর্ড লেআউট মোড (Modes)",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF00A87E)
+                            color = Color(0xFF00E5B8)
                         )
                     )
                     Text(
-                        text = "ডিভাইসের আকার এবং সুবিধাজনক ব্যবহারের ধরন নির্বাচন করুন",
+                        text = "স্ক্রিন সাইজ ও টাইপিং কমফোর্ট অনুযায়ী নির্বাচন করুন",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -134,11 +148,11 @@ fun FormFactorGesturesSheet(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                     ) {
-                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             FormFactorOptionItem(
-                                title = "মানক পূর্ণ স্ক্রিন (Standard)",
-                                subtitle = "সাধারণ পূর্ণ প্রস্থ কীবোর্ড লেআউট",
-                                icon = "📱",
+                                title = "ফুল স্ক্রিন (Standard Full)",
+                                subtitle = "সাধারণ স্ট্যান্ডার্ড পূর্ণ প্রস্থ কীবোর্ড",
+                                icon = Icons.Filled.Smartphone,
                                 selected = formFactor == KeyboardPreferences.FormFactor.STANDARD,
                                 onSelect = { formFactor = KeyboardPreferences.FormFactor.STANDARD }
                             )
@@ -146,7 +160,7 @@ fun FormFactorGesturesSheet(
                             FormFactorOptionItem(
                                 title = "একহাতে মোড - ডান (One-Handed Right)",
                                 subtitle = "ডান পাশে সংকুচিত কীবোর্ড, একহাতে দ্রুত ব্যবহারের জন্য",
-                                icon = "👉",
+                                icon = Icons.AutoMirrored.Filled.ArrowForward,
                                 selected = formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT,
                                 onSelect = { formFactor = KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT }
                             )
@@ -154,23 +168,23 @@ fun FormFactorGesturesSheet(
                             FormFactorOptionItem(
                                 title = "একহাতে মোড - বাম (One-Handed Left)",
                                 subtitle = "বাম পাশে সংকুচিত কীবোর্ড, একহাতে দ্রুত ব্যবহারের জন্য",
-                                icon = "👈",
+                                icon = Icons.AutoMirrored.Filled.ArrowBack,
                                 selected = formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_LEFT,
                                 onSelect = { formFactor = KeyboardPreferences.FormFactor.ONE_HANDED_LEFT }
                             )
 
                             FormFactorOptionItem(
-                                title = "ভাসমান কীবোর্ড (Floating Window)",
+                                title = "ভাসমান উইন্ডো (Floating Window)",
                                 subtitle = "স্ক্রিনের যেকোনো জায়গায় টেনে রাখা যায় এমন কমপ্যাক্ট উইন্ডো",
-                                icon = "🪟",
+                                icon = Icons.Filled.PictureInPictureAlt,
                                 selected = formFactor == KeyboardPreferences.FormFactor.FLOATING,
                                 onSelect = { formFactor = KeyboardPreferences.FormFactor.FLOATING }
                             )
 
                             FormFactorOptionItem(
-                                title = "দ্বিখণ্ডিত মোড (Split Mode)",
+                                title = "স্প্লিট মোড (Split Mode)",
                                 subtitle = "ট্যাবলেট ও ফোল্ডেবলের দুই বুড়ো আঙুলে আরামদায়ক টাইপিং",
-                                icon = "✂️",
+                                icon = Icons.Filled.VerticalSplit,
                                 selected = formFactor == KeyboardPreferences.FormFactor.SPLIT,
                                 onSelect = { formFactor = KeyboardPreferences.FormFactor.SPLIT }
                             )
@@ -178,18 +192,67 @@ fun FormFactorGesturesSheet(
                     }
                 }
 
-                // ── Advanced Gestures Section ────────────────────────────────
+                // ── Spacebar Swipe Action (Mutex Choice) ────────────────────
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "স্মার্ট অঙ্গভঙ্গি (Smart Gestures)",
+                        text = "স্পেসবার সোয়াইপ অ্যাকশন (Spacebar Action)",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF00A87E)
+                            color = Color(0xFF00E5B8)
                         )
                     )
                     Text(
-                        text = "টাইপিং আরও মসৃণ ও গতিশীল করার স্বজ্ঞাত জেশ্চার",
+                        text = "স্পেসবারে আঙুল টেনে কার্সার নাকি ভাষা পরিবর্তন করতে চান নির্বাচন করুন",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                }
+
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SwipeModeOptionItem(
+                                title = "কার্সার স্লাইড (Cursor Slide)",
+                                subtitle = "স্পেসবারে বামে বা ডানে আঙুল টেনে টেক্সটের কার্সর সূক্ষ্মভাবে সরান",
+                                selected = spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV,
+                                onSelect = { spacebarSwipeMode = KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV }
+                            )
+
+                            SwipeModeOptionItem(
+                                title = "লেআউট পরিবর্তন (Layout Switch)",
+                                subtitle = "স্পেসবারে সোয়াইপ করে ইংরেজি ও বাংলা লেআউটে দ্রুত অদলবদল করুন",
+                                selected = spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH,
+                                onSelect = { spacebarSwipeMode = KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH }
+                            )
+
+                            SwipeModeOptionItem(
+                                title = "নিষ্ক্রিয় (Disabled)",
+                                subtitle = "স্পেসবারে সোয়াইপ জেশ্চার বন্ধ রাখুন",
+                                selected = spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.DISABLED,
+                                onSelect = { spacebarSwipeMode = KeyboardPreferences.SpacebarSwipeMode.DISABLED }
+                            )
+                        }
+                    }
+                }
+
+                // ── Advanced Gestures Section ────────────────────────────────
+                item {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "স্মার্ট জেশ্চার ও স্পর্শ প্রভাব (Gestures)",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF00E5B8)
+                        )
+                    )
+                    Text(
+                        text = "টাইপিং মসৃণ ও গতিশীল করার স্বজ্ঞাত জেশ্চার",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -203,29 +266,6 @@ fun FormFactorGesturesSheet(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            // Spacebar cursor slide
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "স্পেসবারে কার্সর স্লাইড (Cursor Slide)",
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                                    )
-                                    Text(
-                                        text = "স্পেসবারে বামে বা ডানে আঙুল টেনে টেক্সটের কার্সর সহজেই নির্দিষ্ট অক্ষরে নেওয়া যায়",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    )
-                                }
-                                Switch(
-                                    checked = spaceCursorSlide,
-                                    onCheckedChange = { spaceCursorSlide = it }
-                                )
-                            }
-
                             // Swipe-to-delete
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -233,21 +273,24 @@ fun FormFactorGesturesSheet(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "ব্যাকস্পেস সোয়াইপ ডিলিট (Swipe to Delete)",
+                                        text = "সোয়াইপ ডিলিট (Swipe to Delete)",
                                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                                     )
                                     Text(
-                                        text = "ব্যাকস্পেস থেকে বামে সোয়াইপ করে এক বা একাধিক সম্পূর্ণ শব্দ একবারে মুছে ফেলা যায়",
+                                        text = "ব্যাকস্পেস কি থেকে বামে টেনে একাধিক শব্দ একবারে মুছে ফেলুন",
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(16.dp))
                                 Switch(
                                     checked = swipeToDelete,
                                     onCheckedChange = { swipeToDelete = it }
                                 )
                             }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                             // Key Glow & Spring Ripple
                             Row(
@@ -256,16 +299,17 @@ fun FormFactorGesturesSheet(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "কি গ্লো ও স্প্রিং রিপল (Key Glow & Ripple)",
+                                        text = "কি গ্লো ও রিপল (Key Glow & Ripple)",
                                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                                     )
                                     Text(
-                                        text = "কি স্পর্শে ১২০ FPS স্প্রিং ইনসেট ও উজ্জ্বল থিম রঙের আভা",
+                                        text = "কি স্পর্শে ১২০ FPS স্প্রিং ইনসেট ও থিম আভা ইফেক্ট",
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(16.dp))
                                 Switch(
                                     checked = keyGlowRipple,
                                     onCheckedChange = { keyGlowRipple = it }
@@ -293,7 +337,7 @@ fun FormFactorGesturesSheet(
                 Button(
                     onClick = {
                         prefs.formFactor = formFactor
-                        prefs.spaceCursorSlideEnabled = spaceCursorSlide
+                        prefs.spacebarSwipeMode = spacebarSwipeMode
                         prefs.swipeToDeleteEnabled = swipeToDelete
                         prefs.keyGlowRippleEnabled = keyGlowRipple
                         onClose()
@@ -313,7 +357,7 @@ fun FormFactorGesturesSheet(
 private fun FormFactorOptionItem(
     title: String,
     subtitle: String,
-    icon: String,
+    icon: ImageVector,
     selected: Boolean,
     onSelect: () -> Unit,
 ) {
@@ -324,13 +368,19 @@ private fun FormFactorOptionItem(
             .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = icon, fontSize = 24.sp, modifier = Modifier.padding(end = 12.dp))
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = if (selected) Color(0xFF00E5B8) else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) Color(0xFF00A87E) else MaterialTheme.colorScheme.onSurface
+                    color = if (selected) Color(0xFF00E5B8) else MaterialTheme.colorScheme.onSurface
                 )
             )
             Text(
@@ -340,6 +390,44 @@ private fun FormFactorOptionItem(
                 )
             )
         }
+        Spacer(modifier = Modifier.width(8.dp))
+        RadioButton(
+            selected = selected,
+            onClick = onSelect
+        )
+    }
+}
+
+@Composable
+private fun SwipeModeOptionItem(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onSelect)
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (selected) Color(0xFF00E5B8) else MaterialTheme.colorScheme.onSurface
+                )
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
         RadioButton(
             selected = selected,
             onClick = onSelect
