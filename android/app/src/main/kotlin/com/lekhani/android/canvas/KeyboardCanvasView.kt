@@ -640,7 +640,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val standardUnitWidth = (availableRowW - standardGaps) / maxKeysInRow
 
         var currentRowTop = yOffset + keyMarginV
-        for (row in currentLayout.rows) {
+        for ((rowIndex, row) in currentLayout.rows.withIndex()) {
             val hasShiftAtStart = row.isNotEmpty() && row.first().action == KeyAction.Shift
             val hasBackspaceAtEnd = row.isNotEmpty() && row.last().action == KeyAction.Backspace
 
@@ -665,24 +665,30 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     keyLeft += keyWidth + keyMarginH
                 }
             } else {
-                // Check if row has fewer keys than maxKeysInRow (e.g. middle row a..l with 9 keys vs 10 keys)
-                // In standard keyboards, the middle row is centered with half a key width padding on both sides
+                // Middle row padding / centering across all layouts:
+                // For rows with fewer keys (e.g. English/National 9-keys), center with standard key width.
+                // For 10-key middle rows (e.g. Probaho, Gboard), apply elegant side insets for ergonomic thumb rest.
                 val rowWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
                 val totalGaps = (row.size - 1) * keyMarginH
 
-                // If all keys in this row are unit-width (e.g. 9 letter keys) and row has fewer keys than max:
                 val isStandardCharRow = row.all { it.widthWeight == 1.0f }
-                val rowContentWidth = if (isStandardCharRow && row.size < maxKeysInRow) {
-                    row.size * standardUnitWidth + totalGaps
-                } else {
-                    availableRowW
+                val isMiddleRow = (rowIndex == 1 && currentLayout.rows.size >= 3)
+
+                val rowContentWidth = when {
+                    isStandardCharRow && row.size < maxKeysInRow -> {
+                        row.size * standardUnitWidth + totalGaps
+                    }
+                    isMiddleRow -> {
+                        availableRowW - (standardUnitWidth * 0.6f)
+                    }
+                    else -> availableRowW
                 }
 
                 val rowSideInset = ((availableRowW - rowContentWidth) / 2f).coerceAtLeast(0f)
                 val unitWidth = if (isStandardCharRow && row.size < maxKeysInRow) {
                     standardUnitWidth
                 } else {
-                    (availableRowW - totalGaps) / rowWeight
+                    (rowContentWidth - totalGaps) / rowWeight
                 }
 
                 var keyLeft = originX + sidePadding + rowSideInset
