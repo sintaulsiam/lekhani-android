@@ -31,6 +31,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             isDebuggable = true
@@ -76,7 +77,8 @@ val cargoBuild = tasks.register<Exec>("cargoBuild") {
 
     workingDir = rootDir.parentFile
 
-    commandLine(
+    val isRelease = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+    val cmd = mutableListOf(
         "cargo", "ndk",
         "-t", "arm64-v8a",
         "-t", "x86_64",
@@ -84,6 +86,10 @@ val cargoBuild = tasks.register<Exec>("cargoBuild") {
         "build",
         "-p", "lekhani-android"
     )
+    if (isRelease) {
+        cmd.add("--release")
+    }
+    commandLine(cmd)
 
     onlyIf {
         val cargoBin = File(cargoHome, "cargo")
