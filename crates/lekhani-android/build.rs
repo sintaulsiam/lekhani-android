@@ -9,10 +9,9 @@ fn main() {
     // not on every build of every source file.
     println!("cargo:rerun-if-changed=src/lekhani.udl");
 
-    // When a `lekhani.udl` file exists, generate UniFFI scaffolding from it.
-    // Currently we use proc-macro mode (`uniffi::setup_scaffolding!()` in
-    // lib.rs), so UDL generation is commented out.  Uncomment the line below
-    // to switch to UDL-driven binding generation:
-    //
-    //   uniffi::generate_scaffolding("src/lekhani.udl").unwrap();
+    // Android 15+ 16 KB page-size ELF LOAD and RELRO segment alignment
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("android") {
+        println!("cargo:rustc-link-arg=-Wl,-z,max-page-size=16384");
+        println!("cargo:rustc-link-arg=-Wl,-z,common-page-size=16384");
+    }
 }
