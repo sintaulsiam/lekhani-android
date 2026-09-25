@@ -51,6 +51,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         fun onKey(key: Key, action: KeyAction)
         fun onSpaceSwipe(direction: Int) // -1 for previous layout, +1 for next layout
         fun onSpaceLongPress()
+        fun onGlideGesture(keys: List<String>)
     }
 
     var keyListener: KeyListener? = null
@@ -125,6 +126,40 @@ class KeyboardCanvasView @JvmOverloads constructor(
         style = Paint.Style.FILL
         color = RIPPLE_COLOR
     }
+
+    // Glide / Gesture typing path and glow paints (zero allocation in onDraw)
+    private val glidePath = android.graphics.Path()
+    private val glideGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = Color.parseColor("#4000D4A0") // semi-transparent teal glow
+    }
+    private val glideStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = Color.parseColor("#00E5B8") // vibrant teal stroke
+    }
+    private val glideDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.parseColor("#E0FFFFFF") // glowing tip
+    }
+
+    // Glide coordinates buffer & state (pre-allocated, zero allocation in onTouchEvent)
+    private val MAX_GLIDE_POINTS = 256
+    private val glidePointsX = FloatArray(MAX_GLIDE_POINTS)
+    private val glidePointsY = FloatArray(MAX_GLIDE_POINTS)
+    private var glidePointCount = 0
+    private var isGliding = false
+    private val visitedGlideKeys = ArrayList<String>(32)
+    private var lastVisitedKeyIdx = -1
+    private var glideMinDistancePx = 0f
+    private var glideSampleDistSq = 0f
+    private var touchStartX = 0f
+    private var touchStartY = 0f
+    private var glideCurX = 0f
+    private var glideCurY = 0f
 
     // ── Touch / ripple state (pre-allocated, mutated in place) ───────────────
 
@@ -250,6 +285,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyCornerRadius = 9f * density
         homeRowAccentHeight = 2.5f * density
         swipeThresholdPx = 40f * density
+
+        glideStrokePaint.strokeWidth = 4.5f * density
+        glideGlowPaint.strokeWidth = 11f * density
+        glideMinDistancePx = 16f * density
+        glideSampleDistSq = (8f * density) * (8f * density)
 
         val currentLayout = layout ?: return
         val rowCount = currentLayout.rows.size       // typically 3
@@ -413,6 +453,29 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
             }
         }
+
+        // ── Glide / Gesture typing trail (zero allocation, 120 FPS Bezier smoothing) ──
+        if (isGliding && glidePointCount > 0) {
+            glidePath.rewind()
+            glidePath.moveTo(glidePointsX[0], glidePointsY[0])
+            for (p in 1 until glidePointCount) {
+                val prevX = glidePointsX[p - 1]
+                val prevY = glidePointsY[p - 1]
+                val currX = glidePointsX[p]
+                val currY = glidePointsY[p]
+                val midX = (prevX + currX) / 2f
+                val midY = (prevY + currY) / 2f
+                glidePath.quadTo(prevX, prevY, midX, midY)
+            }
+            val lastX = glidePointsX[glidePointCount - 1]
+            val lastY = glidePointsY[glidePointCount - 1]
+            glidePath.quadTo(lastX, lastY, (lastX + glideCurX) / 2f, (lastY + glideCurY) / 2f)
+            glidePath.lineTo(glideCurX, glideCurY)
+
+            canvas.drawPath(glidePath, glideGlowPaint)
+            canvas.drawPath(glidePath, glideStrokePaint)
+            canvas.drawCircle(glideCurX, glideCurY, glideStrokePaint.strokeWidth * 0.75f, glideDotPaint)
+        }
     }
 
     private fun isSpacebarKey(key: Key): Boolean =
@@ -426,6 +489,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                touchStartX = event.x
+                touchStartY = event.y
+                glideCurX = event.x
+                glideCurY = event.y
+                isGliding = false
+                glidePointCount = 0
+                visitedGlideKeys.clear()
+                lastVisitedKeyIdx = -1
+
                 val idx = findKeyIndex(event.x, event.y)
                 if (idx >= 0) {
                     pressedKeyIndex = idx
@@ -433,7 +505,16 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     isLongPressTriggered = false
                     isSpaceSwiping = false
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    if (resolvedKeys[idx].key.action == KeyAction.Space) {
+
+                    val key = resolvedKeys[idx].key
+                    val action = key.activeAction(isShifted)
+                    if (action is KeyAction.Character) {
+                        glidePointsX[0] = event.x
+                        glidePointsY[0] = event.y
+                        glidePointCount = 1
+                        visitedGlideKeys.add(action.token)
+                        lastVisitedKeyIdx = idx
+                    } else if (key.action == KeyAction.Space) {
                         spaceTouchStartX = event.x
                         spaceTouchStartY = event.y
                         postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
@@ -444,11 +525,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                val curX = event.x
+                val curY = event.y
+                glideCurX = curX
+                glideCurY = curY
+
+                // Spacebar layout swipe detection
                 if (pressedKeyIndex in resolvedKeys.indices) {
                     val key = resolvedKeys[pressedKeyIndex].key
                     if (key.action == KeyAction.Space && !isSpaceSwiping && !isLongPressTriggered) {
-                        val dx = event.x - spaceTouchStartX
-                        val dy = kotlin.math.abs(event.y - spaceTouchStartY)
+                        val dx = curX - spaceTouchStartX
+                        val dy = kotlin.math.abs(curY - spaceTouchStartY)
                         if (kotlin.math.abs(dx) > swipeThresholdPx && kotlin.math.abs(dx) > dy * 1.3f) {
                             isSpaceSwiping = true
                             removeCallbacks(longPressRunnable)
@@ -461,11 +548,67 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         }
                     }
                 }
+
+                // Glide / Swipe typing gesture detection
+                val totalDx = curX - touchStartX
+                val totalDy = curY - touchStartY
+                val totalDistSq = totalDx * totalDx + totalDy * totalDy
+
+                if (!isGliding && !isSpaceSwiping && totalDistSq > glideMinDistancePx * glideMinDistancePx) {
+                    if (pressedKeyIndex in resolvedKeys.indices &&
+                        resolvedKeys[pressedKeyIndex].key.activeAction(isShifted) is KeyAction.Character) {
+                        isGliding = true
+                        removeCallbacks(longPressRunnable)
+                    }
+                }
+
+                if (isGliding) {
+                    val lastP = glidePointCount - 1
+                    if (lastP >= 0) {
+                        val dx = curX - glidePointsX[lastP]
+                        val dy = curY - glidePointsY[lastP]
+                        if (dx * dx + dy * dy >= glideSampleDistSq && glidePointCount < MAX_GLIDE_POINTS) {
+                            glidePointsX[glidePointCount] = curX
+                            glidePointsY[glidePointCount] = curY
+                            glidePointCount++
+                        }
+                    }
+
+                    val keyIdx = findKeyIndex(curX, curY)
+                    if (keyIdx >= 0 && keyIdx != lastVisitedKeyIdx) {
+                        val action = resolvedKeys[keyIdx].key.activeAction(isShifted)
+                        if (action is KeyAction.Character) {
+                            visitedGlideKeys.add(action.token)
+                            lastVisitedKeyIdx = keyIdx
+                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    }
+                    invalidate()
+                    return true
+                }
+
                 return true
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 removeCallbacks(longPressRunnable)
+                if (isGliding) {
+                    if (visitedGlideKeys.size >= 2) {
+                        keyListener?.onGlideGesture(visitedGlideKeys.toList())
+                    } else if (visitedGlideKeys.size == 1 && pressedKeyIndex >= 0) {
+                        dispatchKey(resolvedKeys[pressedKeyIndex].key)
+                    }
+                    isGliding = false
+                    glidePointCount = 0
+                    visitedGlideKeys.clear()
+                    lastVisitedKeyIdx = -1
+                    pressedKeyIndex = -1
+                    isLongPressTriggered = false
+                    isSpaceSwiping = false
+                    invalidate()
+                    return true
+                }
+
                 val idx = findKeyIndex(event.x, event.y)
                 if (idx >= 0 && idx == pressedKeyIndex && !isLongPressTriggered && !isSpaceSwiping) {
                     dispatchKey(resolvedKeys[idx].key)
@@ -479,6 +622,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
             MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(longPressRunnable)
+                isGliding = false
+                glidePointCount = 0
+                visitedGlideKeys.clear()
+                lastVisitedKeyIdx = -1
                 pressedKeyIndex = -1
                 isLongPressTriggered = false
                 isSpaceSwiping = false

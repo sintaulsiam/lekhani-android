@@ -116,9 +116,9 @@
 ---
 
 ## Phase 8: Glide / Gesture Typing (Swipe-to-Type)
-- [ ] Touch path vector capture (`ACTION_MOVE` continuous trajectory) on `KeyboardCanvasView`.
-- [ ] Spatial trajectory decoder over key centroids for both Bengali and English layouts.
-- [ ] Dynamic path trace visual effect with theme accent glow.
+- [x] Touch path vector capture (`ACTION_MOVE` continuous trajectory) on `KeyboardCanvasView`.
+- [x] Spatial trajectory decoder over key centroids for both Bengali and English layouts (`AndroidLekhaniSession.decode_glide`).
+- [x] Dynamic path trace visual effect with theme accent glow and zero-allocation 120 FPS Bezier smoothing.
 
 ---
 

@@ -750,6 +750,8 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -775,6 +777,8 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_lekhani_android_fn_constructor_androidlekhanisession_new(uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_decode_glide(`ptr`: Pointer,`keys`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_layout(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_backspace(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -923,6 +927,8 @@ internal interface UniffiLib : Library {
     ): Unit
     fun ffi_lekhani_android_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_decode_glide(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_backspace(
@@ -974,6 +980,9 @@ private fun uniffiCheckContractApiVersion(lib: UniffiLib) {
 
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: UniffiLib) {
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_decode_glide() != 15021.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout() != 51391.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1399,6 +1408,13 @@ private class JavaLangRefCleanable(
 public interface AndroidLekhaniSessionInterface {
     
     /**
+     * Decode a continuous swipe/glide path represented by visited key tokens.
+     * Returns the top decoded candidate word to commit immediately, along
+     * with alternative candidates for the candidate strip.
+     */
+    fun `decodeGlide`(`keys`: List<kotlin.String>): TypingResult
+    
+    /**
      * Return the currently active layout.
      */
     fun `getLayout`(): LekhaniLayoutType
@@ -1574,6 +1590,24 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
             UniffiLib.INSTANCE.uniffi_lekhani_android_fn_clone_androidlekhanisession(pointer!!, status)
         }
     }
+
+    
+    /**
+     * Decode a continuous swipe/glide path represented by visited key tokens.
+     * Returns the top decoded candidate word to commit immediately, along
+     * with alternative candidates for the candidate strip.
+     */
+    @Throws(LekhaniException::class)override fun `decodeGlide`(`keys`: List<kotlin.String>): TypingResult {
+            return FfiConverterTypeTypingResult.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_decode_glide(
+        it, FfiConverterSequenceString.lower(`keys`),_status)
+}
+    }
+    )
+    }
+    
 
     
     /**

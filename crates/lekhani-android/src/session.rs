@@ -260,6 +260,81 @@ impl AndroidLekhaniSession {
         }
     }
 
+    // ── Glide / Gesture Typing ───────────────────────────────────────────────
+
+    /// Decode a continuous swipe/glide path represented by visited key tokens.
+    /// Returns the top decoded candidate word to commit immediately, along
+    /// with alternative candidates for the candidate strip.
+    pub fn decode_glide(&self, keys: Vec<String>) -> Result<TypingResult, LekhaniError> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+
+        if keys.is_empty() {
+            return Ok(TypingResult {
+                preedit: String::new(),
+                commit_text: None,
+                candidates: Vec::new(),
+                cursor_position: 0,
+            });
+        }
+
+        let raw_token = keys.join("");
+        match state.layout {
+            LekhaniLayoutType::Avro => {
+                let (preedit, mut candidates) = crate::avro::transliterate_avro(&raw_token);
+                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let scorer = lekhani_ai::ContextScorer::new();
+                    candidates = scorer.rank_candidates(&words, &candidates);
+                }
+                let len = preedit.graphemes(true).count() as u32;
+                let top_word = if candidates.is_empty() { preedit.clone() } else { candidates[0].clone() };
+                Ok(TypingResult {
+                    preedit: preedit.clone(),
+                    commit_text: Some(format!("{} ", top_word)),
+                    candidates,
+                    cursor_position: len,
+                })
+            }
+            LekhaniLayoutType::English => {
+                let lower = raw_token.to_lowercase();
+                Ok(TypingResult {
+                    preedit: lower.clone(),
+                    commit_text: Some(format!("{} ", lower)),
+                    candidates: vec![lower],
+                    cursor_position: 0,
+                })
+            }
+            _ => {
+                // Bengali layouts (Probaho, Probhat, National, Gboard)
+                let normalized = nfc_normalize(&raw_token);
+                let db = get_core_database();
+                let mut candidates = vec![normalized.clone()];
+                let prefix_matches = db.trie.find_prefix_entries(&normalized, 4);
+                for (word, _) in prefix_matches {
+                    if !candidates.iter().any(|c| c == word) {
+                        candidates.push(word.to_string());
+                    }
+                }
+                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let scorer = lekhani_ai::ContextScorer::new();
+                    candidates = scorer.rank_candidates(&words, &candidates);
+                }
+                let len = normalized.graphemes(true).count() as u32;
+                let top_word = if candidates.is_empty() { normalized.clone() } else { candidates[0].clone() };
+                Ok(TypingResult {
+                    preedit: normalized.clone(),
+                    commit_text: Some(format!("{} ", top_word)),
+                    candidates,
+                    cursor_position: len,
+                })
+            }
+        }
+    }
+
     // ── Backspace ────────────────────────────────────────────────────────────
 
     /// Handle Backspace keypress.
@@ -536,4 +611,14 @@ mod tests {
         assert_eq!(space_res.commit_text, Some("আমি ".into()));
         assert!(!session.is_composing());
     }
+
+    #[test]
+    fn test_glide_decoding() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+        let res = session.decode_glide(vec!["a".into(), "m".into(), "i".into()]).unwrap();
+        assert_eq!(res.preedit, "আমি");
+        assert_eq!(res.commit_text, Some("আমি ".into()));
+    }
 }
+

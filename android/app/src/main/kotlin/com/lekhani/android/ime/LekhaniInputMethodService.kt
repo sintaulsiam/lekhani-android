@@ -275,6 +275,10 @@ class LekhaniInputMethodService : InputMethodService() {
                 override fun onSpaceLongPress() {
                     showQuickLayoutPicker()
                 }
+
+                override fun onGlideGesture(keys: List<String>) {
+                    handleGlideGesture(keys)
+                }
             }
         }
         keyboardView = canvasView
@@ -659,6 +663,43 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         // After committing a word, refresh surrounding context for AI scorer
+        refreshSurroundingContext()
+    }
+
+    /**
+     * Handles Glide / Gesture typing swipe completion.
+     * Decodes the visited key path through the native Rust engine, commits the top
+     * word, and exposes candidate alternatives to the candidate strip.
+     */
+    fun handleGlideGesture(keys: List<String>) {
+        if (keys.isEmpty()) return
+        val ic = currentInputConnection ?: return
+
+        val result = try {
+            session.decodeGlide(keys)
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "decodeGlide error for $keys: $e")
+            return
+        }
+
+        result.commitText?.let { text ->
+            ic.beginBatchEdit()
+            try {
+                ic.commitText(text, 1)
+                preeditShadow = ""
+            } finally {
+                ic.endBatchEdit()
+            }
+            if (result.candidates.isNotEmpty()) {
+                publishCandidates(result.candidates)
+            } else {
+                clearCandidates()
+            }
+        } ?: run {
+            setComposingTextSafe(ic, result.preedit)
+            publishCandidates(result.candidates)
+        }
+
         refreshSurroundingContext()
     }
 
