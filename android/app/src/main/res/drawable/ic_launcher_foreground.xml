@@ -5,23 +5,6 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- App Background -->
-    <path
-        android:pathData="M0,0h108v108h-108z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="0"
-                android:startY="0"
-                android:endX="108"
-                android:endY="108"
-                android:type="linear">
-                <item android:color="#0A1412" android:offset="0.0" />
-                <item android:color="#0D201A" android:offset="0.5" />
-                <item android:color="#07100E" android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
     <!-- Keyboard Keycap Base -->
     <path
         android:pathData="M35,21 h38 c6.65,0 12,5.35 12,12 v38 c0,6.65 -5.35,12 -12,12 H35 C28.35,83 23,77.65 23,71 V33 c0,-6.65 5.35,-12 12,-12 z">
@@ -44,12 +27,12 @@
         android:strokeColor="#8000E5B8"
         android:pathData="M35,21 h38 c6.65,0 12,5.35 12,12 v38 c0,6.65 -5.35,12 -12,12 H35 C28.35,83 23,77.65 23,71 V33 c0,-6.65 5.35,-12 12,-12 z" />
 
-    <!-- Top Bevel Specular Highlight -->
+    <!-- Top Bevel Subtle Specular Highlight -->
     <path
         android:fillColor="#1AFFFFFF"
         android:pathData="M31,23 H77 A10,10 0 0,1 83,31 H25 A10,10 0 0,1 31,23 Z" />
 
-    <!-- Bengali 'ক' Glyph -->
+    <!-- Bengali 'ক' Glyph (Typographic Precision) -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="m 53.054,62 q -1.364,-2.288 -3.3,-4.004 -1.936,-1.716 -4.488,-2.86 -2.508,-1.188 -5.764,-1.716 l -2.332,-5.896 q 4.092,-2.42 8.36,-4.356 4.268,-1.98 8.36,-3.08 l -0.792,1.364 v -2.288 h -17.424 v -4.928 h 36.652 v 4.928 h -13.42 V 62 Z m 0.22,-5.236 q -0.088,-0.924 -0.176,-2.024 -0.088,-1.1 -0.088,-2.244 v -8.052 l 0.792,1.54 q -1.672,0.484 -3.608,1.276 -1.892,0.792 -3.872,1.848 -1.936,1.056 -3.828,2.244 v -1.76 q 1.54,0.088 3.168,0.704 1.672,0.572 3.212,1.54 1.584,0.924 2.904,2.2 1.32,1.232 2.2,2.728 z m 11.924,0.264 q -1.848,0 -3.124,-1.012 -1.232,-1.056 -1.232,-2.904 0,-1.672 1.056,-2.552 1.1,-0.924 2.376,-0.924 1.364,0 2.464,0.792 1.1,0.792 1.1,2.376 0,1.54 -0.968,2.42 -0.924,0.88 -3.212,0.88 l -0.572,-4.752 q 0.968,0 1.672,-0.44 0.748,-0.44 0.748,-0.924 0,-1.364 -1.188,-2.332 -1.188,-0.968 -3.432,-1.496 -2.244,-0.528 -5.456,-0.528 V 40.22 q 2.904,0 5.632,0.616 2.728,0.616 4.884,1.892 2.2,1.276 3.476,3.344 1.276,2.068 1.276,4.928 0,1.584 -0.616,2.992 -0.572,1.364 -1.804,2.2 -1.188,0.836 -3.08,0.836 z" />
