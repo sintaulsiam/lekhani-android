@@ -329,19 +329,19 @@ private fun CandidatePill(
         contentAlignment = Alignment.Center,
     ) {
         Row(
-            modifier = Modifier.offset(y = (-2.5).dp),
+            modifier = Modifier.offset(y = (-1.0).dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
             Text(
                 text = item.text,
-                fontSize = if (item.isPrimary) 16.sp else 15.sp,
+                fontSize = 15.sp,
                 fontWeight = if (item.isPrimary) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (item.isPrimary) primaryText else normalText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
-                    lineHeight = if (item.isPrimary) 20.sp else 18.sp,
+                    lineHeight = 18.sp,
                     platformStyle = PlatformTextStyle(
                         includeFontPadding = false
                     ),
