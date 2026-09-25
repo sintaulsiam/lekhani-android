@@ -39,10 +39,10 @@ object ProbahLayout {
                 Ch("ি", shifted = "য়", homeRow = true, desc = "ি, shifted য়"),
                 Ch("ু", shifted = "ৎ", homeRow = true, desc = "ু, shifted ৎ"),
                 Ch("ে", shifted = "য",  homeRow = true, desc = "ে, shifted য"),
-                Ch("র", shifted = "ড়", homeRow = true, desc = "র, shifted ড়"),
+                Ch("র", shifted = "ড়", hint = "ঢ়", homeRow = true, desc = "র, shifted ড়, hint ঢ়"),
                 Ch("ত", shifted = "থ",  homeRow = true, desc = "ত, shifted থ"),
                 Ch("ন", shifted = "ণ",  homeRow = true, desc = "ন, shifted ণ"),
-                Ch("স", shifted = "শ",  homeRow = true, desc = "স, shifted শ"),
+                Ch("স", shifted = "শ", hint = "ষ", homeRow = true, desc = "স, shifted শ, hint ষ"),
                 Ch("ক", shifted = "খ",  homeRow = true, desc = "ক, shifted খ"),
             ),
             // ── Row 3 (Bottom) — Nasals/modifiers | Palatal/Retroflex ─────────
