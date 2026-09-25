@@ -202,8 +202,23 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // Size change — the ONLY place pixel bounding boxes are computed
+    // Measurement & Size change
     // ══════════════════════════════════════════════════════════════════════════
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val width = MeasureSpec.getSize(widthMeasureSpec)
+        val density = resources.displayMetrics.density
+        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val defaultHeightDp = if (isLandscape) 180f else 260f
+        val desiredHeight = (defaultHeightDp * density).toInt()
+
+        val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
+            MeasureSpec.EXACTLY -> MeasureSpec.getSize(heightMeasureSpec)
+            MeasureSpec.AT_MOST -> minOf(desiredHeight, MeasureSpec.getSize(heightMeasureSpec))
+            else -> desiredHeight
+        }
+        setMeasuredDimension(width, height)
+    }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)

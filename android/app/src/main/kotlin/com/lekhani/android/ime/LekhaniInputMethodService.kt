@@ -6,11 +6,13 @@ import android.os.Build
 import android.text.InputType
 import android.util.Log
 import android.view.View
+import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
@@ -90,6 +92,9 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    // ── Synthetic Lifecycle for Jetpack Compose views ────────────────────────
+    private val imeLifecycleOwner = ImeLifecycleOwner()
+
     // ── Canvas keyboard view ───────────────────────────────────────────────────
 
     /** The hardware-canvas keyboard view. Null until [onCreateInputView] is called. */
@@ -155,6 +160,9 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
+        imeLifecycleOwner.onCreate()
+        imeLifecycleOwner.onResume()
+
         // Restore the user's last-used layout from Device Protected Storage.
         val savedLayout = devicePrefs.getString(PREF_LAYOUT, null)
             ?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
@@ -178,6 +186,7 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        imeLifecycleOwner.onDestroy()
         audioManager.cancelStreaming()
         keyboardView = null
         serviceScope.cancel()
@@ -215,8 +224,22 @@ class LekhaniInputMethodService : InputMethodService() {
     // UI — keyboard view (stub; KeyboardCanvasView implemented in Phase 3)
     // ══════════════════════════════════════════════════════════════════════════
 
+    override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
+        super.onConfigureWindow(win, isFullscreen, isCandidatesOnly)
+        attachLifecycleOwner(win.decorView)
+    }
+
+    private fun attachLifecycleOwner(view: View) {
+        view.setViewTreeLifecycleOwner(imeLifecycleOwner)
+        view.setViewTreeViewModelStoreOwner(imeLifecycleOwner)
+        view.setViewTreeSavedStateRegistryOwner(imeLifecycleOwner)
+    }
+
     override fun onCreateInputView(): View {
-        val container = FrameLayout(this)
+        window?.window?.decorView?.let { attachLifecycleOwner(it) }
+        val container = FrameLayout(this).apply {
+            attachLifecycleOwner(this)
+        }
         rootInputContainer = container
 
         val canvasView = KeyboardCanvasView(this).also { v ->
@@ -247,17 +270,10 @@ class LekhaniInputMethodService : InputMethodService() {
      * inside a Service (which is not a Fragment or Activity).
      */
     override fun onCreateCandidatesView(): View {
-        // Compose inside a Service requires a synthetic Lifecycle owner.
-        // We use the pattern recommended by the Compose IME community:
-        // create a minimal LifecycleOwner that stays RESUMED while the strip is visible.
+        window?.window?.decorView?.let { attachLifecycleOwner(it) }
         return ComposeView(this).apply {
-            // Wire the view tree owners so Compose internals (collectAsState, etc.) work
-            val lifecycleOwner = ImeLifecycleOwner()
-            lifecycleOwner.onCreate()
-            lifecycleOwner.onResume()
-            setViewTreeLifecycleOwner(lifecycleOwner)
-            setViewTreeViewModelStoreOwner(lifecycleOwner)
-            setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+            attachLifecycleOwner(this)
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
 
             setContent {
                 Box {
@@ -333,12 +349,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 setCandidatesViewShown(false)
                 if (emojiPickerView == null) {
                     val compose = ComposeView(this).apply {
-                        val lifecycleOwner = ImeLifecycleOwner()
-                        lifecycleOwner.onCreate()
-                        lifecycleOwner.onResume()
-                        setViewTreeLifecycleOwner(lifecycleOwner)
-                        setViewTreeViewModelStoreOwner(lifecycleOwner)
-                        setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+                        attachLifecycleOwner(this)
+                        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
 
                         setContent {
                             EmojiPickerView(
@@ -368,12 +380,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 setCandidatesViewShown(false)
                 if (clipboardView == null) {
                     val compose = ComposeView(this).apply {
-                        val lifecycleOwner = ImeLifecycleOwner()
-                        lifecycleOwner.onCreate()
-                        lifecycleOwner.onResume()
-                        setViewTreeLifecycleOwner(lifecycleOwner)
-                        setViewTreeViewModelStoreOwner(lifecycleOwner)
-                        setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+                        attachLifecycleOwner(this)
+                        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
 
                         setContent {
                             ClipboardSheetView(
@@ -453,6 +461,8 @@ class LekhaniInputMethodService : InputMethodService() {
      * to a message you can no longer read). Lekhani always overlays as a panel.
      */
     override fun onEvaluateFullscreenMode(): Boolean = false
+ 
+    override fun onEvaluateInputViewShown(): Boolean = true
 
     // ══════════════════════════════════════════════════════════════════════════
     // Key processing  (hot path — must not block the main thread)
