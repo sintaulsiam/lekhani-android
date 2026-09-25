@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
@@ -249,6 +251,7 @@ private fun StripContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .horizontalScroll(scrollState)
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -326,6 +329,7 @@ private fun CandidatePill(
         contentAlignment = Alignment.Center,
     ) {
         Row(
+            modifier = Modifier.offset(y = (-2.5).dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
@@ -337,6 +341,7 @@ private fun CandidatePill(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
+                    lineHeight = if (item.isPrimary) 20.sp else 18.sp,
                     platformStyle = PlatformTextStyle(
                         includeFontPadding = false
                     ),
