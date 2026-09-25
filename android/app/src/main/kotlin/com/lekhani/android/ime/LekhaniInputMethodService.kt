@@ -1020,9 +1020,13 @@ class LekhaniInputMethodService : InputMethodService() {
             val preferred = devicePrefs.getString(PREF_LAYOUT, null)
                 ?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
                 ?: LekhaniLayoutType.PROBAHO
-            // Only restore if the session is currently on English (was auto-switched)
-            if (session.getLayout() == LekhaniLayoutType.ENGLISH) {
-                session.setLayout(preferred)
+            if (session.getLayout() != preferred) {
+                switchLayout(preferred)
+            }
+        } else {
+            // Auto-switch to English QWERTY for passwords/incognito
+            if (session.getLayout() != LekhaniLayoutType.ENGLISH) {
+                switchLayout(LekhaniLayoutType.ENGLISH)
             }
         }
     }
@@ -1078,7 +1082,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
     companion object {
         private const val TAG = "LekhaniIME"
-        private const val PREFS_NAME = "lekhani_prefs"
+        private const val PREFS_NAME = KeyboardPreferences.PREFS_NAME
         private const val PREF_LAYOUT = "active_layout"
         /**
          * Number of characters before the cursor fetched for AI context.
