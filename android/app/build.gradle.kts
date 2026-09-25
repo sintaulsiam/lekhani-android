@@ -61,17 +61,13 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
-        // Include the compiled Rust native library from cargo-ndk output.
-        // The CI workflow places stripped .so files under jniLibs/.
-        jniLibs {
-            srcDirs("src/main/jniLibs")
-        }
     }
 
     // ── Source sets ────────────────────────────────────────────────────────────
     sourceSets {
         getByName("main") {
             java.srcDirs("src/main/kotlin")
+            jniLibs.srcDirs("src/main/jniLibs")
         }
         getByName("test") {
             java.srcDirs("src/test/kotlin")
@@ -94,6 +90,8 @@ dependencies {
     // UniFFI JNA runtime — required by the generated Kotlin bindings to load
     // liblekhani_android.so from the jniLibs directory.
     implementation(libs.uniffi.runtime)
+
+    testImplementation(libs.junit)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

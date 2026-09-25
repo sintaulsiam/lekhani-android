@@ -25,7 +25,7 @@ import com.lekhani.android.data.clipboard.LekhaniClipboardStore
 import com.lekhani.android.data.emoji.EmojiRecentsManager
 import com.lekhani.android.ffi.AndroidLekhaniSession
 import com.lekhani.android.ffi.LekhaniLayoutType
-import com.lekhani.android.ffi.LekhaniError
+import com.lekhani.android.ffi.LekhaniException
 import com.lekhani.android.model.Key
 import com.lekhani.android.model.KeyAction
 import com.lekhani.android.model.LayoutRegistry
@@ -473,7 +473,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
         val result = try {
             session.processKey(keyToken)
-        } catch (e: LekhaniError) {
+        } catch (e: LekhaniException) {
             Log.e(TAG, "processKey error for '$keyToken': $e")
             return
         }
@@ -502,7 +502,7 @@ class LekhaniInputMethodService : InputMethodService() {
         if (session.isComposing()) {
             val result = try {
                 session.handleBackspace()
-            } catch (e: LekhaniError) {
+            } catch (e: LekhaniException) {
                 Log.e(TAG, "handleBackspace error: $e")
                 return
             }
@@ -523,7 +523,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
         val result = try {
             session.handleSpace()
-        } catch (e: LekhaniError) {
+        } catch (e: LekhaniException) {
             Log.e(TAG, "handleSpace error: $e")
             return
         }
@@ -548,7 +548,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
         val result = try {
             session.selectCandidate(candidate)
-        } catch (e: LekhaniError) {
+        } catch (e: LekhaniException) {
             Log.e(TAG, "selectCandidate error: $e")
             return
         }
