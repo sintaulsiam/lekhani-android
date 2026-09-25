@@ -42,11 +42,11 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putFloat(KEY_HEIGHT_SCALE, value).apply()
 
     var keyMarginH: Float
-        get() = prefs.getFloat(KEY_MARGIN_H, 3.5f)
+        get() = prefs.getFloat(KEY_MARGIN_H, 5.0f)
         set(value) = prefs.edit().putFloat(KEY_MARGIN_H, value).apply()
 
     var keyMarginV: Float
-        get() = prefs.getFloat(KEY_MARGIN_V, 4.0f)
+        get() = prefs.getFloat(KEY_MARGIN_V, 6.5f)
         set(value) = prefs.edit().putFloat(KEY_MARGIN_V, value).apply()
 
     var bottomChinPadding: Float
@@ -58,8 +58,16 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putLong(KEY_LONG_PRESS_DELAY, value).apply()
 
     var showKeyBorders: Boolean
-        get() = prefs.getBoolean(KEY_SHOW_KEY_BORDERS, true)
+        get() = prefs.getBoolean(KEY_SHOW_KEY_BORDERS, false)
         set(value) = prefs.edit().putBoolean(KEY_SHOW_KEY_BORDERS, value).apply()
+
+    var showHomeRowAccents: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_HOMEROW_ACCENTS, false)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_HOMEROW_ACCENTS, value).apply()
+
+    var uiLanguage: String
+        get() = prefs.getString(KEY_UI_LANGUAGE, "bn") ?: "bn"
+        set(value) = prefs.edit().putString(KEY_UI_LANGUAGE, value).apply()
 
     var fontStyle: String
         get() = prefs.getString(KEY_FONT_STYLE, FONT_SYSTEM) ?: FONT_SYSTEM
@@ -98,6 +106,16 @@ class KeyboardPreferences private constructor(context: Context) {
         }
         set(value) = prefs.edit().putString(KEY_FORM_FACTOR, value.name).apply()
 
+    var spacebarSwipeMode: SpacebarSwipeMode
+        get() {
+            val name = prefs.getString(KEY_SPACEBAR_SWIPE_MODE, SpacebarSwipeMode.CURSOR_NAV.name) ?: SpacebarSwipeMode.CURSOR_NAV.name
+            return runCatching { SpacebarSwipeMode.valueOf(name) }.getOrDefault(SpacebarSwipeMode.CURSOR_NAV)
+        }
+        set(value) {
+            prefs.edit().putString(KEY_SPACEBAR_SWIPE_MODE, value.name).apply()
+            spaceCursorSlideEnabled = (value == SpacebarSwipeMode.CURSOR_NAV)
+        }
+
     var spaceCursorSlideEnabled: Boolean
         get() = prefs.getBoolean(KEY_SPACE_CURSOR_SLIDE, true)
         set(value) = prefs.edit().putBoolean(KEY_SPACE_CURSOR_SLIDE, value).apply()
@@ -126,28 +144,35 @@ class KeyboardPreferences private constructor(context: Context) {
         toolbarTools = tools.joinToString(",") { it.name }
     }
 
-    enum class FormFactor(val titleBengali: String, val iconRes: String) {
-        STANDARD("মানক পূর্ণ স্ক্রিন", "📱"),
-        ONE_HANDED_LEFT("একহাতে (বাম)", "👈"),
-        ONE_HANDED_RIGHT("একহাতে (ডান)", "👉"),
-        FLOATING("ভাসমান উইন্ডো", "🪟"),
-        SPLIT("দ্বিখণ্ডিত (ট্যাবলেট)", "✂️"),
+    enum class SpacebarSwipeMode(val titleBengali: String, val titleEnglish: String) {
+        CURSOR_NAV("কার্সার স্লাইড (Cursor Slide)", "Cursor Slide"),
+        LAYOUT_SWITCH("লেআউট পরিবর্তন (Layout Switch)", "Layout Switch"),
+        DISABLED("নিষ্ক্রিয় (Disabled)", "Disabled"),
     }
 
-    enum class ToolbarTool(val titleBengali: String, val iconRes: String) {
-        EMOJI("ইমোজি", "😊"),
-        VOICE("ভয়েস", "🎙️"),
-        CLIPBOARD("ক্লিপবোর্ড", "📋"),
-        THEME("থিম", "🎨"),
-        ONE_HANDED("একহাতে", "✋"),
-        FLOATING("ভাসমান", "🪟"),
-        SPLIT("বিভক্ত", "✂️"),
-        SETTINGS("সেটিংস", "⚙️"),
+    enum class FormFactor(val titleBengali: String, val titleEnglish: String) {
+        STANDARD("ফুল স্ক্রিন (Standard)", "Standard Full"),
+        ONE_HANDED_LEFT("একহাতে বাম (One-Handed Left)", "One-Handed Left"),
+        ONE_HANDED_RIGHT("একহাতে ডান (One-Handed Right)", "One-Handed Right"),
+        FLOATING("ভাসমান উইন্ডো (Floating)", "Floating Window"),
+        SPLIT("স্প্লিট মোড (Split)", "Split Mode"),
+    }
+
+    enum class ToolbarTool(val titleBengali: String, val titleEnglish: String) {
+        EMOJI("ইমোজি", "Emoji"),
+        VOICE("ভয়েস", "Voice"),
+        CLIPBOARD("ক্লিপবোর্ড", "Clipboard"),
+        THEME("থিম", "Theme"),
+        ONE_HANDED("একহাতে", "One-Handed"),
+        FLOATING("ভাসমান", "Floating"),
+        SPLIT("বিভক্ত", "Split"),
+        SETTINGS("সেটিংস", "Settings"),
     }
 
     companion object {
         const val PREFS_NAME = "lekhani_device_prefs"
 
+        const val KEY_UI_LANGUAGE = "ui_language"
         const val KEY_THEME_ID = "theme_id"
         const val KEY_CUSTOM_WALLPAPER_URI = "custom_wallpaper_uri"
         const val KEY_WALLPAPER_OPACITY = "custom_wallpaper_opacity"
@@ -158,11 +183,13 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_BOTTOM_CHIN = "bottom_chin_padding"
         const val KEY_LONG_PRESS_DELAY = "long_press_delay_ms"
         const val KEY_SHOW_KEY_BORDERS = "show_key_borders"
+        const val KEY_SHOW_HOMEROW_ACCENTS = "show_homerow_accents"
         const val KEY_FONT_STYLE = "font_style"
         const val KEY_FONT_SCALE = "font_scale"
 
         const val KEY_FORM_FACTOR = "keyboard_form_factor"
         const val KEY_SPACE_CURSOR_SLIDE = "space_cursor_slide"
+        const val KEY_SPACEBAR_SWIPE_MODE = "spacebar_swipe_mode"
         const val KEY_SWIPE_TO_DELETE = "swipe_to_delete"
         const val KEY_KEY_GLOW_RIPPLE = "key_glow_ripple"
 

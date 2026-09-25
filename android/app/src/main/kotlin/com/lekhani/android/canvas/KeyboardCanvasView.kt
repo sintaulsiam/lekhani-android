@@ -77,11 +77,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var feedbackManager: LekhaniFeedbackManager? = null
 
     var heightScale: Float = 1.0f
-    var marginHDp: Float = 3.5f
-    var marginVDp: Float = 4.0f
+    var marginHDp: Float = 5.0f
+    var marginVDp: Float = 6.5f
     var bottomChinPaddingDp: Float = 0f
     var fontScale: Float = 1.0f
-    var showKeyBorders: Boolean = true
+    var showKeyBorders: Boolean = false
+    var showHomeRowAccents: Boolean = false
+    var spacebarSwipeMode: KeyboardPreferences.SpacebarSwipeMode = KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV
     var longPressDelayMs: Long = 300L
 
     var formFactor: KeyboardPreferences.FormFactor = KeyboardPreferences.FormFactor.STANDARD
@@ -365,7 +367,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.bottomChinPaddingDp = prefs.bottomChinPadding
         this.fontScale = prefs.fontScale
         this.formFactor = prefs.formFactor
-        this.spaceCursorSlideEnabled = prefs.spaceCursorSlideEnabled
+        this.spacebarSwipeMode = prefs.spacebarSwipeMode
+        this.spaceCursorSlideEnabled = (prefs.spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV)
+        this.showHomeRowAccents = prefs.showHomeRowAccents
         this.swipeToDeleteEnabled = prefs.swipeToDeleteEnabled
         this.keyGlowRippleEnabled = prefs.keyGlowRippleEnabled
 
@@ -495,7 +499,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val density = resources.displayMetrics.density
         keyMarginH = marginHDp * density
         keyMarginV = marginVDp * density
-        keyCornerRadius = 9f * density
+        keyCornerRadius = 7.5f * density
         homeRowAccentHeight = 2.5f * density
         swipeThresholdPx = 36f * density
         spaceSlideThresholdPx = 16f * density
@@ -849,13 +853,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val now = SystemClock.uptimeMillis()
         val density = resources.displayMetrics.density
 
-        // ── Zone divider line (in standard mode) ───────────────────────────
-        if (formFactor == KeyboardPreferences.FormFactor.STANDARD && layout?.rows?.isNotEmpty() == true) {
-            val firstKeyTop = resolvedKeys.firstOrNull()?.bounds?.top ?: 0f
-            val lastMainKey = resolvedKeys.lastOrNull { !isSpacebarKey(it.key) }?.bounds?.bottom ?: height.toFloat()
-            canvas.drawLine(zoneDividerX, firstKeyTop, zoneDividerX, lastMainKey, zoneDividerPaint)
-        }
-
         // ── Side Dock Buttons (One-Handed mode, crisp vector rendering) ───
         if (isSideDockVisible) {
             val dockIconSize = 18f * density
@@ -916,8 +913,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, keyBorderPaint)
             }
 
-            // Home row accent underline
-            if (key.isHomeRow) {
+            // Home row accent underline (optional tactile hint, disabled by default)
+            if (showHomeRowAccents && key.isHomeRow) {
                 scratchRect.set(
                     drawBounds.left + keyCornerRadius,
                     drawBounds.bottom - homeRowAccentHeight,
@@ -1127,8 +1124,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 if (pressedKeyIndex in resolvedKeys.indices) {
                     val key = resolvedKeys[pressedKeyIndex].key
 
-                    // Spacebar cursor slide navigation
-                    if (key.action == KeyAction.Space && spaceCursorSlideEnabled) {
+                    // Spacebar cursor slide navigation (active when spacebarSwipeMode == CURSOR_NAV)
+                    if (key.action == KeyAction.Space && spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV) {
                         val dx = curX - spaceTouchStartX
                         val absDx = kotlin.math.abs(dx)
                         if (!isSpaceCursorMoving && absDx > spaceSlideThresholdPx) {
@@ -1178,8 +1175,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         }
                     }
 
-                    // Spacebar layout swipe detection
-                    if (key.action == KeyAction.Space && !isSpaceSwiping && !isSpaceCursorMoving && !isLongPressTriggered) {
+                    // Spacebar layout swipe detection (active when spacebarSwipeMode == LAYOUT_SWITCH)
+                    if (key.action == KeyAction.Space && spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH && !isSpaceSwiping && !isSpaceCursorMoving && !isLongPressTriggered) {
                         val dx = curX - spaceTouchStartX
                         val dy = kotlin.math.abs(curY - spaceTouchStartY)
                         if (kotlin.math.abs(dx) > swipeThresholdPx && kotlin.math.abs(dx) > dy * 1.3f) {

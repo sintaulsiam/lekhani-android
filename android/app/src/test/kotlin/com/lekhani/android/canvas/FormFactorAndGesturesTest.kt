@@ -41,13 +41,13 @@ class FormFactorAndGesturesTest {
         val splitTool = KeyboardPreferences.ToolbarTool.SPLIT
 
         assertEquals("একহাতে", oneHandedTool.titleBengali)
-        assertEquals("✋", oneHandedTool.iconRes)
+        assertEquals("One-Handed", oneHandedTool.titleEnglish)
 
         assertEquals("ভাসমান", floatingTool.titleBengali)
-        assertEquals("🪟", floatingTool.iconRes)
+        assertEquals("Floating", floatingTool.titleEnglish)
 
         assertEquals("বিভক্ত", splitTool.titleBengali)
-        assertEquals("✂️", splitTool.iconRes)
+        assertEquals("Split", splitTool.titleEnglish)
     }
 
     @Test
