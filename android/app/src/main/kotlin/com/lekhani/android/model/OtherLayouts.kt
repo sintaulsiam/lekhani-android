@@ -104,34 +104,34 @@ object NationalLayout {
     val layout: KeyboardLayout = KeyboardLayout(
         name = "জাতীয় (National)",
         rows = listOf(
-            // Row 1
+            // Row 1 (BBS standard: q w e r t y u i o p)
             listOf(
-                Ch("ৌ", "ৌ"), Ch("ৈ", "ৈ"), Ch("ূ", "ূ"), Ch("ী", "ী"),
-                Ch("ু", "ু"), Ch("ি", "ি"), Ch("া", "া"), Ch("ে", "ে"),
-                Ch("ো", "ো"), Ch("ঃ", "ঃ"),
+                Ch("ঙ", "ং"), Ch("য", "য়"), Ch("ড", "ঢ"), Ch("প", "ফ"),
+                Ch("ট", "ঠ"), Ch("চ", "ছ"), Ch("জ", "ঝ"), Ch("হ", "ঞ"),
+                Ch("গ", "ঘ"), Ch("ড়", "ঢ়"),
             ),
-            // Row 2 (Home)
+            // Row 2 (Home: a s d f g h j k l)
             listOf(
-                Ch("ট", "ঠ", homeRow = true), Ch("থ", "থ", homeRow = true),
-                Ch("গ", "ঘ", homeRow = true), Ch("হ", "হ", homeRow = true),
-                Ch("য", "য়", homeRow = true), Ch("র", "ড়", homeRow = true),
-                Ch("ল", "ল", homeRow = true), Ch("ক", "খ", homeRow = true),
-                Ch("প", "ফ", homeRow = true), Ch("জ", "ঝ", homeRow = true),
+                Ch("ৃ", "ৗ", homeRow = true), Ch("ু", "ূ", homeRow = true),
+                Ch("ি", "ী", homeRow = true), Ch("ব", "ভ", homeRow = true),
+                Ch("্", "।", homeRow = true), Ch("া", "অ", homeRow = true),
+                Ch("ক", "খ", homeRow = true), Ch("ত", "থ", homeRow = true),
+                Ch("দ", "ধ", homeRow = true),
             ),
-            // Row 3
+            // Row 3 (Shift, z x c v b n m, Backspace)
             listOf(
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.5f, contentDesc = "Shift",
+                    widthWeight = 1.4f, contentDesc = "Shift",
                 ),
-                Ch("ন", "ণ"), Ch("ম", "ঙ"), Ch("ব", "ভ"),
-                Ch("স", "ষ"), Ch("দ", "ধ"), Ch("ত", "ৎ"),
-                Ch("চ", "ছ"), Ch("ং", "ঞ"),
+                Ch("ঁ", "ঃ"), Ch("ো", "ৌ"), Ch("ে", "ৈ"),
+                Ch("র", "ল"), Ch("ন", "ণ"), Ch("স", "ষ"),
+                Ch("ম", "শ"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.5f, contentDesc = "Backspace",
+                    widthWeight = 1.4f, contentDesc = "Backspace",
                 ),
             ),
         ),
@@ -147,13 +147,13 @@ object NationalLayout {
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
-                label = "অ", shiftedLabel = "আ",
-                action = KeyAction.Character("অ"),
-                shiftedAction = KeyAction.Character("আ"),
-                widthWeight = 1.0f, contentDesc = "Vowel অ",
+                label = "আ", shiftedLabel = "ই",
+                action = KeyAction.Character("আ"),
+                shiftedAction = KeyAction.Character("ই"),
+                widthWeight = 1.0f, contentDesc = "Vowel",
             ),
             Key(
-                label = "স্পেস", shiftedLabel = "স্পেস",
+                label = "স্পেস • জাতীয়", shiftedLabel = "স্পেস • জাতীয়",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
                 widthWeight = 4.5f, contentDesc = "Space",
             ),
@@ -171,41 +171,42 @@ object NationalLayout {
 /**
  * Probhat (प्रभात) Layout
  * ══════════════════════════════════════════════════════════════════════════════
- * Popular phonetic-fixed layout designed for Bengali typing.
+ * Official Probhat standard Bengali layout (Shabab Mustafa standard),
+ * matching OpenBangla and Android Gboard / MIUI Probhat.
  */
 object ProbhatLayout {
 
     val layout: KeyboardLayout = KeyboardLayout(
         name = "Probhat",
         rows = listOf(
-            // Row 1
+            // Row 1 (12 keys: q w e r t y u i o p [ ])
             listOf(
-                Ch("ৎ", "্থ"), Ch("ড", "ঢ"), Ch("ে", "ৈ"), Ch("র", "ড়"),
-                Ch("ট", "ঠ"), Ch("য়", "ঞ"), Ch("ু", "ূ"), Ch("ি", "ী"),
-                Ch("ও", "ঔ"), Ch("প", "ফ"),
+                Ch("দ", "ধ"), Ch("ূ", "ঊ"), Ch("ী", "ঈ"), Ch("র", "ড়"),
+                Ch("ট", "ঠ"), Ch("এ", "ঐ"), Ch("ু", "উ"), Ch("ি", "ই"),
+                Ch("ও", "ঔ"), Ch("প", "ফ"), Ch("ে", "ৈ"), Ch("ো", "ৌ"),
             ),
-            // Row 2 (Home)
+            // Row 2 (Home: a s d f g h j k l)
             listOf(
-                Ch("া", "আ", homeRow = true), Ch("স", "শ", homeRow = true),
-                Ch("দ", "ধ", homeRow = true), Ch("ফ", "ভ", homeRow = true),
+                Ch("া", "অ", homeRow = true), Ch("স", "ষ", homeRow = true),
+                Ch("ড", "ঢ", homeRow = true), Ch("ত", "থ", homeRow = true),
                 Ch("গ", "ঘ", homeRow = true), Ch("হ", "ঃ", homeRow = true),
                 Ch("জ", "ঝ", homeRow = true), Ch("ক", "খ", homeRow = true),
                 Ch("ল", "ং", homeRow = true),
             ),
-            // Row 3
+            // Row 3 (Shift, z x c v b n m , ., Backspace)
             listOf(
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
                     action = KeyAction.Shift, shiftedAction = KeyAction.Shift,
-                    widthWeight = 1.5f, contentDesc = "Shift",
+                    widthWeight = 1.3f, contentDesc = "Shift",
                 ),
-                Ch("য", "্য"), Ch("ষ", "ঢ়"), Ch("চ", "ছ"),
-                Ch("ব", "ভ"), Ch("ন", "ণ"), Ch("ম", "ঁ"),
-                Ch("ঙ", "ৎ"), Ch("।", "?"),
+                Ch("য়", "য"), Ch("শ", "ঢ়"), Ch("চ", "ছ"),
+                Ch("আ", "ঋ"), Ch("ব", "ভ"), Ch("ন", "ণ"),
+                Ch("ম", "ঙ"), Ch(",", "‘"), Ch(".", "’"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.5f, contentDesc = "Backspace",
+                    widthWeight = 1.3f, contentDesc = "Backspace",
                 ),
             ),
         ),
@@ -213,30 +214,24 @@ object ProbhatLayout {
             Key(
                 label = "?123", shiftedLabel = "?123",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
-                widthWeight = 1.5f, contentDesc = "Numbers",
+                widthWeight = 1.4f, contentDesc = "Numbers",
             ),
             Key(
                 label = "🌐", shiftedLabel = "🌐",
                 action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
-            Key(
-                label = "অ", shiftedLabel = "আ",
-                action = KeyAction.Character("অ"),
-                shiftedAction = KeyAction.Character("আ"),
-                widthWeight = 1.0f, contentDesc = "Vowel অ",
-            ),
+            Ch(",", "!", desc = "Comma"),
             Key(
                 label = "স্পেস • প্রভাত", shiftedLabel = "স্পেস • প্রভাত",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.5f, contentDesc = "Space",
+                widthWeight = 4.6f, contentDesc = "Space",
             ),
-            Ch("্", "্", desc = "Hasanta"),
-            Ch(",", "!", desc = "Comma, shifted exclamation"),
+            Ch("।", "?", desc = "Dari, shifted question"),
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 1.5f, contentDesc = "Enter",
+                widthWeight = 1.4f, contentDesc = "Enter",
             ),
         ),
     )

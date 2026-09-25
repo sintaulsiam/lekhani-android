@@ -401,6 +401,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 else -> {
                     canvas.drawText(labelText, cx, cy, labelPaint)
+                    // Draw hint (shifted alternate character) in upper area if unshifted
+                    val shiftedLbl = key.shiftedLabel
+                    if (!isShifted && shiftedLbl != null && shiftedLbl != key.label && shiftedLbl.isNotEmpty()) {
+                        val hintY = bounds.top + (bounds.height() * 0.28f)
+                        val origAlpha = labelPaintSmall.alpha
+                        labelPaintSmall.alpha = 130
+                        canvas.drawText(shiftedLbl, cx, hintY, labelPaintSmall)
+                        labelPaintSmall.alpha = origAlpha
+                    }
                 }
             }
         }
