@@ -179,6 +179,34 @@ class KeyboardCanvasView @JvmOverloads constructor(
         color = 0x6600E5B8.toInt()
     }
 
+    // Key tactile 3D shadow paint (Material 3 depth)
+    private val keyShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0x44000000
+    }
+
+    // Key Preview Bubble (Popup) pre-allocated state (zero allocation in onDraw)
+    private val keyPopupBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0xFF243048.toInt()
+    }
+    private val keyPopupShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0x4D000000
+    }
+    private val keyPopupStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.5f
+        color = 0x33FFFFFF.toInt()
+    }
+    private val keyPopupTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.DEFAULT_BOLD
+    }
+    private val keyPopupRect = RectF()
+    private val keyPopupShadowRect = RectF()
+    private val keyDrawRect = RectF()
+
     private var wallpaperBitmap: Bitmap? = null
     private var wallpaperOpacity: Float = 0.25f
     private val wallpaperPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -429,6 +457,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
         vectorIconStrokePaint.color = theme.labelColor
         vectorIconFillPaint.color = theme.labelColor
         hintPaint.color = theme.labelDimColor
+
+        keyPopupBgPaint.color = if (theme.isDark) {
+            Color.rgb(
+                (Color.red(theme.keyNormalColor) + 24).coerceAtMost(255),
+                (Color.green(theme.keyNormalColor) + 28).coerceAtMost(255),
+                (Color.blue(theme.keyNormalColor) + 38).coerceAtMost(255)
+            )
+        } else {
+            0xFFFFFFFF.toInt()
+        }
+        keyPopupStrokePaint.color = if (theme.isDark) 0x33FFFFFF.toInt() else 0x1A000000
+        keyPopupTextPaint.color = theme.labelColor
         invalidate()
     }
 
@@ -541,6 +581,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         labelPaint.textSize = labelSize
         labelPaintSmall.textSize = labelSizeSmall
         hintPaint.textSize = labelSizeSmall * 0.92f
+        keyPopupTextPaint.textSize = labelSize * 1.50f
 
         // Zone divider: exactly at x = width / 2 (5 keys left, 5 keys right)
         zoneDividerX = w / 2f
@@ -898,6 +939,62 @@ class KeyboardCanvasView @JvmOverloads constructor(
         canvas.drawLine(cx - halfW, cy - halfH * 0.35f, cx + halfW, cy - halfH * 0.35f, strokePaint)
     }
 
+    private fun drawVectorGlobe(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        val r = size * 0.38f
+        canvas.drawCircle(cx, cy, r, strokePaint)
+        canvas.drawLine(cx - r, cy, cx + r, cy, strokePaint)
+        scratchRect.set(cx - r * 0.46f, cy - r, cx + r * 0.46f, cy + r)
+        canvas.drawOval(scratchRect, strokePaint)
+    }
+
+    private fun drawVectorHasanta(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        val sw = strokePaint.strokeWidth
+        val density = resources.displayMetrics.density
+        strokePaint.strokeWidth = 2.4f * density
+        val lineHalfW = size * 0.28f
+        // Baseline guide dash
+        canvas.drawLine(cx - lineHalfW, cy - 2f * density, cx + lineHalfW, cy - 2f * density, strokePaint)
+        // Virama slash beneath the line
+        canvas.drawLine(cx, cy, cx + lineHalfW * 0.75f, cy + size * 0.32f, strokePaint)
+        strokePaint.strokeWidth = sw
+    }
+
+    private fun drawVectorChandraBindu(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint, fillPaint: Paint) {
+        val sw = strokePaint.strokeWidth
+        val density = resources.displayMetrics.density
+        strokePaint.strokeWidth = 2.2f * density
+        // Dot at top
+        val dotRadius = 2.4f * density
+        canvas.drawCircle(cx, cy - 6f * density, dotRadius, fillPaint)
+        // Crescent arc at bottom
+        vectorIconPath.rewind()
+        val arcHalfW = 8f * density
+        val arcH = 5.5f * density
+        vectorIconPath.moveTo(cx - arcHalfW, cy - 2f * density)
+        vectorIconPath.quadTo(cx, cy + arcH, cx + arcHalfW, cy - 2f * density)
+        canvas.drawPath(vectorIconPath, strokePaint)
+        strokePaint.strokeWidth = sw
+    }
+
+    private fun sanitizeLabelForDisplay(label: String): String {
+        if (label.length == 1) {
+            return when (label[0]) {
+                'া' -> "আ"
+                'ি' -> "ই"
+                'ী' -> "ঈ"
+                'ু' -> "উ"
+                'ূ' -> "ঊ"
+                'ৃ' -> "ঋ"
+                'ে' -> "এ"
+                'ৈ' -> "ঐ"
+                'ো' -> "ও"
+                'ৌ' -> "ঔ"
+                else -> label
+            }
+        }
+        return label
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // Drawing — ZERO allocations permitted here
     // ══════════════════════════════════════════════════════════════════════════
@@ -962,16 +1059,23 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 else -> keyBgPaint
             }
 
-            // Key spring inset and glow halo
+            // 3D Keycap tactile depth & depression
+            val shadowLip = 1.8f * density
             val drawBounds = if (i == pressedKeyIndex) {
+                // Key pressed down: depressed into the keyboard surface
+                keyDrawRect.set(bounds.left, bounds.top + shadowLip, bounds.right, bounds.bottom)
                 if (keyGlowRippleEnabled) {
-                    scratchRect.set(bounds.left - 2.5f, bounds.top - 2.5f, bounds.right + 2.5f, bounds.bottom + 2.5f)
+                    scratchRect.set(keyDrawRect.left - 2.5f, keyDrawRect.top - 2.5f, keyDrawRect.right + 2.5f, keyDrawRect.bottom + 2.5f)
                     canvas.drawRoundRect(scratchRect, keyCornerRadius + 2.5f, keyCornerRadius + 2.5f, keyGlowPaint)
                 }
-                scratchRect.set(bounds.left + 1.2f, bounds.top + 1.2f, bounds.right - 1.2f, bounds.bottom - 1.2f)
-                scratchRect
+                keyDrawRect
             } else {
-                bounds
+                // Key bottom shadow
+                scratchRect.set(bounds.left, bounds.top + shadowLip, bounds.right, bounds.bottom)
+                canvas.drawRoundRect(scratchRect, keyCornerRadius, keyCornerRadius, keyShadowPaint)
+                // Key elevated top surface
+                keyDrawRect.set(bounds.left, bounds.top, bounds.right, bounds.bottom - shadowLip)
+                keyDrawRect
             }
 
             // Draw key background with rounded corners
@@ -1005,11 +1109,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
 
             // Draw label
-            val labelText = if (key.action == KeyAction.Space) {
+            val rawLabel = if (key.action == KeyAction.Space) {
                 com.lekhani.android.model.LayoutRegistry.getSpacebarLabel(layoutType)
             } else {
                 key.displayLabel(isShifted)
             }
+            val labelText = sanitizeLabelForDisplay(rawLabel)
             val cx = drawBounds.centerX()
             val cy = drawBounds.centerY() - (labelPaint.ascent() + labelPaint.descent()) / 2f
 
@@ -1026,16 +1131,46 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
                     drawVectorEnter(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
                 }
-                KeyAction.SwitchNumeric, KeyAction.SwitchLayout, KeyAction.Space -> {
+                KeyAction.SwitchLayout -> {
+                    val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
+                    drawVectorGlobe(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                    val hint = key.hintLabel
+                    if (hint != null) {
+                        val displayHint = sanitizeLabelForDisplay(hint)
+                        val hintX = drawBounds.right - 5f * density
+                        val hintY = drawBounds.top + 13f * density
+                        canvas.drawText(displayHint, hintX, hintY, hintPaint)
+                    }
+                }
+                KeyAction.SwitchNumeric, KeyAction.Space -> {
                     canvas.drawText(labelText, cx, cy, labelPaintSmall)
                 }
                 else -> {
-                    canvas.drawText(labelText, cx, cy, labelPaint)
+                    when (labelText) {
+                        "্" -> {
+                            val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
+                            drawVectorHasanta(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                        }
+                        "ঁ" -> {
+                            val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
+                            drawVectorChandraBindu(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint, vectorIconFillPaint)
+                        }
+                        else -> {
+                            canvas.drawText(labelText, cx, cy, labelPaint)
+                        }
+                    }
                     val hint = key.hintLabel ?: if (!isShifted && key.shiftedLabel != null && key.shiftedLabel != key.label && key.shiftedLabel.isNotEmpty()) key.shiftedLabel else null
                     if (hint != null) {
+                        val displayHint = sanitizeLabelForDisplay(hint)
                         val hintX = drawBounds.right - 5f * density
                         val hintY = drawBounds.top + 13f * density
-                        canvas.drawText(hint, hintX, hintY, hintPaint)
+                        if (displayHint == "্") {
+                            drawVectorHasanta(canvas, hintX - 6f * density, hintY - 4f * density, 11f * density, vectorIconStrokePaint)
+                        } else if (displayHint == "ঁ") {
+                            drawVectorChandraBindu(canvas, hintX - 6f * density, hintY - 4f * density, 11f * density, vectorIconStrokePaint, vectorIconFillPaint)
+                        } else {
+                            canvas.drawText(displayHint, hintX, hintY, hintPaint)
+                        }
                     }
                 }
             }
@@ -1058,6 +1193,42 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 canvas.drawRoundRect(scratchRect, 6f * density, 6f * density, backspaceBadgePaint)
                 val textY = scratchRect.centerY() - (backspaceBadgeTextPaint.ascent() + backspaceBadgeTextPaint.descent()) / 2f
                 canvas.drawText("-$backspaceDeletedWordCount", scratchRect.centerX(), textY, backspaceBadgeTextPaint)
+            }
+        }
+
+        // ── Floating Key Preview Bubble (Material 3 Elevated Keycap) ─────────
+        if (pressedKeyIndex in resolvedKeys.indices && !isGliding && !isSpaceCursorMoving && !isBackspaceSwiping) {
+            val pressedResolved = resolvedKeys[pressedKeyIndex]
+            val pKey = pressedResolved.key
+            if (pKey.action is KeyAction.Character && pKey.label.isNotEmpty()) {
+                val pBounds = pressedResolved.bounds
+                val popupW = (pBounds.width() * 1.35f).coerceAtLeast(48f * density)
+                val popupH = (pBounds.height() * 1.25f).coerceAtLeast(50f * density)
+                val pcx = pBounds.centerX()
+                val pLeft = (pcx - popupW / 2f).coerceIn(4f * density, (width.toFloat() - popupW - 4f * density).coerceAtLeast(4f * density))
+                val pRight = pLeft + popupW
+                val pTop = (pBounds.top - popupH - 8f * density).coerceAtLeast(4f * density)
+                val pBottom = pTop + popupH
+
+                // Popup shadow
+                keyPopupShadowRect.set(pLeft, pTop + 3f * density, pRight, pBottom + 3f * density)
+                canvas.drawRoundRect(keyPopupShadowRect, 12f * density, 12f * density, keyPopupShadowPaint)
+
+                // Popup body & border
+                keyPopupRect.set(pLeft, pTop, pRight, pBottom)
+                canvas.drawRoundRect(keyPopupRect, 12f * density, 12f * density, keyPopupBgPaint)
+                canvas.drawRoundRect(keyPopupRect, 12f * density, 12f * density, keyPopupStrokePaint)
+
+                // Popup character
+                val charStr = sanitizeLabelForDisplay(pKey.displayLabel(isShifted))
+                if (charStr == "্") {
+                    drawVectorHasanta(canvas, keyPopupRect.centerX(), keyPopupRect.centerY(), popupH * 0.45f, vectorIconStrokePaint)
+                } else if (charStr == "ঁ") {
+                    drawVectorChandraBindu(canvas, keyPopupRect.centerX(), keyPopupRect.centerY(), popupH * 0.45f, vectorIconStrokePaint, vectorIconFillPaint)
+                } else {
+                    val pTextY = keyPopupRect.centerY() - (keyPopupTextPaint.ascent() + keyPopupTextPaint.descent()) / 2f
+                    canvas.drawText(charStr, keyPopupRect.centerX(), pTextY, keyPopupTextPaint)
+                }
             }
         }
 

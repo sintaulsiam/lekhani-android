@@ -253,16 +253,7 @@ private fun StripContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(ItemSpacing),
         ) {
-            items.forEachIndexed { index, item ->
-                if (index > 0) {
-                    // Thin vertical divider between candidates
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .height(22.dp)
-                            .background(Color(theme.keySpaceColor))
-                    )
-                }
+            items.forEach { item ->
                 CandidatePill(
                     item = item,
                     onClick = { onCandidateClick(item.text) },
@@ -310,6 +301,7 @@ private fun CandidatePill(
     }
 
     val primaryBg = Color(theme.accentColor)
+    val secondaryBg = if (theme.isDark) Color(0x1FFFFFFF) else Color(0x14000000)
     val primaryText = if (theme.isDark) Color(0xFF000000) else Color(0xFFFFFFFF)
     val normalText = Color(theme.labelColor)
 
@@ -318,10 +310,7 @@ private fun CandidatePill(
             .alpha(pillAlpha)
             .wrapContentSize()
             .clip(RoundedCornerShape(CornerRadius))
-            .then(
-                if (item.isPrimary) Modifier.background(primaryBg)
-                else Modifier
-            )
+            .background(if (item.isPrimary) primaryBg else secondaryBg)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = {
@@ -330,7 +319,7 @@ private fun CandidatePill(
                 },
             )
             .padding(
-                horizontal = if (item.isPrimary) PrimaryPillHPad else 10.dp,
+                horizontal = if (item.isPrimary) PrimaryPillHPad else 14.dp,
                 vertical = PrimaryPillVPad,
             )
             .semantics { contentDescription = semanticDesc },
