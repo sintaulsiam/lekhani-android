@@ -51,14 +51,11 @@ import com.lekhani.android.data.emoji.EmojiRecentsManager
 import com.lekhani.android.data.emoji.KaomojiData
 import com.lekhani.android.data.emoji.SymbolData
 
-// ── Colors ────────────────────────────────────────────────────────────────────
-
-private val PickerBackground = Color(0xFF0D1117)
-private val TabBarBackground   = Color(0xFF161B22)
-private val ActiveTabPill      = Color(0xFF00D4A0) // Lekhani Teal
-private val InactiveTabText    = Color(0xFF8B949E)
-private val SearchBg           = Color(0xFF21262D)
-private val AccentTeal         = Color(0xFF00D4A0)
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material3.Icon
+import com.lekhani.android.theme.KeyboardTheme
+import com.lekhani.android.theme.ThemeRegistry
 
 /**
  * EmojiPickerView
@@ -66,13 +63,14 @@ private val AccentTeal         = Color(0xFF00D4A0)
  * Full Unicode 15.1+ emoji, Kaomoji, and typographical symbols palette.
  *
  * Features (ROADMAP.md Phase 6):
+ *   ✅ Dynamic KeyboardTheme synchronization (respects active color scheme)
  *   ✅ Category tabs with fast switching
  *   ✅ Instant bilingual search (Bengali e.g. "হাসি", "আগুন" + English)
  *   ✅ Recents & favorites shelf
  *   ✅ Long-press skin-tone selector
  *   ✅ Kaomoji Japanese emoticons picker (`(◕‿◕)`, `¯\_(ツ)_/¯`)
  *   ✅ Specialized math, currency (`৳`), and Bengali typographical symbols
- *   ✅ Bottom navigation returning to keyboard
+ *   ✅ Dedicated ABC keyboard return key, Spacebar, and Backspace
  */
 @Composable
 fun EmojiPickerView(
@@ -80,6 +78,8 @@ fun EmojiPickerView(
     onEmojiSelected: (String) -> Unit,
     onBackspace: () -> Unit,
     onClose: () -> Unit,
+    onSpace: () -> Unit = {},
+    theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     modifier: Modifier = Modifier,
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -87,6 +87,13 @@ fun EmojiPickerView(
     var skinToneTarget by remember { mutableStateOf<EmojiItem?>(null) }
 
     val recents = remember(selectedTabIdx) { recentsManager.getRecents() }
+
+    val pickerBg = Color(theme.backgroundColor)
+    val tabBarBg = Color(theme.keyShiftColor)
+    val activeTabPill = Color(theme.accentColor)
+    val inactiveTabText = Color(theme.labelDimColor)
+    val searchBg = Color(theme.keyNormalColor)
+    val textColor = Color(theme.labelColor)
 
     // Tab definitions: 0: Recents, 1..N: Emoji categories, N+1: Kaomoji, N+2: Symbols
     val totalTabs = 1 + EmojiData.categories.size + 2
@@ -96,8 +103,8 @@ fun EmojiPickerView(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(260.dp)
-            .background(PickerBackground)
+            .height(270.dp)
+            .background(pickerBg)
             .semantics { contentDescription = "ইমোজি এবং প্রতীক প্যালেট" },
     ) {
         // ── Search Bar ───────────────────────────────────────────────────────
@@ -113,17 +120,17 @@ fun EmojiPickerView(
                     Text(
                         "ইমোজি খুঁজুন (যেমন: হাসি, আগুন, love, flag)...",
                         fontSize = 12.sp,
-                        color = InactiveTabText
+                        color = inactiveTabText
                     )
                 },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = SearchBg,
-                    unfocusedContainerColor = SearchBg,
-                    focusedBorderColor = AccentTeal,
+                    focusedContainerColor = searchBg,
+                    unfocusedContainerColor = searchBg,
+                    focusedBorderColor = activeTabPill,
                     unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
+                    focusedTextColor = textColor,
+                    unfocusedTextColor = textColor,
                 ),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
@@ -138,7 +145,7 @@ fun EmojiPickerView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(38.dp)
-                    .background(TabBarBackground)
+                    .background(tabBarBg)
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -149,7 +156,9 @@ fun EmojiPickerView(
                     label = "🕒",
                     isSelected = selectedTabIdx == 0,
                     onClick = { selectedTabIdx = 0 },
-                    desc = "সাম্প্রতিক ইমোজি"
+                    desc = "সাম্প্রতিক ইমোজি",
+                    activePill = activeTabPill,
+                    inactiveColor = inactiveTabText,
                 )
 
                 // Standard Categories
@@ -158,7 +167,9 @@ fun EmojiPickerView(
                         label = cat.icon,
                         isSelected = selectedTabIdx == index + 1,
                         onClick = { selectedTabIdx = index + 1 },
-                        desc = cat.title
+                        desc = cat.title,
+                        activePill = activeTabPill,
+                        inactiveColor = inactiveTabText,
                     )
                 }
 
@@ -167,7 +178,9 @@ fun EmojiPickerView(
                     label = "ツ",
                     isSelected = selectedTabIdx == kaomojiTabIdx,
                     onClick = { selectedTabIdx = kaomojiTabIdx },
-                    desc = "কাওমোজি ইমোটিকন"
+                    desc = "কাওমোজি ইমোটিকন",
+                    activePill = activeTabPill,
+                    inactiveColor = inactiveTabText,
                 )
 
                 // Symbols Tab
@@ -175,7 +188,9 @@ fun EmojiPickerView(
                     label = "৳",
                     isSelected = selectedTabIdx == symbolTabIdx,
                     onClick = { selectedTabIdx = symbolTabIdx },
-                    desc = "বাংলা ও গণিত প্রতীক"
+                    desc = "বাংলা ও গণিত প্রতীক",
+                    activePill = activeTabPill,
+                    inactiveColor = inactiveTabText,
                 )
             }
         }
@@ -191,7 +206,7 @@ fun EmojiPickerView(
                 val searchResults = remember(searchQuery) { EmojiData.search(searchQuery) }
                 if (searchResults.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("কোনো ইমোজি পাওয়া যায়নি", color = InactiveTabText, fontSize = 13.sp)
+                        Text("কোনো ইমোজি পাওয়া যায়নি", color = inactiveTabText, fontSize = 13.sp)
                     }
                 } else {
                     LazyVerticalGrid(
@@ -210,7 +225,7 @@ fun EmojiPickerView(
                                     if (item.skinTones.isNotEmpty()) {
                                         skinToneTarget = item
                                     }
-                                },
+                                }
                             )
                         }
                     }
@@ -220,7 +235,7 @@ fun EmojiPickerView(
                     // Recents Tab
                     if (recents.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("সম্প্রতি ব্যবহৃত কোনো ইমোজি নেই", color = InactiveTabText, fontSize = 13.sp)
+                            Text("সম্প্রতি ব্যবহৃত কোনো ইমোজি নেই", color = inactiveTabText, fontSize = 13.sp)
                         }
                     } else {
                         LazyVerticalGrid(
@@ -257,7 +272,7 @@ fun EmojiPickerView(
                                     if (item.skinTones.isNotEmpty()) {
                                         skinToneTarget = item
                                     }
-                                },
+                                }
                             )
                         }
                     }
@@ -275,7 +290,7 @@ fun EmojiPickerView(
                                     modifier = Modifier
                                         .padding(4.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(SearchBg)
+                                        .background(searchBg)
                                         .clickable { onEmojiSelected(kaomoji) }
                                         .padding(vertical = 8.dp, horizontal = 6.dp),
                                     contentAlignment = Alignment.Center,
@@ -283,7 +298,7 @@ fun EmojiPickerView(
                                     Text(
                                         text = kaomoji,
                                         fontSize = 13.sp,
-                                        color = Color.White,
+                                        color = textColor,
                                         maxLines = 1,
                                     )
                                 }
@@ -304,7 +319,7 @@ fun EmojiPickerView(
                                     modifier = Modifier
                                         .padding(4.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(SearchBg)
+                                        .background(searchBg)
                                         .clickable { onEmojiSelected(symbol) }
                                         .padding(8.dp),
                                     contentAlignment = Alignment.Center,
@@ -312,7 +327,7 @@ fun EmojiPickerView(
                                     Text(
                                         text = symbol,
                                         fontSize = 18.sp,
-                                        color = if (symbol == "৳") AccentTeal else Color.White,
+                                        color = if (symbol == "৳") activeTabPill else textColor,
                                         fontWeight = if (symbol == "৳") FontWeight.Bold else FontWeight.Normal,
                                     )
                                 }
@@ -336,50 +351,85 @@ fun EmojiPickerView(
             }
         }
 
-        // ── Bottom Navigation Row ────────────────────────────────────────────
+        // ── Bottom Navigation Row (Gboard-Style Keyboard Return Bar) ─────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(42.dp)
-                .background(TabBarBackground)
-                .padding(horizontal = 12.dp),
+                .height(48.dp)
+                .background(tabBarBg)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // Return to keyboard button
+            // Prominent ABC key returning to the typing keyboard
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(SearchBg)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(theme.keyNormalColor))
                     .clickable { onClose() }
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .padding(horizontal = 18.dp, vertical = 8.dp)
                     .semantics { contentDescription = "কিবোর্ডে ফিরে যান" },
+                contentAlignment = Alignment.Center,
             ) {
-                Text("কিবোর্ড ⌨️", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                Text(
+                    text = "⌨ ABC",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor,
+                )
             }
 
-            // Backspace button
+            // Spacebar in emoji palette
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(SearchBg)
+                    .weight(1f)
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(theme.keySpaceColor))
+                    .clickable { onSpace() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "Space",
+                    fontSize = 12.sp,
+                    color = inactiveTabText,
+                )
+            }
+
+            // Backspace key in emoji palette
+            Box(
+                modifier = Modifier
+                    .size(width = 50.dp, height = 38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(theme.keyNormalColor))
                     .clickable { onBackspace() }
                     .semantics { contentDescription = "ডিলিট করুন" },
                 contentAlignment = Alignment.Center,
             ) {
-                Text("⌫", fontSize = 16.sp, color = Color.White)
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Backspace,
+                    contentDescription = "Backspace",
+                    tint = textColor,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun TabItem(label: String, isSelected: Boolean, onClick: () -> Unit, desc: String) {
+private fun TabItem(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    desc: String,
+    activePill: Color = Color(0xFF00E5B8),
+    inactiveColor: Color = Color(0xFF8B949E),
+) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(if (isSelected) ActiveTabPill else Color.Transparent)
+            .background(if (isSelected) activePill else Color.Transparent)
             .clickable { onClick() }
             .padding(horizontal = 10.dp, vertical = 4.dp)
             .semantics { contentDescription = desc },
@@ -388,7 +438,7 @@ private fun TabItem(label: String, isSelected: Boolean, onClick: () -> Unit, des
         Text(
             text = label,
             fontSize = 15.sp,
-            color = if (isSelected) Color.Black else InactiveTabText,
+            color = if (isSelected) Color.Black else inactiveColor,
         )
     }
 }

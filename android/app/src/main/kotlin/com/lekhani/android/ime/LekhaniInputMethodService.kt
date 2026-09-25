@@ -403,6 +403,7 @@ class LekhaniInputMethodService : InputMethodService() {
     fun setInputViewMode(mode: InputViewMode) {
         currentMode = mode
         val container = rootInputContainer ?: return
+        val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
 
         when (mode) {
             InputViewMode.KEYBOARD -> {
@@ -419,17 +420,6 @@ class LekhaniInputMethodService : InputMethodService() {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-
-                        setContent {
-                            EmojiPickerView(
-                                recentsManager = recentsManager,
-                                onEmojiSelected = { emoji ->
-                                    currentInputConnection?.commitText(emoji, 1)
-                                },
-                                onBackspace = { onBackspace() },
-                                onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
-                            )
-                        }
                     }
                     emojiPickerView = compose
                     container.addView(
@@ -438,6 +428,18 @@ class LekhaniInputMethodService : InputMethodService() {
                             FrameLayout.LayoutParams.MATCH_PARENT,
                             FrameLayout.LayoutParams.WRAP_CONTENT
                         )
+                    )
+                }
+                emojiPickerView?.setContent {
+                    EmojiPickerView(
+                        recentsManager = recentsManager,
+                        theme = activeTheme,
+                        onEmojiSelected = { emoji ->
+                            currentInputConnection?.commitText(emoji, 1)
+                        },
+                        onBackspace = { onBackspace() },
+                        onSpace = { onSpace() },
+                        onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
                     )
                 }
                 emojiPickerView?.visibility = View.VISIBLE
@@ -450,17 +452,6 @@ class LekhaniInputMethodService : InputMethodService() {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-
-                        setContent {
-                            ClipboardSheetView(
-                                clipboardStore = clipboardStore,
-                                onPaste = { text ->
-                                    currentInputConnection?.commitText(text, 1)
-                                    setInputViewMode(InputViewMode.KEYBOARD)
-                                },
-                                onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
-                            )
-                        }
                     }
                     clipboardView = compose
                     container.addView(
@@ -469,6 +460,17 @@ class LekhaniInputMethodService : InputMethodService() {
                             FrameLayout.LayoutParams.MATCH_PARENT,
                             FrameLayout.LayoutParams.WRAP_CONTENT
                         )
+                    )
+                }
+                clipboardView?.setContent {
+                    ClipboardSheetView(
+                        clipboardStore = clipboardStore,
+                        theme = activeTheme,
+                        onPaste = { text ->
+                            currentInputConnection?.commitText(text, 1)
+                            setInputViewMode(InputViewMode.KEYBOARD)
+                        },
+                        onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
                     )
                 }
                 clipboardView?.visibility = View.VISIBLE
@@ -551,8 +553,17 @@ class LekhaniInputMethodService : InputMethodService() {
     // ══════════════════════════════════════════════════════════════════════════
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        // Allow system shortcuts (Ctrl+C, Ctrl+V, Alt+Tab, Home, Back, etc.) to pass through
-        if (event.isCtrlPressed || event.isAltPressed || keyCode == KeyEvent.KEYCODE_BACK) {
+        // Intercept back key when inside Emoji or Clipboard view to return to Keyboard
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (currentMode != InputViewMode.KEYBOARD) {
+                setInputViewMode(InputViewMode.KEYBOARD)
+                return true
+            }
+            return super.onKeyDown(keyCode, event)
+        }
+
+        // Allow system shortcuts (Ctrl+C, Ctrl+V, Alt+Tab, Home, etc.) to pass through
+        if (event.isCtrlPressed || event.isAltPressed) {
             return super.onKeyDown(keyCode, event)
         }
 

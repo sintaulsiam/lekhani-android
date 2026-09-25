@@ -34,14 +34,13 @@ import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.clipboard.ClipItem
 import com.lekhani.android.data.clipboard.LekhaniClipboardStore
 
-private val ClipboardBg     = Color(0xFF0D1117)
-private val CardBg          = Color(0xFF161B22)
-private val CardPinnedBg    = Color(0xFF1B2A26)
-private val BorderColor     = Color(0xFF30363D)
-private val PrimaryTeal     = Color(0xFF00D4A0)
-private val TextPrimary     = Color(0xFFF0F6FC)
-private val TextSecondary   = Color(0xFF8B949E)
-private val SensitiveBadge  = Color(0xFFFF9500)
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material3.Icon
+import com.lekhani.android.theme.KeyboardTheme
+import com.lekhani.android.theme.ThemeRegistry
 
 /**
  * ClipboardSheetView
@@ -49,26 +48,39 @@ private val SensitiveBadge  = Color(0xFFFF9500)
  * Smart 100% on-device clipboard manager panel.
  *
  * Features (ROADMAP.md Phase 6):
+ *   ✅ Dynamic KeyboardTheme synchronization (respects active color scheme)
  *   ✅ Clip history list with timestamp labels
  *   ✅ Pinning/unpinning clips to prevent auto-clearing
  *   ✅ Sensitive content identification (OTP / Card badge)
  *   ✅ Tap to paste instantly into active InputConnection
  *   ✅ Individual clip deletion and bulk clear
+ *   ✅ Prominent ABC button returning to keyboard
  */
 @Composable
 fun ClipboardSheetView(
     clipboardStore: LekhaniClipboardStore,
     onPaste: (String) -> Unit,
     onClose: () -> Unit,
+    theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     modifier: Modifier = Modifier,
 ) {
     val clips by clipboardStore.clips.collectAsState()
+
+    val clipboardBg = Color(theme.backgroundColor)
+    val headerBg = Color(theme.keyShiftColor)
+    val cardBg = Color(theme.keyNormalColor)
+    val cardPinnedBg = Color(theme.accentColor).copy(alpha = 0.15f)
+    val borderColor = Color(theme.keyBorderColor)
+    val primaryAccent = Color(theme.accentColor)
+    val textPrimary = Color(theme.labelColor)
+    val textSecondary = Color(theme.labelDimColor)
+    val sensitiveBadge = Color(0xFFFF9500)
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .height(260.dp)
-            .background(ClipboardBg)
+            .background(clipboardBg)
             .semantics { contentDescription = "ক্লিপবোর্ড প্যানেল" },
     ) {
         // ── Top Header Bar ───────────────────────────────────────────────────
@@ -76,17 +88,24 @@ fun ClipboardSheetView(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(44.dp)
-                .background(Color(0xFF161B22))
+                .background(headerBg)
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Assignment,
+                    contentDescription = null,
+                    tint = primaryAccent,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "ক্লিপবোর্ড 📋",
+                    text = "ক্লিপবোর্ড",
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    color = textPrimary,
                 )
             }
 
@@ -95,24 +114,24 @@ fun ClipboardSheetView(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF21262D))
+                            .background(cardBg)
                             .clickable { clipboardStore.clearUnpinned() }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                             .semantics { contentDescription = "পিন ছাড়া সব মুছুন" },
                     ) {
-                        Text("মুছুন", fontSize = 12.sp, color = TextSecondary)
+                        Text("মুছুন", fontSize = 12.sp, color = textSecondary)
                     }
                 }
 
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(PrimaryTeal)
+                        .background(cardBg)
                         .clickable { onClose() }
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
                         .semantics { contentDescription = "কিবোর্ডে ফিরে যান" },
                 ) {
-                    Text("কিবোর্ড ⌨️", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.SemiBold)
+                    Text("⌨ ABC", fontSize = 13.sp, color = textPrimary, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -128,7 +147,7 @@ fun ClipboardSheetView(
                 Text(
                     text = "ক্লিপবোর্ডে কোনো লেখা সংরক্ষিত নেই।\nযেকোনো লেখা কপি করলে তা এখানে দেখা যাবে।",
                     fontSize = 13.sp,
-                    color = TextSecondary,
+                    color = textSecondary,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
@@ -144,6 +163,12 @@ fun ClipboardSheetView(
                         onPaste = { onPaste(clip.text) },
                         onTogglePin = { clipboardStore.togglePin(clip.id) },
                         onDelete = { clipboardStore.deleteClip(clip.id) },
+                        cardBg = cardBg,
+                        cardPinnedBg = cardPinnedBg,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary,
+                        accentColor = primaryAccent,
+                        sensitiveBadge = sensitiveBadge,
                     )
                 }
             }
@@ -157,12 +182,18 @@ private fun ClipCard(
     onPaste: () -> Unit,
     onTogglePin: () -> Unit,
     onDelete: () -> Unit,
+    cardBg: Color,
+    cardPinnedBg: Color,
+    textPrimary: Color,
+    textSecondary: Color,
+    accentColor: Color,
+    sensitiveBadge: Color,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(if (clip.isPinned) CardPinnedBg else CardBg)
+            .background(if (clip.isPinned) cardPinnedBg else cardBg)
             .clickable { onPaste() }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -173,10 +204,10 @@ private fun ClipCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(SensitiveBadge.copy(alpha = 0.2f))
+                        .background(sensitiveBadge.copy(alpha = 0.2f))
                         .padding(horizontal = 6.dp, vertical = 1.dp),
                 ) {
-                    Text("🔒 সংবেদনশীল / OTP", fontSize = 9.sp, color = SensitiveBadge, fontWeight = FontWeight.Medium)
+                    Text("সংবেদনশীল / OTP", fontSize = 9.sp, color = sensitiveBadge, fontWeight = FontWeight.Medium)
                 }
                 Spacer(Modifier.height(2.dp))
             }
@@ -184,7 +215,7 @@ private fun ClipCard(
             Text(
                 text = clip.text,
                 fontSize = 14.sp,
-                color = TextPrimary,
+                color = textPrimary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -201,13 +232,15 @@ private fun ClipCard(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF21262D))
+                    .background(cardBg)
                     .clickable { onTogglePin() },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = if (clip.isPinned) "📌" else "📍",
-                    fontSize = 13.sp,
+                Icon(
+                    imageVector = Icons.Filled.PushPin,
+                    contentDescription = if (clip.isPinned) "Unpin" else "Pin",
+                    tint = if (clip.isPinned) accentColor else textSecondary,
+                    modifier = Modifier.size(16.dp)
                 )
             }
 
@@ -216,11 +249,16 @@ private fun ClipCard(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF21262D))
+                    .background(cardBg)
                     .clickable { onDelete() },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = "✕", fontSize = 12.sp, color = TextSecondary)
+                Icon(
+                    imageVector = Icons.Filled.DeleteOutline,
+                    contentDescription = "Delete",
+                    tint = textSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
