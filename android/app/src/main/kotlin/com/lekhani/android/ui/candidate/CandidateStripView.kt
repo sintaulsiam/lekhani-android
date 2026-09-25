@@ -12,6 +12,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +51,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lekhani.android.data.settings.KeyboardPreferences
+import com.lekhani.android.theme.KeyboardTheme
+import com.lekhani.android.theme.ThemeRegistry
 import kotlinx.coroutines.flow.StateFlow
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -78,56 +82,97 @@ private val ItemSpacing       = 8.dp
  * ══════════════════════════════════════════════════════════════════════════════
  * The horizontal candidate suggestion strip rendered above the keyboard canvas.
  *
- * Features (FEATURES.md §2 & ROADMAP.md Phase 4):
+ * Features (FEATURES.md §2, ROADMAP.md Phase 4 & Phase 10):
  *   ✅ Fluid slide-in / slide-out animation (spring physics)
- *   ✅ Centre-pinned primary candidate with glowing teal pill
+ *   ✅ Centre-pinned primary candidate with glowing theme-accent pill
  *   ✅ Homophone disambiguation badge (*পড়া* vs *পরা*)
  *   ✅ Long-press to blacklist a candidate
+ *   ✅ Customizable Quick Toolbar when idle (Emoji, Voice, Clipboard, Theme, Settings)
  *   ✅ TalkBack accessibility (WCAG 2.1 — contentDescription on each pill)
  *
  * @param stateFlow         Hot [StateFlow] of [CandidateStripState] from the IME service
  * @param onCandidateClick  Called when the user taps a candidate
  * @param onBlacklist       Called when the user long-presses a candidate
+ * @param theme             Active [KeyboardTheme]
+ * @param activeTools       List of enabled [KeyboardPreferences.ToolbarTool]
+ * @param onToolClick       Callback when a quick tool icon is tapped
  */
 @Composable
 fun CandidateStripView(
     stateFlow: StateFlow<CandidateStripState>,
     onCandidateClick: (String) -> Unit,
     onBlacklist: (String) -> Unit,
+    theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
+    activeTools: List<KeyboardPreferences.ToolbarTool> = KeyboardPreferences.DEFAULT_TOOL_LIST,
+    onToolClick: ((KeyboardPreferences.ToolbarTool) -> Unit)? = null,
 ) {
     val state by stateFlow.collectAsState()
     val hasItems = state is CandidateStripState.Candidates
 
-    AnimatedVisibility(
-        visible = hasItems,
-        enter = slideInVertically(
-            initialOffsetY = { -it },
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMedium,
-            )
-        ) + fadeIn(animationSpec = tween(120)),
-        exit = slideOutVertically(
-            targetOffsetY = { -it },
-            animationSpec = tween(100),
-        ) + fadeOut(animationSpec = tween(80)),
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(StripHeight)
+            .background(Color(theme.backgroundColor)),
     ) {
-        val items = (state as? CandidateStripState.Candidates)?.items ?: return@AnimatedVisibility
-        StripContent(
-            items = items,
-            onCandidateClick = onCandidateClick,
-            onBlacklist = onBlacklist,
-        )
+        if (hasItems) {
+            val items = (state as? CandidateStripState.Candidates)?.items ?: emptyList()
+            StripContent(
+                items = items,
+                onCandidateClick = onCandidateClick,
+                onBlacklist = onBlacklist,
+                theme = theme,
+            )
+        } else {
+            ToolbarContent(
+                tools = activeTools,
+                onToolClick = onToolClick,
+                theme = theme,
+            )
+        }
     }
 }
 
 // ── Internal composables ─────────────────────────────────────────────────────
 
 @Composable
+private fun ToolbarContent(
+    tools: List<KeyboardPreferences.ToolbarTool>,
+    onToolClick: ((KeyboardPreferences.ToolbarTool) -> Unit)?,
+    theme: KeyboardTheme,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(StripHeight)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceAround,
+    ) {
+        for (tool in tools) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onToolClick?.invoke(tool) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = tool.iconRes,
+                    fontSize = 20.sp,
+                    modifier = Modifier.semantics { contentDescription = tool.titleBengali }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun StripContent(
     items: List<CandidateItem>,
     onCandidateClick: (String) -> Unit,
     onBlacklist: (String) -> Unit,
+    theme: KeyboardTheme,
 ) {
     val scrollState = rememberScrollState()
 
@@ -135,7 +180,7 @@ private fun StripContent(
         modifier = Modifier
             .fillMaxWidth()
             .height(StripHeight)
-            .background(StripBackground),
+            .background(Color(theme.backgroundColor)),
     ) {
         Row(
             modifier = Modifier
@@ -152,13 +197,14 @@ private fun StripContent(
                         modifier = Modifier
                             .width(1.dp)
                             .height(22.dp)
-                            .background(DividerColor)
+                            .background(Color(theme.keySpaceColor))
                     )
                 }
                 CandidatePill(
                     item = item,
                     onClick = { onCandidateClick(item.text) },
                     onLongClick = { onBlacklist(item.text) },
+                    theme = theme,
                 )
             }
         }
@@ -171,7 +217,7 @@ private fun StripContent(
                 .height(StripHeight)
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(Color.Transparent, StripBackground)
+                        colors = listOf(Color.Transparent, Color(theme.backgroundColor))
                     )
                 )
         )
@@ -184,6 +230,7 @@ private fun CandidatePill(
     item: CandidateItem,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    theme: KeyboardTheme,
 ) {
     var isFlashingBlacklist by remember { mutableStateOf(false) }
     val pillAlpha by animateFloatAsState(
@@ -199,13 +246,17 @@ private fun CandidatePill(
         append(", long-press to remove from suggestions")
     }
 
+    val primaryBg = Color(theme.accentColor)
+    val primaryText = if (theme.isDark) Color(0xFF000000) else Color(0xFFFFFFFF)
+    val normalText = Color(theme.labelColor)
+
     Box(
         modifier = Modifier
             .alpha(pillAlpha)
             .wrapContentSize()
             .clip(RoundedCornerShape(CornerRadius))
             .then(
-                if (item.isPrimary) Modifier.background(PrimaryPillBg)
+                if (item.isPrimary) Modifier.background(primaryBg)
                 else Modifier
             )
             .combinedClickable(
@@ -226,7 +277,7 @@ private fun CandidatePill(
                 text = item.text,
                 fontSize = if (item.isPrimary) 17.sp else 15.sp,
                 fontWeight = if (item.isPrimary) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (item.isPrimary) PrimaryPillText else SecondaryText,
+                color = if (item.isPrimary) primaryText else normalText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -278,5 +329,6 @@ private fun CandidateStripPreview() {
         items = items,
         onCandidateClick = {},
         onBlacklist = {},
+        theme = ThemeRegistry.THEME_FLOW_TEAL,
     )
 }

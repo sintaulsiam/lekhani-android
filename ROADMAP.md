@@ -131,21 +131,22 @@
 ---
 
 ## Phase 10: Deep Customization & Theme Studio v2
-- [ ] **Ergonomics & Sizing**:
+- [x] **Ergonomics & Sizing**:
   - Independent sliders for keyboard height, key margins, row spacing, and bottom chin padding.
   - Long-press delay slider (100 ms – 700 ms).
   - Key border and elevation drop-shadow toggles.
   - Bengali font selection (Kalpurush, SolaimanLipi, System default) and font size multiplier.
-- [ ] **Haptics & Sound Profiles**:
+- [x] **Haptics & Sound Profiles**:
   - Granular vibration duration and amplitude curve via Android `VibratorManager`.
   - Sound packs (Classic Keypress, Modern Bubble, Mechanical Click, Typewriter, Soft Woodblock, Mute).
-- [ ] **Customizable Toolbar**:
+- [x] **Customizable Toolbar**:
   - Drag-and-drop to reorder/toggle quick tools (Emoji, Local Mic, Clipboard, Themes, One-Handed, Settings).
-- [ ] **Theme Studio**:
+- [x] **Theme Studio**:
   - Material You Dynamic Color extraction from wallpaper.
   - Deep OLED Pure Black mode.
   - Classic Avro Blue and Cyber Indigo presets.
   - Custom background image and gradient wallpaper support with adjustable opacity and blur.
+
 
 ---
 

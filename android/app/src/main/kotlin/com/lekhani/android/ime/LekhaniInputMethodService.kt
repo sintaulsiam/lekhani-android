@@ -1,6 +1,7 @@
 package com.lekhani.android.ime
 
 import android.content.Context
+import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.text.InputType
@@ -26,12 +27,16 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.lekhani.android.canvas.KeyboardCanvasView
 import com.lekhani.android.data.clipboard.LekhaniClipboardStore
 import com.lekhani.android.data.emoji.EmojiRecentsManager
+import com.lekhani.android.data.settings.KeyboardPreferences
+import com.lekhani.android.feedback.LekhaniFeedbackManager
 import com.lekhani.android.ffi.AndroidLekhaniSession
 import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.ffi.LekhaniException
 import com.lekhani.android.model.Key
 import com.lekhani.android.model.KeyAction
 import com.lekhani.android.model.LayoutRegistry
+import com.lekhani.android.theme.ThemeRegistry
+import com.lekhani.android.ui.LekhaniSettingsActivity
 import com.lekhani.android.ui.candidate.CandidateBlacklist
 import com.lekhani.android.ui.candidate.CandidateStripState
 import com.lekhani.android.ui.candidate.CandidateStripView
@@ -40,6 +45,7 @@ import com.lekhani.android.ui.clipboard.ClipboardSheetView
 import com.lekhani.android.ui.emoji.EmojiPickerView
 import com.lekhani.android.ui.voice.VoiceWaveformOverlay
 import com.lekhani.android.voice.AudioStreamingManager
+import com.lekhani.android.voice.VoiceTypingState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -155,6 +161,14 @@ class LekhaniInputMethodService : InputMethodService() {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
+    private val keyboardPrefs by lazy {
+        KeyboardPreferences.get(this)
+    }
+
+    private val feedbackManager by lazy {
+        LekhaniFeedbackManager(this)
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     // Lifecycle
     // ══════════════════════════════════════════════════════════════════════════
@@ -189,6 +203,7 @@ class LekhaniInputMethodService : InputMethodService() {
     override fun onDestroy() {
         imeLifecycleOwner.onDestroy()
         audioManager.cancelStreaming()
+        feedbackManager.release()
         keyboardView = null
         serviceScope.cancel()
         super.onDestroy()
@@ -219,6 +234,8 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onStartInputView(info, restarting)
         // Re-apply policy in case the editor info changed after the view appeared
         applyInputTypePolicy(info)
+        keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
+        setCandidatesViewShown(!isCurrentFieldPrivate)
     }
 
     override fun onUpdateSelection(
@@ -263,6 +280,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val canvasView = KeyboardCanvasView(this).also { v ->
             val curLayout = session.getLayout()
             v.setLayout(LayoutRegistry.get(curLayout), curLayout, shifted = false)
+            v.applyPreferences(keyboardPrefs, feedbackManager)
             v.keyListener = object : KeyboardCanvasView.KeyListener {
                 override fun onKey(key: Key, action: KeyAction) {
                     handleKeyAction(key, action)
@@ -323,6 +341,9 @@ class LekhaniInputMethodService : InputMethodService() {
                                     CandidateStripState.Candidates(filtered)
                             }
                         },
+                        theme = ThemeRegistry.resolveTheme(this@LekhaniInputMethodService, keyboardPrefs.themeId),
+                        activeTools = keyboardPrefs.getActiveToolbarTools(),
+                        onToolClick = { tool -> handleToolbarToolClick(tool) },
                     )
 
                     VoiceWaveformOverlay(
@@ -756,7 +777,7 @@ class LekhaniInputMethodService : InputMethodService() {
         } else {
             CandidateStripState.Candidates(HomophoneAnnotator.annotate(filtered))
         }
-        setCandidatesViewShown(filtered.isNotEmpty())
+        setCandidatesViewShown(!isCurrentFieldPrivate)
     }
 
     /**
@@ -764,7 +785,59 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     private fun clearCandidates() {
         _candidateState.value = CandidateStripState.Empty
-        setCandidatesViewShown(false)
+        setCandidatesViewShown(!isCurrentFieldPrivate)
+    }
+
+    private fun handleToolbarToolClick(tool: KeyboardPreferences.ToolbarTool) {
+        when (tool) {
+            KeyboardPreferences.ToolbarTool.EMOJI -> {
+                setInputViewMode(InputViewMode.EMOJI)
+            }
+            KeyboardPreferences.ToolbarTool.VOICE -> {
+                if (audioManager.voiceState.value is VoiceTypingState.Listening) {
+                    val result = audioManager.stopStreaming()
+                    if (result.isNotBlank()) {
+                        currentInputConnection?.finishComposingText()
+                        currentInputConnection?.commitText(result, 1)
+                    }
+                } else {
+                    audioManager.startStreaming { finalResult ->
+                        if (finalResult.isNotBlank()) {
+                            currentInputConnection?.finishComposingText()
+                            currentInputConnection?.commitText(finalResult, 1)
+                        }
+                    }
+                }
+            }
+            KeyboardPreferences.ToolbarTool.CLIPBOARD -> {
+                setInputViewMode(InputViewMode.CLIPBOARD)
+            }
+            KeyboardPreferences.ToolbarTool.THEME -> {
+                cycleTheme()
+            }
+            KeyboardPreferences.ToolbarTool.SETTINGS -> {
+                val intent = Intent(this, LekhaniSettingsActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+            }
+        }
+    }
+
+    private fun cycleTheme() {
+        val themeIds = listOf(
+            ThemeRegistry.ID_FLOW_TEAL,
+            ThemeRegistry.ID_OLED_BLACK,
+            ThemeRegistry.ID_AVRO_BLUE,
+            ThemeRegistry.ID_CYBER_INDIGO,
+            ThemeRegistry.ID_DAYLIGHT_LIGHT,
+        )
+        val curId = keyboardPrefs.themeId
+        val idx = themeIds.indexOf(curId)
+        val nextId = if (idx == -1 || idx == themeIds.lastIndex) themeIds.first() else themeIds[idx + 1]
+        keyboardPrefs.themeId = nextId
+        val nextTheme = ThemeRegistry.resolveTheme(this, nextId)
+        keyboardView?.applyTheme(nextTheme)
     }
 
     /**

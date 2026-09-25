@@ -1,0 +1,171 @@
+package com.lekhani.android.data.settings
+
+import android.content.Context
+import android.content.SharedPreferences
+import com.lekhani.android.theme.ThemeRegistry
+
+/**
+ * KeyboardPreferences
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Centralized, Device Protected Storage backed preferences for Lekhani.
+ *
+ * All settings are direct-boot safe (AGENTS.md §3.1) and cached in memory
+ * for zero-allocation access inside the rendering and typing loops.
+ */
+class KeyboardPreferences private constructor(context: Context) {
+
+    private val prefs: SharedPreferences = run {
+        val safeContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            context.createDeviceProtectedStorageContext()
+        } else {
+            context
+        }
+        safeContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    // ── Theme Settings ────────────────────────────────────────────────────────
+    var themeId: String
+        get() = prefs.getString(KEY_THEME_ID, ThemeRegistry.ID_FLOW_TEAL) ?: ThemeRegistry.ID_FLOW_TEAL
+        set(value) = prefs.edit().putString(KEY_THEME_ID, value).apply()
+
+    var customWallpaperUri: String
+        get() = prefs.getString(KEY_CUSTOM_WALLPAPER_URI, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_CUSTOM_WALLPAPER_URI, value).apply()
+
+    var wallpaperOpacity: Float
+        get() = prefs.getFloat(KEY_WALLPAPER_OPACITY, 0.25f)
+        set(value) = prefs.edit().putFloat(KEY_WALLPAPER_OPACITY, value).apply()
+
+    // ── Ergonomics & Sizing Settings ──────────────────────────────────────────
+    var heightScale: Float
+        get() = prefs.getFloat(KEY_HEIGHT_SCALE, 1.0f)
+        set(value) = prefs.edit().putFloat(KEY_HEIGHT_SCALE, value).apply()
+
+    var keyMarginH: Float
+        get() = prefs.getFloat(KEY_MARGIN_H, 3.5f)
+        set(value) = prefs.edit().putFloat(KEY_MARGIN_H, value).apply()
+
+    var keyMarginV: Float
+        get() = prefs.getFloat(KEY_MARGIN_V, 4.0f)
+        set(value) = prefs.edit().putFloat(KEY_MARGIN_V, value).apply()
+
+    var bottomChinPadding: Float
+        get() = prefs.getFloat(KEY_BOTTOM_CHIN, 0f)
+        set(value) = prefs.edit().putFloat(KEY_BOTTOM_CHIN, value).apply()
+
+    var longPressDelayMs: Long
+        get() = prefs.getLong(KEY_LONG_PRESS_DELAY, 300L)
+        set(value) = prefs.edit().putLong(KEY_LONG_PRESS_DELAY, value).apply()
+
+    var showKeyBorders: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_KEY_BORDERS, true)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_KEY_BORDERS, value).apply()
+
+    var fontStyle: String
+        get() = prefs.getString(KEY_FONT_STYLE, FONT_SYSTEM) ?: FONT_SYSTEM
+        set(value) = prefs.edit().putString(KEY_FONT_STYLE, value).apply()
+
+    var fontScale: Float
+        get() = prefs.getFloat(KEY_FONT_SCALE, 1.0f)
+        set(value) = prefs.edit().putFloat(KEY_FONT_SCALE, value).apply()
+
+    // ── Haptics & Sound Settings ──────────────────────────────────────────────
+    var hapticEnabled: Boolean
+        get() = prefs.getBoolean(KEY_HAPTIC_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_HAPTIC_ENABLED, value).apply()
+
+    var hapticDurationMs: Int
+        get() = prefs.getInt(KEY_HAPTIC_DURATION_MS, 20)
+        set(value) = prefs.edit().putInt(KEY_HAPTIC_DURATION_MS, value).apply()
+
+    var soundEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SOUND_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_SOUND_ENABLED, value).apply()
+
+    var soundPack: String
+        get() = prefs.getString(KEY_SOUND_PACK, SOUND_SYSTEM) ?: SOUND_SYSTEM
+        set(value) = prefs.edit().putString(KEY_SOUND_PACK, value).apply()
+
+    var soundVolume: Float
+        get() = prefs.getFloat(KEY_SOUND_VOLUME, 0.5f)
+        set(value) = prefs.edit().putFloat(KEY_SOUND_VOLUME, value).apply()
+
+    // ── Toolbar Settings ──────────────────────────────────────────────────────
+    var toolbarTools: String
+        get() = prefs.getString(KEY_TOOLBAR_TOOLS, DEFAULT_TOOLBAR) ?: DEFAULT_TOOLBAR
+        set(value) = prefs.edit().putString(KEY_TOOLBAR_TOOLS, value).apply()
+
+    fun getActiveToolbarTools(): List<ToolbarTool> {
+        val raw = toolbarTools
+        return raw.split(",")
+            .mapNotNull { name -> runCatching { ToolbarTool.valueOf(name.trim()) }.getOrNull() }
+            .ifEmpty { DEFAULT_TOOL_LIST }
+    }
+
+    fun setToolbarToolsList(tools: List<ToolbarTool>) {
+        toolbarTools = tools.joinToString(",") { it.name }
+    }
+
+    enum class ToolbarTool(val titleBengali: String, val iconRes: String) {
+        EMOJI("ইমোজি", "😊"),
+        VOICE("ভয়েস", "🎙️"),
+        CLIPBOARD("ক্লিপবোর্ড", "📋"),
+        THEME("থিম", "🎨"),
+        SETTINGS("সেটিংস", "⚙️"),
+    }
+
+    companion object {
+        const val PREFS_NAME = "lekhani_device_prefs"
+
+        const val KEY_THEME_ID = "theme_id"
+        const val KEY_CUSTOM_WALLPAPER_URI = "custom_wallpaper_uri"
+        const val KEY_WALLPAPER_OPACITY = "custom_wallpaper_opacity"
+
+        const val KEY_HEIGHT_SCALE = "keyboard_height_scale"
+        const val KEY_MARGIN_H = "key_margin_h"
+        const val KEY_MARGIN_V = "key_margin_v"
+        const val KEY_BOTTOM_CHIN = "bottom_chin_padding"
+        const val KEY_LONG_PRESS_DELAY = "long_press_delay_ms"
+        const val KEY_SHOW_KEY_BORDERS = "show_key_borders"
+        const val KEY_FONT_STYLE = "font_style"
+        const val KEY_FONT_SCALE = "font_scale"
+
+        const val KEY_HAPTIC_ENABLED = "haptic_enabled"
+        const val KEY_HAPTIC_DURATION_MS = "haptic_duration_ms"
+        const val KEY_SOUND_ENABLED = "sound_enabled"
+        const val KEY_SOUND_PACK = "sound_pack"
+        const val KEY_SOUND_VOLUME = "sound_volume"
+
+        const val KEY_TOOLBAR_TOOLS = "toolbar_tools"
+
+        const val FONT_SYSTEM = "SYSTEM_DEFAULT"
+        const val FONT_SERIF = "SERIF"
+        const val FONT_SANS_SERIF = "SANS_SERIF"
+        const val FONT_MONOSPACE = "MONOSPACE"
+
+        const val SOUND_SYSTEM = "SYSTEM"
+        const val SOUND_BUBBLE = "BUBBLE"
+        const val SOUND_MECHANICAL = "MECHANICAL"
+        const val SOUND_TYPEWRITER = "TYPEWRITER"
+        const val SOUND_WOODBLOCK = "WOODBLOCK"
+
+        val DEFAULT_TOOL_LIST = listOf(
+            ToolbarTool.EMOJI,
+            ToolbarTool.VOICE,
+            ToolbarTool.CLIPBOARD,
+            ToolbarTool.THEME,
+            ToolbarTool.SETTINGS,
+        )
+
+        val DEFAULT_TOOLBAR = DEFAULT_TOOL_LIST.joinToString(",") { it.name }
+
+        @Volatile
+        private var instance: KeyboardPreferences? = null
+
+        fun get(context: Context): KeyboardPreferences {
+            return instance ?: synchronized(this) {
+                instance ?: KeyboardPreferences(context.applicationContext).also { instance = it }
+            }
+        }
+    }
+}

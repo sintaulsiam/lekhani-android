@@ -1,11 +1,15 @@
 package com.lekhani.android.canvas
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
@@ -13,9 +17,13 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import androidx.core.content.res.ResourcesCompat
+import com.lekhani.android.data.settings.KeyboardPreferences
+import com.lekhani.android.feedback.LekhaniFeedbackManager
 import com.lekhani.android.model.Key
 import com.lekhani.android.model.KeyAction
 import com.lekhani.android.model.KeyboardLayout
+import com.lekhani.android.theme.KeyboardTheme
+import com.lekhani.android.theme.ThemeRegistry
 
 /**
  * KeyboardCanvasView
@@ -55,6 +63,27 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     var keyListener: KeyListener? = null
+
+    // ── Theme & Ergonomics state ──────────────────────────────────────────────
+
+    var activeTheme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL
+        private set
+
+    var feedbackManager: LekhaniFeedbackManager? = null
+
+    var heightScale: Float = 1.0f
+    var marginHDp: Float = 3.5f
+    var marginVDp: Float = 4.0f
+    var bottomChinPaddingDp: Float = 0f
+    var fontScale: Float = 1.0f
+    var showKeyBorders: Boolean = true
+    var longPressDelayMs: Long = 300L
+
+    private var wallpaperBitmap: Bitmap? = null
+    private var wallpaperOpacity: Float = 0.25f
+    private val wallpaperPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val wallpaperSrcRect = Rect()
+    private val wallpaperDstRect = RectF()
 
     // ── Layout state ──────────────────────────────────────────────────────────
 
@@ -221,8 +250,83 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // Layout management
+    // Layout & Theme Management
     // ══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Applies full configuration and theme from [KeyboardPreferences].
+     * Zero-allocation in draw/touch hot paths.
+     */
+    fun applyPreferences(prefs: KeyboardPreferences, feedbackMgr: LekhaniFeedbackManager? = null) {
+        this.feedbackManager = feedbackMgr
+        this.longPressDelayMs = prefs.longPressDelayMs
+        this.showKeyBorders = prefs.showKeyBorders
+        this.heightScale = prefs.heightScale
+        this.marginHDp = prefs.keyMarginH
+        this.marginVDp = prefs.keyMarginV
+        this.bottomChinPaddingDp = prefs.bottomChinPadding
+        this.fontScale = prefs.fontScale
+
+        val tf = when (prefs.fontStyle) {
+            KeyboardPreferences.FONT_SERIF -> Typeface.SERIF
+            KeyboardPreferences.FONT_SANS_SERIF -> Typeface.SANS_SERIF
+            KeyboardPreferences.FONT_MONOSPACE -> Typeface.MONOSPACE
+            else -> Typeface.DEFAULT
+        }
+        labelPaint.typeface = tf
+        labelPaintSmall.typeface = tf
+
+        val theme = ThemeRegistry.resolveTheme(context, prefs.themeId)
+        applyTheme(theme)
+
+        loadWallpaper(prefs.customWallpaperUri, prefs.wallpaperOpacity)
+
+        if (width > 0 && height > 0) {
+            computeKeyBounds()
+            invalidate()
+        }
+        requestLayout()
+    }
+
+    /**
+     * Applies a [KeyboardTheme] to all pre-allocated Paint objects.
+     */
+    fun applyTheme(theme: KeyboardTheme) {
+        activeTheme = theme
+        keyBgPaint.color = theme.keyNormalColor
+        keyShiftBgPaint.color = theme.keyShiftColor
+        keySpaceBgPaint.color = theme.keySpaceColor
+        keyHasantaBgPaint.color = theme.keyHasantaColor
+        keyBorderPaint.color = theme.keyBorderColor
+        labelPaint.color = theme.labelColor
+        labelPaintSmall.color = theme.labelDimColor
+        homeRowAccentPaint.color = theme.accentColor
+        ripplePaint.color = theme.rippleColor
+        glideStrokePaint.color = theme.glideStrokeColor
+        glideGlowPaint.color = theme.glideGlowColor
+        zoneDividerPaint.color = theme.keySpaceColor
+        invalidate()
+    }
+
+    /**
+     * Loads a background wallpaper image with memory-safe downsampling.
+     */
+    fun loadWallpaper(uriString: String, opacity: Float) {
+        wallpaperOpacity = opacity.coerceIn(0f, 1f)
+        if (uriString.isBlank()) {
+            wallpaperBitmap = null
+            return
+        }
+        try {
+            val uri = Uri.parse(uriString)
+            val stream = context.contentResolver.openInputStream(uri)
+            val opts = BitmapFactory.Options().apply { inSampleSize = 2 }
+            wallpaperBitmap = BitmapFactory.decodeStream(stream, null, opts)
+            stream?.close()
+        } catch (_: Exception) {
+            wallpaperBitmap = null
+        }
+    }
 
     /**
      * Set the active keyboard layout.
@@ -264,7 +368,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val density = resources.displayMetrics.density
         val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val defaultHeightDp = if (isLandscape) 180f else 260f
+        val defaultHeightDp = (if (isLandscape) 180f else 260f) * heightScale + bottomChinPaddingDp
         val desiredHeight = (defaultHeightDp * density).toInt()
 
         val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
@@ -280,8 +384,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         // ── Dimension derivations ──────────────────────────────────────────
         val density = resources.displayMetrics.density
-        keyMarginH = 3.5f * density
-        keyMarginV = 4f * density
+        keyMarginH = marginHDp * density
+        keyMarginV = marginVDp * density
         keyCornerRadius = 9f * density
         homeRowAccentHeight = 2.5f * density
         swipeThresholdPx = 40f * density
@@ -293,10 +397,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         val currentLayout = layout ?: return
         val rowCount = currentLayout.rows.size       // typically 3
-        spacebarRowHeight = h * 0.22f                // spacebar row ~22% of height
-        keyHeight = (h - spacebarRowHeight - keyMarginV * (rowCount + 1)) / rowCount
-        labelSize = keyHeight * 0.38f
-        labelSizeSmall = keyHeight * 0.20f
+        val chinPx = bottomChinPaddingDp * density
+        val availableH = (h - chinPx).coerceAtLeast(100f)
+        spacebarRowHeight = availableH * 0.22f                // spacebar row ~22% of height
+        keyHeight = (availableH - spacebarRowHeight - keyMarginV * (rowCount + 1)) / rowCount
+        labelSize = keyHeight * 0.38f * fontScale
+        labelSizeSmall = keyHeight * 0.20f * fontScale
 
         labelPaint.textSize = labelSize
         labelPaintSmall.textSize = labelSizeSmall
@@ -347,7 +453,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val spaceRow = currentLayout.spacebarRow
         val totalWeight = spaceRow.sumOf { it.widthWeight.toDouble() }.toFloat()
         val unitWidth = (w - keyMarginH * (spaceRow.size + 1)) / totalWeight
-        val spaceRowTop = height - spacebarRowHeight - keyMarginV
+        val chinPx = bottomChinPaddingDp * resources.displayMetrics.density
+        val availableH = (height - chinPx).coerceAtLeast(100f)
+        val spaceRowTop = availableH - spacebarRowHeight - keyMarginV
         val spaceKeyHeight = spacebarRowHeight - keyMarginV
 
         var keyLeft = keyMarginH
@@ -370,6 +478,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (resolvedKeys.isEmpty()) return
+
+        // ── Keyboard Canvas Background ─────────────────────────────────────
+        canvas.drawColor(activeTheme.backgroundColor)
+        wallpaperBitmap?.let { bmp ->
+            if (!bmp.isRecycled) {
+                wallpaperSrcRect.set(0, 0, bmp.width, bmp.height)
+                wallpaperDstRect.set(0f, 0f, width.toFloat(), height.toFloat())
+                wallpaperPaint.alpha = (wallpaperOpacity * 255).toInt().coerceIn(0, 255)
+                canvas.drawBitmap(bmp, wallpaperSrcRect, wallpaperDstRect, wallpaperPaint)
+            }
+        }
 
         val now = SystemClock.uptimeMillis()
 
@@ -399,7 +518,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
             canvas.drawRoundRect(bounds, keyCornerRadius, keyCornerRadius, bgPaint)
 
             // Draw key border
-            canvas.drawRoundRect(bounds, keyCornerRadius, keyCornerRadius, keyBorderPaint)
+            if (showKeyBorders) {
+                canvas.drawRoundRect(bounds, keyCornerRadius, keyCornerRadius, keyBorderPaint)
+            }
 
             // Home row accent underline
             if (key.isHomeRow) {
@@ -504,7 +625,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     pressStartTime = SystemClock.uptimeMillis()
                     isLongPressTriggered = false
                     isSpaceSwiping = false
-                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    if (feedbackManager != null) {
+                        feedbackManager?.onKeyFeedback(this)
+                    } else {
+                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    }
 
                     val key = resolvedKeys[idx].key
                     val action = key.activeAction(isShifted)
@@ -517,7 +642,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     } else if (key.action == KeyAction.Space) {
                         spaceTouchStartX = event.x
                         spaceTouchStartY = event.y
-                        postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout().toLong())
+                        postDelayed(longPressRunnable, longPressDelayMs)
                     }
                     invalidate()
                 }

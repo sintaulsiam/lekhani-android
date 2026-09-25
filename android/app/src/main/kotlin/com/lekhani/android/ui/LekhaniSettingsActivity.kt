@@ -27,9 +27,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
+import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.model.LayoutRegistry
+import com.lekhani.android.theme.ThemeRegistry
 import com.lekhani.android.ui.dictionary.DictionaryManagementSheet
+import com.lekhani.android.ui.theme.ErgonomicsSizingSheet
+import com.lekhani.android.ui.theme.HapticsSoundSheet
+import com.lekhani.android.ui.theme.ThemeStudioSheet
+import com.lekhani.android.ui.theme.ToolbarCustomizationSheet
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
@@ -98,6 +104,15 @@ fun LekhaniSettingsScreen(
     val dictManager = remember { LekhaniDictionaryManager() }
     var showDictionarySheet by remember { mutableStateOf(false) }
     var userWordCount by remember { mutableStateOf(dictManager.getUserWords().size) }
+
+    val keyboardPrefs = remember { KeyboardPreferences.get(context) }
+    var showThemeSheet by remember { mutableStateOf(false) }
+    var showErgonomicsSheet by remember { mutableStateOf(false) }
+    var showHapticsSheet by remember { mutableStateOf(false) }
+    var showToolbarSheet by remember { mutableStateOf(false) }
+    var currentThemeName by remember {
+        mutableStateOf(ThemeRegistry.resolveTheme(context, keyboardPrefs.themeId).nameBengali)
+    }
 
     LaunchedEffect(Unit) {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
@@ -356,6 +371,122 @@ fun LekhaniSettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // ── Theme Studio v2 Card ───────────────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "🎨 থিম ও কালার স্টুডিও (Theme Studio v2)",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "বর্তমান থিম: $currentThemeName • OLED Black, Avro Blue, Cyber Indigo ও ওয়ালপেপার",
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { showThemeSheet = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
+                ) {
+                    Text("🎨 থিম ও ব্যাকগ্রাউন্ড পরিবর্তন করুন", fontSize = 13.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ── Ergonomics & Sizing Card ──────────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "📐 কীবোর্ড সাইজ ও আরগোনোমিক্স (Ergonomics)",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "উচ্চতা: ${(keyboardPrefs.heightScale * 100).toInt()}% • লং-প্রেস: ${keyboardPrefs.longPressDelayMs}ms • ফন্ট ও প্যাডিং",
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { showErgonomicsSheet = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
+                ) {
+                    Text("📐 সাইজ, প্যাডিং ও ফন্ট কাস্টমাইজেশন", fontSize = 13.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ── Haptics & Sound Feedback Card ──────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "📳 হ্যাপটিক্স ও সাউন্ড ফিডব্যাক",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "ভাইব্রেশন: ${if (keyboardPrefs.hapticEnabled) "চালু (${keyboardPrefs.hapticDurationMs}ms)" else "বন্ধ"} • সাউন্ড: ${if (keyboardPrefs.soundEnabled) keyboardPrefs.soundPack else "বন্ধ"}",
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { showHapticsSheet = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
+                ) {
+                    Text("📳 ভাইব্রেশন ও সাউন্ড প্যাক টিউনিং", fontSize = 13.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // ── Toolbar Customization Card ────────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "🛠️ কুইক টুলবার কাস্টমাইজেশন",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                )
+                Text(
+                    text = "কীবোর্ড স্ট্রিপের শর্টকাট টুল সক্রিয় করুন এবং ড্র্যাগ করে সাজান (ইমোজি, ভয়েস, ক্লিপবোর্ড, থিম, সেটিংস)",
+                    style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { showToolbarSheet = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
+                ) {
+                    Text("🛠️ টুল সাজান ও নির্বাচন করুন", fontSize = 13.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // ── Live Test Typing Area ───────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -441,6 +572,60 @@ fun LekhaniSettingsScreen(
                     }
                 )
             }
+        }
+    }
+
+    if (showThemeSheet) {
+        Dialog(
+            onDismissRequest = {
+                showThemeSheet = false
+                currentThemeName = ThemeRegistry.resolveTheme(context, keyboardPrefs.themeId).nameBengali
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            ThemeStudioSheet(
+                prefs = keyboardPrefs,
+                onClose = {
+                    showThemeSheet = false
+                    currentThemeName = ThemeRegistry.resolveTheme(context, keyboardPrefs.themeId).nameBengali
+                }
+            )
+        }
+    }
+
+    if (showErgonomicsSheet) {
+        Dialog(
+            onDismissRequest = { showErgonomicsSheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            ErgonomicsSizingSheet(
+                prefs = keyboardPrefs,
+                onClose = { showErgonomicsSheet = false }
+            )
+        }
+    }
+
+    if (showHapticsSheet) {
+        Dialog(
+            onDismissRequest = { showHapticsSheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            HapticsSoundSheet(
+                prefs = keyboardPrefs,
+                onClose = { showHapticsSheet = false }
+            )
+        }
+    }
+
+    if (showToolbarSheet) {
+        Dialog(
+            onDismissRequest = { showToolbarSheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            ToolbarCustomizationSheet(
+                prefs = keyboardPrefs,
+                onClose = { showToolbarSheet = false }
+            )
         }
     }
 }
