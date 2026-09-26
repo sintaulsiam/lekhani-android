@@ -316,11 +316,12 @@ object GboardBengaliLayout {
         val roPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09B0" else "◌্র"
 
         return listOf(
-            Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ড়"), Ch("ঢ়", "ঢ়"),
+            Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ঢ়", hint = "ঢ়"),
             Ch("য়", "য়"), Ch("ৎ", "ৎ"),
             Key(label = jaPhalaLabel, action = KeyAction.Character("\u09CD\u09AF"), contentDesc = "Ya-phala"),
             Key(label = baPhalaLabel, action = KeyAction.Character("\u09CD\u09AC"), contentDesc = "Ba-phala"),
             Key(label = roPhalaLabel, action = KeyAction.Character("\u09CD\u09B0"), contentDesc = "Ra-phala"),
+            Ch("ং", "ঁ", hint = "ঁ", desc = "Anusvara, hint Chandrabindu"),
             Key(
                 label = "⌫", shiftedLabel = "⌫",
                 action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
@@ -352,13 +353,14 @@ object GboardBengaliLayout {
                 Ch("ম", "ম"), Ch("য", "য"), Ch("র", "র"), Ch("ল", "ল"),
                 Ch("শ", "শ"), Ch("ষ", "ষ"),
             ),
-            // Row 5 (10 keys: স হ ড় ঢ় য় ৎ ্য ্ব ্র ⌫)
+            // Row 5 (10 keys: স হ ড়/ঢ় য় ৎ ্ ং ঃ ঁ ⌫)
             listOf(
-                Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ড়"), Ch("ঢ়", "ঢ়"),
+                Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ঢ়", hint = "ঢ়"),
                 Ch("য়", "য়"), Ch("ৎ", "ৎ"),
-                Ch("্য", "্য", desc = "Ya-phala"),
-                Ch("্ব", "্ব", desc = "Ba-phala"),
-                Ch("্র", "্র", desc = "Ra-phala"),
+                Ch("্", "্", desc = "Hasanta conjunct key"),
+                Ch("ং", "ঁ", hint = "ঁ", desc = "Anusvara, hint Chandrabindu"),
+                Ch("ঃ", "ঃ", desc = "Visarga"),
+                Ch("ঁ", "ঁ", desc = "Chandrabindu"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,

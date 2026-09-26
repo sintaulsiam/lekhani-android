@@ -136,6 +136,18 @@ class ProbahLayoutTest {
     }
 
     @Test
+    fun `ri-kar is accessible on shifted oi and as hint on o`() {
+        val oiKey = layout.rows[0].find { it.label == "ৈ" }
+        assertNotNull("ৈ key should exist", oiKey)
+        assertEquals("ৃ", oiKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ৃ"), oiKey.shiftedAction)
+
+        val oKey = layout.rows[1].find { it.label == "অ" }
+        assertNotNull("অ key should exist", oKey)
+        assertEquals("ৃ", oKey!!.hintLabel)
+    }
+
+    @Test
     fun `all character keys have non-empty labels`() {
         (layout.rows.flatten() + layout.spacebarRow).forEach { key ->
             assertTrue("Key label must not be blank: ${key.label}", key.label.isNotBlank())

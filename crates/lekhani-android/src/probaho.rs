@@ -41,6 +41,7 @@ pub fn promote_kar_if_needed(kar: &str, is_word_start: bool) -> String {
         "ী" => "ঈ".to_string(),
         "ু" => "উ".to_string(),
         "ূ" => "ঊ".to_string(),
+        "ৃ" => "ঋ".to_string(),
         "ে" => "এ".to_string(),
         "ৈ" => "ঐ".to_string(),
         "ো" => "ও".to_string(),
@@ -68,8 +69,10 @@ mod tests {
     fn test_kar_promotion() {
         assert_eq!(promote_kar_if_needed("া", true), "আ");
         assert_eq!(promote_kar_if_needed("ি", true), "ই");
+        assert_eq!(promote_kar_if_needed("ৃ", true), "ঋ");
         assert_eq!(promote_kar_if_needed("ে", true), "এ");
         assert_eq!(promote_kar_if_needed("া", false), "া");
+        assert_eq!(promote_kar_if_needed("ৃ", false), "ৃ");
     }
 
     #[test]

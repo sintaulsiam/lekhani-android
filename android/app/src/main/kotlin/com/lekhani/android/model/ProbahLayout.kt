@@ -25,7 +25,7 @@ object ProbahLayout {
                 Ch("ো", shifted = "ঐ", desc = "ো, shifted ঐ"),
                 Ch("ী", shifted = "ঊ", desc = "ী, shifted ঊ"),
                 Ch("ূ", shifted = "ঈ", desc = "ূ, shifted ঈ"),
-                Ch("ৈ", shifted = "ৠ", desc = "ৈ, shifted ৠ"),
+                Ch("ৈ", shifted = "ৃ", hint = "ৃ", desc = "ৈ, shifted ৃ"),
                 Ch("প", shifted = "ফ", desc = "প, shifted ফ"),
                 Ch("ব", shifted = "ভ", desc = "ব, shifted ভ"),
                 Ch("ম", shifted = "গ", desc = "ম, shifted গ"),  // গ on shift (see layout spec)
@@ -34,7 +34,7 @@ object ProbahLayout {
             ),
             // ── Row 2 (Home) — Base vowels | Golden 5 consonants ─────────────
             listOf(
-                Ch("অ", shifted = "ঋ", homeRow = true, desc = "অ, shifted ঋ"),
+                Ch("অ", shifted = "ঋ", hint = "ৃ", homeRow = true, desc = "অ, shifted ঋ, hint ৃ"),
                 Ch("া", shifted = "ঽ", homeRow = true, desc = "া, shifted ঽ"),
                 Ch("ি", shifted = "য়", homeRow = true, desc = "ি, shifted য়"),
                 Ch("ু", shifted = "ৎ", homeRow = true, desc = "ু, shifted ৎ"),
