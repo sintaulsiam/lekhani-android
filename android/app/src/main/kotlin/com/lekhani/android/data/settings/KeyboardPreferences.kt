@@ -61,6 +61,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SHOW_KEY_BORDERS, false)
         set(value) = prefs.edit().putBoolean(KEY_SHOW_KEY_BORDERS, value).apply()
 
+    var showDedicatedNumberRow: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_DEDICATED_NUMBER_ROW, false)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_DEDICATED_NUMBER_ROW, value).apply()
+
     var showHomeRowAccents: Boolean
         get() = prefs.getBoolean(KEY_SHOW_HOMEROW_ACCENTS, false)
         set(value) = prefs.edit().putBoolean(KEY_SHOW_HOMEROW_ACCENTS, value).apply()
@@ -189,6 +193,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_BOTTOM_CHIN = "bottom_chin_padding"
         const val KEY_LONG_PRESS_DELAY = "long_press_delay_ms"
         const val KEY_SHOW_KEY_BORDERS = "show_key_borders"
+        const val KEY_SHOW_DEDICATED_NUMBER_ROW = "pref_show_dedicated_number_row"
         const val KEY_SHOW_HOMEROW_ACCENTS = "show_homerow_accents"
         const val KEY_FONT_STYLE = "font_style"
         const val KEY_FONT_SCALE = "font_scale"

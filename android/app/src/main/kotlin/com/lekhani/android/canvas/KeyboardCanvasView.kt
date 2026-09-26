@@ -11,6 +11,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.net.Uri
+import android.os.Bundle
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
@@ -18,6 +19,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import androidx.customview.widget.ExploreByTouchHelper
 import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.feedback.LekhaniFeedbackManager
 import com.lekhani.android.model.Key
@@ -396,6 +400,43 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private var labelSizeSmall: Float = 0f
     private var zoneDividerX: Float = 0f  // x-center of the gap between left/right halves
 
+    // ── Dedicated Number Row Definitions (10 keys) ──────────────────────────
+    var showDedicatedNumberRow: Boolean = false
+        private set
+
+    private val bengaliDedicatedNumberRow = listOf(
+        Key("১", shiftedLabel = "1", hintLabel = "1", action = KeyAction.Character("১"), contentDesc = "Bengali digit 1"),
+        Key("২", shiftedLabel = "2", hintLabel = "2", action = KeyAction.Character("২"), contentDesc = "Bengali digit 2"),
+        Key("৩", shiftedLabel = "3", hintLabel = "3", action = KeyAction.Character("৩"), contentDesc = "Bengali digit 3"),
+        Key("৪", shiftedLabel = "4", hintLabel = "4", action = KeyAction.Character("৪"), contentDesc = "Bengali digit 4"),
+        Key("৫", shiftedLabel = "5", hintLabel = "5", action = KeyAction.Character("৫"), contentDesc = "Bengali digit 5"),
+        Key("৬", shiftedLabel = "6", hintLabel = "6", action = KeyAction.Character("৬"), contentDesc = "Bengali digit 6"),
+        Key("৭", shiftedLabel = "7", hintLabel = "7", action = KeyAction.Character("৭"), contentDesc = "Bengali digit 7"),
+        Key("৮", shiftedLabel = "8", hintLabel = "8", action = KeyAction.Character("৮"), contentDesc = "Bengali digit 8"),
+        Key("৯", shiftedLabel = "9", hintLabel = "9", action = KeyAction.Character("৯"), contentDesc = "Bengali digit 9"),
+        Key("০", shiftedLabel = "0", hintLabel = "0", action = KeyAction.Character("০"), contentDesc = "Bengali digit 0"),
+    )
+
+    private val englishDedicatedNumberRow = listOf(
+        Key("1", shiftedLabel = "১", hintLabel = "১", action = KeyAction.Character("1"), contentDesc = "Digit 1"),
+        Key("2", shiftedLabel = "২", hintLabel = "২", action = KeyAction.Character("2"), contentDesc = "Digit 2"),
+        Key("3", shiftedLabel = "৩", hintLabel = "৩", action = KeyAction.Character("3"), contentDesc = "Digit 3"),
+        Key("4", shiftedLabel = "৪", hintLabel = "৪", action = KeyAction.Character("4"), contentDesc = "Digit 4"),
+        Key("5", shiftedLabel = "৫", hintLabel = "৫", action = KeyAction.Character("5"), contentDesc = "Digit 5"),
+        Key("6", shiftedLabel = "৬", hintLabel = "৬", action = KeyAction.Character("6"), contentDesc = "Digit 6"),
+        Key("7", shiftedLabel = "৭", hintLabel = "৭", action = KeyAction.Character("7"), contentDesc = "Digit 7"),
+        Key("8", shiftedLabel = "৮", hintLabel = "৮", action = KeyAction.Character("8"), contentDesc = "Digit 8"),
+        Key("9", shiftedLabel = "৯", hintLabel = "৯", action = KeyAction.Character("9"), contentDesc = "Digit 9"),
+        Key("0", shiftedLabel = "০", hintLabel = "০", action = KeyAction.Character("0"), contentDesc = "Digit 0"),
+    )
+
+    private fun isNumberSymbolsActive(): Boolean =
+        layout == com.lekhani.android.model.NumberSymbolsLayout.numericLayout ||
+        layout == com.lekhani.android.model.NumberSymbolsLayout.bengaliNumericLayout ||
+        layout == com.lekhani.android.model.NumberSymbolsLayout.moreSymbolsLayout
+
+    private val accessibilityHelper = KeyboardAccessibilityHelper()
+
     // ══════════════════════════════════════════════════════════════════════════
     // Initialization
     // ══════════════════════════════════════════════════════════════════════════
@@ -403,9 +444,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
     init {
         // Hardware canvas is required for 120 FPS
         setLayerType(LAYER_TYPE_HARDWARE, null)
-        // Disable View's default click handling — we do our own in onTouchEvent
         isClickable = true
         isFocusable = false
+        ViewCompat.setAccessibilityDelegate(this, accessibilityHelper)
+    }
+
+    override fun dispatchHoverEvent(event: MotionEvent): Boolean {
+        return accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -420,6 +465,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.feedbackManager = feedbackMgr
         this.longPressDelayMs = prefs.longPressDelayMs
         this.showKeyBorders = prefs.showKeyBorders
+        this.showDedicatedNumberRow = prefs.showDedicatedNumberRow
         this.heightScale = prefs.heightScale
         this.marginHDp = prefs.keyMarginH
         this.marginVDp = prefs.keyMarginV
@@ -545,6 +591,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         isShifted = shifted
         isGboardKarsActive = false
         gboardActiveConsonant = ""
+        accessibilityHelper.invalidateRoot()
         if (width > 0 && height > 0) {
             requestLayout()
             computeKeyBounds()
@@ -555,12 +602,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
     fun setShifted(shifted: Boolean) {
         if (isShifted != shifted) {
             isShifted = shifted
+            accessibilityHelper.invalidateRoot()
             invalidate()
         }
     }
 
     fun toggleShift(): Boolean {
         isShifted = !isShifted
+        accessibilityHelper.invalidateRoot()
         invalidate()
         return isShifted
     }
@@ -573,10 +622,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val width = MeasureSpec.getSize(widthMeasureSpec)
         val density = resources.displayMetrics.density
         val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val rowCount = (layout?.rows?.size ?: 3) + 1
+        val hasExtraNumberRow = showDedicatedNumberRow && !isNumberSymbolsActive()
+        val rowCount = (layout?.rows?.size ?: 3) + 1 + (if (hasExtraNumberRow) 1 else 0)
         val isSixRow = rowCount >= 6
         val baseHeightDp = if (isLandscape) {
-            if (isSixRow) 220f else 180f
+            if (isSixRow) 160f else 135f
         } else {
             if (isSixRow) 330f else 280f
         }
@@ -616,7 +666,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         vectorIconStrokePaint.strokeWidth = 2.2f * density
 
         val currentLayout = layout ?: return
-        val rowCount = currentLayout.rows.size       // typically 3
+        val hasExtraNumberRow = showDedicatedNumberRow && !isNumberSymbolsActive()
+        val rowCount = currentLayout.rows.size + (if (hasExtraNumberRow) 1 else 0)
         val chinPx = bottomChinPaddingDp * density
         val availableH = (h - chinPx).coerceAtLeast(100f)
         val totalRows = rowCount + 1
@@ -644,6 +695,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
      */
     private fun computeKeyBounds() {
         resolvedKeys.clear()
+        accessibilityHelper.invalidateRoot()
         val currentLayout = layout ?: return
         val w = width.toFloat()
         val h = height.toFloat()
@@ -715,22 +767,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private fun layoutKeysStandard(originX: Float, totalW: Float, totalH: Float, yOffset: Float = 0f) {
         val currentLayout = layout ?: return
         val density = resources.displayMetrics.density
-        val rowCount = currentLayout.rows.size
-        val totalRows = rowCount + 1
-        val totalMarginsV = (totalRows + 1) * keyMarginV
-        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
 
-        val sidePadding = (keyMarginH * 0.75f).coerceAtLeast(2f * density)
-        val availableRowW = (totalW - 2f * sidePadding).coerceAtLeast(10f)
-
-        // Find reference key width based on the primary 10-key row (or the widest character row)
-        val maxKeysInRow = currentLayout.rows.maxOfOrNull { it.size }?.coerceAtLeast(10) ?: 10
-        val standardGaps = (maxKeysInRow - 1) * keyMarginH
-        val standardUnitWidth = (availableRowW - standardGaps) / maxKeysInRow
-
-        var currentRowTop = yOffset + keyMarginV
-        for ((rowIndex, originalRow) in currentLayout.rows.withIndex()) {
-            val row = if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
+        val baseRows = currentLayout.rows.mapIndexed { rowIndex, originalRow ->
+            if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
                 when (rowIndex) {
                     0 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicVowelsRow(gboardActiveConsonant) else originalRow
                     4 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicRow5(gboardActiveConsonant) else originalRow
@@ -739,6 +778,29 @@ class KeyboardCanvasView @JvmOverloads constructor(
             } else {
                 originalRow
             }
+        }
+        val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
+            val numRow = if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH) englishDedicatedNumberRow else bengaliDedicatedNumberRow
+            listOf(numRow) + baseRows
+        } else {
+            baseRows
+        }
+
+        val rowCount = allRows.size
+        val totalRows = rowCount + 1
+        val totalMarginsV = (totalRows + 1) * keyMarginV
+        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
+
+        val sidePadding = (keyMarginH * 0.75f).coerceAtLeast(2f * density)
+        val availableRowW = (totalW - 2f * sidePadding).coerceAtLeast(10f)
+
+        // Find reference key width based on the primary 10-key row (or the widest character row)
+        val maxKeysInRow = allRows.maxOfOrNull { it.size }?.coerceAtLeast(10) ?: 10
+        val standardGaps = (maxKeysInRow - 1) * keyMarginH
+        val standardUnitWidth = (availableRowW - standardGaps) / maxKeysInRow
+
+        var currentRowTop = yOffset + keyMarginV
+        for ((rowIndex, row) in allRows.withIndex()) {
             val hasShiftAtStart = row.isNotEmpty() && row.first().action == KeyAction.Shift
             val hasBackspaceAtEnd = row.isNotEmpty() && row.last().action == KeyAction.Backspace
 
@@ -856,7 +918,26 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private fun layoutKeysSplit(totalW: Float, totalH: Float) {
         val currentLayout = layout ?: return
         val density = resources.displayMetrics.density
-        val rowCount = currentLayout.rows.size
+
+        val baseRows = currentLayout.rows.mapIndexed { rowIndex, originalRow ->
+            if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
+                when (rowIndex) {
+                    0 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicVowelsRow(gboardActiveConsonant) else originalRow
+                    4 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicRow5(gboardActiveConsonant) else originalRow
+                    else -> originalRow
+                }
+            } else {
+                originalRow
+            }
+        }
+        val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
+            val numRow = if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH) englishDedicatedNumberRow else bengaliDedicatedNumberRow
+            listOf(numRow) + baseRows
+        } else {
+            baseRows
+        }
+
+        val rowCount = allRows.size
         val totalRows = rowCount + 1
         val totalMarginsV = (totalRows + 1) * keyMarginV
         val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
@@ -866,16 +947,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val rightClusterOrigin = clusterW + centerGap
 
         var currentRowTop = keyMarginV
-        for ((rowIndex, originalRow) in currentLayout.rows.withIndex()) {
-            val row = if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
-                when (rowIndex) {
-                    0 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicVowelsRow(gboardActiveConsonant) else originalRow
-                    4 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicRow5(gboardActiveConsonant) else originalRow
-                    else -> originalRow
-                }
-            } else {
-                originalRow
-            }
+        for ((rowIndex, row) in allRows.withIndex()) {
             val halfCount = (row.size + 1) / 2
             val leftKeys = row.take(halfCount)
             val rightKeys = row.drop(halfCount)
@@ -1237,7 +1309,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val pcx = pBounds.centerX()
                 val pLeft = (pcx - popupW / 2f).coerceIn(4f * density, (width.toFloat() - popupW - 4f * density).coerceAtLeast(4f * density))
                 val pRight = pLeft + popupW
-                val pTop = (pBounds.top - popupH - 8f * density).coerceAtLeast(4f * density)
+                val pTop = (pBounds.top - popupH - 8f * density).coerceAtLeast(-popupH * 0.85f)
                 val pBottom = pTop + popupH
 
                 // Popup shadow
@@ -1678,6 +1750,151 @@ class KeyboardCanvasView @JvmOverloads constructor(
         if (isShifted && action !is KeyAction.Shift) {
             isShifted = false
             invalidate()
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // Accessibility / TalkBack Exploration (WCAG 2.1)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private inner class KeyboardAccessibilityHelper : ExploreByTouchHelper(this@KeyboardCanvasView) {
+        override fun getVirtualViewAt(x: Float, y: Float): Int {
+            val keyIndex = findKeyIndex(x, y)
+            return if (keyIndex in resolvedKeys.indices) keyIndex else HOST_ID
+        }
+
+        override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
+            for (i in resolvedKeys.indices) {
+                virtualViewIds.add(i)
+            }
+        }
+
+        override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
+            if (virtualViewId !in resolvedKeys.indices) {
+                node.text = ""
+                node.setBoundsInParent(Rect())
+                return
+            }
+            val resolved = resolvedKeys[virtualViewId]
+            val key = resolved.key
+            val bounds = resolved.bounds
+
+            val rect = Rect(
+                bounds.left.toInt(),
+                bounds.top.toInt(),
+                bounds.right.toInt(),
+                bounds.bottom.toInt()
+            )
+            node.setBoundsInParent(rect)
+
+            val desc = getBengaliAccessibilityDescription(key, isShifted)
+            node.contentDescription = desc
+            node.className = "android.widget.Button"
+            node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK)
+            node.isClickable = true
+            node.isEnabled = true
+        }
+
+        override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
+            if (action == AccessibilityNodeInfoCompat.ACTION_CLICK && virtualViewId in resolvedKeys.indices) {
+                val key = resolvedKeys[virtualViewId].key
+                val act = key.activeAction(isShifted)
+                feedbackManager?.onKeyFeedback(this@KeyboardCanvasView)
+                    ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                keyListener?.onKey(key, act)
+                return true
+            }
+            return false
+        }
+    }
+
+    private fun getBengaliAccessibilityDescription(key: Key, shifted: Boolean): String {
+        val label = key.displayLabel(shifted)
+        return when (key.action) {
+            KeyAction.Space -> "স্পেসবার (Spacebar)"
+            KeyAction.Backspace -> "ব্যাকস্পেস (Backspace)"
+            KeyAction.Enter -> "এন্টার (Enter)"
+            KeyAction.Shift -> if (shifted) "শিফট সক্রিয় (Shift Active)" else "শিফট (Shift)"
+            KeyAction.SwitchNumeric -> "সংখ্যা ও প্রতীক (Numbers and symbols)"
+            KeyAction.SwitchMoreSymbols -> "অতিরিক্ত প্রতীক (More symbols)"
+            KeyAction.SwitchAlpha -> "বর্ণমালা (Alphabet)"
+            KeyAction.ToggleBengaliDigits -> "সংখ্যা পরিবর্তন (Toggle Digits)"
+            KeyAction.SwitchLayout -> "লেআউট পরিবর্তন (Switch Layout)"
+            KeyAction.VoiceTyping -> "ভয়েস টাইপিং (Voice Typing)"
+            KeyAction.SwitchEmoji -> "ইমোজি (Emoji)"
+            KeyAction.SwitchClipboard -> "ক্লিপবোর্ড (Clipboard)"
+            else -> {
+                if (key.contentDesc.isNotBlank() && key.contentDesc != key.label) {
+                    key.contentDesc
+                } else {
+                    when (label) {
+                        "অ" -> "অ, স্বর অ"
+                        "আ" -> "আ, স্বর আ"
+                        "ই" -> "ই, হ্রস্ব ই"
+                        "ঈ" -> "ঈ, দীর্ঘ ঈ"
+                        "উ" -> "উ, হ্রস্ব উ"
+                        "ঊ" -> "ঊ, দীর্ঘ ঊ"
+                        "ঋ" -> "ঋ, রি"
+                        "এ" -> "এ"
+                        "ঐ" -> "ঐ"
+                        "ও" -> "ও"
+                        "ঔ" -> "ঔ"
+                        "ক" -> "ক"
+                        "খ" -> "খ"
+                        "গ" -> "গ"
+                        "ঘ" -> "ঘ"
+                        "ঙ" -> "ঙ, উঙ"
+                        "চ" -> "চ"
+                        "ছ" -> "ছ"
+                        "জ" -> "জ, বর্গীয় জ"
+                        "ঝ" -> "ঝ"
+                        "ঞ" -> "ঞ, ইঞ"
+                        "ট" -> "ট"
+                        "ঠ" -> "ঠ"
+                        "ড" -> "ড"
+                        "ঢ" -> "ঢ"
+                        "ণ" -> "ণ, মূর্ধন্য ণ"
+                        "ত" -> "ত"
+                        "থ" -> "থ"
+                        "দ" -> "দ"
+                        "ধ" -> "ধ"
+                        "ন" -> "ন, দন্ত্য ন"
+                        "প" -> "প"
+                        "ফ" -> "ফ"
+                        "ব" -> "ব"
+                        "ভ" -> "ভ"
+                        "ম" -> "ম"
+                        "য" -> "য, অন্তঃস্থ য"
+                        "র" -> "র"
+                        "ল" -> "ল"
+                        "শ" -> "শ, তালব্য শ"
+                        "ষ" -> "ষ, মূর্ধন্য ষ"
+                        "স" -> "স, দন্ত্য স"
+                        "হ" -> "হ"
+                        "ড়" -> "ড়, ড-এ বিন্দু ড়"
+                        "ঢ়" -> "ঢ়, ঢ-এ বিন্দু ঢ়"
+                        "য়" -> "য়, অন্তঃস্থ য়"
+                        "ৎ" -> "ৎ, খণ্ড ত"
+                        "ং" -> "ং, অনুস্বার"
+                        "ঃ" -> "ঃ, বিসর্গ"
+                        "ঁ" -> "ঁ, চন্দ্রবিন্দু"
+                        "্" -> "্, হসন্ত"
+                        "া" -> "আ-কার"
+                        "ি" -> "ই-কার"
+                        "ী" -> "ঈ-কার"
+                        "ু" -> "উ-কার"
+                        "ূ" -> "ঊ-কার"
+                        "ৃ" -> "ঋ-কার"
+                        "ে" -> "এ-কার"
+                        "ৈ" -> "ঐ-কার"
+                        "ো" -> "ও-কার"
+                        "ৌ" -> "ঔ-কার"
+                        "।" -> "দাঁড়ি (Dari)"
+                        "॥" -> "ডাবল দাঁড়ি (Double Dari)"
+                        else -> label
+                    }
+                }
+            }
         }
     }
 

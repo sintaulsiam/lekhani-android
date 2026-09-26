@@ -19,6 +19,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +59,7 @@ fun ErgonomicsSizingSheet(
     var chinPadding by remember { mutableFloatStateOf(prefs.bottomChinPadding) }
     var longPressDelay by remember { mutableLongStateOf(prefs.longPressDelayMs) }
     var showBorders by remember { mutableStateOf(prefs.showKeyBorders) }
+    var showNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
     var fontStyle by remember { mutableStateOf(prefs.fontStyle) }
     var fontScale by remember { mutableFloatStateOf(prefs.fontScale) }
 
@@ -241,6 +243,33 @@ fun ErgonomicsSizingSheet(
                                     onCheckedChange = {
                                         showBorders = it
                                         prefs.showKeyBorders = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "ডেডিকেটেড সংখ্যা সারি",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = "কীবোর্ডের শীর্ষে স্থায়ী সংখ্যা সারি (১..০ / 1..0) রাখুন",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = showNumberRow,
+                                    onCheckedChange = {
+                                        showNumberRow = it
+                                        prefs.showDedicatedNumberRow = it
                                     }
                                 )
                             }

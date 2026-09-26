@@ -111,4 +111,9 @@ class FormFactorAndGesturesTest {
         val stepsLeft = (-stepDeltaLeft / stepPx).toInt()
         assertEquals(2, stepsLeft) // moved 2 steps left
     }
+
+    @Test
+    fun testDedicatedNumberRowPreference() {
+        assertEquals("pref_show_dedicated_number_row", KeyboardPreferences.KEY_SHOW_DEDICATED_NUMBER_ROW)
+    }
 }

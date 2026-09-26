@@ -16,6 +16,7 @@ junit                           = { group = "junit",              name = "junit"
 
 # AndroidX Core
 androidx-core-ktx               = { group = "androidx.core",      name = "core-ktx",              version.ref = "core-ktx" }
+androidx-customview             = { group = "androidx.customview", name = "customview",           version = "1.1.0" }
 androidx-lifecycle-runtime-ktx  = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx",  version.ref = "lifecycle" }
 androidx-activity-compose       = { group = "androidx.activity",  name = "activity-compose",       version.ref = "activity-compose" }
 

@@ -325,6 +325,8 @@ class LekhaniInputMethodService : InputMethodService() {
         window?.window?.decorView?.let { attachLifecycleOwner(it) }
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            clipChildren = false
+            clipToPadding = false
             attachLifecycleOwner(this)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -395,6 +397,8 @@ class LekhaniInputMethodService : InputMethodService() {
         )
 
         val container = FrameLayout(this).apply {
+            clipChildren = false
+            clipToPadding = false
             attachLifecycleOwner(this)
         }
         modesContainer = container
