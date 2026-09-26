@@ -56,13 +56,24 @@ object LayoutRegistry {
         LekhaniLayoutType.ENGLISH  -> "আন্তর্জাতিক মানসম্মত ইংরেজি বর্ণমালা ও পাসওয়ার্ড লেয়ার"
     }
 
-    fun getSpacebarLabel(type: LekhaniLayoutType): String = when (type) {
-        LekhaniLayoutType.PROBAHO  -> "স্পেস • প্রবাহ"
-        LekhaniLayoutType.AVRO     -> "Space • অভ্র"
-        LekhaniLayoutType.NATIONAL -> "স্পেস • জাতীয়"
-        LekhaniLayoutType.PROBHAT  -> "স্পেস • প্রভাত"
-        LekhaniLayoutType.GBOARD   -> "স্পেস • জিবোর্ড"
-        LekhaniLayoutType.ENGLISH  -> "Space • English"
+    fun getSpacebarLabel(type: LekhaniLayoutType, isEnglish: Boolean = false): String = if (isEnglish) {
+        when (type) {
+            LekhaniLayoutType.PROBAHO  -> "Space • Probaho"
+            LekhaniLayoutType.AVRO     -> "Space • Avro"
+            LekhaniLayoutType.NATIONAL -> "Space • National"
+            LekhaniLayoutType.PROBHAT  -> "Space • Probhat"
+            LekhaniLayoutType.GBOARD   -> "Space • Gboard"
+            LekhaniLayoutType.ENGLISH  -> "Space • English"
+        }
+    } else {
+        when (type) {
+            LekhaniLayoutType.PROBAHO  -> "স্পেস • প্রবাহ"
+            LekhaniLayoutType.AVRO     -> "স্পেস • অভ্র"
+            LekhaniLayoutType.NATIONAL -> "স্পেস • জাতীয়"
+            LekhaniLayoutType.PROBHAT  -> "স্পেস • প্রভাত"
+            LekhaniLayoutType.GBOARD   -> "স্পেস • জিবোর্ড"
+            LekhaniLayoutType.ENGLISH  -> "স্পেস • ইংরেজি"
+        }
     }
 
     const val PREF_ENABLED_LAYOUTS = "pref_enabled_layouts_order"

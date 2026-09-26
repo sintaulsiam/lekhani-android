@@ -366,6 +366,7 @@ class LekhaniInputMethodService : InputMethodService() {
                         },
                         theme = currentTheme,
                         activeTools = keyboardPrefs.getActiveToolbarTools(),
+                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onToolClick = { tool -> handleToolbarToolClick(tool) },
                         onEmojiSearchClose = {
                             setInputViewMode(InputViewMode.EMOJI)
@@ -764,6 +765,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 textEditorView?.setContent {
                     TextEditorSheetView(
                         theme = activeTheme,
+                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onMoveLeft = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_LEFT, select) },
                         onMoveRight = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_RIGHT, select) },
                         onMoveUp = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_UP, select) },
@@ -803,6 +805,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     com.lekhani.android.ui.resize.KeyboardResizeOverlayView(
                         initialScale = initialScale,
                         theme = activeTheme,
+                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onScaleLiveChange = { liveScale ->
                             keyboardView?.setLiveHeightScale(liveScale)
                         },

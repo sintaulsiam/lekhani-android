@@ -67,6 +67,7 @@ import com.lekhani.android.theme.ThemeRegistry
 @Composable
 fun ThemeStudioSheet(
     prefs: KeyboardPreferences,
+    isEnglish: Boolean = false,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -101,19 +102,19 @@ fun ThemeStudioSheet(
                 IconButton(onClick = onClose) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "ফিরে যান",
+                        contentDescription = if (isEnglish) "Back" else "ফিরে যান",
                         tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "থিম ও কালার স্টুডিও",
+                        text = if (isEnglish) "Theme & Color Studio" else "থিম ও কালার স্টুডিও",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "কীবোর্ডের ভিজ্যুয়াল লুক এবং ওয়ালপেপার পরিবর্তন করুন",
+                        text = if (isEnglish) "Customize keyboard colors and background wallpaper" else "কীবোর্ডের ভিজ্যুয়াল লুক এবং ওয়ালপেপার পরিবর্তন করুন",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -129,7 +130,7 @@ fun ThemeStudioSheet(
                 // Section 1: Themes
                 item {
                     Text(
-                        text = "কালার প্যালেট ও প্রিসেট",
+                        text = if (isEnglish) "Color Palettes & Presets" else "কালার প্যালেট ও প্রিসেট",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -157,7 +158,7 @@ fun ThemeStudioSheet(
                 item {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "কাস্টম ওয়ালপেপার ব্যাকগ্রাউন্ড",
+                        text = if (isEnglish) "Custom Wallpaper Background" else "কাস্টম ওয়ালপেপার ব্যাকগ্রাউন্ড",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -186,7 +187,11 @@ fun ThemeStudioSheet(
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        text = if (wallpaperUri.isNotBlank()) "ওয়ালপেপার যুক্ত হয়েছে" else "কোনো ওয়ালপেপার নেই",
+                                        text = if (wallpaperUri.isNotBlank()) {
+                                            if (isEnglish) "Wallpaper Applied" else "ওয়ালপেপার যুক্ত হয়েছে"
+                                        } else {
+                                            if (isEnglish) "No Wallpaper" else "কোনো ওয়ালপেপার নেই"
+                                        },
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                 }
@@ -196,7 +201,7 @@ fun ThemeStudioSheet(
                                         onClick = { photoPickerLauncher.launch("image/*") },
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
-                                        Text("নির্বাচন")
+                                        Text(if (isEnglish) "Choose" else "নির্বাচন")
                                     }
 
                                     if (wallpaperUri.isNotBlank()) {
@@ -209,7 +214,7 @@ fun ThemeStudioSheet(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
-                                                contentDescription = "ওয়ালপেপার মুছুন",
+                                                contentDescription = if (isEnglish) "Remove Wallpaper" else "ওয়ালপেপার মুছুন",
                                                 tint = MaterialTheme.colorScheme.error
                                             )
                                         }
@@ -220,7 +225,7 @@ fun ThemeStudioSheet(
                             if (wallpaperUri.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Text(
-                                    text = "স্বচ্ছতা (Opacity): ${(wallpaperOpacity * 100).toInt()}%",
+                                    text = if (isEnglish) "Opacity: ${(wallpaperOpacity * 100).toInt()}%" else "স্বচ্ছতা (Opacity): ${(wallpaperOpacity * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -252,7 +257,7 @@ fun ThemeStudioSheet(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text("সম্পন্ন", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(if (isEnglish) "Done" else "সম্পন্ন", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }

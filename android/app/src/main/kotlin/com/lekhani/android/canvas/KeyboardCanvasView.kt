@@ -106,6 +106,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var swipeToDeleteEnabled: Boolean = true
     var keyGlowRippleEnabled: Boolean = true
     var glideTypingEnabled: Boolean = false
+    var showKeyPreviews: Boolean = true
+    var isUiLanguageEnglish: Boolean = false
 
     var isResizeVisualGuide: Boolean = false
         set(value) {
@@ -495,6 +497,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.swipeToDeleteEnabled = prefs.swipeToDeleteEnabled
         this.keyGlowRippleEnabled = prefs.keyGlowRippleEnabled
         this.glideTypingEnabled = prefs.glideTypingEnabled
+        this.showKeyPreviews = prefs.showKeyPreviews
+        this.isUiLanguageEnglish = (prefs.uiLanguage == "en")
 
         val tf = when (prefs.fontStyle) {
             KeyboardPreferences.FONT_SERIF -> Typeface.SERIF
@@ -1271,7 +1275,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
             // Draw label
             val rawLabel = if (key.action == KeyAction.Space) {
-                com.lekhani.android.model.LayoutRegistry.getSpacebarLabel(layoutType)
+                com.lekhani.android.model.LayoutRegistry.getSpacebarLabel(layoutType, isUiLanguageEnglish)
             } else {
                 key.displayLabel(isShifted)
             }
@@ -1340,7 +1344,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         // ── Floating Key Preview Bubble (Material 3 Elevated Keycap) ─────────
-        if (pressedKeyIndex in resolvedKeys.indices && !isGliding && !isSpaceCursorMoving && !isBackspaceSwiping) {
+        if (showKeyPreviews && pressedKeyIndex in resolvedKeys.indices && !isGliding && !isSpaceCursorMoving && !isBackspaceSwiping) {
             val pressedResolved = resolvedKeys[pressedKeyIndex]
             val pKey = pressedResolved.key
             if (pKey.action is KeyAction.Character && pKey.label.isNotEmpty()) {
@@ -1350,7 +1354,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val pcx = pBounds.centerX()
                 val pLeft = (pcx - popupW / 2f).coerceIn(4f * density, (width.toFloat() - popupW - 4f * density).coerceAtLeast(4f * density))
                 val pRight = pLeft + popupW
-                val pTop = (pBounds.top - popupH - 8f * density).coerceAtLeast(-popupH * 0.85f)
+                val pTop = (pBounds.top - popupH - 4f * density).coerceAtLeast(0f)
                 val pBottom = pTop + popupH
 
                 // Popup shadow

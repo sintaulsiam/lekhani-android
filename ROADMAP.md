@@ -178,7 +178,7 @@
 ## Phase 11: World-Class Modern UI/UX & Form Factors
 - [x] Material 3 Expressive aesthetic with fluid 120 FPS spring physics and key glow/ripple effects.
 - [x] Bilingual UI toggle (English | বাংলা) across all Settings tabs and sheets.
-- [x] Developer & Organization showcase: Syntenieum profile and BRUR CSE developer credentials.
+- [x] Developer & Organization showcase: Syntenium profile and BRUR CSE developer credentials.
 - [x] One-handed mode with quick-dock arrows (left/right handed).
 - [x] Floating keyboard mode (freely movable, resizable anywhere on screen).
 - [x] Split keyboard mode optimized for foldables and tablets.

@@ -191,26 +191,36 @@ fun AboutPrivacyTab(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Academic Background: BRUR CSE
+                // Developer's University: Begum Rokeya University, Rangpur (BRUR)
                 Row(verticalAlignment = Alignment.Top) {
                     Icon(
                         imageVector = Icons.Filled.School,
-                        contentDescription = "Education",
+                        contentDescription = "Developer's University",
                         modifier = Modifier
                             .size(18.dp)
                             .padding(top = 2.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = Color(0xFF00E5B8)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = if (isEnglish) "Department of Computer Science & Engineering (CSE)"
-                                   else "কম্পিউটার সায়েন্স অ্যান্ড ইঞ্জিনিয়ারিং বিভাগ (CSE)",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            text = if (isEnglish) "Developer's University:" else "ডেভেলপারের বিশ্ববিদ্যালয়:",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         )
                         Text(
                             text = if (isEnglish) "Begum Rokeya University, Rangpur (BRUR)"
-                                   else "বেগম রোকেয়া বিশ্ববিদ্যালয়, রংপুর (BRUR)",
+                                   else "বেগম রোকেয়া বিশ্ববিদ্যালয়, রংপুর (BRUR)",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
+                        Text(
+                            text = if (isEnglish) "Department of Computer Science & Engineering (CSE)"
+                                   else "কম্পিউটার সায়েন্স অ্যান্ড ইঞ্জিনিয়ারিং বিভাগ (CSE)",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

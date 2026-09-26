@@ -116,6 +116,7 @@ fun CandidateStripView(
     onBlacklist: (String) -> Unit,
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     activeTools: List<KeyboardPreferences.ToolbarTool> = KeyboardPreferences.DEFAULT_TOOL_LIST,
+    isEnglish: Boolean = false,
     onToolClick: ((KeyboardPreferences.ToolbarTool) -> Unit)? = null,
     onEmojiSearchClose: (() -> Unit)? = null,
     onEmojiSearchClear: (() -> Unit)? = null,
@@ -143,6 +144,7 @@ fun CandidateStripView(
                 onBack = { onEmojiSearchClose?.invoke() },
                 onClearQuery = { onEmojiSearchClear?.invoke() },
                 theme = theme,
+                isEnglish = isEnglish,
             )
         } else if (hasItems && !showToolbarOverride) {
             Row(
@@ -159,7 +161,7 @@ fun CandidateStripView(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Show Toolbar",
+                        contentDescription = if (isEnglish) "Show Toolbar" else "টুলবার প্রদর্শন",
                         tint = Color(theme.labelColor).copy(alpha = 0.7f),
                         modifier = Modifier.size(18.dp)
                     )
@@ -191,7 +193,7 @@ fun CandidateStripView(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Show Candidates",
+                            contentDescription = if (isEnglish) "Show Candidates" else "পরামর্শ প্রদর্শন",
                             tint = Color(theme.accentColor),
                             modifier = Modifier.size(18.dp)
                         )
@@ -203,6 +205,7 @@ fun CandidateStripView(
                         tools = activeTools,
                         onToolClick = onToolClick,
                         theme = theme,
+                        isEnglish = isEnglish,
                     )
                 }
             }
@@ -218,6 +221,7 @@ private fun EmojiSearchStrip(
     onBack: () -> Unit,
     onClearQuery: () -> Unit,
     theme: KeyboardTheme,
+    isEnglish: Boolean = false,
 ) {
     Row(
         modifier = Modifier.fillMaxSize(),
@@ -233,7 +237,7 @@ private fun EmojiSearchStrip(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "ইমোজিতে ফিরে যান",
+                contentDescription = if (isEnglish) "Back to emojis" else "ইমোজিতে ফিরে যান",
                 tint = Color(theme.accentColor),
                 modifier = Modifier.size(20.dp),
             )
@@ -305,6 +309,7 @@ private fun ToolbarContent(
     tools: List<KeyboardPreferences.ToolbarTool>,
     onToolClick: ((KeyboardPreferences.ToolbarTool) -> Unit)?,
     theme: KeyboardTheme,
+    isEnglish: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -324,7 +329,7 @@ private fun ToolbarContent(
             ) {
                 Icon(
                     imageVector = tool.iconVector,
-                    contentDescription = tool.titleBengali,
+                    contentDescription = if (isEnglish) tool.titleEnglish else tool.titleBengali,
                     modifier = Modifier.size(20.dp),
                     tint = Color(theme.labelColor).copy(alpha = 0.85f)
                 )

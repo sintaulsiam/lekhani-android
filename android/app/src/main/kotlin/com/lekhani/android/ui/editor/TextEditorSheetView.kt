@@ -57,6 +57,7 @@ import com.lekhani.android.theme.KeyboardTheme
 @Composable
 fun TextEditorSheetView(
     theme: KeyboardTheme,
+    isEnglish: Boolean = false,
     onMoveLeft: (select: Boolean) -> Unit,
     onMoveRight: (select: Boolean) -> Unit,
     onMoveUp: (select: Boolean) -> Unit,
@@ -97,7 +98,7 @@ fun TextEditorSheetView(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "কার্সার ও টেক্সট এডিটর (Text Navigation)",
+                    text = if (isEnglish) "Text Navigation & Editor" else "কার্সার ও টেক্সট এডিটর (Text Navigation)",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(theme.labelColor),
@@ -116,13 +117,13 @@ fun TextEditorSheetView(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Keyboard,
-                        contentDescription = "কীবোর্ডে ফিরুন",
+                        contentDescription = if (isEnglish) "Back to Keyboard" else "কীবোর্ডে ফিরুন",
                         tint = Color(theme.labelColor),
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "কীবোর্ড",
+                        text = if (isEnglish) "Keyboard" else "কীবোর্ড",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(theme.labelColor),
@@ -145,18 +146,22 @@ fun TextEditorSheetView(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 EditorPillButton(
-                    label = "শুরু (Home)",
+                    label = if (isEnglish) "Home" else "শুরু (Home)",
                     theme = theme,
                     onClick = { onMoveHome(isSelectActive) },
                 )
                 EditorPillButton(
-                    label = if (isSelectActive) "✓ নির্বাচন চালু" else "নির্বাচন মোড",
+                    label = if (isSelectActive) {
+                        if (isEnglish) "✓ Selecting" else "✓ নির্বাচন চালু"
+                    } else {
+                        if (isEnglish) "Select Mode" else "নির্বাচন মোড"
+                    },
                     theme = theme,
                     isActive = isSelectActive,
                     onClick = { isSelectActive = !isSelectActive },
                 )
                 EditorPillButton(
-                    label = "সব নির্বাচন",
+                    label = if (isEnglish) "Select All" else "সব নির্বাচন",
                     icon = Icons.Filled.SelectAll,
                     theme = theme,
                     onClick = onSelectAll,
@@ -172,7 +177,7 @@ fun TextEditorSheetView(
                 DPadArrowButton(
                     icon = Icons.Filled.KeyboardArrowUp,
                     theme = theme,
-                    contentDesc = "কার্সার উপরে",
+                    contentDesc = if (isEnglish) "Cursor Up" else "কার্সার উপরে",
                     onClick = { onMoveUp(isSelectActive) },
                 )
 
@@ -184,7 +189,7 @@ fun TextEditorSheetView(
                     DPadArrowButton(
                         icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         theme = theme,
-                        contentDesc = "কার্সার বাঁয়ে",
+                        contentDesc = if (isEnglish) "Cursor Left" else "কার্সার বাঁয়ে",
                         onClick = { onMoveLeft(isSelectActive) },
                     )
 
@@ -210,7 +215,7 @@ fun TextEditorSheetView(
                     DPadArrowButton(
                         icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         theme = theme,
-                        contentDesc = "কার্সার ডানে",
+                        contentDesc = if (isEnglish) "Cursor Right" else "কার্সার ডানে",
                         onClick = { onMoveRight(isSelectActive) },
                     )
                 }
@@ -219,7 +224,7 @@ fun TextEditorSheetView(
                 DPadArrowButton(
                     icon = Icons.Filled.KeyboardArrowDown,
                     theme = theme,
-                    contentDesc = "কার্সার নিচে",
+                    contentDesc = if (isEnglish) "Cursor Down" else "কার্সার নিচে",
                     onClick = { onMoveDown(isSelectActive) },
                 )
             }
@@ -230,18 +235,18 @@ fun TextEditorSheetView(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 EditorPillButton(
-                    label = "শেষ (End)",
+                    label = if (isEnglish) "End" else "শেষ (End)",
                     theme = theme,
                     onClick = { onMoveEnd(isSelectActive) },
                 )
                 EditorPillButton(
-                    label = "কাট (Cut)",
+                    label = if (isEnglish) "Cut" else "কাট (Cut)",
                     icon = Icons.Filled.ContentCut,
                     theme = theme,
                     onClick = onCut,
                 )
                 EditorPillButton(
-                    label = "কপি (Copy)",
+                    label = if (isEnglish) "Copy" else "কপি (Copy)",
                     icon = Icons.Filled.ContentCopy,
                     theme = theme,
                     onClick = onCopy,
@@ -270,13 +275,13 @@ fun TextEditorSheetView(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.ContentPaste,
-                        contentDescription = "পেস্ট",
+                        contentDescription = if (isEnglish) "Paste" else "পেস্ট",
                         tint = Color(theme.accentColor),
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "পেস্ট (Paste)",
+                        text = if (isEnglish) "Paste" else "পেস্ট (Paste)",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(theme.labelColor),
@@ -297,13 +302,13 @@ fun TextEditorSheetView(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Backspace,
-                        contentDescription = "ব্যাকস্পেস",
+                        contentDescription = if (isEnglish) "Delete" else "ব্যাকস্পেস",
                         tint = Color(theme.labelColor),
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "মুছুন",
+                        text = if (isEnglish) "Delete" else "মুছুন",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(theme.labelColor),
@@ -324,13 +329,13 @@ fun TextEditorSheetView(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardReturn,
-                        contentDescription = "নতুন লাইন",
+                        contentDescription = if (isEnglish) "Enter" else "নতুন লাইন",
                         tint = Color(theme.backgroundColor),
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "নতুন লাইন",
+                        text = if (isEnglish) "Enter" else "নতুন লাইন",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(theme.backgroundColor),

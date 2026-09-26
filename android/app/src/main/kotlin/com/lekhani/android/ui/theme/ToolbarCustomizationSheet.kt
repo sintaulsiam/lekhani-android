@@ -51,6 +51,7 @@ import com.lekhani.android.data.settings.KeyboardPreferences
 @Composable
 fun ToolbarCustomizationSheet(
     prefs: KeyboardPreferences,
+    isEnglish: Boolean = false,
     onClose: () -> Unit,
 ) {
     var activeTools by remember { mutableStateOf(prefs.getActiveToolbarTools()) }
@@ -97,19 +98,19 @@ fun ToolbarCustomizationSheet(
                 IconButton(onClick = onClose) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "ফিরে যান",
+                        contentDescription = if (isEnglish) "Back" else "ফিরে যান",
                         tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "টুলবার সাজান",
+                        text = if (isEnglish) "Customize Toolbar" else "টুলবার সাজান",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "কীবোর্ড শর্টকাট টুল সক্রিয় ও সাজান",
+                        text = if (isEnglish) "Enable and reorder shortcut tools in the keyboard strip" else "কীবোর্ড শর্টকাট টুল সক্রিয় ও সাজান",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -124,7 +125,7 @@ fun ToolbarCustomizationSheet(
             ) {
                 item {
                     Text(
-                        text = "টুলবারের টুল ও ক্রমবিন্যাস",
+                        text = if (isEnglish) "Toolbar Tools & Ordering" else "টুলবারের টুল ও ক্রমবিন্যাস",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -158,18 +159,18 @@ fun ToolbarCustomizationSheet(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
                                     imageVector = tool.iconVector,
-                                    contentDescription = tool.titleBengali,
+                                    contentDescription = if (isEnglish) tool.titleEnglish else tool.titleBengali,
                                     modifier = Modifier.size(24.dp),
                                     tint = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
-                                        text = tool.titleBengali,
+                                        text = if (isEnglish) tool.titleEnglish else tool.titleBengali,
                                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = tool.name,
+                                        text = if (isEnglish) tool.titleBengali else tool.titleEnglish,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -184,7 +185,7 @@ fun ToolbarCustomizationSheet(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.KeyboardArrowUp,
-                                            contentDescription = "উপরে নিন"
+                                            contentDescription = if (isEnglish) "Move Up" else "উপরে নিন"
                                         )
                                     }
                                     IconButton(
@@ -193,7 +194,7 @@ fun ToolbarCustomizationSheet(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.KeyboardArrowDown,
-                                            contentDescription = "নিচে নিন"
+                                            contentDescription = if (isEnglish) "Move Down" else "নিচে নিন"
                                         )
                                     }
                                 }
@@ -214,7 +215,7 @@ fun ToolbarCustomizationSheet(
                     ) {
                         Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("ডিফল্ট টুলবারে রিসেট করুন")
+                        Text(if (isEnglish) "Reset to Default Toolbar" else "ডিফল্ট টুলবারে রিসেট করুন")
                     }
                 }
             }
@@ -229,7 +230,7 @@ fun ToolbarCustomizationSheet(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text("সম্পন্ন", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(if (isEnglish) "Done" else "সম্পন্ন", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }

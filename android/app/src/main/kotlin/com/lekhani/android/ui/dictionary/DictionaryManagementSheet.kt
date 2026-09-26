@@ -43,6 +43,7 @@ import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
 @Composable
 fun DictionaryManagementSheet(
     dictManager: LekhaniDictionaryManager,
+    isEnglish: Boolean = false,
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
@@ -78,18 +79,18 @@ fun DictionaryManagementSheet(
                 title = {
                     Column {
                         Text(
-                            text = "ব্যক্তিগত শব্দভাণ্ডার",
+                            text = if (isEnglish) "Personal Dictionary" else "ব্যক্তিগত শব্দভাণ্ডার",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = "Personal Dictionary • ${userWords.size} টি শব্দ",
+                            text = if (isEnglish) "Personal Dictionary • ${userWords.size} words" else "ব্যক্তিগত শব্দভাণ্ডার • ${userWords.size} টি শব্দ",
                             style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                        Icon(imageVector = Icons.Default.Close, contentDescription = if (isEnglish) "Close" else "বন্ধ করুন")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -111,7 +112,7 @@ fun DictionaryManagementSheet(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("শব্দ খুঁজুন (Search words)...") },
+                placeholder = { Text(if (isEnglish) "Search words..." else "শব্দ খুঁজুন (Search words)...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -127,7 +128,7 @@ fun DictionaryManagementSheet(
                     value = newWordInput,
                     onValueChange = { newWordInput = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("নতুন শব্দ লিখুন...") },
+                    placeholder = { Text(if (isEnglish) "Add new word..." else "নতুন শব্দ লিখুন...") },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -139,15 +140,15 @@ fun DictionaryManagementSheet(
                             dictManager.addUserWord(word)
                             userWords = dictManager.getUserWords()
                             newWordInput = ""
-                            Toast.makeText(context, "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
                         }
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add")
+                    Icon(Icons.Default.Add, contentDescription = if (isEnglish) "Add" else "যোগ")
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("যোগ")
+                    Text(if (isEnglish) "Add" else "যোগ")
                 }
             }
 
@@ -176,7 +177,7 @@ fun DictionaryManagementSheet(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("ইমপোর্ট", fontSize = 12.sp)
+                    Text(if (isEnglish) "Import" else "ইমপোর্ট", fontSize = 12.sp)
                 }
 
                 OutlinedButton(
@@ -187,7 +188,7 @@ fun DictionaryManagementSheet(
                             putExtra(Intent.EXTRA_SUBJECT, "Lekhani_Dictionary_Backup.json")
                             putExtra(Intent.EXTRA_TEXT, json)
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "ব্যাকআপ এক্সপোর্ট করুন"))
+                        context.startActivity(Intent.createChooser(shareIntent, if (isEnglish) "Export Backup" else "ব্যাকআপ এক্সপোর্ট করুন"))
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp)
@@ -199,7 +200,7 @@ fun DictionaryManagementSheet(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("এক্সপোর্ট", fontSize = 12.sp)
+                    Text(if (isEnglish) "Export" else "এক্সপোর্ট", fontSize = 12.sp)
                 }
 
                 OutlinedButton(
@@ -215,7 +216,7 @@ fun DictionaryManagementSheet(
                         tint = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("মুছুন", fontSize = 12.sp)
+                    Text(if (isEnglish) "Clear" else "মুছুন", fontSize = 12.sp)
                 }
             }
 
@@ -260,16 +261,27 @@ fun DictionaryManagementSheet(
                             }
 
                             Text(
-                                text = if (searchQuery.isBlank()) "ব্যক্তিগত শব্দভাণ্ডার খালি" else "শব্দ পাওয়া যায়নি",
+                                text = if (searchQuery.isBlank()) {
+                                    if (isEnglish) "Personal Dictionary is Empty" else "ব্যক্তিগত শব্দভাণ্ডার খালি"
+                                } else {
+                                    if (isEnglish) "No Words Found" else "শব্দ পাওয়া যায়নি"
+                                },
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
                             Text(
-                                text = if (searchQuery.isBlank())
-                                    "টাইপ করার সাথে সাথে নতুন শব্দগুলো লোকাল স্টোরেজে স্বয়ংক্রিয়ভাবে সংরক্ষিত হবে অথবা ওপরের ইনপুট বক্সে লিখে যোগ করুন।"
-                                else
-                                    "'$searchQuery' এর সাথে মিল থাকা কোনো শব্দ পাওয়া যায়নি। নতুন শব্দ হিসেবে যোগ করতে পারেন।",
+                                text = if (searchQuery.isBlank()) {
+                                    if (isEnglish)
+                                        "As you type, new custom words will be automatically saved locally, or you can add them above."
+                                    else
+                                        "টাইপ করার সাথে সাথে নতুন শব্দগুলো লোকাল স্টোরেজে স্বয়ংক্রিয়ভাবে সংরক্ষিত হবে অথবা ওপরের ইনপুট বক্সে লিখে যোগ করুন।"
+                                } else {
+                                    if (isEnglish)
+                                        "No words matching '$searchQuery'. You can add it as a new word above."
+                                    else
+                                        "'$searchQuery' এর সাথে মিল থাকা কোনো শব্দ পাওয়া যায়নি। নতুন শব্দ হিসেবে যোগ করতে পারেন।"
+                                },
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     lineHeight = 18.sp
@@ -307,13 +319,13 @@ fun DictionaryManagementSheet(
                                     onClick = {
                                         dictManager.deleteUserWord(word)
                                         userWords = dictManager.getUserWords()
-                                        Toast.makeText(context, "'$word' মুছে ফেলা হয়েছে", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, if (isEnglish) "'$word' deleted" else "'$word' মুছে ফেলা হয়েছে", Toast.LENGTH_SHORT).show()
                                     },
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
+                                        contentDescription = if (isEnglish) "Delete" else "মুছুন",
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                 }
@@ -329,11 +341,14 @@ fun DictionaryManagementSheet(
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
-            title = { Text("অভিধান ইমপোর্ট (Import Dictionary)") },
+            title = { Text(if (isEnglish) "Import Dictionary" else "অভিধান ইমপোর্ট (Import Dictionary)") },
             text = {
                 Column {
                     Text(
-                        "রিদ্মিক কীবোর্ড ব্যাকআপ, অভ্র ইউজার ডিকশনারি, বা সাধারণ শব্দ তালিকা নিচে পেস্ট করুন (প্রতি লাইনে একটি শব্দ):",
+                        if (isEnglish)
+                            "Paste Ridmik backup, Avro user dictionary, or word list below (one word per line):"
+                        else
+                            "রিদ্মিক কীবোর্ড ব্যাকআপ, অভ্র ইউজার ডিকশনারি, বা সাধারণ শব্দ তালিকা নিচে পেস্ট করুন (প্রতি লাইনে একটি শব্দ):",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -344,7 +359,7 @@ fun DictionaryManagementSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(150.dp),
-                        placeholder = { Text("শব্দ১\nশব্দ২\nami=আমি...") }
+                        placeholder = { Text(if (isEnglish) "word1\nword2\nami=আমি..." else "শব্দ১\nশব্দ২\nami=আমি...") }
                     )
                 }
             },
@@ -355,15 +370,15 @@ fun DictionaryManagementSheet(
                         userWords = dictManager.getUserWords()
                         showImportDialog = false
                         rawImportText = ""
-                        Toast.makeText(context, "$count টি শব্দ সফলভাবে যুক্ত হয়েছে", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, if (isEnglish) "$count words successfully imported" else "$count টি শব্দ সফলভাবে যুক্ত হয়েছে", Toast.LENGTH_SHORT).show()
                     }
                 ) {
-                    Text("ইমপোর্ট করুন")
+                    Text(if (isEnglish) "Import" else "ইমপোর্ট করুন")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showImportDialog = false }) {
-                    Text("বাতিল")
+                    Text(if (isEnglish) "Cancel" else "বাতিল")
                 }
             }
         )
@@ -373,9 +388,14 @@ fun DictionaryManagementSheet(
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
-            title = { Text("সব ব্যক্তিগত শব্দ মুছবেন?") },
+            title = { Text(if (isEnglish) "Clear All Personal Words?" else "সব ব্যক্তিগত শব্দ মুছবেন?") },
             text = {
-                Text("আপনার তৈরি বা স্বয়ংক্রিয়ভাবে শেখা সমস্ত ব্যক্তিগত শব্দভাণ্ডার মুছে ফেলা হবে। এটি ফেরানো সম্ভব নয়।")
+                Text(
+                    if (isEnglish)
+                        "All custom words and automatically learned dictionary entries will be deleted. This cannot be undone."
+                    else
+                        "আপনার তৈরি বা স্বয়ংক্রিয়ভাবে শেখা সমস্ত ব্যক্তিগত শব্দভাণ্ডার মুছে ফেলা হবে। এটি ফেরানো সম্ভব নয়।"
+                )
             },
             confirmButton = {
                 Button(
@@ -383,16 +403,16 @@ fun DictionaryManagementSheet(
                         dictManager.clearDictionary()
                         userWords = dictManager.getUserWords()
                         showClearConfirm = false
-                        Toast.makeText(context, "শব্দভাণ্ডার মুছে ফেলা হয়েছে", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, if (isEnglish) "Dictionary cleared" else "শব্দভাণ্ডার মুছে ফেলা হয়েছে", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("হ্যাঁ, সব মুছুন")
+                    Text(if (isEnglish) "Yes, Delete All" else "হ্যাঁ, সব মুছুন")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirm = false }) {
-                    Text("বাতিল")
+                    Text(if (isEnglish) "Cancel" else "বাতিল")
                 }
             }
         )

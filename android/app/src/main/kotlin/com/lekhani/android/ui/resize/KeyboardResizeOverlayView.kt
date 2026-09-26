@@ -54,6 +54,7 @@ import kotlin.math.roundToInt
 fun KeyboardResizeOverlayView(
     initialScale: Float,
     theme: KeyboardTheme,
+    isEnglish: Boolean = false,
     onScaleLiveChange: (Float) -> Unit,
     onConfirm: (Float) -> Unit,
     onDismiss: () -> Unit,
@@ -99,13 +100,13 @@ fun KeyboardResizeOverlayView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.UnfoldMore,
-                    contentDescription = "টেনে আকার পরিবর্তন করুন",
+                    contentDescription = if (isEnglish) "Drag to Resize" else "টেনে আকার পরিবর্তন করুন",
                     tint = accent,
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "টেনে আকার পরিবর্তন করুন (Drag to Resize)",
+                    text = if (isEnglish) "Drag to Resize Keyboard" else "টেনে আকার পরিবর্তন করুন (Drag to Resize)",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = accent,
@@ -134,7 +135,7 @@ fun KeyboardResizeOverlayView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = "বাতিল",
+                    contentDescription = if (isEnglish) "Cancel" else "বাতিল",
                     tint = dimText,
                     modifier = Modifier.size(18.dp),
                 )
@@ -155,7 +156,7 @@ fun KeyboardResizeOverlayView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Remove,
-                    contentDescription = "ছোট করুন",
+                    contentDescription = if (isEnglish) "Decrease" else "ছোট করুন",
                     tint = textColor,
                     modifier = Modifier.size(18.dp),
                 )
@@ -170,7 +171,11 @@ fun KeyboardResizeOverlayView(
                 contentAlignment = Alignment.Center,
             ) {
                 val percent = (scale * 100).roundToInt()
-                val label = if (percent == 100) "১০০% (স্বাভাবিক)" else "$percent%"
+                val label = if (percent == 100) {
+                    if (isEnglish) "100% (Default)" else "১০০% (স্বাভাবিক)"
+                } else {
+                    "$percent%"
+                }
                 Text(
                     text = label,
                     fontSize = 13.sp,
@@ -194,7 +199,7 @@ fun KeyboardResizeOverlayView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "বড় করুন",
+                    contentDescription = if (isEnglish) "Increase" else "বড় করুন",
                     tint = textColor,
                     modifier = Modifier.size(18.dp),
                 )
@@ -214,7 +219,7 @@ fun KeyboardResizeOverlayView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Refresh,
-                    contentDescription = "রিসেট",
+                    contentDescription = if (isEnglish) "Reset" else "রিসেট",
                     tint = accent,
                     modifier = Modifier.size(18.dp),
                 )
@@ -233,13 +238,13 @@ fun KeyboardResizeOverlayView(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = "সম্পন্ন",
+                        contentDescription = if (isEnglish) "Done" else "সম্পন্ন",
                         tint = Color.Black,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "সম্পন্ন",
+                        text = if (isEnglish) "Done" else "সম্পন্ন",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black,

@@ -102,4 +102,4 @@ Detailed task breakdown in [ROADMAP.md](ROADMAP.md).
 
 ## 📄 License
 
-Licensed under GPL-3.0-or-later. © 2026 Syntenieum.
+Licensed under GPL-3.0-or-later. © 2026 Syntenium.

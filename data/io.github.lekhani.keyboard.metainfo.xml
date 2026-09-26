@@ -13,14 +13,14 @@
       Special thanks to Avro Keyboard (OmicronLab) and OpenBangla Keyboard for their pioneering contributions.
     </p>
   </description>
-  <developer_name>Sintaul Mahdi Siam (Syntenieum)</developer_name>
+  <developer_name>Sintaul Mahdi Siam (Syntenium)</developer_name>
   <launchable type="desktop-id">io.github.lekhani.keyboard.desktop</launchable>
   <url type="homepage">https://github.com/sintaulsiam/lekhani</url>
   <url type="bugtracker">https://github.com/sintaulsiam/lekhani/issues</url>
   <releases>
     <release version="1.0.0" date="2026-09-14">
       <description>
-        <p>Lekhani 1.0.0 official release by Syntenieum (2026) with pure Rust core, regression-proof phonetic engine, native Wayland/KDE Fcitx5 addon, and IBus daemon.</p>
+        <p>Lekhani 1.0.0 official release by Syntenium (2026) with pure Rust core, regression-proof phonetic engine, native Wayland/KDE Fcitx5 addon, and IBus daemon.</p>
       </description>
     </release>
   </releases>

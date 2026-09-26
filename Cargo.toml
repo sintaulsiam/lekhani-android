@@ -12,8 +12,8 @@ version = "0.1.0"
 authors = ["Sintaul Mahdi Siam <sintaulsiam@gmail.com>"]
 edition = "2021"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/syntenieum/lekhani-android"
-homepage = "https://github.com/syntenieum/lekhani-android"
+repository = "https://github.com/syntenium/lekhani-android"
+homepage = "https://github.com/syntenium/lekhani-android"
 
 [workspace.dependencies]
 uniffi = { version = "0.28", features = ["cli"] }

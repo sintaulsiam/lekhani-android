@@ -197,13 +197,14 @@ impl AndroidLekhaniSession {
                 }
 
                 if candidates.is_empty() {
-                    candidates.push(state.composing_buffer.clone());
-                    // Tier 1 lekhani-core PrefixTrie lookup for prefix completions
                     let db = get_core_database();
                     let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
-                    for (word, _) in prefix_matches {
-                        if !candidates.iter().any(|c| c == word) {
-                            candidates.push(word.to_string());
+                    if !prefix_matches.is_empty() {
+                        candidates.push(state.composing_buffer.clone());
+                        for (word, _) in prefix_matches {
+                            if !candidates.iter().any(|c| c == word) {
+                                candidates.push(word.to_string());
+                            }
                         }
                     }
                 }
@@ -332,12 +333,14 @@ impl AndroidLekhaniSession {
                 }
 
                 if candidates.is_empty() {
-                    candidates.push(state.composing_buffer.clone());
                     let db = get_core_database();
                     let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
-                    for (word, _) in prefix_matches {
-                        if !candidates.iter().any(|c| c == word) {
-                            candidates.push(word.to_string());
+                    if !prefix_matches.is_empty() {
+                        candidates.push(state.composing_buffer.clone());
+                        for (word, _) in prefix_matches {
+                            if !candidates.iter().any(|c| c == word) {
+                                candidates.push(word.to_string());
+                            }
                         }
                     }
                 }
@@ -358,14 +361,30 @@ impl AndroidLekhaniSession {
             }
 
             _ => {
+                // Flush buffer immediately on punctuation or newline
+                let is_punct = key == "।" || key == "॥" || key == "," || key == ";" || key == ":" || key == "?" || key == "!" || key == "\n";
+                if is_punct {
+                    let mut committed = std::mem::take(&mut state.composing_buffer);
+                    committed.push_str(&key);
+                    return Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: Some(nfc_normalize(&committed)),
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    });
+                }
+
                 // Fixed / transliteration layouts — accumulate in buffer, query PrefixTrie
                 state.composing_buffer.push_str(&key);
-                let mut candidates = vec![state.composing_buffer.clone()];
+                let mut candidates = Vec::new();
                 let db = get_core_database();
                 let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
-                for (word, _) in prefix_matches {
-                    if !candidates.iter().any(|c| c == word) {
-                        candidates.push(word.to_string());
+                if !prefix_matches.is_empty() {
+                    candidates.push(state.composing_buffer.clone());
+                    for (word, _) in prefix_matches {
+                        if !candidates.iter().any(|c| c == word) {
+                            candidates.push(word.to_string());
+                        }
                     }
                 }
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {

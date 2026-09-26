@@ -322,10 +322,12 @@ fun LekhaniSettingsScreen(
                 )
                 2 -> ThemeStudioSheet(
                     prefs = keyboardPrefs,
+                    isEnglish = isEnglish,
                     onClose = { selectedTab = 0 }
                 )
                 3 -> FormFactorGesturesSheet(
                     prefs = keyboardPrefs,
+                    isEnglish = isEnglish,
                     onClose = { selectedTab = 0 }
                 )
                 4 -> ToolsFeedbackTab(
@@ -350,6 +352,7 @@ fun LekhaniSettingsScreen(
         ) {
             ToolbarCustomizationSheet(
                 prefs = keyboardPrefs,
+                isEnglish = isEnglish,
                 onClose = { showToolbarSheet = false }
             )
         }
@@ -362,6 +365,7 @@ fun LekhaniSettingsScreen(
         ) {
             DictionaryManagementSheet(
                 dictManager = dictManager,
+                isEnglish = isEnglish,
                 onClose = { showDictionarySheet = false }
             )
         }
