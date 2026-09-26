@@ -844,12 +844,6 @@ private fun LayoutsTabContent(
                             }
                         }
 
-                        val targetTilt = if (isThisDragging) (dragOffsetY * 0.015f).coerceIn(-2.2f, 2.2f) else 0f
-                        val animatedTilt by animateFloatAsState(
-                            targetValue = targetTilt,
-                            animationSpec = spring(stiffness = Spring.StiffnessHigh),
-                            label = "tilt"
-                        )
 
                         val showIndicatorAbove = isDraggingActive && (dragStartIndex > currentDropIndex) && (index == currentDropIndex)
                         val showIndicatorBelow = isDraggingActive && (dragStartIndex < currentDropIndex) && (index == currentDropIndex)
@@ -944,7 +938,6 @@ private fun LayoutsTabContent(
                                     .zIndex(if (isThisDragging) 30f else 0f)
                                     .graphicsLayer {
                                         translationY = if (isThisDragging) dragOffsetY else shiftAnim.value
-                                        rotationZ = if (isThisDragging) animatedTilt else 0f
                                         scaleX = if (isThisDragging) 1.03f else 1f
                                         scaleY = if (isThisDragging) 1.03f else 1f
                                     }

@@ -888,11 +888,10 @@ fun ExtraToolsSheetView(
                     }
                     .zIndex(9999f)
                     .graphicsLayer {
-                        scaleX = 1.12f
-                        scaleY = 1.12f
-                        rotationZ = -3.0f
+                        scaleX = 1.05f
+                        scaleY = 1.05f
                     }
-                    .shadow(14.dp, RoundedCornerShape(12.dp), spotColor = accentColor)
+                    .shadow(10.dp, RoundedCornerShape(12.dp), spotColor = accentColor)
                     .clip(RoundedCornerShape(12.dp))
                     .background(cardBg)
                     .border(2.dp, accentColor, RoundedCornerShape(12.dp))
