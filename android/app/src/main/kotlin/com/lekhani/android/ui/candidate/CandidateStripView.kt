@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -118,6 +119,7 @@ fun CandidateStripView(
     activeTools: List<KeyboardPreferences.ToolbarTool> = KeyboardPreferences.DEFAULT_TOOL_LIST,
     isEnglish: Boolean = false,
     onToolClick: ((KeyboardPreferences.ToolbarTool) -> Unit)? = null,
+    onOpenToolsMenu: (() -> Unit)? = null,
     onEmojiSearchClose: (() -> Unit)? = null,
     onEmojiSearchClear: (() -> Unit)? = null,
 ) {
@@ -204,6 +206,7 @@ fun CandidateStripView(
                     ToolbarContent(
                         tools = activeTools,
                         onToolClick = onToolClick,
+                        onOpenToolsMenu = onOpenToolsMenu,
                         theme = theme,
                         isEnglish = isEnglish,
                     )
@@ -308,31 +311,64 @@ private fun EmojiSearchStrip(
 private fun ToolbarContent(
     tools: List<KeyboardPreferences.ToolbarTool>,
     onToolClick: ((KeyboardPreferences.ToolbarTool) -> Unit)?,
+    onOpenToolsMenu: (() -> Unit)?,
     theme: KeyboardTheme,
     isEnglish: Boolean = false,
 ) {
+    val scrollState = rememberScrollState()
+    val accentColor = Color(theme.accentColor)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(StripHeight)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceAround,
     ) {
-        for (tool in tools) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable { onToolClick?.invoke(tool) }
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = tool.iconVector,
-                    contentDescription = if (isEnglish) tool.titleEnglish else tool.titleBengali,
-                    modifier = Modifier.size(20.dp),
-                    tint = Color(theme.labelColor).copy(alpha = 0.85f)
-                )
+        // Prominent Extra Tools menu trigger on the far left
+        Box(
+            modifier = Modifier
+                .padding(start = 4.dp, end = 2.dp)
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(accentColor.copy(alpha = 0.14f))
+                .clickable { onOpenToolsMenu?.invoke() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.GridView,
+                contentDescription = if (isEnglish) "All Tools & Settings" else "সকল টুলস ও সেটিংস",
+                modifier = Modifier.size(19.dp),
+                tint = accentColor
+            )
+        }
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        // Horizontally scrollable list of active tools (Settings is first!)
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .horizontalScroll(scrollState),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            for (tool in tools) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onToolClick?.invoke(tool) }
+                        .padding(horizontal = 11.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = tool.iconVector,
+                        contentDescription = if (isEnglish) tool.titleEnglish else tool.titleBengali,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color(theme.labelColor).copy(alpha = 0.85f)
+                    )
+                }
             }
         }
     }

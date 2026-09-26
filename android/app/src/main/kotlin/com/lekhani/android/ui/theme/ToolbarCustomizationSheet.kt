@@ -207,8 +207,8 @@ fun ToolbarCustomizationSheet(
                     Spacer(modifier = Modifier.height(10.dp))
                     OutlinedButton(
                         onClick = {
-                            activeTools = KeyboardPreferences.DEFAULT_TOOL_LIST
-                            prefs.setToolbarToolsList(KeyboardPreferences.DEFAULT_TOOL_LIST)
+                            prefs.resetToolsToDefault()
+                            activeTools = prefs.getActiveToolbarTools()
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)

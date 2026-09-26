@@ -31,8 +31,9 @@ pub fn get_english_trie() -> Option<&'static PrefixTrie> {
         return Some(trie);
     }
     let candidate_dirs = [
-        std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries"),
+        std::path::Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),
         std::path::Path::new("/data/user/0/com.lekhani.android/files/dictionaries"),
+        std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries"),
         std::path::Path::new("./data/dictionaries"),
         std::path::Path::new("../data/dictionaries"),
         std::path::Path::new("../../data/dictionaries"),
@@ -111,6 +112,25 @@ pub fn match_casing(source: &str, target: &str) -> String {
     }
 }
 
+pub const FALLBACK_ENGLISH_WORDS: &[&str] = &[
+    "the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for", "not", "on", "with",
+    "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her",
+    "she", "or", "an", "will", "my", "one", "all", "would", "there", "their", "what", "so", "up",
+    "out", "if", "about", "who", "get", "which", "go", "me", "when", "make", "can", "like", "time",
+    "no", "just", "him", "know", "take", "people", "into", "year", "your", "good", "some", "could",
+    "them", "see", "other", "than", "then", "now", "look", "only", "come", "its", "over", "think",
+    "also", "back", "after", "use", "two", "how", "our", "work", "first", "well", "way", "even",
+    "new", "want", "because", "any", "these", "give", "day", "most", "us", "hello", "help", "here",
+    "home", "house", "hand", "high", "hold", "hope", "hard", "head", "hear", "heart", "happy", "great",
+    "world", "where", "while", "water", "word", "write", "without", "before", "right", "still", "small",
+    "should", "number", "system", "tell", "same", "place", "point", "program", "play", "please", "part",
+    "problem", "question", "power", "person", "phone", "post", "page", "put", "public", "present",
+    "read", "really", "reason", "run", "remember", "result", "school", "state", "study", "student",
+    "something", "start", "set", "show", "side", "seem", "service", "stand", "story", "sure", "talk",
+    "today", "together", "try", "thing", "think", "turn", "under", "understand", "until", "value",
+    "very", "view", "voice", "wait", "walk", "watch", "week", "woman", "work", "yes", "young",
+];
+
 /// Generates candidate words for the typed English buffer:
 /// Returns candidate words for an active English composing buffer.
 /// Ranking strategy:
@@ -151,6 +171,19 @@ pub fn get_english_candidates_with_trie(buffer: &str, trie: Option<&PrefixTrie>,
             let corrections = generate_qwerty_corrections(&lower_buffer, trie);
             for corr in corrections {
                 let formatted = match_casing(buffer, &corr);
+                if !results.iter().any(|r| r.eq_ignore_ascii_case(&formatted)) {
+                    results.push(formatted);
+                }
+                if results.len() >= limit {
+                    break;
+                }
+            }
+        }
+    } else {
+        // Instant static fallback if trie is still loading into memory
+        for &word in FALLBACK_ENGLISH_WORDS {
+            if word.starts_with(&lower_buffer) {
+                let formatted = match_casing(buffer, word);
                 if !results.iter().any(|r| r.eq_ignore_ascii_case(&formatted)) {
                     results.push(formatted);
                 }

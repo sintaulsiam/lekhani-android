@@ -85,7 +85,11 @@
 - **Font Selection**: Choose preferred Bengali font rendering (Kalpurush, SolaimanLipi, System default).
 - **Sound Packs**: Choose between Classic Keypress, Modern Bubble, Mechanical Click, Typewriter, Soft Woodblock, or Mute with dedicated volume slider.
 - **Haptic Strength**: Fine-tune vibration duration and amplitude curve to match personal tactile preference.
-- **Customizable Toolbar**: Reorder and toggle quick tools (Emoji, Local Voice Mic, Clipboard, Themes, One-Handed, Settings).
+- **Tool Vault & Interactive Customization**:
+  - Clean, uncluttered toolbar defaults showcasing primary tools (Settings, Theme, Clipboard, Emoji) plus the Tool Vault entry icon (`GridView`).
+  - Secondary/unimportant tools (Local Voice Mic, Height Resize, Text Editor, One-Handed, Floating, Split) neatly tucked inside the **Tool Vault** drawer.
+  - Interactive Customize Mode inside the vault: tap `+` to bring tools to the toolbar, `-` to return them to the vault, and reorder positions live with Left/Right and Up/Down controls.
+  - StateFlow reactive sync updating the active toolbar instantaneously upon customization.
 
 ## 9. Themes & Personalization
 - **Material You Dynamic Color**: Keyboard dynamically takes accents from the user's Android wallpaper.

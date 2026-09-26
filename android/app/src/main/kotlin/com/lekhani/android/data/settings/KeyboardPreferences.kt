@@ -145,10 +145,14 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getInt(KEY_CLIPBOARD_RETENTION_MINUTES, 60)
         set(value) = prefs.edit().putInt(KEY_CLIPBOARD_RETENTION_MINUTES, value).apply()
 
-    // ── Toolbar Settings ──────────────────────────────────────────────────────
+    // ── Toolbar & Tool Vault Settings ────────────────────────────────────────
     var toolbarTools: String
         get() = prefs.getString(KEY_TOOLBAR_TOOLS, DEFAULT_TOOLBAR) ?: DEFAULT_TOOLBAR
         set(value) = prefs.edit().putString(KEY_TOOLBAR_TOOLS, value).apply()
+
+    var vaultTools: String
+        get() = prefs.getString(KEY_VAULT_TOOLS, DEFAULT_VAULT) ?: DEFAULT_VAULT
+        set(value) = prefs.edit().putString(KEY_VAULT_TOOLS, value).apply()
 
     fun getActiveToolbarTools(): List<ToolbarTool> {
         val raw = toolbarTools
@@ -159,6 +163,26 @@ class KeyboardPreferences private constructor(context: Context) {
 
     fun setToolbarToolsList(tools: List<ToolbarTool>) {
         toolbarTools = tools.joinToString(",") { it.name }
+    }
+
+    fun getVaultTools(): List<ToolbarTool> {
+        val active = getActiveToolbarTools().toSet()
+        val raw = vaultTools
+        val saved = raw.split(",")
+            .mapNotNull { name -> runCatching { ToolbarTool.valueOf(name.trim()) }.getOrNull() }
+            .filter { !active.contains(it) }
+        val allAvailable = ToolbarTool.values().toList()
+        val missing = allAvailable.filter { !active.contains(it) && !saved.contains(it) }
+        return (saved + missing).ifEmpty { DEFAULT_VAULT_LIST }
+    }
+
+    fun setVaultToolsList(tools: List<ToolbarTool>) {
+        vaultTools = tools.joinToString(",") { it.name }
+    }
+
+    fun resetToolsToDefault() {
+        setToolbarToolsList(DEFAULT_TOOL_LIST)
+        setVaultToolsList(DEFAULT_VAULT_LIST)
     }
 
     enum class SpacebarSwipeMode(val titleBengali: String, val titleEnglish: String) {
@@ -223,6 +247,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SOUND_VOLUME = "sound_volume"
 
         const val KEY_TOOLBAR_TOOLS = "toolbar_tools"
+        const val KEY_VAULT_TOOLS = "vault_tools"
 
         const val FONT_SYSTEM = "SYSTEM_DEFAULT"
         const val FONT_SERIF = "SERIF"
@@ -236,17 +261,24 @@ class KeyboardPreferences private constructor(context: Context) {
         const val SOUND_WOODBLOCK = "WOODBLOCK"
 
         val DEFAULT_TOOL_LIST = listOf(
-            ToolbarTool.EMOJI,
-            ToolbarTool.TEXT_EDITOR,
-            ToolbarTool.VOICE,
-            ToolbarTool.CLIPBOARD,
-            ToolbarTool.RESIZE,
-            ToolbarTool.THEME,
-            ToolbarTool.ONE_HANDED,
             ToolbarTool.SETTINGS,
+            ToolbarTool.THEME,
+            ToolbarTool.CLIPBOARD,
+            ToolbarTool.EMOJI,
         )
 
         val DEFAULT_TOOLBAR = DEFAULT_TOOL_LIST.joinToString(",") { it.name }
+
+        val DEFAULT_VAULT_LIST = listOf(
+            ToolbarTool.VOICE,
+            ToolbarTool.RESIZE,
+            ToolbarTool.TEXT_EDITOR,
+            ToolbarTool.ONE_HANDED,
+            ToolbarTool.FLOATING,
+            ToolbarTool.SPLIT,
+        )
+
+        val DEFAULT_VAULT = DEFAULT_VAULT_LIST.joinToString(",") { it.name }
 
         @Volatile
         private var instance: KeyboardPreferences? = null

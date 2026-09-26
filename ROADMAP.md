@@ -163,8 +163,11 @@
 - [x] **Haptics & Sound Profiles**:
   - Granular vibration duration and amplitude curve via Android `VibratorManager`.
   - Sound packs (Classic Keypress, Modern Bubble, Mechanical Click, Typewriter, Soft Woodblock, Mute).
-- [x] **Customizable Toolbar**:
-  - Drag-and-drop to reorder/toggle quick tools (Emoji, Local Mic, Clipboard, Themes, One-Handed, Settings).
+- [x] **Tool Vault & Interactive Customization Drawer**:
+  - Unimportant/secondary tools partitioned into an expandable **Tool Vault** drawer with single-tap launcher cards.
+  - Dedicated Tool Vault icon on the keyboard toolbar (`GridView`).
+  - Interactive Customize Mode allowing users to promote tools from vault to toolbar (`+`), demote tools back to vault (`-`), and reorder within toolbar and vault with direction controls.
+  - Live StateFlow reactivity updating the candidate strip toolbar without keyboard restart.
 - [x] **Theme Studio & Brand Identity**:
   - Official brand icon and launcher glyph updated to authentic Bengali 'লে' (Le) across all adaptive densities.
   - Material You Dynamic Color extraction from wallpaper.

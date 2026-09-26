@@ -19,24 +19,60 @@ import java.io.IOException
 object LekhaniAssetInstaller {
     private const val TAG = "LekhaniAssetInstaller"
 
+    private val BUNDLED_DICTIONARIES = listOf(
+        "english_dict.bin",
+        "dictionary.bin",
+        "dictionary.json",
+        "bengali_lm.bin",
+        "autocorrect.json",
+        "regex.json",
+        "suffix.json"
+    )
+
+    private val BUNDLED_LAYOUTS = listOf(
+        "Avro_Easy.json",
+        "avrophonetic.json",
+        "Borno.json",
+        "Munir_Optima.json",
+        "National_Jatiya.json",
+        "Probhat.json",
+        "Unijoy.json"
+    )
+
     /**
-     * Synchronously installs dictionaries and layouts to context.filesDir if not already present.
+     * Synchronously installs dictionaries and layouts to context.filesDir (and DPS) if not already present.
      */
     fun installAssetsIfNeeded(context: Context) {
-        val rootDir = context.filesDir
-        val subDirs = listOf("dictionaries", "layouts")
-
-        for (subDir in subDirs) {
-            val targetDir = File(rootDir, subDir)
-            if (!targetDir.exists()) {
-                targetDir.mkdirs()
+        val targetRoots = mutableListOf<File>()
+        targetRoots.add(context.filesDir)
+        try {
+            val dps = context.createDeviceProtectedStorageContext()
+            if (dps.filesDir != null && dps.filesDir.absolutePath != context.filesDir.absolutePath) {
+                targetRoots.add(dps.filesDir)
             }
+        } catch (_: Exception) {}
 
-            try {
-                val assetList = context.assets.list(subDir) ?: continue
-                for (assetName in assetList) {
+        val manifest = mapOf(
+            "dictionaries" to BUNDLED_DICTIONARIES,
+            "layouts" to BUNDLED_LAYOUTS
+        )
+
+        for (rootDir in targetRoots) {
+            for ((subDir, defaultFiles) in manifest) {
+                val targetDir = File(rootDir, subDir)
+                if (!targetDir.exists()) {
+                    targetDir.mkdirs()
+                }
+
+                // Combine dynamic list (if available) with explicit bundled file list
+                val filesToUnpack = LinkedHashSet<String>()
+                try {
+                    context.assets.list(subDir)?.let { filesToUnpack.addAll(it) }
+                } catch (_: IOException) {}
+                filesToUnpack.addAll(defaultFiles)
+
+                for (assetName in filesToUnpack) {
                     val targetFile = File(targetDir, assetName)
-                    // If target doesn't exist or is empty, copy from APK assets
                     if (!targetFile.exists() || targetFile.length() == 0L) {
                         try {
                             context.assets.open("$subDir/$assetName").use { input ->
@@ -44,14 +80,12 @@ object LekhaniAssetInstaller {
                                     input.copyTo(output)
                                 }
                             }
-                            Log.d(TAG, "Unpacked asset: $subDir/$assetName (${targetFile.length()} bytes)")
+                            Log.d(TAG, "Unpacked asset: $subDir/$assetName (${targetFile.length()} bytes) to ${targetFile.absolutePath}")
                         } catch (e: IOException) {
-                            Log.e(TAG, "Failed unpacking asset $subDir/$assetName: ${e.message}")
+                            Log.w(TAG, "Could not open asset $subDir/$assetName: ${e.message}")
                         }
                     }
                 }
-            } catch (e: IOException) {
-                Log.e(TAG, "Error listing asset folder '$subDir': ${e.message}")
             }
         }
     }

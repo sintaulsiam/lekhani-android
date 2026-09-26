@@ -53,6 +53,7 @@ import com.lekhani.android.voice.AudioStreamingManager
 import com.lekhani.android.voice.VoiceTypingState
 import com.lekhani.android.model.NumberSymbolsLayout
 import com.lekhani.android.ui.editor.TextEditorSheetView
+import com.lekhani.android.ui.tools.ExtraToolsSheetView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -130,6 +131,12 @@ class LekhaniInputMethodService : InputMethodService() {
     }
     val themeFlow: StateFlow<com.lekhani.android.theme.KeyboardTheme> get() = _themeFlow.asStateFlow()
 
+    /** Dynamic toolbar tools StateFlow observed by CandidateStripView. */
+    private val _toolsFlow by lazy {
+        MutableStateFlow(keyboardPrefs.getActiveToolbarTools())
+    }
+    val toolsFlow: StateFlow<List<KeyboardPreferences.ToolbarTool>> get() = _toolsFlow.asStateFlow()
+
     /** Persists long-press blacklisted candidates to Device Protected Storage. */
     private val blacklist: CandidateBlacklist by lazy { CandidateBlacklist(this) }
 
@@ -138,7 +145,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
     // ── Input modes & auxiliary views (Phase 6) ──────────────────────────────
 
-    enum class InputViewMode { KEYBOARD, EMOJI, EMOJI_SEARCH, CLIPBOARD, TEXT_EDITOR, RESIZE }
+    enum class InputViewMode { KEYBOARD, EMOJI, EMOJI_SEARCH, CLIPBOARD, TEXT_EDITOR, RESIZE, TOOLS_MENU }
 
     private var currentMode: InputViewMode = InputViewMode.KEYBOARD
     private var emojiSearchQuery: String = ""
@@ -150,7 +157,9 @@ class LekhaniInputMethodService : InputMethodService() {
     private var emojiPickerView: ComposeView? = null
     private var clipboardView: ComposeView? = null
     private var textEditorView: ComposeView? = null
+    private var toolsMenuView: ComposeView? = null
     private var isCurrentFieldPrivate: Boolean = false
+    private var isEnglishDictLoaded: Boolean = false
 
     private var isNumericMode: Boolean = false
     private var isMoreSymbolsMode: Boolean = false
@@ -206,10 +215,7 @@ class LekhaniInputMethodService : InputMethodService() {
         // Unpack bundled offline dictionaries and layouts to application storage
         try {
             LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
-            val englishDictFile = java.io.File(filesDir, "dictionaries/english_dict.bin")
-            if (englishDictFile.exists()) {
-                session.loadEnglishDictionary(englishDictFile.absolutePath)
-            }
+            ensureEnglishDictionaryLoaded()
         } catch (e: Exception) {
             Log.e(TAG, "Error installing offline assets: ${e.message}")
         }
@@ -275,6 +281,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        ensureEnglishDictionaryLoaded()
         currentSelStart = -1
         currentSelEnd = -1
         // Re-apply policy in case the editor info changed after the view appeared
@@ -302,7 +309,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val outsideComposing = if (candidatesStart >= 0 && candidatesEnd >= 0) {
             newSelStart < candidatesStart || newSelEnd > candidatesEnd
         } else {
-            true
+            false
         }
         if (outsideComposing || (newSelStart != newSelEnd)) {
             if (session.isComposing()) {
@@ -348,6 +355,7 @@ class LekhaniInputMethodService : InputMethodService() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 val currentTheme by _themeFlow.collectAsState()
+                val currentTools by _toolsFlow.collectAsState()
                 Box {
                     CandidateStripView(
                         stateFlow = candidateState,
@@ -365,9 +373,10 @@ class LekhaniInputMethodService : InputMethodService() {
                             }
                         },
                         theme = currentTheme,
-                        activeTools = keyboardPrefs.getActiveToolbarTools(),
+                        activeTools = currentTools,
                         isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onToolClick = { tool -> handleToolbarToolClick(tool) },
+                        onOpenToolsMenu = { setInputViewMode(InputViewMode.TOOLS_MENU) },
                         onEmojiSearchClose = {
                             setInputViewMode(InputViewMode.EMOJI)
                         },
@@ -649,6 +658,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
                 textEditorView?.visibility = View.GONE
+                toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
@@ -662,6 +672,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
                 textEditorView?.visibility = View.GONE
+                toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchSession = AndroidLekhaniSession().apply {
                     setLayout(session.getLayout())
@@ -674,6 +685,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
                 textEditorView?.visibility = View.GONE
+                toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
@@ -711,6 +723,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.visibility = View.GONE
                 emojiPickerView?.visibility = View.GONE
                 textEditorView?.visibility = View.GONE
+                toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
@@ -747,6 +760,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.visibility = View.GONE
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
+                toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
@@ -795,6 +809,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
                 textEditorView?.visibility = View.GONE
+                toolsMenuView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
                 clearCandidates()
@@ -824,6 +839,59 @@ class LekhaniInputMethodService : InputMethodService() {
                     )
                 }
                 resizeOverlayComposeView?.visibility = View.VISIBLE
+            }
+            InputViewMode.TOOLS_MENU -> {
+                keyboardView?.isResizeVisualGuide = false
+                resizeOverlayComposeView?.visibility = View.GONE
+                keyboardView?.visibility = View.GONE
+                emojiPickerView?.visibility = View.GONE
+                clipboardView?.visibility = View.GONE
+                textEditorView?.visibility = View.GONE
+                candidateStripComposeView?.visibility = View.GONE
+                emojiSearchQuery = ""
+                emojiSearchSession = null
+                clearCandidates()
+
+                val kbHeight = keyboardView?.height?.takeIf { it > 0 }
+                    ?: (260 * resources.displayMetrics.density).toInt()
+
+                if (toolsMenuView == null) {
+                    val compose = ComposeView(this).apply {
+                        attachLifecycleOwner(this)
+                        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                    }
+                    toolsMenuView = compose
+                    container.addView(
+                        compose,
+                        FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            kbHeight
+                        )
+                    )
+                } else {
+                    toolsMenuView?.layoutParams = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        kbHeight
+                    )
+                }
+                toolsMenuView?.setContent {
+                    ExtraToolsSheetView(
+                        theme = activeTheme,
+                        prefs = keyboardPrefs,
+                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                        onToolSelected = { tool ->
+                            setInputViewMode(InputViewMode.KEYBOARD)
+                            handleToolbarToolClick(tool)
+                        },
+                        onToolsUpdated = { newTools ->
+                            _toolsFlow.value = newTools
+                        },
+                        onClose = {
+                            setInputViewMode(InputViewMode.KEYBOARD)
+                        }
+                    )
+                }
+                toolsMenuView?.visibility = View.VISIBLE
             }
         }
     }
@@ -1119,6 +1187,10 @@ class LekhaniInputMethodService : InputMethodService() {
     fun onKey(keyToken: String) {
         val ic = currentInputConnection ?: return
 
+        if (session.getLayout() == LekhaniLayoutType.ENGLISH && !isEnglishDictLoaded) {
+            ensureEnglishDictionaryLoaded()
+        }
+
         val result = try {
             session.processKey(keyToken)
         } catch (e: LekhaniException) {
@@ -1311,6 +1383,9 @@ class LekhaniInputMethodService : InputMethodService() {
         emojiSearchSession?.setLayout(layout)
         keyboardView?.setLayout(LayoutRegistry.get(layout), layout, shifted = false)
         keyboardView?.setGboardKarsActive(false)
+        if (layout == LekhaniLayoutType.ENGLISH) {
+            ensureEnglishDictionaryLoaded()
+        }
         devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()
         Log.i(TAG, "Layout switched to $layout")
     }
@@ -1328,9 +1403,44 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // Private helpers
-    // ══════════════════════════════════════════════════════════════════════════
+    private fun ensureEnglishDictionaryLoaded() {
+        if (isEnglishDictLoaded) return
+        val candidates = listOf(
+            java.io.File(filesDir, "dictionaries/english_dict.bin"),
+            java.io.File(applicationContext.filesDir, "dictionaries/english_dict.bin"),
+            java.io.File(createDeviceProtectedStorageContext().filesDir, "dictionaries/english_dict.bin"),
+            java.io.File("/data/user_de/0/com.lekhani.android/files/dictionaries/english_dict.bin"),
+            java.io.File("/data/user/0/com.lekhani.android/files/dictionaries/english_dict.bin"),
+            java.io.File("/data/data/com.lekhani.android/files/dictionaries/english_dict.bin"),
+        )
+        for (f in candidates) {
+            if (f.exists() && f.length() > 0) {
+                val ok = session.loadEnglishDictionary(f.absolutePath)
+                if (ok) {
+                    isEnglishDictLoaded = true
+                    Log.i(TAG, "English dictionary loaded from ${f.absolutePath} (${f.length()} bytes)")
+                    return
+                }
+            }
+        }
+        // Force install if missing
+        try {
+            LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
+            for (f in candidates) {
+                if (f.exists() && f.length() > 0) {
+                    val ok = session.loadEnglishDictionary(f.absolutePath)
+                    if (ok) {
+                        isEnglishDictLoaded = true
+                        Log.i(TAG, "English dictionary loaded after asset install from ${f.absolutePath}")
+                        return
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error installing assets for English dict: ${e.message}")
+        }
+        Log.w(TAG, "English dictionary file not found or failed to load")
+    }
 
     /**
      * Publishes candidate list to the Compose candidate strip.
@@ -1523,21 +1633,19 @@ class LekhaniInputMethodService : InputMethodService() {
             inputVariation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
             inputVariation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
         )
-        val isPrivate = isPasswordField || noSuggestions
+        isCurrentFieldPrivate = isPasswordField || noSuggestions
+        session.setPrivateField(isPasswordField)
 
-        isCurrentFieldPrivate = isPrivate
-        session.setPrivateField(isPrivate)
-
-        if (!isPrivate) {
-            // Restore the user's preferred layout when leaving a private field.
+        if (!isPasswordField) {
+            // Restore the user's preferred layout when leaving a password field.
             val preferred = devicePrefs.getString(PREF_LAYOUT, null)
                 ?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
                 ?: LekhaniLayoutType.PROBAHO
-            if (session.getLayout() != preferred) {
+            if (session.getLayout() != preferred && isPasswordField) {
                 switchLayout(preferred)
             }
         } else {
-            // Auto-switch to English QWERTY for passwords/incognito
+            // Auto-switch to English QWERTY for passwords
             if (session.getLayout() != LekhaniLayoutType.ENGLISH) {
                 switchLayout(LekhaniLayoutType.ENGLISH)
             }
