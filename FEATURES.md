@@ -1,7 +1,7 @@
 # Lekhani Android: Complete Feature Specification
 
 ## 1. Input Layouts & Switching
-- **Lekhani প্রবাহ (Flow)**: Scientifically engineered custom layout for ultra-fast two-thumb mobile typing. Left-thumb vowel zone with Ri-kar (`ৃ`) pairing and word-start auto-promotion (`ৃ` -> `ঋ`), right-thumb consonant engine, and dedicated Hasanta (`্`).
+- **Lekhani প্রবাহ (Flow)**: Scientifically engineered custom layout for ultra-fast two-thumb mobile typing. Left-thumb vowel zone with Ri-kar (`ৃ`) pairing and word-start auto-promotion (`ৃ` -> `ঋ`), right-thumb consonant engine with high-frequency `হ` (~3.6%) on unshifted Row 3, long-press consonant hints (`গ` on `ম`, `ঘ` on `ল`), relocated `ৌ` (<0.05%) to Shift of `ো`, dedicated Hasanta (`্`), and instant spacebar-row punctuation (`?` on `,` and `।`).
 - **Avro Phonetic (Classic Muscle Memory)**: 100% faithful transliteration (`ami` -> `আমি`, `shikkhok` -> `শিক্ষক`, `brriShTi` -> `বৃষ্টি`).
 - **Fixed National (জাতীয়)**: Official standard Bangladeshi layout with illuminated Shift & AltGr key states.
 - **Fixed Probhat (प्रभात)**: Popular phonetic fixed layout with dead-key combinations.
@@ -37,9 +37,9 @@
 
 ## 4. Emoji, Kaomoji, Symbols & Clipboard
 - **Unicode 15.1+ Emoji Suite**: Full categorization (Smileys, People, Nature, Food, Travel, Activities, Objects, Symbols, Flags).
-- **Instant Search**: Search emojis in both Bengali (e.g., "হাসি", "ভালোবাসা", "আগুন") and English ("laugh", "love", "fire").
+- **Instant Live Bilingual Search**: Real-time search in both Bengali (e.g., "হাসি", "ভালোবাসা", "আগুন") and English ("laugh", "love", "fire") with quick recommendation chips (`🔥 আগুন`, `❤️ প্রেম`, `😂 হাসি`, etc.) and instant clear button.
 - **Recents & Favorites Shelf**: Quick access to frequently used emojis with local persistence.
-- **Diverse Modifiers**: Long-press on person/hand emojis for skin-tone and gender selection.
+- **Persistent Skin Tone & Diverse Modifiers**: Long-press on person/hand emojis for skin-tone and gender selection; selected default skin tone is saved in Device Protected Storage and automatically applied across all grids and search queries.
 - **Kaomoji & Emoticons Picker**: Expressive text emoticons (`(◕‿◕)`, `¯\_(ツ)_/¯`, etc.).
 - **Smart Local Clipboard & Vault**:
   - Dedicated primary navigation tab in settings and quick-access hero card on Home.
@@ -92,9 +92,23 @@
   - StateFlow reactive sync updating the active toolbar instantaneously upon customization.
 
 ## 9. Themes & Personalization
-- **Material You Dynamic Color**: Keyboard dynamically takes accents from the user's Android wallpaper.
-- **Deep OLED Pure Black**: Conserves battery on modern AMOLED screens.
-- **Classic Avro Blue & Cyber Indigo**: Nostalgic and cyberpunk modern presets.
+- **Decoupled App vs Keyboard Theme**: Control the settings app appearance (`System Default`, `Force Light`, `Force Dark`, or `Match Keyboard Theme`) independently from the active keyboard layout theme.
+- **11 Curated Keyboard Presets**:
+  - Material You Dynamic Color (wallpaper adaptive)
+  - Light Clean & Dark Sleek
+  - Deep OLED Pure Black (energy-saving true black)
+  - Classic Avro Blue & Cyber Indigo
+  - Sakura Dusk (soft floral twilight)
+  - Forest Emerald (deep woodland greens)
+  - Nordic Frost (crisp arctic cyan & slate)
+  - Sunset Amber (warm dusk gradient)
+  - Mocha Latte (comforting warm espresso & beige)
+- **Custom Theme Studio & Engine**:
+  - Full creation, duplication, editing, and deletion workflow for user-defined themes.
+  - Interactive mini-keyboard preview canvas dynamically updating as colors are picked.
+  - Precise hex and curated palette swatches for Background, Key Background, Text, Accent, Candidate Strip, and Key Borders.
+  - Built-in WCAG 2.1 AA luminance contrast checker warning users when foreground and background combinations drop below 4.5:1 ratio.
+  - Zero-cloud local persistence via JSON in Device Protected Storage.
 - **Custom Wallpaper Themes**: Set custom background pictures or gradients with customizable blur and opacity overlays.
 
 ## 10. User Data Freedom & Migration

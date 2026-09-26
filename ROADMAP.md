@@ -47,7 +47,7 @@
   - Conjunct-aware grapheme cluster backspace delegated to Rust engine (Phase 1).
   - Automatic Unicode NFC canonicalization on every commit (Phase 1).
 - [x] **Core Layout Implementations**:
-  - **Lekhani প্রবাহ (Flow)**: `ProbahLayout.kt` — full 3-row + spacebar row per LAYOUT_PROBAHO.md spec with long-press hint triggers.
+  - **Lekhani প্রবাহ (Flow)**: `ProbahLayout.kt` — full 3-row + spacebar row per LAYOUT_PROBAHO.md spec with high-frequency `হ` (~3.6%) on unshifted Row 3, long-press hints (`গ` on `ম`, `ঘ` on `ল`), relocated `ৌ` (<0.05%) to Shift of `ো`, and direct punctuation (`?` on `,` and `।`).
   - **Avro Phonetic**: `AvroPhoneticLayout` — QWERTY grid, transliteration in Rust engine.
   - **Fixed National (জাতীয়)**: `NationalLayout.kt` — BBS standard with Shift layers and Khanda Ta (`ৎ`).
   - **Fixed Probhat (प्रभात)**: `ProbhatLayout.kt` — 10-key standard with dedicated Hasanta (`্`) and Chandra Bindu (`ঁ`).
@@ -99,9 +99,9 @@
 
 ## Phase 6: Emoji, Kaomoji, Symbols & Clipboard Suite
 - [x] Full Unicode 15.1+ emoji palette with category tabs (Smileys, People, Nature, Food, Travel, Activities, Objects, Symbols, Flags) in `EmojiData.kt`.
-- [x] Instant bilingual search (Bengali e.g. "হাসি", "আগুন" + English keywords).
+- [x] Instant bilingual live search (Bengali e.g. "হাসি", "আগুন" + English keywords) with clear button and quick recommendation chips (`🔥 আগুন`, `❤️ প্রেম`, `😂 হাসি`, etc.).
 - [x] Recents & favorites shelf with local DPS persistence (`EmojiRecentsManager.kt`).
-- [x] Long-press skin-tone and gender modifiers popup.
+- [x] Long-press skin-tone and gender modifiers popup with globally persisted default skin tone applied across all grids and search results.
 - [x] Kaomoji & emoticons picker (`(◕‿◕)`, `¯\_(ツ)_/¯`, `(ノಠ益ಠ)ノ彡┻━┻`) in `KaomojiData.kt`.
 - [x] Specialized math, currency (`৳`, `$`, `€`, `¥`, `₹`), and Bengali typographical symbols in `SymbolData.kt`.
 - [x] **High-Priority Clipboard Suite & Vault**:
@@ -170,9 +170,14 @@
   - Live StateFlow reactivity updating the candidate strip toolbar without keyboard restart.
 - [x] **Theme Studio & Brand Identity**:
   - Official brand icon and launcher glyph updated to authentic Bengali 'লে' (Le) across all adaptive densities.
-  - Material You Dynamic Color extraction from wallpaper.
-  - Deep OLED Pure Black mode.
-  - Classic Avro Blue and Cyber Indigo presets.
+  - Decoupled App Theme Mode (`System Default`, `Force Light`, `Force Dark`, `Match Keyboard Theme`).
+  - 11 Curated Keyboard Presets: System Dynamic (Material You), Light Clean, Dark Sleek, OLED Pure Black, Avro Blue, Cyber Indigo, Sakura Dusk, Forest Emerald, Nordic Frost, Sunset Amber, and Mocha Latte.
+  - **Custom Theme Studio & Engine**:
+    - Create custom themes from scratch or duplicate any existing preset / custom theme.
+    - Full color palette customization: Background, Key Background, Text, Accent, Candidate Bar, and Key Borders.
+    - Live interactive mini-keyboard preview canvas rendering real theme styles.
+    - Built-in real-time WCAG 2.1 AA luminance contrast validation ratio checker (`ContrastChecker`).
+    - Device Protected Storage JSON persistence (`CustomThemeManager.kt`).
   - Custom background image and gradient wallpaper support with adjustable opacity and blur.
 
 

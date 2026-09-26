@@ -83,17 +83,17 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for full technical deep-dive.
 ## 🗺️ Project Roadmap
 
 - [x] Phase 0: Standalone Rust Core & Engine Crates published to crates.io
-- [ ] Phase 1: Native Android UniFFI Bridge Crate (`crates/lekhani-android`)
-- [ ] Phase 2: Android IME Scaffolding & System Compatibility (Direct Boot, Passwords, WebViews)
-- [ ] Phase 3: Hardware Canvas Touch Grid & Bengali Script Engine (Avro, National, Probhat, Gboard-style)
-- [ ] Phase 4: Candidate Strip & Contextual AI Intelligence (Homophones, Next-Word, Blacklist)
-- [ ] Phase 5: Emoji, Kaomoji, Symbols & Clipboard Suite (Unicode 15.1+, Bilingual Search)
-- [ ] Phase 6: Multi-Layout Switcher & Hardware Keyboard (Settings toggles, Bluetooth keyboards)
-- [ ] Phase 7: 100% Local / On-Device Voice Typing (Offline ASR, Zero Internet)
-- [ ] Phase 8: Dictionary Management & User Data Freedom (Ridmik/Avro import, JSON backup)
-- [ ] Phase 9: Glide / Gesture Typing (Continuous swipe path decoder)
-- [ ] Phase 10: Deep Customization & Theme Studio v2 (Geometry, sound packs, haptics, toolbar)
-- [ ] Phase 11: World-Class Modern UI/UX & Form Factors (Spring physics, tablet split & floating)
+- [x] Phase 1: Native Android UniFFI Bridge Crate (`crates/lekhani-android`)
+- [x] Phase 2: Android IME Scaffolding & System Compatibility (Direct Boot, Passwords, WebViews)
+- [x] Phase 3: Hardware Canvas Touch Grid & Bengali Script Engine (Avro, Probaho, National, Probhat, Gboard-style)
+- [x] Phase 4: Candidate Strip & Contextual AI Intelligence (Homophones, Next-Word, Blacklist)
+- [x] Phase 5: 100% Local / On-Device Voice Typing (Offline ASR, Zero Internet)
+- [x] Phase 6: Emoji, Kaomoji, Symbols & Clipboard Suite (Unicode 15.1+, Live Search, Persistent Skin Tones)
+- [x] Phase 7: Multi-Layout Switcher & Hardware Keyboard (Settings toggles, Bluetooth keyboards)
+- [x] Phase 8: Glide / Gesture Typing (Continuous swipe path decoder)
+- [x] Phase 9: Dictionary Management & User Data Freedom (Ridmik/Avro import, JSON backup)
+- [x] Phase 10: Deep Customization & Theme Studio v2 (Custom theme creator, WCAG contrast checker, 11 presets)
+- [x] Phase 11: World-Class Modern UI/UX & Form Factors (Spring physics, tablet split & floating, tool vault)
 - [ ] Phase 12: Onboarding Flow, Accessibility & Store Launch (2-step setup, TalkBack, F-Droid & Play)
 
 Detailed task breakdown in [ROADMAP.md](ROADMAP.md).
