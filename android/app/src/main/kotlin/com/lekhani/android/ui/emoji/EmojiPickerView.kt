@@ -85,6 +85,7 @@ fun EmojiPickerView(
     onClose: () -> Unit,
     onSearchClick: () -> Unit = {},
     onSpace: () -> Unit = {},
+    isEnglish: Boolean = false,
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     modifier: Modifier = Modifier,
 ) {
@@ -111,7 +112,7 @@ fun EmojiPickerView(
             .fillMaxWidth()
             .height(270.dp)
             .background(pickerBg)
-            .semantics { contentDescription = "ইমোজি এবং প্রতীক প্যালেট" },
+            .semantics { contentDescription = if (isEnglish) "Emoji and symbol palette" else "ইমোজি এবং প্রতীক প্যালেট" },
     ) {
         // ── Search Pill ───────────────────────────────────────────────────────
         Box(
@@ -131,13 +132,14 @@ fun EmojiPickerView(
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
+                    contentDescription = if (isEnglish) "Search" else "অনুসন্ধান",
                     tint = activeTabPill,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "ইমোজি খুঁজুন (যেমন: হাসি, আগুন, love, flag)...",
+                    text = if (isEnglish) "Search emojis (e.g. smile, fire, love, flag)..."
+                           else "ইমোজি খুঁজুন (যেমন: হাসি, আগুন, প্রেম, পতাকা)...",
                     fontSize = 13.sp,
                     color = inactiveTabText,
                     maxLines = 1,
@@ -171,18 +173,34 @@ fun EmojiPickerView(
                     label = "🕒",
                     isSelected = selectedTabIdx == 0,
                     onClick = { selectedTabIdx = 0 },
-                    desc = "সাম্প্রতিক ইমোজি",
+                    desc = if (isEnglish) "Recent Emojis" else "সাম্প্রতিক ইমোজি",
                     activePill = activeTabPill,
                     inactiveColor = inactiveTabText,
                 )
 
                 // Standard Categories
                 EmojiData.categories.forEachIndexed { index, cat ->
+                    val catTitle = if (isEnglish) {
+                        when (cat.id) {
+                            "smileys" -> "Smileys & Emotion"
+                            "people" -> "People & Body"
+                            "animals" -> "Animals & Nature"
+                            "food" -> "Food & Drink"
+                            "travel" -> "Travel & Places"
+                            "activities" -> "Activities & Games"
+                            "objects" -> "Objects"
+                            "symbols" -> "Symbols"
+                            "flags" -> "Flags"
+                            else -> cat.title
+                        }
+                    } else {
+                        cat.title
+                    }
                     TabItem(
                         label = cat.icon,
                         isSelected = selectedTabIdx == index + 1,
                         onClick = { selectedTabIdx = index + 1 },
-                        desc = cat.title,
+                        desc = catTitle,
                         activePill = activeTabPill,
                         inactiveColor = inactiveTabText,
                     )
@@ -193,7 +211,7 @@ fun EmojiPickerView(
                     label = "ツ",
                     isSelected = selectedTabIdx == kaomojiTabIdx,
                     onClick = { selectedTabIdx = kaomojiTabIdx },
-                    desc = "কাওমোজি ইমোটিকন",
+                    desc = if (isEnglish) "Kaomoji Emoticons" else "কাওমোজি ইমোটিকন",
                     activePill = activeTabPill,
                     inactiveColor = inactiveTabText,
                 )
@@ -203,7 +221,7 @@ fun EmojiPickerView(
                     label = "৳",
                     isSelected = selectedTabIdx == symbolTabIdx,
                     onClick = { selectedTabIdx = symbolTabIdx },
-                    desc = "বাংলা ও গণিত প্রতীক",
+                    desc = if (isEnglish) "Symbols & Math" else "বাংলা ও গণিত প্রতীক",
                     activePill = activeTabPill,
                     inactiveColor = inactiveTabText,
                 )
@@ -221,7 +239,11 @@ fun EmojiPickerView(
                 val searchResults = remember(searchQuery) { EmojiData.search(searchQuery) }
                 if (searchResults.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("কোনো ইমোজি পাওয়া যায়নি", color = inactiveTabText, fontSize = 13.sp)
+                        Text(
+                            if (isEnglish) "No emojis found" else "কোনো ইমোজি পাওয়া যায়নি",
+                            color = inactiveTabText,
+                            fontSize = 13.sp
+                        )
                     }
                 } else {
                     LazyVerticalGrid(
@@ -250,7 +272,11 @@ fun EmojiPickerView(
                     // Recents Tab
                     if (recents.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("সম্প্রতি ব্যবহৃত কোনো ইমোজি নেই", color = inactiveTabText, fontSize = 13.sp)
+                            Text(
+                                if (isEnglish) "No recently used emojis" else "সম্প্রতি ব্যবহৃত কোনো ইমোজি নেই",
+                                color = inactiveTabText,
+                                fontSize = 13.sp
+                            )
                         }
                     } else {
                         LazyVerticalGrid(
@@ -383,7 +409,7 @@ fun EmojiPickerView(
                     .background(Color(theme.keyNormalColor))
                     .clickable { onClose() }
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .semantics { contentDescription = "কিবোর্ডে ফিরে যান" },
+                    .semantics { contentDescription = if (isEnglish) "Return to keyboard" else "কীবোর্ডে ফিরে যান" },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -401,12 +427,12 @@ fun EmojiPickerView(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(theme.keyNormalColor))
                     .clickable { onSearchClick() }
-                    .semantics { contentDescription = "ইমোজি অনুসন্ধান" },
+                    .semantics { contentDescription = if (isEnglish) "Search emojis" else "ইমোজি অনুসন্ধান" },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "ইমোজি অনুসন্ধান",
+                    contentDescription = if (isEnglish) "Search emojis" else "ইমোজি অনুসন্ধান",
                     tint = activeTabPill,
                     modifier = Modifier.size(18.dp),
                 )
@@ -423,7 +449,7 @@ fun EmojiPickerView(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "Space",
+                    text = if (isEnglish) "Space" else "স্পেস",
                     fontSize = 12.sp,
                     color = inactiveTabText,
                 )
@@ -436,12 +462,12 @@ fun EmojiPickerView(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(theme.keyNormalColor))
                     .clickable { onBackspace() }
-                    .semantics { contentDescription = "ডিলিট করুন" },
+                    .semantics { contentDescription = if (isEnglish) "Backspace" else "ডিলিট করুন" },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Backspace,
-                    contentDescription = "Backspace",
+                    contentDescription = if (isEnglish) "Backspace" else "ডিলিট করুন",
                     tint = textColor,
                     modifier = Modifier.size(20.dp),
                 )

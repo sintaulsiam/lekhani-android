@@ -74,7 +74,7 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_SHOW_KEY_PREVIEWS, value).apply()
 
     var uiLanguage: String
-        get() = prefs.getString(KEY_UI_LANGUAGE, "bn") ?: "bn"
+        get() = prefs.getString(KEY_UI_LANGUAGE, "en") ?: "en"
         set(value) = prefs.edit().putString(KEY_UI_LANGUAGE, value).apply()
 
     var fontStyle: String

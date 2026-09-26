@@ -21,7 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -101,7 +101,7 @@ fun ThemeStudioSheet(
             ) {
                 IconButton(onClick = onClose) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = if (isEnglish) "Back" else "ফিরে যান",
                         tint = MaterialTheme.colorScheme.onBackground
                     )
@@ -147,6 +147,7 @@ fun ThemeStudioSheet(
                     ThemePreviewCard(
                         theme = theme,
                         isSelected = isSelected,
+                        isEnglish = isEnglish,
                         onSelect = {
                             selectedThemeId = theme.id
                             prefs.themeId = theme.id
@@ -181,7 +182,7 @@ fun ThemeStudioSheet(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Filled.Wallpaper,
-                                        contentDescription = "Wallpaper",
+                                        contentDescription = if (isEnglish) "Wallpaper" else "ওয়ালপেপার",
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(24.dp)
                                     )
@@ -201,7 +202,7 @@ fun ThemeStudioSheet(
                                         onClick = { photoPickerLauncher.launch("image/*") },
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
-                                        Text(if (isEnglish) "Choose" else "নির্বাচন")
+                                        Text(if (isEnglish) "Choose Image" else "ছবি নির্বাচন করুন")
                                     }
 
                                     if (wallpaperUri.isNotBlank()) {
@@ -225,7 +226,7 @@ fun ThemeStudioSheet(
                             if (wallpaperUri.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Text(
-                                    text = if (isEnglish) "Opacity: ${(wallpaperOpacity * 100).toInt()}%" else "স্বচ্ছতা (Opacity): ${(wallpaperOpacity * 100).toInt()}%",
+                                    text = if (isEnglish) "Background Opacity: ${(wallpaperOpacity * 100).toInt()}%" else "ওয়ালপেপারের স্বচ্ছতা: ${(wallpaperOpacity * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -267,6 +268,7 @@ fun ThemeStudioSheet(
 private fun ThemePreviewCard(
     theme: KeyboardTheme,
     isSelected: Boolean,
+    isEnglish: Boolean = false,
     onSelect: () -> Unit,
 ) {
     Card(
@@ -291,12 +293,12 @@ private fun ThemePreviewCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = theme.nameBengali,
+                    text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color(theme.labelColor)
                 )
                 Text(
-                    text = theme.nameEnglish,
+                    text = if (isEnglish) theme.nameBengali else theme.nameEnglish,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(theme.labelDimColor)
                 )
@@ -346,7 +348,7 @@ private fun ThemePreviewCard(
                             .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Space", color = Color(theme.labelDimColor), fontSize = 11.sp)
+                        Text(if (isEnglish) "Space" else "স্পেস", color = Color(theme.labelDimColor), fontSize = 11.sp)
                     }
                 }
             }
@@ -361,7 +363,7 @@ private fun ThemePreviewCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
+                        contentDescription = if (isEnglish) "Selected" else "নির্বাচিত",
                         tint = if (theme.isDark) Color.Black else Color.White,
                         modifier = Modifier.size(18.dp)
                     )

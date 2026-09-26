@@ -106,7 +106,7 @@ fun KeyboardResizeOverlayView(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isEnglish) "Drag to Resize Keyboard" else "টেনে আকার পরিবর্তন করুন (Drag to Resize)",
+                    text = if (isEnglish) "Drag to Resize Keyboard" else "টেনে কীবোর্ডের আকার পরিবর্তন করুন",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = accent,
@@ -156,7 +156,7 @@ fun KeyboardResizeOverlayView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Remove,
-                    contentDescription = if (isEnglish) "Decrease" else "ছোট করুন",
+                    contentDescription = if (isEnglish) "Decrease Height (-5%)" else "উচ্চতা কমান (-৫%)",
                     tint = textColor,
                     modifier = Modifier.size(18.dp),
                 )
@@ -172,9 +172,9 @@ fun KeyboardResizeOverlayView(
             ) {
                 val percent = (scale * 100).roundToInt()
                 val label = if (percent == 100) {
-                    if (isEnglish) "100% (Default)" else "১০০% (স্বাভাবিক)"
+                    if (isEnglish) "100% (Default)" else "১০০% (ডিফল্ট)"
                 } else {
-                    "$percent%"
+                    if (isEnglish) "$percent%" else "${toBengaliDigits(percent)}%"
                 }
                 Text(
                     text = label,
@@ -199,7 +199,7 @@ fun KeyboardResizeOverlayView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = if (isEnglish) "Increase" else "বড় করুন",
+                    contentDescription = if (isEnglish) "Increase Height (+5%)" else "উচ্চতা বাড়ান (+৫%)",
                     tint = textColor,
                     modifier = Modifier.size(18.dp),
                 )
@@ -219,7 +219,7 @@ fun KeyboardResizeOverlayView(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Refresh,
-                    contentDescription = if (isEnglish) "Reset" else "রিসেট",
+                    contentDescription = if (isEnglish) "Reset to Default" else "ডিফল্ট উচ্চতায় রিসেট",
                     tint = accent,
                     modifier = Modifier.size(18.dp),
                 )
@@ -253,4 +253,9 @@ fun KeyboardResizeOverlayView(
             }
         }
     }
+}
+
+private fun toBengaliDigits(number: Int): String {
+    val bnDigits = charArrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
+    return number.toString().map { if (it in '0'..'9') bnDigits[it - '0'] else it }.joinToString("")
 }

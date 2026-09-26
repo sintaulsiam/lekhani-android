@@ -695,6 +695,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     EmojiPickerView(
                         recentsManager = recentsManager,
                         theme = activeTheme,
+                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onEmojiSelected = { emoji ->
                             currentInputConnection?.commitText(emoji, 1)
                         },
@@ -731,6 +732,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     ClipboardSheetView(
                         clipboardStore = clipboardStore,
                         theme = activeTheme,
+                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onPaste = { text ->
                             runCatching { currentInputConnection?.commitText(text, 1) }
                             setInputViewMode(InputViewMode.KEYBOARD)

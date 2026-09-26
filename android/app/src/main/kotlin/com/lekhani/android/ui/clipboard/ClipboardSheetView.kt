@@ -82,6 +82,7 @@ fun ClipboardSheetView(
     onPaste: (String) -> Unit,
     onClose: () -> Unit,
     onOpenEditor: (() -> Unit)? = null,
+    isEnglish: Boolean = false,
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     modifier: Modifier = Modifier,
 ) {
@@ -100,8 +101,9 @@ fun ClipboardSheetView(
     var editingClip by remember { mutableStateOf<ClipItem?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
 
-    val retentionLabel = remember(clipboardStore.retentionMinutes) {
-        RetentionPeriod.fromMinutes(clipboardStore.retentionMinutes).labelBengali
+    val retentionLabel = remember(clipboardStore.retentionMinutes, isEnglish) {
+        val period = RetentionPeriod.fromMinutes(clipboardStore.retentionMinutes)
+        if (isEnglish) period.labelEnglish else period.labelBengali
     }
 
     Column(
@@ -109,7 +111,7 @@ fun ClipboardSheetView(
             .fillMaxWidth()
             .height(260.dp)
             .background(clipboardBg)
-            .semantics { contentDescription = "ক্লিপবোর্ড প্যানেল" },
+            .semantics { contentDescription = if (isEnglish) "Clipboard Panel" else "ক্লিপবোর্ড প্যানেল" },
     ) {
         // ── Top Header Bar ───────────────────────────────────────────────────
         Row(
@@ -130,7 +132,7 @@ fun ClipboardSheetView(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "ক্লিপবোর্ড",
+                    text = if (isEnglish) "Clipboard" else "ক্লিপবোর্ড",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = textPrimary,
@@ -168,7 +170,7 @@ fun ClipboardSheetView(
                             .background(primaryAccent.copy(alpha = 0.15f))
                             .clickable { onOpenEditor() }
                             .padding(horizontal = 8.dp, vertical = 5.dp)
-                            .semantics { contentDescription = "ক্লিপবোর্ড এডিটর খুলুন" },
+                            .semantics { contentDescription = if (isEnglish) "Open Clipboard Editor" else "ক্লিপবোর্ড এডিটর খুলুন" },
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -178,7 +180,7 @@ fun ClipboardSheetView(
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(Modifier.width(3.dp))
-                            Text("এডিটর", fontSize = 11.sp, color = primaryAccent, fontWeight = FontWeight.Bold)
+                            Text(if (isEnglish) "Editor" else "এডিটর", fontSize = 11.sp, color = primaryAccent, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -190,7 +192,7 @@ fun ClipboardSheetView(
                         .background(cardBg)
                         .clickable { showAddDialog = true }
                         .padding(horizontal = 7.dp, vertical = 5.dp)
-                        .semantics { contentDescription = "নতুন ক্লিপ যোগ করুন" },
+                        .semantics { contentDescription = if (isEnglish) "Add New Clip" else "নতুন ক্লিপ যোগ করুন" },
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -200,7 +202,7 @@ fun ClipboardSheetView(
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(Modifier.width(2.dp))
-                        Text("নতুন", fontSize = 11.sp, color = textSecondary)
+                        Text(if (isEnglish) "New" else "নতুন", fontSize = 11.sp, color = textSecondary)
                     }
                 }
 
@@ -211,9 +213,9 @@ fun ClipboardSheetView(
                             .background(cardBg)
                             .clickable { clipboardStore.clearUnpinned() }
                             .padding(horizontal = 7.dp, vertical = 5.dp)
-                            .semantics { contentDescription = "পিন ছাড়া সব মুছুন" },
+                            .semantics { contentDescription = if (isEnglish) "Clear unpinned clips" else "পিন ছাড়া সব মুছুন" },
                     ) {
-                        Text("মুছুন", fontSize = 11.sp, color = textSecondary)
+                        Text(if (isEnglish) "Clear" else "মুছুন", fontSize = 11.sp, color = textSecondary)
                     }
                 }
 
@@ -223,7 +225,7 @@ fun ClipboardSheetView(
                         .background(cardBg)
                         .clickable { onClose() }
                         .padding(horizontal = 10.dp, vertical = 5.dp)
-                        .semantics { contentDescription = "কিবোর্ডে ফিরে যান" },
+                        .semantics { contentDescription = if (isEnglish) "Back to Keyboard" else "কিবোর্ডে ফিরে যান" },
                 ) {
                     Text("⌨ ABC", fontSize = 12.sp, color = textPrimary, fontWeight = FontWeight.Bold)
                 }
@@ -239,7 +241,8 @@ fun ClipboardSheetView(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "ক্লিপবোর্ডে কোনো লেখা সংরক্ষিত নেই।\nযেকোনো লেখা কপি করলে বা 'নতুন' চাপলে তা এখানে জমা হবে।",
+                    text = if (isEnglish) "No clips stored in clipboard.\nCopied text or added notes will appear here."
+                           else "ক্লিপবোর্ডে কোনো লেখা সংরক্ষিত নেই।\nযেকোনো লেখা কপি করলে বা 'নতুন' চাপলে তা এখানে জমা হবে।",
                     fontSize = 13.sp,
                     color = textSecondary,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -259,6 +262,7 @@ fun ClipboardSheetView(
                         onTogglePin = { clipboardStore.togglePin(clip.id) },
                         onToggleSave = { clipboardStore.toggleSave(clip.id) },
                         onDelete = { clipboardStore.deleteClip(clip.id) },
+                        isEnglish = isEnglish,
                         cardBg = cardBg,
                         cardPinnedBg = cardPinnedBg,
                         textPrimary = textPrimary,
@@ -284,7 +288,7 @@ fun ClipboardSheetView(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "ক্লিপবোর্ড এডিট করুন",
+                        text = if (isEnglish) "Edit Clip" else "ক্লিপবোর্ড এডিট করুন",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = textPrimary
@@ -309,7 +313,7 @@ fun ClipboardSheetView(
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(onClick = { editingClip = null }) {
-                            Text("বাতিল", color = textSecondary)
+                            Text(if (isEnglish) "Cancel" else "বাতিল", color = textSecondary)
                         }
                         Spacer(Modifier.width(8.dp))
                         Button(
@@ -321,7 +325,7 @@ fun ClipboardSheetView(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = primaryAccent)
                         ) {
-                            Text("সংরক্ষণ", color = Color.White)
+                            Text(if (isEnglish) "Save" else "সংরক্ষণ", color = Color.White)
                         }
                     }
                 }
@@ -343,7 +347,7 @@ fun ClipboardSheetView(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "নতুন ক্লিপবোর্ড নোট",
+                        text = if (isEnglish) "New Clipboard Note" else "নতুন ক্লিপবোর্ড নোট",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = textPrimary
@@ -352,7 +356,7 @@ fun ClipboardSheetView(
                     OutlinedTextField(
                         value = newText,
                         onValueChange = { newText = it },
-                        placeholder = { Text("এখানে লিখুন বা পেস্ট করুন...", color = textSecondary) },
+                        placeholder = { Text(if (isEnglish) "Type or paste here..." else "এখানে লিখুন বা পেস্ট করুন...", color = textSecondary) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(100.dp),
@@ -378,7 +382,7 @@ fun ClipboardSheetView(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("স্থায়ী ভল্টে সংরক্ষণ করুন", fontSize = 12.sp, color = textPrimary)
+                        Text(if (isEnglish) "Save permanently to vault" else "স্থায়ী ভল্টে সংরক্ষণ করুন", fontSize = 12.sp, color = textPrimary)
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(
@@ -386,7 +390,7 @@ fun ClipboardSheetView(
                         horizontalArrangement = Arrangement.End
                     ) {
                         TextButton(onClick = { showAddDialog = false }) {
-                            Text("বাতিল", color = textSecondary)
+                            Text(if (isEnglish) "Cancel" else "বাতিল", color = textSecondary)
                         }
                         Spacer(Modifier.width(8.dp))
                         Button(
@@ -398,7 +402,7 @@ fun ClipboardSheetView(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = primaryAccent)
                         ) {
-                            Text("যোগ করুন", color = Color.White)
+                            Text(if (isEnglish) "Add" else "যোগ করুন", color = Color.White)
                         }
                     }
                 }
@@ -415,6 +419,7 @@ private fun ClipCard(
     onTogglePin: () -> Unit,
     onToggleSave: () -> Unit,
     onDelete: () -> Unit,
+    isEnglish: Boolean = false,
     cardBg: Color,
     cardPinnedBg: Color,
     textPrimary: Color,
@@ -446,7 +451,7 @@ private fun ClipCard(
                             .background(sensitiveBadge.copy(alpha = 0.2f))
                             .padding(horizontal = 5.dp, vertical = 1.dp),
                     ) {
-                        Text("সংবেদনশীল / OTP", fontSize = 9.sp, color = sensitiveBadge, fontWeight = FontWeight.Medium)
+                        Text(if (isEnglish) "Sensitive / OTP" else "সংবেদনশীল / OTP", fontSize = 9.sp, color = sensitiveBadge, fontWeight = FontWeight.Medium)
                     }
                 }
                 if (clip.isSaved) {
@@ -456,7 +461,7 @@ private fun ClipCard(
                             .background(Color(0xFFFFB703).copy(alpha = 0.2f))
                             .padding(horizontal = 5.dp, vertical = 1.dp),
                     ) {
-                        Text("💾 ভল্ট", fontSize = 9.sp, color = Color(0xFFFFB703), fontWeight = FontWeight.Bold)
+                        Text(if (isEnglish) "💾 Vault" else "💾 ভল্ট", fontSize = 9.sp, color = Color(0xFFFFB703), fontWeight = FontWeight.Bold)
                     }
                 }
                 if (containsLinks) {
@@ -466,7 +471,7 @@ private fun ClipCard(
                             .background(Color(0xFF00B4D8).copy(alpha = 0.2f))
                             .padding(horizontal = 5.dp, vertical = 1.dp),
                     ) {
-                        Text("🔗 লিংক", fontSize = 9.sp, color = Color(0xFF0096C7), fontWeight = FontWeight.Bold)
+                        Text(if (isEnglish) "🔗 Link" else "🔗 লিংক", fontSize = 9.sp, color = Color(0xFF0096C7), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -500,7 +505,7 @@ private fun ClipCard(
             ) {
                 Icon(
                     imageVector = Icons.Filled.EditNote,
-                    contentDescription = "Edit Clip",
+                    contentDescription = if (isEnglish) "Edit Clip" else "এডিট করুন",
                     tint = accentColor,
                     modifier = Modifier.size(16.dp)
                 )
@@ -517,7 +522,7 @@ private fun ClipCard(
             ) {
                 Icon(
                     imageVector = Icons.Filled.PushPin,
-                    contentDescription = if (clip.isPinned) "Unpin" else "Pin",
+                    contentDescription = if (isEnglish) (if (clip.isPinned) "Unpin" else "Pin") else (if (clip.isPinned) "আনপিন" else "পিন"),
                     tint = if (clip.isPinned) accentColor else textSecondary,
                     modifier = Modifier.size(16.dp)
                 )
@@ -534,7 +539,7 @@ private fun ClipCard(
             ) {
                 Icon(
                     imageVector = if (clip.isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                    contentDescription = if (clip.isSaved) "Unsave" else "Save to Vault",
+                    contentDescription = if (isEnglish) (if (clip.isSaved) "Remove from Vault" else "Save to Vault") else (if (clip.isSaved) "ভল্ট থেকে মুছুন" else "ভল্টে সংরক্ষণ"),
                     tint = if (clip.isSaved) Color(0xFFFFB703) else textSecondary,
                     modifier = Modifier.size(16.dp)
                 )
@@ -551,7 +556,7 @@ private fun ClipCard(
             ) {
                 Icon(
                     imageVector = Icons.Filled.DeleteOutline,
-                    contentDescription = "Delete",
+                    contentDescription = if (isEnglish) "Delete" else "মুছুন",
                     tint = textSecondary,
                     modifier = Modifier.size(16.dp)
                 )
