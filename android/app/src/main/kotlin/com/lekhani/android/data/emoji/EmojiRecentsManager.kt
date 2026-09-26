@@ -48,6 +48,10 @@ class EmojiRecentsManager(context: Context) {
         return isFav
     }
 
+    var defaultSkinToneIndex: Int
+        get() = prefs.getInt(KEY_DEFAULT_SKIN_TONE_INDEX, -1)
+        set(value) = prefs.edit { putInt(KEY_DEFAULT_SKIN_TONE_INDEX, value) }
+
     fun isFavorite(emoji: String): Boolean = emoji in favoritesSet
 
     fun getFavorites(): List<String> = favoritesSet.toList()
@@ -56,6 +60,7 @@ class EmojiRecentsManager(context: Context) {
         private const val PREFS_NAME = "lekhani_emoji_recents"
         private const val KEY_RECENTS = "recent_emojis"
         private const val KEY_FAVORITES = "favorite_emojis"
+        private const val KEY_DEFAULT_SKIN_TONE_INDEX = "default_skin_tone_index"
         private const val MAX_RECENTS = 40
     }
 }

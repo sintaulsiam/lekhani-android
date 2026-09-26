@@ -50,7 +50,9 @@ import com.lekhani.android.data.emoji.EmojiItem
 import com.lekhani.android.data.emoji.EmojiRecentsManager
 import com.lekhani.android.data.emoji.KaomojiData
 import com.lekhani.android.data.emoji.SymbolData
-
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Search
@@ -92,6 +94,7 @@ fun EmojiPickerView(
     var searchQuery by remember { mutableStateOf("") }
     var selectedTabIdx by remember { mutableIntStateOf(0) }
     var skinToneTarget by remember { mutableStateOf<EmojiItem?>(null) }
+    var defaultSkinToneIndex by remember { mutableIntStateOf(recentsManager.defaultSkinToneIndex) }
 
     val recents = remember(selectedTabIdx) { recentsManager.getRecents() }
 
@@ -114,45 +117,105 @@ fun EmojiPickerView(
             .background(pickerBg)
             .semantics { contentDescription = if (isEnglish) "Emoji and symbol palette" else "ইমোজি এবং প্রতীক প্যালেট" },
     ) {
-        // ── Search Pill ───────────────────────────────────────────────────────
+        // ── Search & Filter Bar ───────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(21.dp))
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(19.dp))
                     .background(searchBg)
-                    .clickable { onSearchClick() }
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = if (isEnglish) "Search" else "অনুসন্ধান",
                     tint = activeTabPill,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable { onSearchClick() }
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isEnglish) "Search emojis (e.g. smile, fire, love, flag)..."
-                           else "ইমোজি খুঁজুন (যেমন: হাসি, আগুন, প্রেম, পতাকা)...",
-                    fontSize = 13.sp,
-                    color = inactiveTabText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = TextStyle(
-                        lineHeight = 18.sp,
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                        lineHeightStyle = LineHeightStyle(
-                            alignment = LineHeightStyle.Alignment.Center,
-                            trim = LineHeightStyle.Trim.Both,
-                        ),
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = 13.sp,
+                        color = textColor,
                     ),
+                    modifier = Modifier.weight(1f),
+                    decorationBox = { innerTextField ->
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = if (isEnglish) "Search emojis (e.g. smile, love, fire)..."
+                                       else "ইমোজি খুঁজুন (যেমন: হাসি, প্রেম, আগুন)...",
+                                fontSize = 13.sp,
+                                color = inactiveTabText,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        innerTextField()
+                    }
                 )
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { searchQuery = "" },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = if (isEnglish) "Clear search" else "মুছুন",
+                            tint = inactiveTabText,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Quick Tag Chips when not searching
+        if (searchQuery.isBlank()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp)
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val quickChips = listOf(
+                    "🔥" to if (isEnglish) "fire" else "আগুন",
+                    "❤️" to if (isEnglish) "love" else "ভালোবাসা",
+                    "😂" to if (isEnglish) "laugh" else "হাসি",
+                    "👍" to if (isEnglish) "hand" else "হাত",
+                    "🎉" to if (isEnglish) "party" else "উৎসব",
+                    "🍔" to if (isEnglish) "food" else "খাবার",
+                    "✨" to if (isEnglish) "star" else "তারা",
+                    "🇧🇩" to if (isEnglish) "flag" else "বাংলাদেশ"
+                )
+                quickChips.forEach { (emoji, tag) ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(tabBarBg)
+                            .clickable { searchQuery = tag }
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "$emoji $tag",
+                            fontSize = 11.sp,
+                            color = inactiveTabText
+                        )
+                    }
+                }
             }
         }
 
@@ -252,11 +315,16 @@ fun EmojiPickerView(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         items(searchResults) { item ->
+                            val displayEmoji = if (defaultSkinToneIndex in 0 until item.skinTones.size) {
+                                item.skinTones[defaultSkinToneIndex]
+                            } else {
+                                item.emoji
+                            }
                             EmojiCell(
-                                emoji = item.emoji,
+                                emoji = displayEmoji,
                                 onSelect = {
-                                    recentsManager.addRecent(item.emoji)
-                                    onEmojiSelected(item.emoji)
+                                    recentsManager.addRecent(displayEmoji)
+                                    onEmojiSelected(displayEmoji)
                                 },
                                 onLongClick = {
                                     if (item.skinTones.isNotEmpty()) {
@@ -303,11 +371,16 @@ fun EmojiPickerView(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         items(cat.items) { item ->
+                            val displayEmoji = if (defaultSkinToneIndex in 0 until item.skinTones.size) {
+                                item.skinTones[defaultSkinToneIndex]
+                            } else {
+                                item.emoji
+                            }
                             EmojiCell(
-                                emoji = item.emoji,
+                                emoji = displayEmoji,
                                 onSelect = {
-                                    recentsManager.addRecent(item.emoji)
-                                    onEmojiSelected(item.emoji)
+                                    recentsManager.addRecent(displayEmoji)
+                                    onEmojiSelected(displayEmoji)
                                 },
                                 onLongClick = {
                                     if (item.skinTones.isNotEmpty()) {
@@ -384,6 +457,16 @@ fun EmojiPickerView(
                     item = item,
                     onSelect = { tone ->
                         skinToneTarget = null
+                        if (tone == item.emoji) {
+                            defaultSkinToneIndex = -1
+                            recentsManager.defaultSkinToneIndex = -1
+                        } else {
+                            val toneIdx = item.skinTones.indexOf(tone)
+                            if (toneIdx >= 0) {
+                                defaultSkinToneIndex = toneIdx
+                                recentsManager.defaultSkinToneIndex = toneIdx
+                            }
+                        }
                         recentsManager.addRecent(tone)
                         onEmojiSelected(tone)
                     },

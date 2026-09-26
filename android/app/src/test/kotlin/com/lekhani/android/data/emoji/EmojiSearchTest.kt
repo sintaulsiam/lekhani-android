@@ -72,4 +72,15 @@ class EmojiSearchTest {
         assertTrue("Must contain Dollar $", allSymbols.contains("$"))
         assertTrue("Must contain Plus +", allSymbols.contains("+"))
     }
+
+    @Test
+    fun `people category items have skin-tone variations`() {
+        val peopleCat = EmojiData.categories.find { it.id == "people" }
+        assertNotNull(peopleCat)
+        val withSkinTones = peopleCat!!.items.filter { it.skinTones.isNotEmpty() }
+        assertTrue("People category should have items with skin tone variations", withSkinTones.isNotEmpty())
+        withSkinTones.forEach { item ->
+            assertEquals(5, item.skinTones.size)
+        }
+    }
 }
