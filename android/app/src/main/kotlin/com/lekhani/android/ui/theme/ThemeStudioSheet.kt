@@ -68,6 +68,7 @@ import com.lekhani.android.theme.ThemeRegistry
 fun ThemeStudioSheet(
     prefs: KeyboardPreferences,
     isEnglish: Boolean = false,
+    onThemeChanged: ((String) -> Unit)? = null,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -151,6 +152,7 @@ fun ThemeStudioSheet(
                         onSelect = {
                             selectedThemeId = theme.id
                             prefs.themeId = theme.id
+                            onThemeChanged?.invoke(theme.id)
                         }
                     )
                 }
