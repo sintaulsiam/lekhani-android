@@ -261,18 +261,18 @@ class KeyboardPreferences private constructor(context: Context) {
         const val SOUND_WOODBLOCK = "WOODBLOCK"
 
         val DEFAULT_TOOL_LIST = listOf(
-            ToolbarTool.SETTINGS,
-            ToolbarTool.THEME,
-            ToolbarTool.CLIPBOARD,
             ToolbarTool.EMOJI,
+            ToolbarTool.CLIPBOARD,
+            ToolbarTool.VOICE,
+            ToolbarTool.SETTINGS,
         )
 
         val DEFAULT_TOOLBAR = DEFAULT_TOOL_LIST.joinToString(",") { it.name }
 
         val DEFAULT_VAULT_LIST = listOf(
-            ToolbarTool.VOICE,
-            ToolbarTool.RESIZE,
+            ToolbarTool.THEME,
             ToolbarTool.TEXT_EDITOR,
+            ToolbarTool.RESIZE,
             ToolbarTool.ONE_HANDED,
             ToolbarTool.FLOATING,
             ToolbarTool.SPLIT,

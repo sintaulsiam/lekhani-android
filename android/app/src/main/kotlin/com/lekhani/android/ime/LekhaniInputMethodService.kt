@@ -137,6 +137,11 @@ class LekhaniInputMethodService : InputMethodService() {
     }
     val toolsFlow: StateFlow<List<KeyboardPreferences.ToolbarTool>> get() = _toolsFlow.asStateFlow()
 
+    /** Dynamic input view mode StateFlow observed by CandidateStripView. */
+    private val _inputViewModeFlow by lazy {
+        MutableStateFlow(InputViewMode.KEYBOARD)
+    }
+
     /** Persists long-press blacklisted candidates to Device Protected Storage. */
     private val blacklist: CandidateBlacklist by lazy { CandidateBlacklist(this) }
 
@@ -356,6 +361,7 @@ class LekhaniInputMethodService : InputMethodService() {
             setContent {
                 val currentTheme by _themeFlow.collectAsState()
                 val currentTools by _toolsFlow.collectAsState()
+                val currentMode by _inputViewModeFlow.collectAsState()
                 Box {
                     CandidateStripView(
                         stateFlow = candidateState,
@@ -375,8 +381,15 @@ class LekhaniInputMethodService : InputMethodService() {
                         theme = currentTheme,
                         activeTools = currentTools,
                         isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                        isToolsMenuOpen = (currentMode == InputViewMode.TOOLS_MENU),
                         onToolClick = { tool -> handleToolbarToolClick(tool) },
-                        onOpenToolsMenu = { setInputViewMode(InputViewMode.TOOLS_MENU) },
+                        onOpenToolsMenu = {
+                            if (currentMode == InputViewMode.TOOLS_MENU) {
+                                setInputViewMode(InputViewMode.KEYBOARD)
+                            } else {
+                                setInputViewMode(InputViewMode.TOOLS_MENU)
+                            }
+                        },
                         onEmojiSearchClose = {
                             setInputViewMode(InputViewMode.EMOJI)
                         },
@@ -647,6 +660,7 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     fun setInputViewMode(mode: InputViewMode) {
         currentMode = mode
+        _inputViewModeFlow.value = mode
         val container = modesContainer ?: return
         val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
 
@@ -847,13 +861,13 @@ class LekhaniInputMethodService : InputMethodService() {
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
                 textEditorView?.visibility = View.GONE
-                candidateStripComposeView?.visibility = View.GONE
+                candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
                 clearCandidates()
 
-                val kbHeight = keyboardView?.height?.takeIf { it > 0 }
-                    ?: (260 * resources.displayMetrics.density).toInt()
+                val minMenuHeight = (265 * resources.displayMetrics.density).toInt()
+                val kbHeight = maxOf(keyboardView?.height ?: 0, minMenuHeight)
 
                 if (toolsMenuView == null) {
                     val compose = ComposeView(this).apply {
@@ -944,8 +958,17 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        if (currentMode != InputViewMode.KEYBOARD) {
+            setInputViewMode(InputViewMode.KEYBOARD)
+        }
+    }
+
     private fun updateCandidatesVisibility() {
-        val show = currentMode == InputViewMode.KEYBOARD || currentMode == InputViewMode.EMOJI_SEARCH
+        val show = currentMode == InputViewMode.KEYBOARD ||
+                   currentMode == InputViewMode.EMOJI_SEARCH ||
+                   currentMode == InputViewMode.TOOLS_MENU
         candidateStripComposeView?.visibility = if (show) View.VISIBLE else View.GONE
     }
 

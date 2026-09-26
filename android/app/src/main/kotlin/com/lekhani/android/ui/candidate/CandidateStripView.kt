@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -118,13 +119,14 @@ fun CandidateStripView(
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     activeTools: List<KeyboardPreferences.ToolbarTool> = KeyboardPreferences.DEFAULT_TOOL_LIST,
     isEnglish: Boolean = false,
+    isToolsMenuOpen: Boolean = false,
     onToolClick: ((KeyboardPreferences.ToolbarTool) -> Unit)? = null,
     onOpenToolsMenu: (() -> Unit)? = null,
     onEmojiSearchClose: (() -> Unit)? = null,
     onEmojiSearchClear: (() -> Unit)? = null,
 ) {
     val state by stateFlow.collectAsState()
-    val hasItems = state is CandidateStripState.Candidates
+    val hasItems = state is CandidateStripState.Candidates && !isToolsMenuOpen
     var showToolbarOverride by remember { mutableStateOf(false) }
 
     LaunchedEffect(hasItems) {
@@ -148,7 +150,7 @@ fun CandidateStripView(
                 theme = theme,
                 isEnglish = isEnglish,
             )
-        } else if (hasItems && !showToolbarOverride) {
+        } else if (hasItems && !showToolbarOverride && !isToolsMenuOpen) {
             Row(
                 modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
@@ -184,7 +186,7 @@ fun CandidateStripView(
                 modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (hasItems) {
+                if (hasItems && !isToolsMenuOpen) {
                     // Collapse toolbar button back to candidates
                     Box(
                         modifier = Modifier
@@ -209,6 +211,7 @@ fun CandidateStripView(
                         onOpenToolsMenu = onOpenToolsMenu,
                         theme = theme,
                         isEnglish = isEnglish,
+                        isToolsMenuOpen = isToolsMenuOpen,
                     )
                 }
             }
@@ -314,6 +317,7 @@ private fun ToolbarContent(
     onOpenToolsMenu: (() -> Unit)?,
     theme: KeyboardTheme,
     isEnglish: Boolean = false,
+    isToolsMenuOpen: Boolean = false,
 ) {
     val scrollState = rememberScrollState()
     val accentColor = Color(theme.accentColor)
@@ -325,19 +329,24 @@ private fun ToolbarContent(
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Prominent Extra Tools menu trigger on the far left
+        // Prominent Extra Tools menu trigger on the far left:
+        // Turns into a Close icon when the vault drawer is open.
         Box(
             modifier = Modifier
                 .padding(start = 4.dp, end = 2.dp)
                 .size(34.dp)
                 .clip(CircleShape)
-                .background(accentColor.copy(alpha = 0.14f))
+                .background(accentColor.copy(alpha = if (isToolsMenuOpen) 0.25f else 0.14f))
                 .clickable { onOpenToolsMenu?.invoke() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Filled.GridView,
-                contentDescription = if (isEnglish) "All Tools & Settings" else "সকল টুলস ও সেটিংস",
+                imageVector = if (isToolsMenuOpen) Icons.Filled.Close else Icons.Filled.GridView,
+                contentDescription = if (isToolsMenuOpen) {
+                    if (isEnglish) "Close Vault" else "ভল্ট বন্ধ করুন"
+                } else {
+                    if (isEnglish) "Tool Vault" else "টুল ভল্ট"
+                },
                 modifier = Modifier.size(19.dp),
                 tint = accentColor
             )
