@@ -1,11 +1,11 @@
 # Lekhani Android: Complete Feature Specification
 
 ## 1. Input Layouts & Switching
-- **Lekhani প্রবাহ (Flow)**: Scientifically engineered custom layout for ultra-fast two-thumb mobile typing. Left-thumb vowel zone, right-thumb consonant engine, and smart Kar-to-vowel auto-promotion.
+- **Lekhani প্রবাহ (Flow)**: Scientifically engineered custom layout for ultra-fast two-thumb mobile typing. Left-thumb vowel zone with Ri-kar (`ৃ`) pairing and word-start auto-promotion (`ৃ` -> `ঋ`), right-thumb consonant engine, and dedicated Hasanta (`্`).
 - **Avro Phonetic (Classic Muscle Memory)**: 100% faithful transliteration (`ami` -> `আমি`, `shikkhok` -> `শিক্ষক`, `brriShTi` -> `বৃষ্টি`).
 - **Fixed National (জাতীয়)**: Official standard Bangladeshi layout with illuminated Shift & AltGr key states.
 - **Fixed Probhat (प्रभात)**: Popular phonetic fixed layout with dead-key combinations.
-- **Fixed Gboard-style Layout**: Standard Google Gboard Bengali layout arrangement and conjunct behavior for frictionless switching.
+- **Fixed Gboard-style Layout**: Standard Google Gboard Bengali layout with full modifier coverage (Hasanta `্`, Anusvara `ং`, Visarga `ঃ`, Chandrabindu `ঁ`) and dynamic Kar/Phala morphing.
 - **English (QWERTY)**: Clean bilingual typing experience.
 - **Dedicated Number & Symbol Panels**:
   - **?123 Numeric Layer**: Full 1..0 row with native Bengali numeral hints (`১..০`), Bengali currency (`৳`), math operators, and common punctuation.
@@ -67,6 +67,9 @@
   - Select All, Cut, Copy, Paste, and Backspace toolbar integration.
   - Ensures complete cursor navigation capability even when the spacebar is set to Layout Switch mode.
 - **Selection-Aware Backspace**: Pressing Backspace when text is highlighted immediately deletes the entire active selection across all apps.
+- **Continuous Backspace Repeat**: Holding Backspace initiates rapid, continuous deletion without needing repetitive taps.
+- **Multi-Touch Thumb Tracking**: Multi-pointer aware touch engine (`event.actionIndex`) guarantees zero dropped keystrokes during rapid two-thumb alternating typing.
+- **Character Key Long-Press Hints**: Long-pressing any character key instantly triggers its hint (digits `1..0`, alternate consonants like `ষ`, `ঢ়`, and punctuation).
 - **Swipe-to-Delete**: Slide left on the Backspace key to erase whole words with preview highlight.
 - **Spacebar Cursor Control**: Slide left/right on Spacebar to position cursor precisely between letters when in Cursor Slide mode.
 - **One-Handed Mode**: Quick-dock keyboard to left or right screen edge with quick-toggle arrows.
