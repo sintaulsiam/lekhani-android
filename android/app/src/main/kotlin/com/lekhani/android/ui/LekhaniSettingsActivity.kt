@@ -26,6 +26,26 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.border
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.key
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInParent
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material.icons.filled.DragHandle
+import com.lekhani.android.ui.components.LekhaniBrandLogo
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
@@ -62,7 +82,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -217,27 +239,7 @@ fun LekhaniSettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(9.dp))
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary,
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        )
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "লে",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
+                        LekhaniBrandLogo(size = 32.dp, shapeCornerPercent = 25)
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
@@ -499,21 +501,33 @@ private fun LayoutsTabContent(
         persistLayouts(orderedLayouts, updated)
     }
 
-    var isEnabled by remember { mutableStateOf(false) }
-    var isDefault by remember { mutableStateOf(false) }
-    var testText by remember { mutableStateOf("") }
-
-    fun refreshImeStatus() {
+    fun checkImeStatus(): Pair<Boolean, Boolean> {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         val enabledList = imm?.enabledInputMethodList ?: emptyList()
         val pkg = context.packageName
-        isEnabled = enabledList.any { it.packageName == pkg }
+        val enabled = enabledList.any { it.packageName == pkg }
 
         val defaultIme = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.DEFAULT_INPUT_METHOD
         ) ?: ""
-        isDefault = defaultIme.contains(pkg)
+        val default = defaultIme.contains(pkg)
+        return Pair(enabled, default)
+    }
+
+    val initialStatus = remember { checkImeStatus() }
+    var isEnabled by remember { mutableStateOf(initialStatus.first) }
+    var isDefault by remember { mutableStateOf(initialStatus.second) }
+    var testText by remember { mutableStateOf("") }
+
+    fun refreshImeStatus() {
+        val (enabled, default) = checkImeStatus()
+        isEnabled = enabled
+        isDefault = default
+    }
+
+    LaunchedEffect(Unit) {
+        refreshImeStatus()
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -537,21 +551,8 @@ private fun LayoutsTabContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Brand Header (With 'লে' Glyph) ──────────────────────────────────────
-        Surface(
-            modifier = Modifier.size(64.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = "লে",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+        // ── Brand Header (With Unified Logo) ──────────────────────────────────
+        LekhaniBrandLogo(size = 64.dp, shapeCornerPercent = 25)
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -799,95 +800,323 @@ private fun LayoutsTabContent(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                 )
 
-                orderedLayouts.forEachIndexed { index, type ->
-                    val isChecked = enabledLayouts.contains(type)
-                    val isPrimary = isChecked && (type == orderedLayouts.firstOrNull { enabledLayouts.contains(it) })
-                    val title = if (isEnglish) LayoutRegistry.getEnglishName(type) else LayoutRegistry.getBengaliName(type)
-                    val desc = LayoutRegistry.getDescription(type, isEnglish)
+                var draggingLayout by remember { mutableStateOf<LekhaniLayoutType?>(null) }
+                var dragOffsetY by remember { mutableFloatStateOf(0f) }
+                var dragStartIndex by remember { mutableIntStateOf(-1) }
+                var currentDropIndex by remember { mutableIntStateOf(-1) }
+                var itemHeightPx by remember { mutableFloatStateOf(0f) }
+                val itemCenterYs = remember { mutableStateMapOf<Int, Float>() }
+                val haptic = LocalHapticFeedback.current
+                val density = LocalDensity.current
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isChecked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                val isDraggingActive = (draggingLayout != null && dragStartIndex in orderedLayouts.indices && currentDropIndex in orderedLayouts.indices)
+                val effectiveRowHeight = if (itemHeightPx > 0f) itemHeightPx else with(density) { 68.dp.toPx() }
+
+                orderedLayouts.forEachIndexed { index, type ->
+                    key(type) {
+                        val isChecked = enabledLayouts.contains(type)
+                        val isPrimary = isChecked && (type == orderedLayouts.firstOrNull { enabledLayouts.contains(it) })
+                        val title = if (isEnglish) LayoutRegistry.getEnglishName(type) else LayoutRegistry.getBengaliName(type)
+                        val desc = LayoutRegistry.getDescription(type, isEnglish)
+                        val isThisDragging = (draggingLayout == type)
+
+                        // Calculate slot opening displacement for non-dragged items
+                        val targetShift = when {
+                            !isDraggingActive -> 0f
+                            isThisDragging -> 0f
+                            dragStartIndex > currentDropIndex && index >= currentDropIndex && index < dragStartIndex -> effectiveRowHeight
+                            dragStartIndex < currentDropIndex && index > dragStartIndex && index <= currentDropIndex -> -effectiveRowHeight
+                            else -> 0f
+                        }
+
+                        val shiftAnim = remember(type) { Animatable(0f) }
+                        LaunchedEffect(targetShift, isDraggingActive) {
+                            if (isDraggingActive) {
+                                shiftAnim.animateTo(
+                                    targetValue = targetShift,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
                                     )
                                 )
-                                if (isPrimary) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                    ) {
-                                        Text(
-                                            text = if (isEnglish) "Default" else "ডিফল্ট",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontWeight = FontWeight.Bold
+                            } else {
+                                shiftAnim.snapTo(0f)
+                            }
+                        }
+
+                        val targetTilt = if (isThisDragging) (dragOffsetY * 0.015f).coerceIn(-2.2f, 2.2f) else 0f
+                        val animatedTilt by animateFloatAsState(
+                            targetValue = targetTilt,
+                            animationSpec = spring(stiffness = Spring.StiffnessHigh),
+                            label = "tilt"
+                        )
+
+                        val showIndicatorAbove = isDraggingActive && (dragStartIndex > currentDropIndex) && (index == currentDropIndex)
+                        val showIndicatorBelow = isDraggingActive && (dragStartIndex < currentDropIndex) && (index == currentDropIndex)
+
+                        if (showIndicatorAbove) {
+                            DropPlacementIndicator(
+                                targetSlotNumber = currentDropIndex + 1,
+                                isDefaultSlot = currentDropIndex == 0,
+                                isEnglish = isEnglish
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onSizeChanged { size ->
+                                    if (size.height > 0 && !isThisDragging) {
+                                        itemHeightPx = size.height.toFloat()
+                                    }
+                                }
+                                .onGloballyPositioned { coords ->
+                                    val bounds = coords.boundsInParent()
+                                    itemCenterYs[index] = bounds.top + bounds.height / 2f
+                                }
+                        ) {
+                            // Minimalist Origin placeholder slot when this item is lifted
+                            if (isThisDragging) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .matchParentSize()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f))
+                                        .border(
+                                            BorderStroke(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                                             ),
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            RoundedCornerShape(12.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
+                                        )
+                                        Text(
+                                            text = if (isEnglish) "Origin slot" else "মূল অবস্থান",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
                                         )
                                     }
                                 }
                             }
-                            Text(
-                                text = desc,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+
+                            // Active layout item surface (floats with shadow, glow, and tilt when dragging)
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isThisDragging) {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.96f)
+                                } else {
+                                    Color.Transparent
+                                },
+                                shadowElevation = if (isThisDragging) 16.dp else 0.dp,
+                                border = if (isThisDragging) {
+                                    BorderStroke(
+                                        1.5.dp,
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                                            )
+                                        )
+                                    )
+                                } else null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .zIndex(if (isThisDragging) 30f else 0f)
+                                    .graphicsLayer {
+                                        translationY = if (isThisDragging) dragOffsetY else shiftAnim.value
+                                        rotationZ = if (isThisDragging) animatedTilt else 0f
+                                        scaleX = if (isThisDragging) 1.03f else 1f
+                                        scaleY = if (isThisDragging) 1.03f else 1f
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(
+                                            if (isThisDragging) {
+                                                Modifier.background(
+                                                    Brush.verticalGradient(
+                                                        listOf(
+                                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+                                                            Color.Transparent
+                                                        )
+                                                    )
+                                                )
+                                            } else Modifier
+                                        )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 7.dp, horizontal = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = title,
+                                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = if (isChecked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                )
+                                                if (isThisDragging) {
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = MaterialTheme.colorScheme.primary,
+                                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                                    ) {
+                                                        val targetSlot = currentDropIndex + 1
+                                                        Text(
+                                                            text = if (isEnglish) "→ Slot #$targetSlot" else "→ $targetSlot নং এ",
+                                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+                                                } else if (isPrimary) {
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                    ) {
+                                                        Text(
+                                                            text = if (isEnglish) "Default" else "ডিফল্ট",
+                                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                                color = MaterialTheme.colorScheme.primary,
+                                                                fontWeight = FontWeight.Bold
+                                                            ),
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            Text(
+                                                text = desc,
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            )
+                                        }
+
+                                        // Switch & Drag Handle
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Switch(
+                                                checked = isChecked,
+                                                enabled = !isChecked || enabledLayouts.size > 1,
+                                                onCheckedChange = { toggleLayout(type, it) }
+                                            )
+
+                                            Spacer(modifier = Modifier.width(6.dp))
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(
+                                                        if (isThisDragging) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                                        else Color.Transparent
+                                                    )
+                                                    .pointerInput(type) {
+                                                        detectDragGestures(
+                                                            onDragStart = {
+                                                                draggingLayout = type
+                                                                val sIdx = orderedLayouts.indexOf(type)
+                                                                dragStartIndex = sIdx
+                                                                currentDropIndex = sIdx
+                                                                dragOffsetY = 0f
+                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            },
+                                                            onDragEnd = {
+                                                                val from = dragStartIndex
+                                                                val to = currentDropIndex
+                                                                if (from in orderedLayouts.indices && to in orderedLayouts.indices && from != to) {
+                                                                    moveLayout(from, to)
+                                                                }
+                                                                draggingLayout = null
+                                                                dragStartIndex = -1
+                                                                currentDropIndex = -1
+                                                                dragOffsetY = 0f
+                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                            },
+                                                            onDragCancel = {
+                                                                draggingLayout = null
+                                                                dragStartIndex = -1
+                                                                currentDropIndex = -1
+                                                                dragOffsetY = 0f
+                                                            },
+                                                            onDrag = { change, dragAmount ->
+                                                                change.consume()
+                                                                val sIdx = dragStartIndex
+                                                                if (sIdx >= 0) {
+                                                                    val startCenter = itemCenterYs[sIdx] ?: 0f
+                                                                    val minCenter = itemCenterYs[0] ?: startCenter
+                                                                    val maxCenter = itemCenterYs[orderedLayouts.lastIndex] ?: startCenter
+                                                                    val minDragY = minCenter - startCenter - with(density) { 24.dp.toPx() }
+                                                                    val maxDragY = maxCenter - startCenter + with(density) { 24.dp.toPx() }
+
+                                                                    dragOffsetY = (dragOffsetY + dragAmount.y).coerceIn(minDragY, maxDragY)
+                                                                    val currentFingerY = startCenter + dragOffsetY
+
+                                                                    val closest = itemCenterYs.entries.minByOrNull { kotlin.math.abs(it.value - currentFingerY) }?.key ?: sIdx
+                                                                    val newDropIndex = closest.coerceIn(0, orderedLayouts.lastIndex)
+                                                                    if (newDropIndex != currentDropIndex) {
+                                                                        currentDropIndex = newDropIndex
+                                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    }
+                                                                }
+                                                            }
+                                                        )
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.DragHandle,
+                                                    contentDescription = if (isEnglish) "Drag to reorder $title" else "$title এর ক্রম পরিবর্তন করতে টানুন",
+                                                    tint = if (isThisDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (showIndicatorBelow) {
+                            DropPlacementIndicator(
+                                targetSlotNumber = currentDropIndex + 1,
+                                isDefaultSlot = false,
+                                isEnglish = isEnglish
                             )
                         }
 
-                        // Reorder controls
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { moveLayout(index, index - 1) },
-                                enabled = index > 0,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.KeyboardArrowUp,
-                                    contentDescription = if (isEnglish) "Move Up" else "উপরে নিন",
-                                    tint = if (index > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = { moveLayout(index, index + 1) },
-                                enabled = index < orderedLayouts.lastIndex,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.KeyboardArrowDown,
-                                    contentDescription = if (isEnglish) "Move Down" else "নিচে নিন",
-                                    tint = if (index < orderedLayouts.lastIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(4.dp))
-
-                            Switch(
-                                checked = isChecked,
-                                enabled = !isChecked || enabledLayouts.size > 1,
-                                onCheckedChange = { toggleLayout(type, it) }
+                        if (index < orderedLayouts.lastIndex && !showIndicatorBelow) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
                             )
                         }
-                    }
-
-                    if (index < orderedLayouts.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
-                        )
                     }
                 }
             }
@@ -1049,4 +1278,64 @@ fun LekhaniAppTheme(
         colorScheme = colorScheme,
         content = content
     )
+}
+
+@Composable
+private fun DropPlacementIndicator(
+    targetSlotNumber: Int,
+    isDefaultSlot: Boolean,
+    isEnglish: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp, horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(2.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color.Transparent,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                        )
+                    )
+                )
+        )
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shadowElevation = 4.dp
+        ) {
+            Text(
+                text = if (isDefaultSlot) (if (isEnglish) "Slot 1 • Default" else "১ম স্থান • ডিফল্ট")
+                       else (if (isEnglish) "Slot $targetSlotNumber" else "$targetSlotNumber নং স্থান"),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
+                ),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.5.dp)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(2.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+    }
 }

@@ -2,6 +2,7 @@ package com.lekhani.android.ui.about
 
 import android.content.Intent
 import android.net.Uri
+import com.lekhani.android.ui.components.LekhaniBrandLogo
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -82,20 +83,7 @@ fun AboutPrivacyTab(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // ── 1. Brand Header ─────────────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .size(68.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "লে",
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
+        LekhaniBrandLogo(size = 68.dp)
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
