@@ -151,9 +151,10 @@ class LekhaniSettingsActivity : ComponentActivity() {
             val context = LocalContext.current
             val keyboardPrefs = remember { KeyboardPreferences.get(context) }
             var currentThemeId by remember { mutableStateOf(keyboardPrefs.themeId) }
+            var currentAppThemeMode by remember { mutableStateOf(keyboardPrefs.appThemeMode) }
             val activeTheme = remember(currentThemeId) { ThemeRegistry.resolveTheme(context, currentThemeId) }
 
-            LekhaniAppTheme(theme = activeTheme) {
+            LekhaniAppTheme(theme = activeTheme, appThemeMode = currentAppThemeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -162,6 +163,9 @@ class LekhaniSettingsActivity : ComponentActivity() {
                         initialTab = startTab,
                         onThemeChanged = { newThemeId ->
                             currentThemeId = newThemeId
+                        },
+                        onAppThemeModeChanged = { newMode ->
+                            currentAppThemeMode = newMode
                         },
                         onOpenImeSettings = {
                             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
@@ -181,6 +185,7 @@ class LekhaniSettingsActivity : ComponentActivity() {
 fun LekhaniSettingsScreen(
     initialTab: Int = 0,
     onThemeChanged: (String) -> Unit = {},
+    onAppThemeModeChanged: (KeyboardPreferences.AppThemeMode) -> Unit = {},
     onOpenImeSettings: () -> Unit = {},
     onOpenImePicker: () -> Unit = {}
 ) {
@@ -362,6 +367,7 @@ fun LekhaniSettingsScreen(
                     prefs = keyboardPrefs,
                     isEnglish = isEnglish,
                     onThemeChanged = onThemeChanged,
+                    onAppThemeModeChanged = onAppThemeModeChanged,
                     onClose = { selectedTab = 0 }
                 )
                 2 -> PreferencesTabContent(
@@ -1168,16 +1174,25 @@ private fun LayoutsTabContent(
 @Composable
 fun LekhaniAppTheme(
     theme: KeyboardTheme,
+    appThemeMode: KeyboardPreferences.AppThemeMode = KeyboardPreferences.AppThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val colorScheme = remember(theme.id, theme.isDark) {
+    val isSystemDark = (context.resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+    val shouldUseDark = when (appThemeMode) {
+        KeyboardPreferences.AppThemeMode.LIGHT -> false
+        KeyboardPreferences.AppThemeMode.DARK -> true
+        KeyboardPreferences.AppThemeMode.SYSTEM -> isSystemDark
+        KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD -> theme.isDark
+    }
+
+    val colorScheme = remember(theme.id, appThemeMode, isSystemDark) {
         if (theme.id == ThemeRegistry.ID_MATERIAL_YOU && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val isSystemDark = (context.resources.configuration.uiMode and
-                    android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
-            if (isSystemDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        } else if (!theme.isDark) {
-            // Light Theme (e.g. Daylight Paper)
+            if (shouldUseDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        } else if (appThemeMode == KeyboardPreferences.AppThemeMode.LIGHT || (!shouldUseDark && appThemeMode != KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD)) {
+            // Clean standard light theme
             lightColorScheme(
                 primary = Color(0xFF006C50),
                 onPrimary = Color.White,
@@ -1196,8 +1211,67 @@ fun LekhaniAppTheme(
                 outline = Color(0xFFB0BEC5),
                 outlineVariant = Color(0xFFCFD8DC)
             )
+        } else if (appThemeMode == KeyboardPreferences.AppThemeMode.DARK && appThemeMode != KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD) {
+            // Clean neutral dark theme
+            darkColorScheme(
+                primary = Color(0xFF80CBC4),
+                onPrimary = Color(0xFF003728),
+                primaryContainer = Color(0xFF00513C),
+                onPrimaryContainer = Color(0xFFB2DFDB),
+                secondary = Color(0xFFB0CCC2),
+                onSecondary = Color(0xFF1B352D),
+                surface = Color(0xFF161A19),
+                background = Color(0xFF0E1211),
+                surfaceVariant = Color(0xFF222927),
+                onSurfaceVariant = Color(0xFF98A6A1),
+                onSurface = Color(0xFFE2E7E5),
+                onBackground = Color(0xFFE2E7E5),
+                outline = Color(0xFF333E3B),
+                outlineVariant = Color(0xFF232C29)
+            )
+        } else if (!theme.isDark) {
+            // Light keyboard theme matching
+            if (theme.id == ThemeRegistry.ID_MOCHA_LATTE) {
+                lightColorScheme(
+                    primary = Color(0xFF6D4C41),
+                    onPrimary = Color.White,
+                    primaryContainer = Color(0xFFD7CCC8),
+                    onPrimaryContainer = Color(0xFF2D241E),
+                    secondary = Color(0xFF8D6E63),
+                    onSecondary = Color.White,
+                    secondaryContainer = Color(0xFFEFEBE9),
+                    onSecondaryContainer = Color(0xFF3E2723),
+                    background = Color(0xFFFAF6F2),
+                    onBackground = Color(0xFF2D241E),
+                    surface = Color(0xFFFFFFFF),
+                    onSurface = Color(0xFF2D241E),
+                    surfaceVariant = Color(0xFFE4D8CE),
+                    onSurfaceVariant = Color(0xFF5D4037),
+                    outline = Color(0xFFBCAAA4),
+                    outlineVariant = Color(0xFFD7CCC8)
+                )
+            } else {
+                lightColorScheme(
+                    primary = Color(0xFF006C50),
+                    onPrimary = Color.White,
+                    primaryContainer = Color(0xFFB2DFDB),
+                    onPrimaryContainer = Color(0xFF002018),
+                    secondary = Color(0xFF4A635B),
+                    onSecondary = Color.White,
+                    secondaryContainer = Color(0xFFCCE8DE),
+                    onSecondaryContainer = Color(0xFF051F19),
+                    background = Color(0xFFF7F9FA),
+                    onBackground = Color(0xFF191C1B),
+                    surface = Color(0xFFFFFFFF),
+                    onSurface = Color(0xFF191C1B),
+                    surfaceVariant = Color(0xFFE8ECEF),
+                    onSurfaceVariant = Color(0xFF404945),
+                    outline = Color(0xFFB0BEC5),
+                    outlineVariant = Color(0xFFCFD8DC)
+                )
+            }
         } else {
-            // Dark Themes
+            // Dark Themes matching keyboard
             when (theme.id) {
                 ThemeRegistry.ID_OLED_BLACK -> darkColorScheme(
                     primary = Color(0xFF00E676),
@@ -1246,6 +1320,70 @@ fun LekhaniAppTheme(
                     onBackground = Color(0xFFF5EEFF),
                     outline = Color(0xFF3C3058),
                     outlineVariant = Color(0xFF2B2042)
+                )
+                ThemeRegistry.ID_SAKURA_DUSK -> darkColorScheme(
+                    primary = Color(0xFFF48FB1),
+                    onPrimary = Color(0xFF4A1028),
+                    primaryContainer = Color(0xFF671D3E),
+                    onPrimaryContainer = Color(0xFFFFD9E2),
+                    secondary = Color(0xFFDABAC3),
+                    onSecondary = Color(0xFF3D2730),
+                    surface = Color(0xFF211A22),
+                    background = Color(0xFF141016),
+                    surfaceVariant = Color(0xFF2E2430),
+                    onSurfaceVariant = Color(0xFFC7B1BF),
+                    onSurface = Color(0xFFFCE4EC),
+                    onBackground = Color(0xFFFCE4EC),
+                    outline = Color(0xFF4B394E),
+                    outlineVariant = Color(0xFF38293B)
+                )
+                ThemeRegistry.ID_FOREST_EMERALD -> darkColorScheme(
+                    primary = Color(0xFF00E676),
+                    onPrimary = Color(0xFF003918),
+                    primaryContainer = Color(0xFF005224),
+                    onPrimaryContainer = Color(0xFF6EFF9E),
+                    secondary = Color(0xFFB5CCBC),
+                    onSecondary = Color(0xFF20352A),
+                    surface = Color(0xFF0F1D16),
+                    background = Color(0xFF08120D),
+                    surfaceVariant = Color(0xFF162B21),
+                    onSurfaceVariant = Color(0xFF8CB29E),
+                    onSurface = Color(0xFFE8F5E9),
+                    onBackground = Color(0xFFE8F5E9),
+                    outline = Color(0xFF254737),
+                    outlineVariant = Color(0xFF1B3528)
+                )
+                ThemeRegistry.ID_NORDIC_FROST -> darkColorScheme(
+                    primary = Color(0xFF38BDF8),
+                    onPrimary = Color(0xFF003549),
+                    primaryContainer = Color(0xFF004D6A),
+                    onPrimaryContainer = Color(0xFFC3E8FF),
+                    secondary = Color(0xFFB4C8D8),
+                    onSecondary = Color(0xFF1E3240),
+                    surface = Color(0xFF152033),
+                    background = Color(0xFF0B1320),
+                    surfaceVariant = Color(0xFF1E2D44),
+                    onSurfaceVariant = Color(0xFF90A4BC),
+                    onSurface = Color(0xFFF0F6FC),
+                    onBackground = Color(0xFFF0F6FC),
+                    outline = Color(0xFF2F4462),
+                    outlineVariant = Color(0xFF213149)
+                )
+                ThemeRegistry.ID_SUNSET_AMBER -> darkColorScheme(
+                    primary = Color(0xFFFF9100),
+                    onPrimary = Color(0xFF462100),
+                    primaryContainer = Color(0xFF643200),
+                    onPrimaryContainer = Color(0xFFFFDCBE),
+                    secondary = Color(0xFFDBBEA5),
+                    onSecondary = Color(0xFF3C2B1B),
+                    surface = Color(0xFF221A12),
+                    background = Color(0xFF140F0A),
+                    surfaceVariant = Color(0xFF2F241A),
+                    onSurfaceVariant = Color(0xFFC4AB95),
+                    onSurface = Color(0xFFFFF3E0),
+                    onBackground = Color(0xFFFFF3E0),
+                    outline = Color(0xFF4C3A2B),
+                    outlineVariant = Color(0xFF38291D)
                 )
                 else -> darkColorScheme( // Flow Teal
                     primary = Color(0xFF00E5B8),

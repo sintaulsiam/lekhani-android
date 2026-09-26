@@ -11,7 +11,7 @@ class ThemeRegistryTest {
     fun testPresetThemesIntegrity() {
         val presets = ThemeRegistry.PRESET_THEMES
         assertTrue(presets.isNotEmpty())
-        assertEquals(5, presets.size)
+        assertEquals(11, presets.size)
 
         val flowTeal = presets.find { it.id == ThemeRegistry.ID_FLOW_TEAL }
         assertNotNull(flowTeal)
@@ -25,7 +25,7 @@ class ThemeRegistryTest {
 
         val avroBlue = presets.find { it.id == ThemeRegistry.ID_AVRO_BLUE }
         assertNotNull(avroBlue)
-        assertEquals("Classic Avro Blue", avroBlue!!.nameEnglish)
+        assertEquals("Classic Blue", avroBlue!!.nameEnglish)
 
         val cyberIndigo = presets.find { it.id == ThemeRegistry.ID_CYBER_INDIGO }
         assertNotNull(cyberIndigo)
@@ -33,6 +33,26 @@ class ThemeRegistryTest {
         val daylight = presets.find { it.id == ThemeRegistry.ID_DAYLIGHT_LIGHT }
         assertNotNull(daylight)
         assertTrue(!daylight!!.isDark)
+
+        val sakura = presets.find { it.id == ThemeRegistry.ID_SAKURA_DUSK }
+        assertNotNull(sakura)
+        assertTrue(sakura!!.isDark)
+
+        val forest = presets.find { it.id == ThemeRegistry.ID_FOREST_EMERALD }
+        assertNotNull(forest)
+        assertTrue(forest!!.isDark)
+
+        val nordic = presets.find { it.id == ThemeRegistry.ID_NORDIC_FROST }
+        assertNotNull(nordic)
+        assertTrue(nordic!!.isDark)
+
+        val sunset = presets.find { it.id == ThemeRegistry.ID_SUNSET_AMBER }
+        assertNotNull(sunset)
+        assertTrue(sunset!!.isDark)
+
+        val mocha = presets.find { it.id == ThemeRegistry.ID_MOCHA_LATTE }
+        assertNotNull(mocha)
+        assertTrue(!mocha!!.isDark)
     }
 
     @Test

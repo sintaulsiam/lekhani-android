@@ -43,8 +43,13 @@ object ThemeRegistry {
     const val ID_AVRO_BLUE = "avro_blue"
     const val ID_HIGH_CONTRAST = "high_contrast"
     const val ID_CYBER_INDIGO = "cyber_indigo"
-    const val ID_MATERIAL_YOU = "material_you"
     const val ID_DAYLIGHT_LIGHT = "daylight_light"
+    const val ID_SAKURA_DUSK = "sakura_dusk"
+    const val ID_FOREST_EMERALD = "forest_emerald"
+    const val ID_NORDIC_FROST = "nordic_frost"
+    const val ID_SUNSET_AMBER = "sunset_amber"
+    const val ID_MOCHA_LATTE = "mocha_latte"
+    const val ID_MATERIAL_YOU = "material_you"
 
     val THEME_FLOW_TEAL = KeyboardTheme(
         id = ID_FLOW_TEAL,
@@ -160,13 +165,113 @@ object ThemeRegistry {
         isDark = false,
     )
 
+    val THEME_SAKURA_DUSK = KeyboardTheme(
+        id = ID_SAKURA_DUSK,
+        nameBengali = "সাকুরা পিংক",
+        nameEnglish = "Sakura Dusk",
+        backgroundColor = 0xFF181419.toInt(),
+        keyNormalColor = 0xFF241E26.toInt(),
+        keyShiftColor = 0xFF1C171E.toInt(),
+        keySpaceColor = 0xFF2C2530.toInt(),
+        keyHasantaColor = 0xFF4A2535.toInt(),
+        keyBorderColor = 0xFF3A303E.toInt(),
+        labelColor = 0xFFFCE4EC.toInt(),
+        labelDimColor = 0xFFC48B9F.toInt(),
+        accentColor = 0xFFF48FB1.toInt(),
+        rippleColor = 0x40F48FB1.toInt(),
+        glideStrokeColor = 0xFFFF80AB.toInt(),
+        glideGlowColor = 0x40F48FB1.toInt(),
+        isDark = true,
+    )
+
+    val THEME_FOREST_EMERALD = KeyboardTheme(
+        id = ID_FOREST_EMERALD,
+        nameBengali = "ফরেস্ট এমারেল্ড",
+        nameEnglish = "Forest Emerald",
+        backgroundColor = 0xFF0A1410.toInt(),
+        keyNormalColor = 0xFF12241C.toInt(),
+        keyShiftColor = 0xFF0C1A14.toInt(),
+        keySpaceColor = 0xFF182E24.toInt(),
+        keyHasantaColor = 0xFF13422E.toInt(),
+        keyBorderColor = 0xFF1E3D30.toInt(),
+        labelColor = 0xFFE8F5E9.toInt(),
+        labelDimColor = 0xFF81C784.toInt(),
+        accentColor = 0xFF00E676.toInt(),
+        rippleColor = 0x4000E676.toInt(),
+        glideStrokeColor = 0xFF00E676.toInt(),
+        glideGlowColor = 0x4000E676.toInt(),
+        isDark = true,
+    )
+
+    val THEME_NORDIC_FROST = KeyboardTheme(
+        id = ID_NORDIC_FROST,
+        nameBengali = "নর্ডিক ফ্রস্ট",
+        nameEnglish = "Nordic Frost",
+        backgroundColor = 0xFF0F172A.toInt(),
+        keyNormalColor = 0xFF1E293B.toInt(),
+        keyShiftColor = 0xFF141E30.toInt(),
+        keySpaceColor = 0xFF253349.toInt(),
+        keyHasantaColor = 0xFF164E63.toInt(),
+        keyBorderColor = 0xFF334155.toInt(),
+        labelColor = 0xFFF8FAFC.toInt(),
+        labelDimColor = 0xFF94A3B8.toInt(),
+        accentColor = 0xFF38BDF8.toInt(),
+        rippleColor = 0x4038BDF8.toInt(),
+        glideStrokeColor = 0xFF0EA5E9.toInt(),
+        glideGlowColor = 0x4038BDF8.toInt(),
+        isDark = true,
+    )
+
+    val THEME_SUNSET_AMBER = KeyboardTheme(
+        id = ID_SUNSET_AMBER,
+        nameBengali = "সানসেট অ্যাম্বার",
+        nameEnglish = "Sunset Amber",
+        backgroundColor = 0xFF17130E.toInt(),
+        keyNormalColor = 0xFF241D17.toInt(),
+        keyShiftColor = 0xFF1A140F.toInt(),
+        keySpaceColor = 0xFF2E241D.toInt(),
+        keyHasantaColor = 0xFF4A3018.toInt(),
+        keyBorderColor = 0xFF3D3026.toInt(),
+        labelColor = 0xFFFFF3E0.toInt(),
+        labelDimColor = 0xFFFFB74D.toInt(),
+        accentColor = 0xFFFF9100.toInt(),
+        rippleColor = 0x40FF9100.toInt(),
+        glideStrokeColor = 0xFFFFAB40.toInt(),
+        glideGlowColor = 0x40FF9100.toInt(),
+        isDark = true,
+    )
+
+    val THEME_MOCHA_LATTE = KeyboardTheme(
+        id = ID_MOCHA_LATTE,
+        nameBengali = "মোকা লাতে",
+        nameEnglish = "Mocha Latte",
+        backgroundColor = 0xFFF3ECE4.toInt(),
+        keyNormalColor = 0xFFFFFFFF.toInt(),
+        keyShiftColor = 0xFFE4D8CE.toInt(),
+        keySpaceColor = 0xFFFAF6F2.toInt(),
+        keyHasantaColor = 0xFFD7CCC8.toInt(),
+        keyBorderColor = 0xFFD5C4B5.toInt(),
+        labelColor = 0xFF2D241E.toInt(),
+        labelDimColor = 0xFF795548.toInt(),
+        accentColor = 0xFF6D4C41.toInt(),
+        rippleColor = 0x336D4C41.toInt(),
+        glideStrokeColor = 0xFF8D6E63.toInt(),
+        glideGlowColor = 0x336D4C41.toInt(),
+        isDark = false,
+    )
+
     val PRESET_THEMES = listOf(
         THEME_FLOW_TEAL,
         THEME_OLED_BLACK,
         THEME_AVRO_BLUE,
-        THEME_HIGH_CONTRAST,
+        THEME_NORDIC_FROST,
+        THEME_FOREST_EMERALD,
+        THEME_SAKURA_DUSK,
+        THEME_SUNSET_AMBER,
         THEME_CYBER_INDIGO,
+        THEME_HIGH_CONTRAST,
         THEME_DAYLIGHT_LIGHT,
+        THEME_MOCHA_LATTE,
     )
 
     /**

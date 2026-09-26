@@ -57,22 +57,30 @@ import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeRegistry
 
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.foundation.BorderStroke
+
 /**
  * ThemeStudioSheet
  * ══════════════════════════════════════════════════════════════════════════════
  * Material 3 Expressive theme customization studio.
  * Supports built-in themes, Material You dynamic wallpaper color matching,
- * and custom background wallpaper with opacity adjustment.
+ * independent app appearance mode, and custom background wallpaper with opacity adjustment.
  */
 @Composable
 fun ThemeStudioSheet(
     prefs: KeyboardPreferences,
     isEnglish: Boolean = false,
     onThemeChanged: ((String) -> Unit)? = null,
+    onAppThemeModeChanged: ((KeyboardPreferences.AppThemeMode) -> Unit)? = null,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
     var selectedThemeId by remember { mutableStateOf(prefs.themeId) }
+    var selectedAppThemeMode by remember { mutableStateOf(prefs.appThemeMode) }
     var wallpaperUri by remember { mutableStateOf(prefs.customWallpaperUri) }
     var wallpaperOpacity by remember { mutableFloatStateOf(prefs.wallpaperOpacity) }
 
@@ -128,10 +136,72 @@ fun ThemeStudioSheet(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Section 0: App Appearance
+                item {
+                    Text(
+                        text = if (isEnglish) "App Appearance" else "অ্যাপের থিম মোড",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val modes = listOf(
+                            Triple(KeyboardPreferences.AppThemeMode.SYSTEM, Icons.Default.BrightnessAuto, if (isEnglish) "System" else "সিস্টেম"),
+                            Triple(KeyboardPreferences.AppThemeMode.LIGHT, Icons.Default.LightMode, if (isEnglish) "Light" else "লাইট"),
+                            Triple(KeyboardPreferences.AppThemeMode.DARK, Icons.Default.DarkMode, if (isEnglish) "Dark" else "ডার্ক"),
+                            Triple(KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD, Icons.Default.Keyboard, if (isEnglish) "Keyboard" else "অনুরূপ")
+                        )
+                        modes.forEach { (mode, icon, title) ->
+                            val isSelected = selectedAppThemeMode == mode
+                            Card(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        selectedAppThemeMode = mode
+                                        prefs.appThemeMode = mode
+                                        onAppThemeModeChanged?.invoke(mode)
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                ),
+                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = title,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 11.sp
+                                        ),
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Section 1: Themes
                 item {
                     Text(
-                        text = if (isEnglish) "Color Palettes & Presets" else "কালার প্যালেট ও প্রিসেট",
+                        text = if (isEnglish) "Keyboard Color Palettes & Presets" else "কীবোর্ড কালার প্যালেট ও প্রিসেট",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )

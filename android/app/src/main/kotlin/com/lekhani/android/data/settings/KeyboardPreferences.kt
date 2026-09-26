@@ -28,6 +28,13 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getString(KEY_THEME_ID, ThemeRegistry.ID_FLOW_TEAL) ?: ThemeRegistry.ID_FLOW_TEAL
         set(value) = prefs.edit().putString(KEY_THEME_ID, value).apply()
 
+    var appThemeMode: AppThemeMode
+        get() {
+            val raw = prefs.getString(KEY_APP_THEME_MODE, AppThemeMode.SYSTEM.name)
+            return try { AppThemeMode.valueOf(raw ?: AppThemeMode.SYSTEM.name) } catch (_: Exception) { AppThemeMode.SYSTEM }
+        }
+        set(value) = prefs.edit().putString(KEY_APP_THEME_MODE, value.name).apply()
+
     var customWallpaperUri: String
         get() = prefs.getString(KEY_CUSTOM_WALLPAPER_URI, "") ?: ""
         set(value) = prefs.edit().putString(KEY_CUSTOM_WALLPAPER_URI, value).apply()
@@ -199,6 +206,13 @@ class KeyboardPreferences private constructor(context: Context) {
         SPLIT("স্প্লিট মোড (Split)", "Split Mode"),
     }
 
+    enum class AppThemeMode(val titleBengali: String, val titleEnglish: String) {
+        SYSTEM("সিস্টেম ডিফল্ট", "Follow System"),
+        LIGHT("লাইট থিম", "Always Light"),
+        DARK("ডার্ক থিম", "Always Dark"),
+        MATCH_KEYBOARD("কীবোর্ডের অনুরূপ", "Match Keyboard"),
+    }
+
     enum class ToolbarTool(val titleBengali: String, val titleEnglish: String) {
         EMOJI("ইমোজি", "Emoji"),
         TEXT_EDITOR("এডিটর", "Editor"),
@@ -217,6 +231,7 @@ class KeyboardPreferences private constructor(context: Context) {
 
         const val KEY_UI_LANGUAGE = "ui_language"
         const val KEY_THEME_ID = "theme_id"
+        const val KEY_APP_THEME_MODE = "app_theme_mode"
         const val KEY_CUSTOM_WALLPAPER_URI = "custom_wallpaper_uri"
         const val KEY_WALLPAPER_OPACITY = "custom_wallpaper_opacity"
 
