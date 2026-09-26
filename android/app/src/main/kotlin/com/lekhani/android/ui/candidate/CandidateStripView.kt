@@ -289,28 +289,44 @@ private fun EmojiSearchStrip(
             }
         }
 
-        // Horizontal scrolling emoji results
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            for (emoji in emojis) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onEmojiClick(emoji) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = emoji,
-                        fontSize = 22.sp,
-                    )
+        // Emoji results or empty hint
+        if (emojis.isEmpty() && query.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = if (isEnglish) "No matching emojis" else "কোনো ইমোজি পাওয়া যায়নি",
+                    fontSize = 12.sp,
+                    color = Color(theme.labelDimColor),
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                for (emoji in emojis) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onEmojiClick(emoji) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = emoji,
+                            fontSize = 22.sp,
+                        )
+                    }
                 }
             }
         }

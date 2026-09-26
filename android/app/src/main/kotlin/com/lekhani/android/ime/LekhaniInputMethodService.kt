@@ -154,6 +154,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private var currentMode: InputViewMode = InputViewMode.KEYBOARD
     private var emojiSearchQuery: String = ""
+    private var emojiSearchRawQuery: String = ""
     private var emojiSearchSession: AndroidLekhaniSession? = null
     private var rootInputContainer: LinearLayout? = null
     private var modesContainer: FrameLayout? = null
@@ -398,6 +399,7 @@ class LekhaniInputMethodService : InputMethodService() {
                         },
                         onEmojiSearchClear = {
                             emojiSearchQuery = ""
+                            emojiSearchRawQuery = ""
                             emojiSearchSession?.reset()
                             updateEmojiSearchStrip()
                         },
@@ -518,6 +520,7 @@ class LekhaniInputMethodService : InputMethodService() {
         if (currentMode == InputViewMode.EMOJI_SEARCH) {
             when (action) {
                 is KeyAction.Character -> {
+                    emojiSearchRawQuery += action.token
                     val sSession = emojiSearchSession ?: AndroidLekhaniSession().apply {
                         setLayout(session.getLayout())
                         emojiSearchSession = this
@@ -550,9 +553,17 @@ class LekhaniInputMethodService : InputMethodService() {
                             null
                         }
                         emojiSearchQuery = res?.preedit ?: ""
+                        if (emojiSearchRawQuery.isNotEmpty()) {
+                            emojiSearchRawQuery = emojiSearchRawQuery.dropLast(1)
+                        }
                         updateEmojiSearchStrip()
-                    } else if (emojiSearchQuery.isNotEmpty()) {
-                        emojiSearchQuery = emojiSearchQuery.dropLast(1)
+                    } else if (emojiSearchQuery.isNotEmpty() || emojiSearchRawQuery.isNotEmpty()) {
+                        if (emojiSearchQuery.isNotEmpty()) {
+                            emojiSearchQuery = emojiSearchQuery.dropLast(1)
+                        }
+                        if (emojiSearchRawQuery.isNotEmpty()) {
+                            emojiSearchRawQuery = emojiSearchRawQuery.dropLast(1)
+                        }
                         updateEmojiSearchStrip()
                     } else {
                         setInputViewMode(InputViewMode.EMOJI)
@@ -560,7 +571,18 @@ class LekhaniInputMethodService : InputMethodService() {
                     return
                 }
                 KeyAction.Space -> {
-                    emojiSearchQuery += " "
+                    val sSession = emojiSearchSession
+                    if (sSession != null && sSession.isComposing()) {
+                        val res = try { sSession.handleSpace() } catch (e: Exception) { null }
+                        if (res != null && !res.commitText.isNullOrEmpty()) {
+                            emojiSearchQuery = res.commitText + " "
+                        } else {
+                            emojiSearchQuery += " "
+                        }
+                    } else {
+                        emojiSearchQuery += " "
+                    }
+                    emojiSearchRawQuery += " "
                     updateEmojiSearchStrip()
                     return
                 }
@@ -661,7 +683,7 @@ class LekhaniInputMethodService : InputMethodService() {
     /**
      * Toggles between Keyboard Canvas, Emoji/Symbol Picker, and Clipboard History.
      */
-    fun setInputViewMode(mode: InputViewMode) {
+    fun setInputViewMode(mode: InputViewMode, initialQuery: String = "") {
         currentMode = mode
         _inputViewModeFlow.value = mode
         val container = modesContainer ?: return
@@ -678,6 +700,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = ""
+                emojiSearchRawQuery = ""
                 emojiSearchSession = null
                 clearCandidates()
                 updateCandidatesVisibility()
@@ -691,6 +714,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 textEditorView?.visibility = View.GONE
                 toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.VISIBLE
+                emojiSearchQuery = initialQuery
+                emojiSearchRawQuery = initialQuery
                 emojiSearchSession = AndroidLekhaniSession().apply {
                     setLayout(session.getLayout())
                 }
@@ -705,6 +730,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
+                emojiSearchRawQuery = ""
                 emojiSearchSession = null
                 if (emojiPickerView == null) {
                     val compose = ComposeView(this).apply {
@@ -731,7 +757,9 @@ class LekhaniInputMethodService : InputMethodService() {
                         onBackspace = { onBackspace() },
                         onSpace = { onSpace() },
                         onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
-                        onSearchClick = { setInputViewMode(InputViewMode.EMOJI_SEARCH) },
+                        onSearchClick = { query ->
+                            setInputViewMode(InputViewMode.EMOJI_SEARCH, query)
+                        },
                     )
                 }
                 emojiPickerView?.visibility = View.VISIBLE
@@ -976,14 +1004,19 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun updateEmojiSearchStrip() {
-        val results = if (emojiSearchQuery.isBlank()) {
+        val q1 = emojiSearchQuery.trim()
+        val q2 = emojiSearchRawQuery.trim()
+        val results = if (q1.isBlank() && q2.isBlank()) {
             val recents = recentsManager.getRecents()
             if (recents.isNotEmpty()) recents else EmojiData.categories.flatMap { it.items }.map { it.emoji }.take(25)
         } else {
-            EmojiData.search(emojiSearchQuery).map { it.emoji }
+            val res1 = if (q1.isNotBlank()) EmojiData.search(q1) else emptyList()
+            val res2 = if (q2.isNotBlank() && q2.lowercase() != q1.lowercase()) EmojiData.search(q2) else emptyList()
+            (res1 + res2).map { it.emoji }.distinct().take(40)
         }
+        val displayQuery = if (q1.isNotBlank()) q1 else q2
         _candidateState.value = CandidateStripState.EmojiSearch(
-            query = emojiSearchQuery,
+            query = displayQuery,
             emojis = results
         )
     }
@@ -1100,9 +1133,17 @@ class LekhaniInputMethodService : InputMethodService() {
                 if (sSession != null && sSession.isComposing()) {
                     val res = try { sSession.handleBackspace() } catch (e: Exception) { null }
                     emojiSearchQuery = res?.preedit ?: ""
+                    if (emojiSearchRawQuery.isNotEmpty()) {
+                        emojiSearchRawQuery = emojiSearchRawQuery.dropLast(1)
+                    }
                     updateEmojiSearchStrip()
-                } else if (emojiSearchQuery.isNotEmpty()) {
-                    emojiSearchQuery = emojiSearchQuery.dropLast(1)
+                } else if (emojiSearchQuery.isNotEmpty() || emojiSearchRawQuery.isNotEmpty()) {
+                    if (emojiSearchQuery.isNotEmpty()) {
+                        emojiSearchQuery = emojiSearchQuery.dropLast(1)
+                    }
+                    if (emojiSearchRawQuery.isNotEmpty()) {
+                        emojiSearchRawQuery = emojiSearchRawQuery.dropLast(1)
+                    }
                     updateEmojiSearchStrip()
                 } else {
                     setInputViewMode(InputViewMode.EMOJI)
@@ -1110,7 +1151,18 @@ class LekhaniInputMethodService : InputMethodService() {
                 return true
             }
             if (keyCode == KeyEvent.KEYCODE_SPACE) {
-                emojiSearchQuery += " "
+                val sSession = emojiSearchSession
+                if (sSession != null && sSession.isComposing()) {
+                    val res = try { sSession.handleSpace() } catch (e: Exception) { null }
+                    if (res != null && !res.commitText.isNullOrEmpty()) {
+                        emojiSearchQuery = res.commitText + " "
+                    } else {
+                        emojiSearchQuery += " "
+                    }
+                } else {
+                    emojiSearchQuery += " "
+                }
+                emojiSearchRawQuery += " "
                 updateEmojiSearchStrip()
                 return true
             }
@@ -1126,6 +1178,7 @@ class LekhaniInputMethodService : InputMethodService() {
             val unicode = event.unicodeChar
             if (unicode > 0 && !Character.isISOControl(unicode)) {
                 val charStr = unicode.toChar().toString()
+                emojiSearchRawQuery += charStr
                 val sSession = emojiSearchSession ?: AndroidLekhaniSession().apply {
                     setLayout(session.getLayout())
                     emojiSearchSession = this
@@ -1480,6 +1533,7 @@ class LekhaniInputMethodService : InputMethodService() {
      * Filters out user-blacklisted words and applies homophone disambiguation badges.
      */
     private fun publishCandidates(raw: List<String>) {
+        if (currentMode == InputViewMode.EMOJI_SEARCH) return
         val filtered = raw.filter { !blacklist.isBlacklisted(it) }
         _candidateState.value = if (filtered.isEmpty()) {
             CandidateStripState.Empty
@@ -1493,6 +1547,7 @@ class LekhaniInputMethodService : InputMethodService() {
      * Clears all candidates and hides the candidate strip view.
      */
     private fun clearCandidates() {
+        if (currentMode == InputViewMode.EMOJI_SEARCH) return
         _candidateState.value = CandidateStripState.Empty
         updateCandidatesVisibility()
     }

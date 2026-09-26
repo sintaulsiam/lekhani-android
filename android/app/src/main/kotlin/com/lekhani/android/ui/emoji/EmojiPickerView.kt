@@ -85,7 +85,7 @@ fun EmojiPickerView(
     onEmojiSelected: (String) -> Unit,
     onBackspace: () -> Unit,
     onClose: () -> Unit,
-    onSearchClick: () -> Unit = {},
+    onSearchClick: (String) -> Unit = {},
     onSpace: () -> Unit = {},
     isEnglish: Boolean = false,
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
@@ -129,6 +129,7 @@ fun EmojiPickerView(
                     .height(38.dp)
                     .clip(RoundedCornerShape(19.dp))
                     .background(searchBg)
+                    .clickable { onSearchClick(searchQuery) }
                     .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -136,33 +137,18 @@ fun EmojiPickerView(
                     imageVector = Icons.Default.Search,
                     contentDescription = if (isEnglish) "Search" else "অনুসন্ধান",
                     tint = activeTabPill,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clickable { onSearchClick() }
+                    modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                BasicTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    singleLine = true,
-                    textStyle = TextStyle(
-                        fontSize = 13.sp,
-                        color = textColor,
-                    ),
-                    modifier = Modifier.weight(1f),
-                    decorationBox = { innerTextField ->
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = if (isEnglish) "Search emojis (e.g. smile, love, fire)..."
-                                       else "ইমোজি খুঁজুন (যেমন: হাসি, প্রেম, আগুন)...",
-                                fontSize = 13.sp,
-                                color = inactiveTabText,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        innerTextField()
-                    }
+                Text(
+                    text = if (searchQuery.isNotEmpty()) searchQuery
+                           else if (isEnglish) "Search emojis (e.g. smile, love, fire)..."
+                           else "ইমোজি খুঁজুন (যেমন: হাসি, প্রেম, আগুন)...",
+                    fontSize = 13.sp,
+                    color = if (searchQuery.isNotEmpty()) textColor else inactiveTabText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
                 if (searchQuery.isNotEmpty()) {
                     IconButton(
@@ -509,7 +495,7 @@ fun EmojiPickerView(
                     .size(width = 44.dp, height = 38.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(theme.keyNormalColor))
-                    .clickable { onSearchClick() }
+                    .clickable { onSearchClick(searchQuery) }
                     .semantics { contentDescription = if (isEnglish) "Search emojis" else "ইমোজি অনুসন্ধান" },
                 contentAlignment = Alignment.Center,
             ) {
