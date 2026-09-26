@@ -472,7 +472,7 @@ private fun LayoutsTabContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = if (isEnglish) "Keyboard Setup Status" else "কীবোর্ড সেটআপ স্ট্যাটাস",
+                    text = if (isEnglish) "3-Step Keyboard Setup Wizard" else "৩-ধাপের কীবোর্ড সেটআপ উইজার্ড",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
 
@@ -541,6 +541,53 @@ private fun LayoutsTabContent(
                         }
                     } else {
                         Text("✓", color = Color(0xFF00E5B8), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                // Step 3: Interactive Typing Playground
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEnglish) "3. Interactive Typing Playground" else "৩. টাইপিং পরীক্ষা ও প্লেগ্রাউন্ড",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isDefault && isEnabled) {
+                                if (isEnglish) "Ready to test! Tap the test box below" else "প্রস্তুত! নিচের বক্সে লিখে পরীক্ষা করুন"
+                            } else {
+                                if (isEnglish) "Complete Steps 1 & 2 first" else "প্রথমে ধাপ ১ ও ২ সম্পন্ন করুন"
+                            },
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = if (isDefault && isEnabled) Color(0xFF00E5B8) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                    }
+                    if (isDefault && isEnabled) {
+                        Text("✓", color = Color(0xFF00E5B8), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    }
+                }
+
+                if (isEnabled && isDefault) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF00E5B8).copy(alpha = 0.12f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (isEnglish) "🎉 Setup complete! Lekhani Keyboard is active as default."
+                                   else "🎉 সমস্ত ধাপ সম্পন্ন! লেখনী কীবোর্ড সফলভাবে সক্রিয় ও ডিফল্ট করা হয়েছে।",
+                            color = Color(0xFF00E5B8),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
                     }
                 }
             }
