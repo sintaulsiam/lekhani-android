@@ -99,10 +99,12 @@ object ProbahLayout {
             Key(
                 label = "্",           // Hasanta — conjunct trigger
                 shiftedLabel = "হ",    // হ on shift row (see shifted layout spec)
+                hintLabel = "হ",
                 action = KeyAction.Character("্"),
                 shiftedAction = KeyAction.Character("হ"),
+                longPressAction = KeyAction.Character("হ"),
                 widthWeight = 1.0f,
-                contentDesc = "Hasanta conjunct key, shifted হ",
+                contentDesc = "Hasanta conjunct key, shifted or long-press হ",
             ),
             Key(
                 label = "।", shiftedLabel = "!",

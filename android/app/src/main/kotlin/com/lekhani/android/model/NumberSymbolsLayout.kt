@@ -175,10 +175,10 @@ object NumberSymbolsLayout {
         rows = listOf(
             listOf(
                 Ch("~"), Ch("`"), Ch("|"), Ch("^"), Ch("\\"),
-                Ch("{"), Ch("}"), Ch("["), Ch("]"), Ch("°"),
+                Ch("{"), Ch("}"), Ch("["), Ch("]"), Ch("°", shifted = "½", hint = "½"),
             ),
             listOf(
-                Ch("_"), Ch("="), Ch("৳", shifted = "৲", hint = "৲"), Ch("€"), Ch("¥"),
+                Ch("_", shifted = "¼", hint = "¼"), Ch("=", shifted = "¾", hint = "¾"), Ch("৳", shifted = "৲", hint = "৲"), Ch("€"), Ch("¥"),
                 Ch("£"), Ch("₹"), Ch("©"), Ch("®"), Ch("™"),
             ),
             listOf(
