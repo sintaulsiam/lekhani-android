@@ -165,6 +165,7 @@ class KeyboardPreferences private constructor(context: Context) {
 
     enum class ToolbarTool(val titleBengali: String, val titleEnglish: String) {
         EMOJI("ইমোজি", "Emoji"),
+        TEXT_EDITOR("এডিটর", "Editor"),
         VOICE("ভয়েস", "Voice"),
         CLIPBOARD("ক্লিপবোর্ড", "Clipboard"),
         THEME("থিম", "Theme"),
@@ -220,6 +221,7 @@ class KeyboardPreferences private constructor(context: Context) {
 
         val DEFAULT_TOOL_LIST = listOf(
             ToolbarTool.EMOJI,
+            ToolbarTool.TEXT_EDITOR,
             ToolbarTool.VOICE,
             ToolbarTool.CLIPBOARD,
             ToolbarTool.THEME,

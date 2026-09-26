@@ -19,6 +19,12 @@ sealed class KeyAction {
     data object Shift : KeyAction()
     /** Switch to the ?123 number/symbol layer */
     data object SwitchNumeric : KeyAction()
+    /** Switch to the =< more symbols layer */
+    data object SwitchMoreSymbols : KeyAction()
+    /** Return from number/symbol mode to the active letter layout */
+    data object SwitchAlpha : KeyAction()
+    /** Toggle between English digits (1..0) and Bengali digits (১..০) */
+    data object ToggleBengaliDigits : KeyAction()
     /** Cycle to the next enabled layout (Globe key) */
     data object SwitchLayout : KeyAction()
     /** Trigger 100% offline on-device speech-to-text voice typing */

@@ -7,9 +7,12 @@
 - **Fixed Probhat (प्रभात)**: Popular phonetic fixed layout with dead-key combinations.
 - **Fixed Gboard-style Layout**: Standard Google Gboard Bengali layout arrangement and conjunct behavior for frictionless switching.
 - **English (QWERTY)**: Clean bilingual typing experience.
+- **Dedicated Number & Symbol Panels**:
+  - **?123 Numeric Layer**: Full 1..0 row with native Bengali numeral hints (`১..০`), Bengali currency (`৳`), math operators, and common punctuation.
+  - **=\\< More Symbols Layer**: Extended brackets, mathematical signs, currency (`৳`, `€`, `¥`, `£`, `₹`), and typographical glyphs.
+  - **Quick Digit Toggle (`১২৩` / `123`)**: Seamless 1-tap toggle between Bengali numerals and Western Arabic digits on the number row.
 - **Layout Toggle in Settings**: Individual toggle switches to enable/disable any layout, drag-to-reorder layout priority.
 - **Seamless Switching Controls**: Quick toggle via Globe key (🌐), spacebar horizontal swipe, or long-press spacebar layout menu.
-- **Dedicated Number & Punctuation Row**: Bengali numerals (০-৯) and special Bengali punctuation (Dari `।`, Taka `৳`, double dari `॥`).
 - **External Hardware Keyboard**: Intercepts USB & Bluetooth keyboards on tablets and Android desktop (DeX), mapping them directly to Avro or National typing.
 
 ## 2. Intelligence & Candidate Strip
@@ -57,8 +60,15 @@
 
 ## 7. Ergonomics, Touch Controls & UI/UX
 - **Material 3 Expressive UI**: 120 FPS buttery-smooth touch grid with spring physics and gentle keypress glow.
+- **Dedicated Text & Cursor Editor Sheet**:
+  - Full 4-way D-Pad (Up, Down, Left, Right) for precise single-character or line navigation.
+  - Home and End quick jump controls (`|◀`, `▶|`).
+  - Selection mode toggle for highlighting text ranges via arrow keys.
+  - Select All, Cut, Copy, Paste, and Backspace toolbar integration.
+  - Ensures complete cursor navigation capability even when the spacebar is set to Layout Switch mode.
+- **Selection-Aware Backspace**: Pressing Backspace when text is highlighted immediately deletes the entire active selection across all apps.
 - **Swipe-to-Delete**: Slide left on the Backspace key to erase whole words with preview highlight.
-- **Spacebar Cursor Control**: Slide left/right on Spacebar to position cursor precisely between letters.
+- **Spacebar Cursor Control**: Slide left/right on Spacebar to position cursor precisely between letters when in Cursor Slide mode.
 - **One-Handed Mode**: Quick-dock keyboard to left or right screen edge with quick-toggle arrows.
 - **Split & Floating Modes**: Optimized split keyboard for foldables/tablets and freely movable floating window.
 - **Haptic Click Physics**: Subtle tactile haptic response tuned for low latency via Android `VibratorManager`.

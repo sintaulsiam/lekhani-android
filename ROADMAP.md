@@ -126,6 +126,12 @@
   - Horizontal swipe on Spacebar with visual layout indicator pill and haptic feedback.
   - Dynamic Spacebar layout label (`স্পেস • প্রবাহ`, `Space • অভ্র`, `স্পেস • জাতীয়`, `স্পেস • প্রভাত`, `স্পেস • জিবোর্ড`, `Space • English`).
   - Long-press Spacebar for quick layout selection dialog.
+- [x] **Number & Symbol Panels**:
+  - `?123` primary layer: 1..0 row with Bengali numeral hints (`১..০`), currency symbols (`৳`, `$`), and common punctuation.
+  - `=\<` more symbols layer: mathematical operators, brackets, currency (`৳`, `€`, `¥`, `£`, `₹`), and typographical glyphs.
+  - Quick digit toggle (`১২৩` / `123`) for 1-tap switching between Bengali and English digits.
+- [x] **Selection-Aware Backspace**:
+  - Immediate atomic deletion of highlighted selections on Backspace without corrupting text or leaving ghost characters.
 - [x] **Physical / Bluetooth Keyboard Integration**:
   - Intercept physical USB/Bluetooth keyboard input on tablets & Android desktop (DeX).
   - Map physical typing directly to Avro Phonetic (using `lekhani-parser`), National Bengali, or English layout.
@@ -177,6 +183,11 @@
 - [x] Floating keyboard mode (freely movable, resizable anywhere on screen).
 - [x] Split keyboard mode optimized for foldables and tablets.
 - [x] Mutually exclusive Spacebar gesture mode (`SpacebarSwipeMode`: Cursor Slide vs Layout Switch).
+- [x] **Dedicated Text & Cursor Editor Sheet**:
+  - Full 4-way D-Pad (Up, Down, Left, Right) with Home/End jumps for character and line navigation.
+  - Text selection mode toggle for keyboard-driven range highlighting.
+  - Quick Select All, Cut, Copy, Paste, Backspace, and Enter actions.
+  - Seamless navigation fallback when spacebar is assigned to layout switching.
 - [x] Persistent candidate strip chevron toggle between active word predictions and quick toolbar shortcuts.
 - [x] Swipe-to-delete gesture on Backspace with word highlight preview.
 

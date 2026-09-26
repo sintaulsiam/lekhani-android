@@ -1079,9 +1079,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
             // Select background paint
             val bgPaint = when {
                 key.action == KeyAction.Backspace || key.action == KeyAction.Shift ||
-                key.action == KeyAction.SwitchNumeric || key.action == KeyAction.SwitchLayout ||
-                key.action == KeyAction.Enter || key.action == KeyAction.SwitchEmoji ||
-                key.action == KeyAction.SwitchClipboard -> keyShiftBgPaint
+                key.action == KeyAction.SwitchNumeric || key.action == KeyAction.SwitchMoreSymbols ||
+                key.action == KeyAction.SwitchAlpha || key.action == KeyAction.ToggleBengaliDigits ||
+                key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
+                key.action == KeyAction.SwitchEmoji || key.action == KeyAction.SwitchClipboard -> keyShiftBgPaint
                 key.action == KeyAction.Space -> keySpaceBgPaint
                 else -> keyBgPaint
             }
@@ -1169,7 +1170,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         canvas.drawText(displayHint, hintX, hintY, hintPaint)
                     }
                 }
-                KeyAction.SwitchNumeric, KeyAction.Space -> {
+                KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits, KeyAction.Space -> {
                     canvas.drawText(labelText, cx, cy, labelPaintSmall)
                 }
                 else -> {
@@ -1261,6 +1262,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     private fun isSpacebarKey(key: Key): Boolean =
         key.action == KeyAction.Space || key.action == KeyAction.SwitchNumeric ||
+        key.action == KeyAction.SwitchMoreSymbols || key.action == KeyAction.SwitchAlpha ||
+        key.action == KeyAction.ToggleBengaliDigits ||
         key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter
 
     // ══════════════════════════════════════════════════════════════════════════

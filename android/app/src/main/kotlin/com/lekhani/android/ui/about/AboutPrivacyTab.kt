@@ -113,7 +113,7 @@ fun AboutPrivacyTab(
             }
         }
 
-        // ── Developer & Organization Profile Card (Syntenieum & BRUR CSE) ───────
+        // ── Developer & Organization Profile Card (Syntenium & BRUR CSE) ───────
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
@@ -166,7 +166,7 @@ fun AboutPrivacyTab(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Organization: Syntenieum
+                // Organization: Syntenium
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Business,
@@ -181,7 +181,7 @@ fun AboutPrivacyTab(
                         modifier = Modifier.width(100.dp)
                     )
                     Text(
-                        text = "Syntenieum",
+                        text = "Syntenium",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF00E5B8)
@@ -267,8 +267,8 @@ fun AboutPrivacyTab(
                         .clip(RoundedCornerShape(10.dp))
                         .clickable {
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                data = Uri.parse("mailto:syntenieum@gmail.com")
-                                putExtra(Intent.EXTRA_SUBJECT, "Lekhani Keyboard - Syntenieum Support")
+                                data = Uri.parse("mailto:syntenium@gmail.com")
+                                putExtra(Intent.EXTRA_SUBJECT, "Lekhani Keyboard - Syntenium Support")
                             }
                             runCatching { context.startActivity(intent) }
                         }
@@ -289,7 +289,7 @@ fun AboutPrivacyTab(
                             style = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
                         Text(
-                            text = "syntenieum@gmail.com",
+                            text = "syntenium@gmail.com",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface

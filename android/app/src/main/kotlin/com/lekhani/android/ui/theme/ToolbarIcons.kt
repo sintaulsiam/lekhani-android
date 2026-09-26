@@ -3,6 +3,7 @@ package com.lekhani.android.ui.theme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -15,6 +16,7 @@ import com.lekhani.android.data.settings.KeyboardPreferences.ToolbarTool
 val ToolbarTool.iconVector: ImageVector
     get() = when (this) {
         ToolbarTool.EMOJI -> Icons.Filled.SentimentSatisfied
+        ToolbarTool.TEXT_EDITOR -> Icons.Filled.OpenWith
         ToolbarTool.VOICE -> Icons.Filled.Mic
         ToolbarTool.CLIPBOARD -> Icons.Filled.ContentPaste
         ToolbarTool.THEME -> Icons.Filled.Palette

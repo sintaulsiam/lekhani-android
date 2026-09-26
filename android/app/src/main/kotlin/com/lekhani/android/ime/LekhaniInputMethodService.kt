@@ -51,6 +51,8 @@ import com.lekhani.android.ui.emoji.EmojiPickerView
 import com.lekhani.android.ui.voice.VoiceWaveformOverlay
 import com.lekhani.android.voice.AudioStreamingManager
 import com.lekhani.android.voice.VoiceTypingState
+import com.lekhani.android.model.NumberSymbolsLayout
+import com.lekhani.android.ui.editor.TextEditorSheetView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -136,7 +138,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
     // ── Input modes & auxiliary views (Phase 6) ──────────────────────────────
 
-    enum class InputViewMode { KEYBOARD, EMOJI, EMOJI_SEARCH, CLIPBOARD }
+    enum class InputViewMode { KEYBOARD, EMOJI, EMOJI_SEARCH, CLIPBOARD, TEXT_EDITOR }
 
     private var currentMode: InputViewMode = InputViewMode.KEYBOARD
     private var emojiSearchQuery: String = ""
@@ -146,7 +148,12 @@ class LekhaniInputMethodService : InputMethodService() {
     private var candidateStripComposeView: ComposeView? = null
     private var emojiPickerView: ComposeView? = null
     private var clipboardView: ComposeView? = null
+    private var textEditorView: ComposeView? = null
     private var isCurrentFieldPrivate: Boolean = false
+
+    private var isNumericMode: Boolean = false
+    private var isMoreSymbolsMode: Boolean = false
+    private var isBengaliDigitsMode: Boolean = false
 
     private val recentsManager: EmojiRecentsManager by lazy { EmojiRecentsManager(this) }
     private val clipboardStore: LekhaniClipboardStore by lazy { LekhaniClipboardStore(this) }
@@ -248,6 +255,8 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onStartInput(info, restarting)
         session.reset()
         preeditShadow = ""
+        isNumericMode = false
+        isMoreSymbolsMode = false
         setInputViewMode(InputViewMode.KEYBOARD)
         applyInputTypePolicy(info)
         refreshSurroundingContext()
@@ -282,11 +291,13 @@ class LekhaniInputMethodService : InputMethodService() {
         candidatesEnd: Int
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
-        // If cursor moved outside the active composing region or composing was dismissed
-        if (candidatesStart < 0 && candidatesEnd < 0 && session.isComposing()) {
-            session.reset()
-            preeditShadow = ""
-            clearCandidates()
+        // If cursor moved outside the active composing region or text was selected
+        if ((candidatesStart < 0 && candidatesEnd < 0) || (newSelStart != newSelEnd)) {
+            if (session.isComposing()) {
+                session.reset()
+                preeditShadow = ""
+                clearCandidates()
+            }
         }
     }
 
@@ -506,7 +517,30 @@ class LekhaniInputMethodService : InputMethodService() {
                     toggleShift()
                     return
                 }
-                KeyAction.SwitchNumeric -> { /* Phase 6: numbers layer */ return }
+                KeyAction.SwitchNumeric -> {
+                    setInputViewMode(InputViewMode.KEYBOARD)
+                    isNumericMode = true
+                    isMoreSymbolsMode = false
+                    updateNumberSymbolsKeyboard()
+                    return
+                }
+                KeyAction.SwitchMoreSymbols -> {
+                    setInputViewMode(InputViewMode.KEYBOARD)
+                    isNumericMode = true
+                    isMoreSymbolsMode = true
+                    updateNumberSymbolsKeyboard()
+                    return
+                }
+                KeyAction.SwitchAlpha -> {
+                    setInputViewMode(InputViewMode.KEYBOARD)
+                    restoreAlphaKeyboard()
+                    return
+                }
+                KeyAction.ToggleBengaliDigits -> {
+                    isBengaliDigitsMode = !isBengaliDigitsMode
+                    updateNumberSymbolsKeyboard()
+                    return
+                }
                 KeyAction.SwitchLayout -> {
                     cycleLayout()
                     emojiSearchSession?.setLayout(session.getLayout())
@@ -533,7 +567,30 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyAction.Space        -> onSpace()
             KeyAction.Enter        -> commitEnter()
             KeyAction.Shift        -> toggleShift()
-            KeyAction.SwitchNumeric -> { /* Phase 6: numbers layer */ }
+            KeyAction.SwitchNumeric -> {
+                if (!isNumericMode) {
+                    isNumericMode = true
+                    isMoreSymbolsMode = false
+                } else if (isMoreSymbolsMode) {
+                    isMoreSymbolsMode = false
+                } else {
+                    restoreAlphaKeyboard()
+                    return
+                }
+                updateNumberSymbolsKeyboard()
+            }
+            KeyAction.SwitchMoreSymbols -> {
+                isNumericMode = true
+                isMoreSymbolsMode = true
+                updateNumberSymbolsKeyboard()
+            }
+            KeyAction.SwitchAlpha -> {
+                restoreAlphaKeyboard()
+            }
+            KeyAction.ToggleBengaliDigits -> {
+                isBengaliDigitsMode = !isBengaliDigitsMode
+                updateNumberSymbolsKeyboard()
+            }
             KeyAction.SwitchLayout -> cycleLayout()
             KeyAction.VoiceTyping  -> startVoiceTyping()
             KeyAction.SwitchEmoji  -> setInputViewMode(InputViewMode.EMOJI)
@@ -554,6 +611,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.visibility = View.VISIBLE
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
+                textEditorView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
                 clearCandidates()
@@ -563,6 +621,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.visibility = View.VISIBLE
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
+                textEditorView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchSession = AndroidLekhaniSession().apply {
                     setLayout(session.getLayout())
@@ -572,6 +631,7 @@ class LekhaniInputMethodService : InputMethodService() {
             InputViewMode.EMOJI -> {
                 keyboardView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
+                textEditorView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
@@ -607,6 +667,7 @@ class LekhaniInputMethodService : InputMethodService() {
             InputViewMode.CLIPBOARD -> {
                 keyboardView?.visibility = View.GONE
                 emojiPickerView?.visibility = View.GONE
+                textEditorView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
@@ -638,7 +699,89 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
                 clipboardView?.visibility = View.VISIBLE
             }
+            InputViewMode.TEXT_EDITOR -> {
+                keyboardView?.visibility = View.GONE
+                emojiPickerView?.visibility = View.GONE
+                clipboardView?.visibility = View.GONE
+                candidateStripComposeView?.visibility = View.GONE
+                emojiSearchQuery = ""
+                emojiSearchSession = null
+                if (textEditorView == null) {
+                    val compose = ComposeView(this).apply {
+                        attachLifecycleOwner(this)
+                        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                    }
+                    textEditorView = compose
+                    container.addView(
+                        compose,
+                        FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT
+                        )
+                    )
+                }
+                textEditorView?.setContent {
+                    TextEditorSheetView(
+                        theme = activeTheme,
+                        onMoveLeft = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_LEFT, select) },
+                        onMoveRight = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_RIGHT, select) },
+                        onMoveUp = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_UP, select) },
+                        onMoveDown = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_DOWN, select) },
+                        onMoveHome = { select -> sendEditorNavKey(KeyEvent.KEYCODE_MOVE_HOME, select) },
+                        onMoveEnd = { select -> sendEditorNavKey(KeyEvent.KEYCODE_MOVE_END, select) },
+                        onSelectAll = {
+                            val ic = currentInputConnection ?: return@TextEditorSheetView
+                            if (!ic.performContextMenuAction(android.R.id.selectAll)) {
+                                sendEditorKeyWithMeta(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON)
+                            }
+                        },
+                        onCut = { currentInputConnection?.performContextMenuAction(android.R.id.cut) },
+                        onCopy = { currentInputConnection?.performContextMenuAction(android.R.id.copy) },
+                        onPaste = { currentInputConnection?.performContextMenuAction(android.R.id.paste) },
+                        onBackspace = { onBackspace() },
+                        onEnter = { commitEnter() },
+                        onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                    )
+                }
+                textEditorView?.visibility = View.VISIBLE
+            }
         }
+    }
+
+    private fun updateNumberSymbolsKeyboard() {
+        val currentLayoutType = session.getLayout()
+        val isBengali = currentLayoutType != LekhaniLayoutType.ENGLISH
+        val layout = when {
+            isMoreSymbolsMode -> NumberSymbolsLayout.moreSymbolsLayout
+            isBengaliDigitsMode -> NumberSymbolsLayout.bengaliNumericLayout
+            isNumericMode && isBengali -> NumberSymbolsLayout.bengaliNumericLayout
+            else -> NumberSymbolsLayout.numericLayout
+        }
+        keyboardView?.setLayout(layout, currentLayoutType, shifted = false)
+        keyboardView?.setGboardKarsActive(false)
+    }
+
+    private fun restoreAlphaKeyboard() {
+        isNumericMode = false
+        isMoreSymbolsMode = false
+        val currentLayoutType = session.getLayout()
+        keyboardView?.setLayout(LayoutRegistry.get(currentLayoutType), currentLayoutType, shifted = false)
+        keyboardView?.setGboardKarsActive(false)
+    }
+
+    private fun sendEditorNavKey(keyCode: Int, isShift: Boolean) {
+        if (isShift) {
+            sendEditorKeyWithMeta(keyCode, KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON)
+        } else {
+            sendDownUpKeyEvents(keyCode)
+        }
+    }
+
+    private fun sendEditorKeyWithMeta(keyCode: Int, metaState: Int) {
+        val ic = currentInputConnection ?: return
+        val now = android.os.SystemClock.uptimeMillis()
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0, metaState))
+        ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0, metaState))
     }
 
     private fun openClipboardEditor() {
@@ -925,6 +1068,22 @@ class LekhaniInputMethodService : InputMethodService() {
     fun onBackspace() {
         val ic = currentInputConnection ?: return
 
+        // 1. If text is selected in the target app, delete the selection immediately
+        val selectedText = ic.getSelectedText(0)
+        if (!selectedText.isNullOrEmpty()) {
+            if (session.isComposing()) {
+                session.reset()
+                preeditShadow = ""
+            }
+            ic.commitText("", 1)
+            if (session.getLayout() == LekhaniLayoutType.GBOARD) {
+                keyboardView?.setGboardKarsActive(false)
+            }
+            clearCandidates()
+            return
+        }
+
+        // 2. If composing buffer is non-empty, delegate to Rust engine
         if (session.isComposing()) {
             val result = try {
                 session.handleBackspace()
@@ -935,8 +1094,9 @@ class LekhaniInputMethodService : InputMethodService() {
             setComposingTextSafe(ic, result.preedit)
             publishCandidates(result.candidates)
         } else {
-            // Nothing composing — delete character in the target app
-            ic.deleteSurroundingText(1, 0)
+            // 3. Fallback: send KEYCODE_DEL key event so Android's BaseInputConnection handles
+            // selection deletion natively across all apps (even if getSelectedText returned null)
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
             if (session.getLayout() == LekhaniLayoutType.GBOARD) {
                 keyboardView?.setGboardKarsActive(false)
             }
@@ -1057,6 +1217,8 @@ class LekhaniInputMethodService : InputMethodService() {
      * Switches the active layout. Persists the choice to Device Protected Storage.
      */
     fun switchLayout(layout: LekhaniLayoutType) {
+        isNumericMode = false
+        isMoreSymbolsMode = false
         session.setLayout(layout)
         emojiSearchSession?.setLayout(layout)
         keyboardView?.setLayout(LayoutRegistry.get(layout), layout, shifted = false)
@@ -1108,6 +1270,9 @@ class LekhaniInputMethodService : InputMethodService() {
         when (tool) {
             KeyboardPreferences.ToolbarTool.EMOJI -> {
                 setInputViewMode(InputViewMode.EMOJI)
+            }
+            KeyboardPreferences.ToolbarTool.TEXT_EDITOR -> {
+                setInputViewMode(InputViewMode.TEXT_EDITOR)
             }
             KeyboardPreferences.ToolbarTool.VOICE -> {
                 if (audioManager.voiceState.value is VoiceTypingState.Listening) {
