@@ -58,10 +58,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -459,7 +463,7 @@ private fun LayoutsTabContent(
     var isDefault by remember { mutableStateOf(false) }
     var testText by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
+    fun refreshImeStatus() {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         val enabledList = imm?.enabledInputMethodList ?: emptyList()
         val pkg = context.packageName
@@ -470,6 +474,19 @@ private fun LayoutsTabContent(
             Settings.Secure.DEFAULT_INPUT_METHOD
         ) ?: ""
         isDefault = defaultIme.contains(pkg)
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                refreshImeStatus()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     Column(
