@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.PushPin
@@ -123,6 +125,7 @@ fun ClipboardManagerSheet(
     var showCombinedTextDialog by remember { mutableStateOf(false) }
     var showClearConfirmDialog by remember { mutableStateOf(false) }
     var snapshotToPreview by remember { mutableStateOf<ClipboardSnapshot?>(null) }
+    var clipToEdit by remember { mutableStateOf<ClipItem?>(null) }
 
     val currentRetention = RetentionPeriod.fromMinutes(prefs.clipboardRetentionMinutes)
 
@@ -411,6 +414,7 @@ fun ClipboardManagerSheet(
                         isEnglish = isEnglish,
                         emptyMessage = if (isEnglish) "No clipboard items yet" else "ক্লিপবোর্ডে কোনো লেখা নেই",
                         clipboardStore = clipboardStore,
+                        onEdit = { clipToEdit = it },
                     )
                     1 -> ClipsListView(
                         clips = pinnedClips,
@@ -418,6 +422,7 @@ fun ClipboardManagerSheet(
                         emptyMessage = if (isEnglish) "No pinned items. Tap the pin icon on any item to keep it at top."
                         else "কোনো পিন করা আইটেম নেই। আইটেম পিন করতে পিন আইকনে চাপুন।",
                         clipboardStore = clipboardStore,
+                        onEdit = { clipToEdit = it },
                     )
                     2 -> ClipsListView(
                         clips = savedClips,
@@ -425,6 +430,7 @@ fun ClipboardManagerSheet(
                         emptyMessage = if (isEnglish) "No long-term saved items in vault. Tap the bookmark icon to save permanently."
                         else "ভল্টে কোনো দীর্ঘমেয়াদী সংরক্ষিত লেখা নেই। বুকমার্ক আইকনে চেপে স্থায়ীভাবে সংরক্ষণ করুন।",
                         clipboardStore = clipboardStore,
+                        onEdit = { clipToEdit = it },
                     )
                     3 -> LinksListView(
                         links = extractedLinks,
@@ -459,6 +465,45 @@ fun ClipboardManagerSheet(
                 ).show()
             },
             onDismiss = { showRetentionDialog = false },
+        )
+    }
+
+    // ── Edit Clip Dialog ──────────────────────────────────────────────────────
+    clipToEdit?.let { clip ->
+        var editFieldText by remember(clip) { mutableStateOf(clip.text) }
+        AlertDialog(
+            onDismissRequest = { clipToEdit = null },
+            title = { Text(if (isEnglish) "Edit Clipboard Item" else "ক্লিপবোর্ড লেখা এডিট করুন") },
+            text = {
+                OutlinedTextField(
+                    value = editFieldText,
+                    onValueChange = { editFieldText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp),
+                    label = { Text(if (isEnglish) "Content" else "লেখা") }
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (editFieldText.isNotBlank()) {
+                        clipboardStore.editClip(clip.id, editFieldText)
+                        Toast.makeText(
+                            context,
+                            if (isEnglish) "Clip updated" else "ক্লিপ হালনাগাদ করা হয়েছে",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    clipToEdit = null
+                }) {
+                    Text(if (isEnglish) "Save" else "সংরক্ষণ")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { clipToEdit = null }) {
+                    Text(if (isEnglish) "Cancel" else "বাতিল")
+                }
+            }
         )
     }
 
@@ -545,6 +590,7 @@ private fun ClipsListView(
     isEnglish: Boolean,
     emptyMessage: String,
     clipboardStore: LekhaniClipboardStore,
+    onEdit: (ClipItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -580,7 +626,7 @@ private fun ClipsListView(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(clips, key = { it.id }) { clip ->
+            itemsIndexed(clips, key = { index, clip -> "${clip.id}_$index" }) { _, clip ->
                 ClipItemCard(
                     clip = clip,
                     isEnglish = isEnglish,
@@ -593,6 +639,7 @@ private fun ClipsListView(
                             Toast.LENGTH_SHORT
                         ).show()
                     },
+                    onEdit = { onEdit(clip) },
                     onTogglePin = { clipboardStore.togglePin(clip.id) },
                     onToggleSave = { clipboardStore.toggleSave(clip.id) },
                     onDelete = { clipboardStore.deleteClip(clip.id) },
@@ -607,6 +654,7 @@ private fun ClipItemCard(
     clip: ClipItem,
     isEnglish: Boolean,
     onCopy: () -> Unit,
+    onEdit: () -> Unit,
     onTogglePin: () -> Unit,
     onToggleSave: () -> Unit,
     onDelete: () -> Unit,
@@ -743,6 +791,16 @@ private fun ClipItemCard(
                     )
                 }
 
+                // Edit Button
+                IconButton(onClick = onEdit, modifier = Modifier.size(34.dp)) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Edit",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+
                 // Pin Button
                 IconButton(onClick = onTogglePin, modifier = Modifier.size(34.dp)) {
                     Icon(
@@ -867,7 +925,7 @@ private fun LinksListView(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(links, key = { it.url }) { link ->
+                itemsIndexed(links, key = { index, link -> "${link.url}_$index" }) { _, link ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
@@ -1083,7 +1141,7 @@ private fun SnapshotsListView(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                items(snapshots, key = { it.id }) { snapshot ->
+                itemsIndexed(snapshots, key = { index, snapshot -> "${snapshot.id}_$index" }) { _, snapshot ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
@@ -1373,7 +1431,7 @@ private fun SnapshotDetailDialog(
                         contentPadding = PaddingValues(8.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        items(snapshot.items, key = { it.id }) { item ->
+                        itemsIndexed(snapshot.items, key = { index, item -> "${item.id}_$index" }) { _, item ->
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
                                 color = MaterialTheme.colorScheme.surface,

@@ -15,13 +15,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,14 +34,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextButton
 import com.lekhani.android.data.clipboard.ClipItem
 import com.lekhani.android.data.clipboard.LekhaniClipboardStore
 import com.lekhani.android.data.clipboard.RetentionPeriod
@@ -51,9 +64,12 @@ import com.lekhani.android.theme.ThemeRegistry
  * ══════════════════════════════════════════════════════════════════════════════
  * Smart 100% on-device clipboard manager panel.
  *
- * Features (ROADMAP.md Phase 6):
+ * Features:
  *   ✅ Dynamic KeyboardTheme synchronization (respects active color scheme)
- *   ✅ Clip history list with timestamp labels
+ *   ✅ Clip history list with safe crash-proof index-backed keys
+ *   ✅ Open full Clipboard Manager & Editor directly from header
+ *   ✅ Inline clip editor dialog right within the keyboard sheet
+ *   ✅ Quick add new clip/note dialog
  *   ✅ Pinning/unpinning clips to prevent auto-clearing
  *   ✅ Sensitive content identification (OTP / Card badge)
  *   ✅ Tap to paste instantly into active InputConnection
@@ -65,6 +81,7 @@ fun ClipboardSheetView(
     clipboardStore: LekhaniClipboardStore,
     onPaste: (String) -> Unit,
     onClose: () -> Unit,
+    onOpenEditor: (() -> Unit)? = null,
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
     modifier: Modifier = Modifier,
 ) {
@@ -79,6 +96,9 @@ fun ClipboardSheetView(
     val textPrimary = Color(theme.labelColor)
     val textSecondary = Color(theme.labelDimColor)
     val sensitiveBadge = Color(0xFFFF9500)
+
+    var editingClip by remember { mutableStateOf<ClipItem?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
 
     val retentionLabel = remember(clipboardStore.retentionMinutes) {
         RetentionPeriod.fromMinutes(clipboardStore.retentionMinutes).labelBengali
@@ -97,7 +117,7 @@ fun ClipboardSheetView(
                 .fillMaxWidth()
                 .height(44.dp)
                 .background(headerBg)
-                .padding(horizontal = 14.dp),
+                .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -108,60 +128,104 @@ fun ClipboardSheetView(
                     tint = primaryAccent,
                     modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "ক্লিপবোর্ড",
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = textPrimary,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 // Retention auto-clear indicator
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .background(cardBg.copy(alpha = 0.6f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Timer,
                         contentDescription = null,
                         tint = textSecondary,
-                        modifier = Modifier.size(11.dp)
+                        modifier = Modifier.size(10.dp)
                     )
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         text = retentionLabel,
-                        fontSize = 10.sp,
+                        fontSize = 9.sp,
                         color = textSecondary,
                     )
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                // Open full clipboard editor in app
+                if (onOpenEditor != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(primaryAccent.copy(alpha = 0.15f))
+                            .clickable { onOpenEditor() }
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                            .semantics { contentDescription = "ক্লিপবোর্ড এডিটর খুলুন" },
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = null,
+                                tint = primaryAccent,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Text("এডিটর", fontSize = 11.sp, color = primaryAccent, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // Add quick clip/note
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(cardBg)
+                        .clickable { showAddDialog = true }
+                        .padding(horizontal = 7.dp, vertical = 5.dp)
+                        .semantics { contentDescription = "নতুন ক্লিপ যোগ করুন" },
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = null,
+                            tint = textSecondary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text("নতুন", fontSize = 11.sp, color = textSecondary)
+                    }
+                }
+
                 if (clips.isNotEmpty()) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(cardBg)
                             .clickable { clipboardStore.clearUnpinned() }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 7.dp, vertical = 5.dp)
                             .semantics { contentDescription = "পিন ছাড়া সব মুছুন" },
                     ) {
-                        Text("মুছুন", fontSize = 12.sp, color = textSecondary)
+                        Text("মুছুন", fontSize = 11.sp, color = textSecondary)
                     }
                 }
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(cardBg)
                         .clickable { onClose() }
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                         .semantics { contentDescription = "কিবোর্ডে ফিরে যান" },
                 ) {
-                    Text("⌨ ABC", fontSize = 13.sp, color = textPrimary, fontWeight = FontWeight.Bold)
+                    Text("⌨ ABC", fontSize = 12.sp, color = textPrimary, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -175,7 +239,7 @@ fun ClipboardSheetView(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "ক্লিপবোর্ডে কোনো লেখা সংরক্ষিত নেই।\nযেকোনো লেখা কপি করলে তা এখানে দেখা যাবে।",
+                    text = "ক্লিপবোর্ডে কোনো লেখা সংরক্ষিত নেই।\nযেকোনো লেখা কপি করলে বা 'নতুন' চাপলে তা এখানে জমা হবে।",
                     fontSize = 13.sp,
                     color = textSecondary,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -187,10 +251,11 @@ fun ClipboardSheetView(
                 contentPadding = PaddingValues(8.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                items(clips, key = { it.id }) { clip ->
+                itemsIndexed(clips, key = { index, clip -> "${clip.id}_$index" }) { _, clip ->
                     ClipCard(
                         clip = clip,
                         onPaste = { onPaste(clip.text) },
+                        onEdit = { editingClip = clip },
                         onTogglePin = { clipboardStore.togglePin(clip.id) },
                         onToggleSave = { clipboardStore.toggleSave(clip.id) },
                         onDelete = { clipboardStore.deleteClip(clip.id) },
@@ -205,12 +270,148 @@ fun ClipboardSheetView(
             }
         }
     }
+
+    // ── Inline Edit Clip Dialog ───────────────────────────────────────────────
+    editingClip?.let { clip ->
+        var editFieldText by remember(clip) { mutableStateOf(clip.text) }
+        Dialog(onDismissRequest = { editingClip = null }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "ক্লিপবোর্ড এডিট করুন",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textPrimary
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = editFieldText,
+                        onValueChange = { editFieldText = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = textPrimary,
+                            unfocusedTextColor = textPrimary,
+                            focusedBorderColor = primaryAccent,
+                            unfocusedBorderColor = borderColor
+                        )
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { editingClip = null }) {
+                            Text("বাতিল", color = textSecondary)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (editFieldText.isNotBlank()) {
+                                    clipboardStore.editClip(clip.id, editFieldText)
+                                }
+                                editingClip = null
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryAccent)
+                        ) {
+                            Text("সংরক্ষণ", color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Add New Clip Dialog ───────────────────────────────────────────────────
+    if (showAddDialog) {
+        var newText by remember { mutableStateOf("") }
+        var saveToVault by remember { mutableStateOf(false) }
+        Dialog(onDismissRequest = { showAddDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "নতুন ক্লিপবোর্ড নোট",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textPrimary
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = newText,
+                        onValueChange = { newText = it },
+                        placeholder = { Text("এখানে লিখুন বা পেস্ট করুন...", color = textSecondary) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = textPrimary,
+                            unfocusedTextColor = textPrimary,
+                            focusedBorderColor = primaryAccent,
+                            unfocusedBorderColor = borderColor
+                        )
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { saveToVault = !saveToVault }
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (saveToVault) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                            contentDescription = null,
+                            tint = if (saveToVault) Color(0xFFFFB703) else textSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("স্থায়ী ভল্টে সংরক্ষণ করুন", fontSize = 12.sp, color = textPrimary)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showAddDialog = false }) {
+                            Text("বাতিল", color = textSecondary)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                if (newText.isNotBlank()) {
+                                    clipboardStore.addClip(newText, isSaved = saveToVault)
+                                }
+                                showAddDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryAccent)
+                        ) {
+                            Text("যোগ করুন", color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun ClipCard(
     clip: ClipItem,
     onPaste: () -> Unit,
+    onEdit: () -> Unit,
     onTogglePin: () -> Unit,
     onToggleSave: () -> Unit,
     onDelete: () -> Unit,
@@ -286,8 +487,25 @@ private fun ClipCard(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
+            // Edit Clip Button
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(cardBg)
+                    .clickable { onEdit() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.EditNote,
+                    contentDescription = "Edit Clip",
+                    tint = accentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
             // Pin Toggle Button
             Box(
                 modifier = Modifier

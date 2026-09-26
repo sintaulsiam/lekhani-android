@@ -89,6 +89,15 @@ class LekhaniClipboardStore(context: Context) {
         .createDeviceProtectedStorageContext()
         .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    private val idCounter = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
+
+    private fun nextId(): Long {
+        val now = System.currentTimeMillis()
+        return idCounter.updateAndGet { current ->
+            if (now > current) now else current + 1
+        }
+    }
+
     private val _clips = MutableStateFlow<List<ClipItem>>(emptyList())
     val clips: StateFlow<List<ClipItem>> = _clips.asStateFlow()
 
@@ -109,16 +118,22 @@ class LekhaniClipboardStore(context: Context) {
         pruneExpiredClips()
     }
 
+    @Synchronized
     private fun loadClips() {
         val rawJson = prefs.getString(KEY_CLIPS, "[]") ?: "[]"
         val list = mutableListOf<ClipItem>()
+        val seenIds = mutableSetOf<Long>()
         try {
             val arr = JSONArray(rawJson)
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
+                var id = obj.getLong("id")
+                while (!seenIds.add(id)) {
+                    id = nextId()
+                }
                 list.add(
                     ClipItem(
-                        id = obj.getLong("id"),
+                        id = id,
                         text = obj.getString("text"),
                         timestamp = obj.getLong("timestamp"),
                         isPinned = obj.optBoolean("isPinned", false),
@@ -131,6 +146,7 @@ class LekhaniClipboardStore(context: Context) {
         _clips.value = list
     }
 
+    @Synchronized
     private fun saveClips(list: List<ClipItem>) {
         _clips.value = list
         try {
@@ -150,20 +166,31 @@ class LekhaniClipboardStore(context: Context) {
         } catch (_: Exception) {}
     }
 
+    @Synchronized
     private fun loadSnapshots() {
         val rawJson = prefs.getString(KEY_SNAPSHOTS, "[]") ?: "[]"
         val list = mutableListOf<ClipboardSnapshot>()
+        val seenSnapIds = mutableSetOf<Long>()
         try {
             val arr = JSONArray(rawJson)
             for (i in 0 until arr.length()) {
                 val obj = arr.getJSONObject(i)
+                var snapId = obj.getLong("id")
+                while (!seenSnapIds.add(snapId)) {
+                    snapId = nextId()
+                }
                 val itemsArr = obj.getJSONArray("items")
                 val items = mutableListOf<ClipItem>()
+                val seenItemIds = mutableSetOf<Long>()
                 for (j in 0 until itemsArr.length()) {
                     val itemObj = itemsArr.getJSONObject(j)
+                    var itemId = itemObj.getLong("id")
+                    while (!seenItemIds.add(itemId)) {
+                        itemId = nextId()
+                    }
                     items.add(
                         ClipItem(
-                            id = itemObj.getLong("id"),
+                            id = itemId,
                             text = itemObj.getString("text"),
                             timestamp = itemObj.getLong("timestamp"),
                             isPinned = itemObj.optBoolean("isPinned", false),
@@ -174,7 +201,7 @@ class LekhaniClipboardStore(context: Context) {
                 }
                 list.add(
                     ClipboardSnapshot(
-                        id = obj.getLong("id"),
+                        id = snapId,
                         title = obj.getString("title"),
                         timestamp = obj.getLong("timestamp"),
                         items = items,
@@ -185,6 +212,7 @@ class LekhaniClipboardStore(context: Context) {
         _snapshots.value = list
     }
 
+    @Synchronized
     private fun saveSnapshots(list: List<ClipboardSnapshot>) {
         _snapshots.value = list
         try {
@@ -219,11 +247,13 @@ class LekhaniClipboardStore(context: Context) {
      * Adds text to clipboard history.
      * Detects sensitive content (OTP or passwords) and excludes duplicates.
      */
+    @Synchronized
     fun addClip(text: String, isSaved: Boolean = false) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
 
         val isSensitive = detectSensitiveContent(trimmed)
+        val id = nextId()
         val now = System.currentTimeMillis()
 
         val current = _clips.value.toMutableList()
@@ -234,7 +264,7 @@ class LekhaniClipboardStore(context: Context) {
         current.removeAll { it.text == trimmed }
 
         val newClip = ClipItem(
-            id = now,
+            id = id,
             text = trimmed,
             timestamp = now,
             isPinned = wasPinned,
@@ -249,13 +279,34 @@ class LekhaniClipboardStore(context: Context) {
             val pruneIdx = current.indices.lastOrNull { !current[it].isPinned && !current[it].isSaved }
             if (pruneIdx != null) {
                 current.removeAt(pruneIdx)
+            } else {
+                current.removeAt(current.size - 1)
             }
         }
 
         saveClips(current)
     }
 
+    /**
+     * Edits the text of an existing clip in place.
+     */
+    @Synchronized
+    fun editClip(id: Long, newText: String) {
+        val trimmed = newText.trim()
+        if (trimmed.isEmpty()) return
+        val isSensitive = detectSensitiveContent(trimmed)
+        val updated = _clips.value.map {
+            if (it.id == id) {
+                it.copy(text = trimmed, isSensitive = isSensitive, timestamp = System.currentTimeMillis())
+            } else {
+                it
+            }
+        }
+        saveClips(updated)
+    }
+
     /** Toggle pin status of a clip */
+    @Synchronized
     fun togglePin(id: Long) {
         val updated = _clips.value.map {
             if (it.id == id) it.copy(isPinned = !it.isPinned) else it
@@ -264,6 +315,7 @@ class LekhaniClipboardStore(context: Context) {
     }
 
     /** Toggle saved long-term vault status of a clip */
+    @Synchronized
     fun toggleSave(id: Long) {
         val updated = _clips.value.map {
             if (it.id == id) it.copy(isSaved = !it.isSaved) else it
@@ -272,18 +324,21 @@ class LekhaniClipboardStore(context: Context) {
     }
 
     /** Delete a single clip */
+    @Synchronized
     fun deleteClip(id: Long) {
         val updated = _clips.value.filter { it.id != id }
         saveClips(updated)
     }
 
     /** Clear all unpinned & unsaved clips */
+    @Synchronized
     fun clearUnpinned() {
         val updated = _clips.value.filter { it.isPinned || it.isSaved }
         saveClips(updated)
     }
 
     /** Clear all clips unconditionally */
+    @Synchronized
     fun clearAll() {
         saveClips(emptyList())
     }
@@ -293,6 +348,7 @@ class LekhaniClipboardStore(context: Context) {
      * Pinned and Saved items are immune from auto-pruning.
      * If [retentionMinutes] is 0 (Never), no clips are pruned.
      */
+    @Synchronized
     fun pruneExpiredClips() {
         val minutes = retentionMinutes
         if (minutes <= 0) return // Retention: Never auto-clear
@@ -309,15 +365,17 @@ class LekhaniClipboardStore(context: Context) {
     /**
      * Creates an immutable snapshot of all current clipboard items.
      */
+    @Synchronized
     fun takeSnapshot(customTitle: String? = null): ClipboardSnapshot {
         val now = System.currentTimeMillis()
+        val snapId = nextId()
         val dateStr = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault()).format(Date(now))
         val currentItems = _clips.value
         val title = customTitle?.takeIf { it.isNotBlank() }
             ?: "স্ন্যাপশট (${currentItems.size}টি আইটেম • $dateStr)"
 
         val snapshot = ClipboardSnapshot(
-            id = now,
+            id = snapId,
             title = title,
             timestamp = now,
             items = currentItems,
@@ -336,13 +394,17 @@ class LekhaniClipboardStore(context: Context) {
      * Restores items from a snapshot into the current clipboard.
      * @param replace If true, clears current clips before restoring; if false, prepends snapshot items.
      */
+    @Synchronized
     fun restoreSnapshot(snapshotId: Long, replace: Boolean = false) {
         val snap = _snapshots.value.find { it.id == snapshotId } ?: return
         if (replace) {
-            saveClips(snap.items)
+            val sanitized = snap.items.map { it.copy(id = nextId()) }
+            saveClips(sanitized)
         } else {
             val currentTexts = _clips.value.map { it.text }.toSet()
-            val newItems = snap.items.filter { it.text !in currentTexts }
+            val newItems = snap.items
+                .filter { it.text !in currentTexts }
+                .map { it.copy(id = nextId()) }
             saveClips(newItems + _clips.value)
         }
     }
@@ -350,6 +412,7 @@ class LekhaniClipboardStore(context: Context) {
     /**
      * Deletes a saved snapshot.
      */
+    @Synchronized
     fun deleteSnapshot(snapshotId: Long) {
         val updated = _snapshots.value.filter { it.id != snapshotId }
         saveSnapshots(updated)

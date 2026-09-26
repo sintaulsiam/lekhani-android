@@ -125,4 +125,34 @@ class ClipboardStoreTest {
         assertTrue(snapshot.items[0].isPinned)
         assertTrue(snapshot.items[1].isSaved)
     }
+
+    @Test
+    fun `atomic id generator guarantees uniqueness across rapid calls`() {
+        val counter = java.util.concurrent.atomic.AtomicLong(System.currentTimeMillis())
+        fun nextId(): Long {
+            val now = System.currentTimeMillis()
+            return counter.updateAndGet { current ->
+                if (now > current) now else current + 1
+            }
+        }
+
+        val ids = (1..1000).map { nextId() }
+        assertEquals(1000, ids.distinct().size)
+    }
+
+    @Test
+    fun `clip editing preserves id and updates content and sensitive status`() {
+        val original = ClipItem(id = 123L, text = "Normal text", timestamp = 100L, isPinned = true)
+        val editedText = "123456" // OTP sensitive
+        val edited = original.copy(
+            text = editedText,
+            isSensitive = isSensitive(editedText),
+            timestamp = 200L
+        )
+
+        assertEquals(123L, edited.id)
+        assertEquals("123456", edited.text)
+        assertTrue(edited.isSensitive)
+        assertTrue(edited.isPinned)
+    }
 }

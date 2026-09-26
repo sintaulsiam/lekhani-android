@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Info
@@ -51,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -88,11 +90,23 @@ import com.lekhani.android.ui.tools.ToolsFeedbackTab
  */
 class LekhaniSettingsActivity : ComponentActivity() {
 
+    companion object {
+        const val EXTRA_OPEN_CLIPBOARD = "open_clipboard"
+        const val EXTRA_TAB_INDEX = "tab_index"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
             com.lekhani.android.data.dictionary.LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
         } catch (_: Exception) {}
+
+        val startTab = if (intent?.getBooleanExtra(EXTRA_OPEN_CLIPBOARD, false) == true) {
+            1
+        } else {
+            intent?.getIntExtra(EXTRA_TAB_INDEX, 0) ?: 0
+        }
+
         setContent {
             LekhaniAppTheme {
                 Surface(
@@ -100,6 +114,7 @@ class LekhaniSettingsActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     LekhaniSettingsScreen(
+                        initialTab = startTab,
                         onOpenImeSettings = {
                             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
                         },
@@ -116,11 +131,12 @@ class LekhaniSettingsActivity : ComponentActivity() {
 
 @Composable
 fun LekhaniSettingsScreen(
+    initialTab: Int = 0,
     onOpenImeSettings: () -> Unit = {},
     onOpenImePicker: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(initialTab) }
 
     val deviceContext = remember {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
@@ -147,6 +163,7 @@ fun LekhaniSettingsScreen(
     val navItems = if (isEnglish) {
         listOf(
             Triple("Layouts", Icons.Filled.Keyboard, "Layouts"),
+            Triple("Clipboard", Icons.AutoMirrored.Filled.Assignment, "Clipboard"),
             Triple("Themes", Icons.Filled.Palette, "Themes"),
             Triple("Modes", Icons.Filled.AspectRatio, "Modes"),
             Triple("Tools", Icons.Filled.Tune, "Tools"),
@@ -155,6 +172,7 @@ fun LekhaniSettingsScreen(
     } else {
         listOf(
             Triple("লেআউট", Icons.Filled.Keyboard, "Layouts"),
+            Triple("ক্লিপবোর্ড", Icons.AutoMirrored.Filled.Assignment, "Clipboard"),
             Triple("থিম", Icons.Filled.Palette, "Themes"),
             Triple("মোড", Icons.Filled.AspectRatio, "Modes"),
             Triple("টুলস", Icons.Filled.Tune, "Tools"),
@@ -290,27 +308,35 @@ fun LekhaniSettingsScreen(
                 0 -> LayoutsTabContent(
                     context = context,
                     prefs = prefs,
+                    clipboardStore = clipboardStore,
                     isEnglish = isEnglish,
                     onOpenImeSettings = onOpenImeSettings,
-                    onOpenImePicker = onOpenImePicker
+                    onOpenImePicker = onOpenImePicker,
+                    onOpenClipboard = { selectedTab = 1 }
                 )
-                1 -> ThemeStudioSheet(
+                1 -> ClipboardManagerSheet(
+                    clipboardStore = clipboardStore,
+                    prefs = keyboardPrefs,
+                    isEnglish = isEnglish,
+                    onClose = { selectedTab = 0 }
+                )
+                2 -> ThemeStudioSheet(
                     prefs = keyboardPrefs,
                     onClose = { selectedTab = 0 }
                 )
-                2 -> FormFactorGesturesSheet(
+                3 -> FormFactorGesturesSheet(
                     prefs = keyboardPrefs,
                     onClose = { selectedTab = 0 }
                 )
-                3 -> ToolsFeedbackTab(
+                4 -> ToolsFeedbackTab(
                     prefs = keyboardPrefs,
                     dictManager = dictManager,
                     isEnglish = isEnglish,
                     onOpenToolbarCustomizer = { showToolbarSheet = true },
                     onOpenDictionaryManager = { showDictionarySheet = true },
-                    onOpenClipboardManager = { showClipboardSheet = true }
+                    onOpenClipboardManager = { selectedTab = 1 }
                 )
-                4 -> AboutPrivacyTab(
+                5 -> AboutPrivacyTab(
                     isEnglish = isEnglish
                 )
             }
@@ -360,9 +386,11 @@ fun LekhaniSettingsScreen(
 private fun LayoutsTabContent(
     context: Context,
     prefs: android.content.SharedPreferences,
+    clipboardStore: LekhaniClipboardStore,
     isEnglish: Boolean = false,
     onOpenImeSettings: () -> Unit,
-    onOpenImePicker: () -> Unit
+    onOpenImePicker: () -> Unit,
+    onOpenClipboard: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
 
@@ -514,6 +542,66 @@ private fun LayoutsTabContent(
                     } else {
                         Text("✓", color = Color(0xFF00E5B8), fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
+                }
+            }
+        }
+
+        // ── Quick Access: Clipboard & Vault Card ──────────────────────────────
+        val clips by clipboardStore.clips.collectAsState()
+        val savedCount = remember(clips) { clips.count { it.isSaved } }
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Assignment,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Clipboard & Vault" else "ক্লিপবোর্ড ও ভল্ট",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEnglish) "${clips.size} clips • $savedCount saved in vault"
+                                   else "${clips.size}টি ক্লিপ • ${savedCount}টি ভল্টে সংরক্ষিত",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                FilledTonalButton(
+                    onClick = onOpenClipboard,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(if (isEnglish) "Open" else "ওপেন করুন")
                 }
             }
         }
