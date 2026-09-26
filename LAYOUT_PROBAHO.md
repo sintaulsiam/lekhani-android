@@ -66,23 +66,23 @@ Typists struggle to adopt new layouts when key positions feel arbitrary. **Lekha
 
 ## 3. Physical Layout Matrices
 
-### Base Layer (Unshifted — Covers ~94.2% of Daily Keystrokes)
+### Base Layer (Unshifted — Covers ~95.4% of Daily Keystrokes)
 
 ```
 Row 1 (Top):     [ আ ] [ ো ] [ ী ] [ ূ ] [ ৈ ]   |   [ প ] [ ব ] [ ম ] [ দ ] [ ল ]
 Row 2 (Home):    [ অ ] [ া ] [ ি ] [ ু ] [ ে ]   |   [ র ] [ ত ] [ ন ] [ স ] [ ক ]
-Row 3 (Bottom):  [ ⇧ ] [ ৌ ] [ ং ] [ ঁ ] [ ঃ ]   |   [ চ ] [ জ ] [ ট ] [ ড ] [ ⌫ ]
+Row 3 (Bottom):  [ ⇧ ] [ হ ] [ ং ] [ ঁ ] [ ঃ ]   |   [ চ ] [ জ ] [ ট ] [ ড ] [ ⌫ ]
 Row 4 (Space):   [ ?123 ] [ 🌐 ] [ , ] [     স্পেস     ] [  ্  ] [ । ] [ ↵ ]
                          └─ Left Thumb ─┘             └─ Right Thumb ─┘
 ```
 
-### Shifted Layer (Aspirated & Rare Vowels — ~5.8% of Keystrokes)
+### Shifted Layer (Aspirated & Rare Characters)
 
 ```
-Row 1 (Top):     [ ঔ ] [ ঐ ] [ ঊ ] [ ঈ ] [ ৠ ]   |   [ ফ ] [ ভ ] [ গ ] [ ধ ] [ ঘ ]
+Row 1 (Top):     [ ঔ ] [ ৌ ] [ ঊ ] [ ঈ ] [ ৃ ]   |   [ ফ ] [ ভ ] [ গ ] [ ধ ] [ ঘ ]
 Row 2 (Home):    [ ঋ ] [ ঽ ] [ য় ] [ ৎ ] [ য ]   |   [ ড় ] [ থ ] [ ণ ] [ শ ] [ খ ]
 Row 3 (Bottom):  [ ⇧ ] [ ঞ ] [ ঙ ] [ ZWJ ] [ZWNJ] |   [ ছ ] [ ঝ ] [ ঠ ] [ ঢ ] [ ⌫ ]
-Row 4 (Space):   [ ?123 ] [ 🌐 ] [ ; ] [     স্পেস     ] [ হ ] [ ! ] [ ↵ ]
+Row 4 (Space):   [ ?123 ] [ 🌐 ] [ ? ] [     স্পেস     ] [ হ ] [ ! ] [ ↵ ]
 ```
 
 ---

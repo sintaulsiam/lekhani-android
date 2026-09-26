@@ -22,15 +22,15 @@ object ProbahLayout {
             // ── Row 1 (Top) — Long vowels | Labial/Dental consonants ──────────
             listOf(
                 Ch("আ", shifted = "ঔ", desc = "আ, shifted ঔ"),
-                Ch("ো", shifted = "ঐ", desc = "ো, shifted ঐ"),
+                Ch("ো", shifted = "ৌ", hint = "ঐ", desc = "ো, shifted ৌ, hint ঐ"),
                 Ch("ী", shifted = "ঊ", desc = "ী, shifted ঊ"),
                 Ch("ূ", shifted = "ঈ", desc = "ূ, shifted ঈ"),
                 Ch("ৈ", shifted = "ৃ", hint = "ৃ", desc = "ৈ, shifted ৃ"),
                 Ch("প", shifted = "ফ", desc = "প, shifted ফ"),
                 Ch("ব", shifted = "ভ", desc = "ব, shifted ভ"),
-                Ch("ম", shifted = "গ", desc = "ম, shifted গ"),  // গ on shift (see layout spec)
+                Ch("ম", shifted = "গ", hint = "গ", desc = "ম, shifted গ, hint গ"),
                 Ch("দ", shifted = "ধ", desc = "দ, shifted ধ"),
-                Ch("ল", shifted = "ঘ", desc = "ল, shifted ঘ"),
+                Ch("ল", shifted = "ঘ", hint = "ঘ", desc = "ল, shifted ঘ, hint ঘ"),
             ),
             // ── Row 2 (Home) — Base vowels | Golden 5 consonants ─────────────
             listOf(
@@ -53,7 +53,7 @@ object ProbahLayout {
                     widthWeight = 1.32f,
                     contentDesc = "Shift",
                 ),
-                Ch("ৌ", shifted = "ঞ", desc = "ৌ, shifted ঞ"),
+                Ch("হ", shifted = "ঞ", hint = "্", desc = "হ, shifted ঞ, hint ্"),
                 Ch("ং", shifted = "ঙ", desc = "ং, shifted ঙ"),
                 Ch("ঁ",  shifted = "\u200D", desc = "ঁ, shifted ZWJ"),    // ZWJ on shift
                 Ch("ঃ",  shifted = "\u200C", desc = "ঃ, shifted ZWNJ"),   // ZWNJ on shift
@@ -84,11 +84,12 @@ object ProbahLayout {
                 contentDesc = "Switch keyboard layout",
             ),
             Key(
-                label = ",", shiftedLabel = ";",
+                label = ",", shiftedLabel = "?", hintLabel = "?",
                 action = KeyAction.Character(","),
-                shiftedAction = KeyAction.Character(";"),
+                shiftedAction = KeyAction.Character("?"),
+                longPressAction = KeyAction.Character("?"),
                 widthWeight = 1.0f,
-                contentDesc = "Comma, shifted semicolon",
+                contentDesc = "Comma, shifted question mark",
             ),
             Key(
                 label = "স্পেস", shiftedLabel = "স্পেস",
@@ -107,11 +108,12 @@ object ProbahLayout {
                 contentDesc = "Hasanta conjunct key, shifted or long-press হ",
             ),
             Key(
-                label = "।", shiftedLabel = "!",
+                label = "।", shiftedLabel = "!", hintLabel = "?",
                 action = KeyAction.Character("।"),
                 shiftedAction = KeyAction.Character("!"),
+                longPressAction = KeyAction.Character("?"),
                 widthWeight = 1.0f,
-                contentDesc = "Dari, shifted exclamation",
+                contentDesc = "Dari, shifted exclamation, long press question mark",
             ),
             Key(
                 label = "↵", shiftedLabel = "↵",

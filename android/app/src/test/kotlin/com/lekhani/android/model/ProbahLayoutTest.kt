@@ -153,4 +153,51 @@ class ProbahLayoutTest {
             assertTrue("Key label must not be blank: ${key.label}", key.label.isNotBlank())
         }
     }
+
+    @Test
+    fun `ha is unshifted on bottom row and also on spacebar row`() {
+        val haBottom = layout.rows[2].find { it.label == "হ" }
+        assertNotNull("হ should be unshifted in row 3", haBottom)
+        assertEquals(KeyAction.Character("হ"), haBottom!!.action)
+
+        val hasantaKey = layout.spacebarRow.find { it.label == "্" }
+        assertNotNull("Hasanta key should exist in spacebar row", hasantaKey)
+        assertEquals("হ", hasantaKey!!.hintLabel)
+        assertEquals(KeyAction.Character("হ"), hasantaKey.longPressAction)
+    }
+
+    @Test
+    fun `question mark is accessible on comma and dari keys`() {
+        val commaKey = layout.spacebarRow.find { it.label == "," }
+        assertNotNull("Comma key should exist", commaKey)
+        assertEquals("?", commaKey!!.shiftedLabel)
+        assertEquals("?", commaKey.hintLabel)
+        assertEquals(KeyAction.Character("?"), commaKey.longPressAction)
+
+        val dariKey = layout.spacebarRow.find { it.label == "।" }
+        assertNotNull("Dari key should exist", dariKey)
+        assertEquals("?", dariKey!!.hintLabel)
+        assertEquals(KeyAction.Character("?"), dariKey.longPressAction)
+    }
+
+    @Test
+    fun `ou-kar is accessible on shifted o-kar`() {
+        val oKey = layout.rows[0].find { it.label == "ো" }
+        assertNotNull("ো key should exist", oKey)
+        assertEquals("ৌ", oKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ৌ"), oKey.shiftedAction)
+    }
+
+    @Test
+    fun `ga and gha have hints and long press on ma and la`() {
+        val maKey = layout.rows[0].find { it.label == "ম" }
+        assertNotNull("ম key should exist", maKey)
+        assertEquals("গ", maKey!!.hintLabel)
+        assertEquals(KeyAction.Character("গ"), maKey.longPressAction)
+
+        val laKey = layout.rows[0].find { it.label == "ল" }
+        assertNotNull("ল key should exist", laKey)
+        assertEquals("ঘ", laKey!!.hintLabel)
+        assertEquals(KeyAction.Character("ঘ"), laKey.longPressAction)
+    }
 }
