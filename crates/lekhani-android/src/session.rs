@@ -292,6 +292,71 @@ impl AndroidLekhaniSession {
                 }
             }
 
+            LekhaniLayoutType::National => {
+                // Bijoy / BBS Dead-key Linker for Independent Vowels:
+                // When buffer ends with Hasanta '্' and the new key is a vowel Kar,
+                // transform [্ + Kar] into the corresponding independent vowel.
+                let transformed_vowel = if state.composing_buffer.ends_with('্') {
+                    match key.as_str() {
+                        "া" => Some("অ"),
+                        "ি" => Some("ই"),
+                        "ী" => Some("ঈ"),
+                        "ু" => Some("উ"),
+                        "ূ" => Some("ঊ"),
+                        "ৃ" => Some("ঋ"),
+                        "ে" => Some("এ"),
+                        "ৈ" => Some("ঐ"),
+                        "ো" => Some("ও"),
+                        "ৌ" => Some("ঔ"),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+
+                if let Some(vowel) = transformed_vowel {
+                    state.composing_buffer.pop();
+                    state.composing_buffer.push_str(vowel);
+                } else {
+                    state.composing_buffer.push_str(&key);
+                }
+
+                let mut candidates = Vec::new();
+                if key == "্" {
+                    let chars: Vec<char> = state.composing_buffer.chars().collect();
+                    let hasanta_pos = chars.len().wrapping_sub(1);
+                    if hasanta_pos > 0 {
+                        let base_consonant = chars[hasanta_pos - 1];
+                        candidates = get_conjunct_suggestions(base_consonant);
+                    }
+                }
+
+                if candidates.is_empty() {
+                    candidates.push(state.composing_buffer.clone());
+                    let db = get_core_database();
+                    let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
+                    for (word, _) in prefix_matches {
+                        if !candidates.iter().any(|c| c == word) {
+                            candidates.push(word.to_string());
+                        }
+                    }
+                }
+
+                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let scorer = lekhani_ai::ContextScorer::new();
+                    candidates = scorer.rank_candidates(&words, &candidates);
+                }
+
+                let len = state.composing_buffer.graphemes(true).count() as u32;
+                Ok(TypingResult {
+                    preedit: state.composing_buffer.clone(),
+                    commit_text: None,
+                    candidates,
+                    cursor_position: len,
+                })
+            }
+
             _ => {
                 // Fixed / transliteration layouts — accumulate in buffer, query PrefixTrie
                 state.composing_buffer.push_str(&key);
@@ -906,6 +971,43 @@ mod tests {
         assert_eq!(priv_res.preedit, "");
         assert!(priv_res.candidates.is_empty());
         assert!(!session.is_composing());
+    }
+
+    #[test]
+    fn test_national_layout_dead_key_vowels() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::National);
+        assert_eq!(session.get_layout(), LekhaniLayoutType::National);
+
+        // '্' + 'ি' -> 'ই'
+        let _ = session.process_key("্".into()).unwrap();
+        let res = session.process_key("ি".into()).unwrap();
+        assert_eq!(res.preedit, "ই");
+        session.reset();
+
+        // '্' + 'া' -> 'অ'
+        let _ = session.process_key("্".into()).unwrap();
+        let res = session.process_key("া".into()).unwrap();
+        assert_eq!(res.preedit, "অ");
+        session.reset();
+
+        // '্' + 'ে' -> 'এ'
+        let _ = session.process_key("্".into()).unwrap();
+        let res = session.process_key("ে".into()).unwrap();
+        assert_eq!(res.preedit, "এ");
+        session.reset();
+
+        // '্' + 'ো' -> 'ও'
+        let _ = session.process_key("্".into()).unwrap();
+        let res = session.process_key("ো".into()).unwrap();
+        assert_eq!(res.preedit, "ও");
+        session.reset();
+
+        // Regular consonant linking: 'ক' + '্' + 'ত' -> 'ক্ত' (not transformed into independent vowel)
+        let _ = session.process_key("ক".into()).unwrap();
+        let _ = session.process_key("্".into()).unwrap();
+        let res = session.process_key("ত".into()).unwrap();
+        assert_eq!(res.preedit, "ক্ত");
     }
 }
 
