@@ -63,6 +63,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     interface KeyListener {
         fun onKey(key: Key, action: KeyAction)
         fun onSpaceSwipe(direction: Int) // -1 for previous layout, +1 for next layout
+        fun onSpaceSwipeUp() {}
         fun onSpaceLongPress()
         fun onGlideGesture(keys: List<String>)
         fun onCursorMove(deltaChars: Int)
@@ -631,7 +632,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
             if (isSixRow) 330f else 280f
         }
         val defaultHeightDp = baseHeightDp * heightScale + bottomChinPaddingDp
-        val desiredHeight = (defaultHeightDp * density).toInt()
+        val rawDesiredHeight = (defaultHeightDp * density).toInt()
+        val desiredHeight = if (isLandscape) {
+            val maxLandscapeHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
+            minOf(rawDesiredHeight, maxLandscapeHeight)
+        } else {
+            rawDesiredHeight
+        }
 
         val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
             MeasureSpec.EXACTLY -> MeasureSpec.getSize(heightMeasureSpec)
@@ -1543,8 +1550,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     // Spacebar layout swipe detection (active when spacebarSwipeMode == LAYOUT_SWITCH)
                     if (key.action == KeyAction.Space && spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH && !isSpaceSwiping && !isSpaceCursorMoving && !isLongPressTriggered) {
                         val dx = curX - spaceTouchStartX
-                        val dy = kotlin.math.abs(curY - spaceTouchStartY)
-                        if (kotlin.math.abs(dx) > swipeThresholdPx && kotlin.math.abs(dx) > dy * 1.3f) {
+                        val dy = curY - spaceTouchStartY
+                        val absDx = kotlin.math.abs(dx)
+                        val absDy = kotlin.math.abs(dy)
+                        if (dy < -swipeThresholdPx && absDy > absDx * 1.3f) {
+                            // Upward swipe on spacebar opens Cursor/Text Editor immediately
+                            isSpaceSwiping = true
+                            removeCallbacks(longPressRunnable)
+                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            keyListener?.onSpaceSwipeUp()
+                            return true
+                        } else if (absDx > swipeThresholdPx && absDx > absDy * 1.3f) {
                             isSpaceSwiping = true
                             removeCallbacks(longPressRunnable)
                             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -1553,6 +1569,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                             } else {
                                 keyListener?.onSpaceSwipe(-1) // Previous layout
                             }
+                            return true
                         }
                     }
                 }

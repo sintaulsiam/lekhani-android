@@ -167,6 +167,8 @@ class LekhaniInputMethodService : InputMethodService() {
      * what the InputConnection actually reports and re-set if diverged.
      */
     private var preeditShadow: String = ""
+    private var currentSelStart: Int = -1
+    private var currentSelEnd: Int = -1
 
     // ── Preferences (Device Protected Storage) ─────────────────────────────────
 
@@ -272,6 +274,8 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        currentSelStart = -1
+        currentSelEnd = -1
         // Re-apply policy in case the editor info changed after the view appeared
         applyInputTypePolicy(info)
         val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
@@ -291,6 +295,8 @@ class LekhaniInputMethodService : InputMethodService() {
         candidatesEnd: Int
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        currentSelStart = newSelStart
+        currentSelEnd = newSelEnd
         // If cursor moved outside the active composing region or text was selected
         val outsideComposing = if (candidatesStart >= 0 && candidatesEnd >= 0) {
             newSelStart < candidatesStart || newSelEnd > candidatesEnd
@@ -414,6 +420,10 @@ class LekhaniInputMethodService : InputMethodService() {
 
                 override fun onSpaceSwipe(direction: Int) {
                     cycleLayout(direction)
+                }
+
+                override fun onSpaceSwipeUp() {
+                    setInputViewMode(InputViewMode.TEXT_EDITOR)
                 }
 
                 override fun onSpaceLongPress() {
@@ -884,6 +894,10 @@ class LekhaniInputMethodService : InputMethodService() {
                 switchLayout(enabled[which])
                 d.dismiss()
             }
+            .setPositiveButton("কার্সার ও এডিটর") { d, _ ->
+                setInputViewMode(InputViewMode.TEXT_EDITOR)
+                d.dismiss()
+            }
             .setNegativeButton("বাতিল", null)
             .create()
 
@@ -1079,12 +1093,16 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // 1. If text is selected in the target app, delete the selection immediately
         val selectedText = ic.getSelectedText(0)
-        if (!selectedText.isNullOrEmpty()) {
+        val hasSelection = (!selectedText.isNullOrEmpty()) || (currentSelStart != currentSelEnd && currentSelStart >= 0 && currentSelEnd >= 0)
+        if (hasSelection) {
             if (session.isComposing()) {
                 session.reset()
                 preeditShadow = ""
             }
+            ic.finishComposingText()
             ic.commitText("", 1)
+            currentSelStart = -1
+            currentSelEnd = -1
             if (session.getLayout() == LekhaniLayoutType.GBOARD) {
                 keyboardView?.setGboardKarsActive(false)
             }
