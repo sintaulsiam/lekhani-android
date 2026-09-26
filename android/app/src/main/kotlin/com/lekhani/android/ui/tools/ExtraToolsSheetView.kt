@@ -222,6 +222,18 @@ fun ExtraToolsSheetView(
     val currentToolbarDropIndex by rememberUpdatedState(toolbarDropIndex)
     val currentVaultDropIndex by rememberUpdatedState(vaultDropIndex)
 
+    // Magnetic Haptic Snapping when crossing slots during drag
+    LaunchedEffect(toolbarDropIndex) {
+        if (draggedTool != null && isHoveringToolbar) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+    LaunchedEffect(vaultDropIndex) {
+        if (draggedTool != null && isHoveringVault) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -262,19 +274,37 @@ fun ExtraToolsSheetView(
                     }
 
                     if (vaultTools.isEmpty()) {
-                        Box(
+                        Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(100.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(vertical = 10.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = cardBg.copy(alpha = 0.5f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
                         ) {
-                            Text(
-                                text = if (isEnglish) "All tools are placed on the toolbar"
-                                       else "সকল টুল কীবোর্ড টুলবারে রাখা আছে",
-                                fontSize = 12.sp,
-                                color = subTextColor,
-                                textAlign = TextAlign.Center
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 20.dp, horizontal = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = accentColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = if (isEnglish) "All tools active on keyboard toolbar"
+                                           else "সকল টুল কীবোর্ড টুলবারে সক্রিয় রয়েছে",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = textColor,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     } else {
                         // 3-column clean grid of vault tools (compact 42dp height)
@@ -492,142 +522,152 @@ fun ExtraToolsSheetView(
                             val showInsertionIndicator = (isHoveringToolbar && toolbarDropIndex == index)
                             var itemCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
-                            // ── VISIBLE INSERTION INDICATOR (Before item) ─────────
-                            if (showInsertionIndicator) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(5.dp)
-                                        .height(26.dp)
-                                        .shadow(6.dp, CircleShape, spotColor = accentColor)
-                                        .clip(CircleShape)
-                                        .background(accentColor)
-                                )
-                            }
-
-                            // ── Existing Tool Pill ────────────────────────────
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(28.dp)
+                                    .height(30.dp)
                                     .onGloballyPositioned { coords ->
                                         itemCoords = coords
                                         toolbarItemBounds[index] = coords.boundsInRoot()
                                     }
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(if (isThisBeingDragged) accentColor.copy(alpha = 0.08f) else cardBg)
-                                    .border(
-                                        1.dp,
-                                        if (isThisBeingDragged) accentColor.copy(alpha = 0.35f) else borderColor,
-                                        RoundedCornerShape(10.dp)
-                                    )
-                                    .pointerInput(tool, index) {
-                                        awaitEachGesture {
-                                            val down = awaitFirstDown(requireUnconsumed = false)
-                                            var dragStarted = false
-                                            val downId = down.id
-                                            val itemTopLeft = itemCoords?.boundsInRoot()?.topLeft ?: Offset.Zero
-                                            var touchPos = itemTopLeft + down.position
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isThisBeingDragged) accentColor.copy(alpha = 0.08f) else cardBg)
+                                        .border(
+                                            1.dp,
+                                            if (isThisBeingDragged) accentColor.copy(alpha = 0.45f) else borderColor,
+                                            RoundedCornerShape(10.dp)
+                                        )
+                                        .pointerInput(tool, index) {
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false)
+                                                var dragStarted = false
+                                                val downId = down.id
+                                                val itemTopLeft = itemCoords?.boundsInRoot()?.topLeft ?: Offset.Zero
+                                                var touchPos = itemTopLeft + down.position
 
-                                            try {
-                                                withTimeoutOrNull(200L) {
-                                                    while (true) {
-                                                        val event = awaitPointerEvent()
-                                                        val change = event.changes.firstOrNull { it.id == downId }
-                                                        if (change == null || !change.pressed) {
-                                                            return@withTimeoutOrNull
-                                                        }
-                                                        val delta = change.positionChange()
-                                                        touchPos += delta
-                                                        if ((change.position - down.position).getDistance() > 18f) {
-                                                            dragStarted = true
-                                                            change.consume()
-                                                            return@withTimeoutOrNull
+                                                try {
+                                                    withTimeoutOrNull(200L) {
+                                                        while (true) {
+                                                            val event = awaitPointerEvent()
+                                                            val change = event.changes.firstOrNull { it.id == downId }
+                                                            if (change == null || !change.pressed) {
+                                                                return@withTimeoutOrNull
+                                                            }
+                                                            val delta = change.positionChange()
+                                                            touchPos += delta
+                                                            if ((change.position - down.position).getDistance() > 18f) {
+                                                                dragStarted = true
+                                                                change.consume()
+                                                                return@withTimeoutOrNull
+                                                            }
                                                         }
                                                     }
-                                                }
 
-                                                val currentChange = currentEvent.changes.firstOrNull { it.id == downId }
-                                                if (currentChange != null && currentChange.pressed) {
-                                                    dragStarted = true
-                                                }
+                                                    val currentChange = currentEvent.changes.firstOrNull { it.id == downId }
+                                                    if (currentChange != null && currentChange.pressed) {
+                                                        dragStarted = true
+                                                    }
 
-                                                if (dragStarted) {
-                                                    draggedTool = tool
-                                                    dragFromToolbar = true
-                                                    currentTouchPosInRoot = touchPos
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-
-                                                    drag(downId) { change ->
-                                                        val delta = change.positionChange()
-                                                        touchPos += delta
+                                                    if (dragStarted) {
+                                                        draggedTool = tool
+                                                        dragFromToolbar = true
                                                         currentTouchPosInRoot = touchPos
-                                                        change.consume()
-                                                    }
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
 
-                                                    val vTop = if (vaultZoneBounds.top > 0) vaultZoneBounds.top else (rootBounds.top + 140f)
-                                                    if (touchPos.y < vTop) {
-                                                        reorderActive(tool, currentToolbarDropIndex)
+                                                        drag(downId) { change ->
+                                                            val delta = change.positionChange()
+                                                            touchPos += delta
+                                                            currentTouchPosInRoot = touchPos
+                                                            change.consume()
+                                                        }
+
+                                                        val vTop = if (vaultZoneBounds.top > 0) vaultZoneBounds.top else (rootBounds.top + 140f)
+                                                        if (touchPos.y < vTop) {
+                                                            reorderActive(tool, currentToolbarDropIndex)
+                                                        } else {
+                                                            sendToVault(tool, currentVaultDropIndex)
+                                                        }
                                                     } else {
-                                                        sendToVault(tool, currentVaultDropIndex)
+                                                        sendToVault(tool)
                                                     }
-                                                } else {
-                                                    sendToVault(tool)
+                                                } finally {
+                                                    draggedTool = null
                                                 }
-                                            } finally {
-                                                draggedTool = null
                                             }
                                         }
-                                    }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            ) {
-                                if (!isThisBeingDragged) {
-                                    Row(
-                                        modifier = Modifier.fillMaxSize(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = tool.iconVector,
-                                            contentDescription = null,
-                                            tint = accentColor,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = if (isEnglish) tool.titleEnglish else tool.titleBengali,
-                                            fontSize = 10.5.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = textColor,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                } else {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = tool.iconVector,
-                                            contentDescription = null,
-                                            tint = accentColor.copy(alpha = 0.25f),
-                                            modifier = Modifier.size(13.dp)
-                                        )
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    if (!isThisBeingDragged) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = tool.iconVector,
+                                                contentDescription = null,
+                                                tint = accentColor,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text(
+                                                text = if (isEnglish) tool.titleEnglish else tool.titleBengali,
+                                                fontSize = 10.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = textColor,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = tool.iconVector,
+                                                contentDescription = null,
+                                                tint = accentColor.copy(alpha = 0.35f),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                        }
 
-                        // ── VISIBLE INSERTION INDICATOR (At the end of row) ───
-                        if (isHoveringToolbar && toolbarDropIndex == activeTools.size) {
-                            Box(
-                                modifier = Modifier
-                                    .width(5.dp)
-                                    .height(26.dp)
-                                    .shadow(6.dp, CircleShape, spotColor = accentColor)
-                                    .clip(CircleShape)
-                                    .background(accentColor)
-                            )
+                                // ── ZERO-SHIFT OVERLAY INSERTION INDICATOR (Before item) ───
+                                if (showInsertionIndicator) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.CenterStart)
+                                            .offset(x = (-3.5).dp)
+                                            .width(3.5.dp)
+                                            .height(24.dp)
+                                            .shadow(6.dp, CircleShape, spotColor = accentColor)
+                                            .clip(CircleShape)
+                                            .background(accentColor)
+                                            .zIndex(100f)
+                                    )
+                                }
+
+                                // ── ZERO-SHIFT OVERLAY INSERTION INDICATOR (At end of row) ───
+                                if (isHoveringToolbar && index == activeTools.lastIndex && toolbarDropIndex == activeTools.size) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.CenterEnd)
+                                            .offset(x = 3.5.dp)
+                                            .width(3.5.dp)
+                                            .height(24.dp)
+                                            .shadow(6.dp, CircleShape, spotColor = accentColor)
+                                            .clip(CircleShape)
+                                            .background(accentColor)
+                                            .zIndex(100f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -682,18 +722,35 @@ fun ExtraToolsSheetView(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp),
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(cardBg.copy(alpha = 0.35f))
+                                .border(
+                                    1.dp,
+                                    if (isHoveringVault) accentColor else borderColor,
+                                    RoundedCornerShape(10.dp)
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
                             if (isHoveringVault) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(5.dp)
-                                        .height(26.dp)
-                                        .shadow(6.dp, CircleShape, spotColor = accentColor)
-                                        .clip(CircleShape)
-                                        .background(accentColor)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(4.dp)
+                                            .height(20.dp)
+                                            .clip(CircleShape)
+                                            .background(accentColor)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Drop here to add to vault" else "ভল্টে রাখতে এখানে ছাড়ুন",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = accentColor
+                                    )
+                                }
                             } else {
                                 Text(
                                     text = if (isEnglish) "Vault is empty — all tools on toolbar"
@@ -722,143 +779,153 @@ fun ExtraToolsSheetView(
                                         val showInsertionIndicator = (isHoveringVault && vaultDropRow == rowIndex && vaultDropCol == colIndex)
                                         var itemCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
-                                        // ── VISIBLE INSERTION INDICATOR (Before item) ─────────
-                                        if (showInsertionIndicator) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .width(5.dp)
-                                                    .height(26.dp)
-                                                    .shadow(6.dp, CircleShape, spotColor = accentColor)
-                                                    .clip(CircleShape)
-                                                    .background(accentColor)
-                                            )
-                                        }
-
-                                        // ── Tool Pill Box (28dp height) ──────────────────────
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .height(28.dp)
+                                                .height(30.dp)
                                                 .onGloballyPositioned { coords ->
                                                     itemCoords = coords
                                                     vaultItemBounds[index] = coords.boundsInRoot()
                                                 }
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(if (isThisBeingDragged) accentColor.copy(alpha = 0.08f) else cardBg)
-                                                .border(
-                                                    1.dp,
-                                                    if (isThisBeingDragged) accentColor.copy(alpha = 0.35f) else borderColor,
-                                                    RoundedCornerShape(10.dp)
-                                                )
-                                                .pointerInput(tool, index) {
-                                                    awaitEachGesture {
-                                                        val down = awaitFirstDown(requireUnconsumed = false)
-                                                        var dragStarted = false
-                                                        val downId = down.id
-                                                        val itemTopLeft = itemCoords?.boundsInRoot()?.topLeft ?: Offset.Zero
-                                                        var touchPos = itemTopLeft + down.position
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(if (isThisBeingDragged) accentColor.copy(alpha = 0.08f) else cardBg)
+                                                    .border(
+                                                        1.dp,
+                                                        if (isThisBeingDragged) accentColor.copy(alpha = 0.45f) else borderColor,
+                                                        RoundedCornerShape(10.dp)
+                                                    )
+                                                    .pointerInput(tool, index) {
+                                                        awaitEachGesture {
+                                                            val down = awaitFirstDown(requireUnconsumed = false)
+                                                            var dragStarted = false
+                                                            val downId = down.id
+                                                            val itemTopLeft = itemCoords?.boundsInRoot()?.topLeft ?: Offset.Zero
+                                                            var touchPos = itemTopLeft + down.position
 
-                                                        try {
-                                                            withTimeoutOrNull(200L) {
-                                                                while (true) {
-                                                                    val event = awaitPointerEvent()
-                                                                    val change = event.changes.firstOrNull { it.id == downId }
-                                                                    if (change == null || !change.pressed) {
-                                                                        return@withTimeoutOrNull
-                                                                    }
-                                                                    val delta = change.positionChange()
-                                                                    touchPos += delta
-                                                                    if ((change.position - down.position).getDistance() > 18f) {
-                                                                        dragStarted = true
-                                                                        change.consume()
-                                                                        return@withTimeoutOrNull
+                                                            try {
+                                                                withTimeoutOrNull(200L) {
+                                                                    while (true) {
+                                                                        val event = awaitPointerEvent()
+                                                                        val change = event.changes.firstOrNull { it.id == downId }
+                                                                        if (change == null || !change.pressed) {
+                                                                            return@withTimeoutOrNull
+                                                                        }
+                                                                        val delta = change.positionChange()
+                                                                        touchPos += delta
+                                                                        if ((change.position - down.position).getDistance() > 18f) {
+                                                                            dragStarted = true
+                                                                            change.consume()
+                                                                            return@withTimeoutOrNull
+                                                                        }
                                                                     }
                                                                 }
-                                                            }
 
-                                                            val currentChange = currentEvent.changes.firstOrNull { it.id == downId }
-                                                            if (currentChange != null && currentChange.pressed) {
-                                                                dragStarted = true
-                                                            }
+                                                                val currentChange = currentEvent.changes.firstOrNull { it.id == downId }
+                                                                if (currentChange != null && currentChange.pressed) {
+                                                                    dragStarted = true
+                                                                }
 
-                                                            if (dragStarted) {
-                                                                draggedTool = tool
-                                                                dragFromToolbar = false
-                                                                currentTouchPosInRoot = touchPos
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-
-                                                                drag(downId) { change ->
-                                                                    val delta = change.positionChange()
-                                                                    touchPos += delta
+                                                                if (dragStarted) {
+                                                                    draggedTool = tool
+                                                                    dragFromToolbar = false
                                                                     currentTouchPosInRoot = touchPos
-                                                                    change.consume()
-                                                                }
+                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
 
-                                                                val vTop = if (vaultZoneBounds.top > 0) vaultZoneBounds.top else (rootBounds.top + 140f)
-                                                                if (touchPos.y < vTop) {
-                                                                    bringToToolbar(tool, currentToolbarDropIndex)
+                                                                    drag(downId) { change ->
+                                                                        val delta = change.positionChange()
+                                                                        touchPos += delta
+                                                                        currentTouchPosInRoot = touchPos
+                                                                        change.consume()
+                                                                    }
+
+                                                                    val vTop = if (vaultZoneBounds.top > 0) vaultZoneBounds.top else (rootBounds.top + 140f)
+                                                                    if (touchPos.y < vTop) {
+                                                                        bringToToolbar(tool, currentToolbarDropIndex)
+                                                                    } else {
+                                                                        reorderVault(tool, currentVaultDropIndex)
+                                                                    }
                                                                 } else {
-                                                                    reorderVault(tool, currentVaultDropIndex)
+                                                                    bringToToolbar(tool)
                                                                 }
-                                                            } else {
-                                                                bringToToolbar(tool)
+                                                            } finally {
+                                                                draggedTool = null
                                                             }
-                                                        } finally {
-                                                            draggedTool = null
                                                         }
                                                     }
-                                                }
-                                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                                        ) {
-                                            if (!isThisBeingDragged) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = tool.iconVector,
-                                                        contentDescription = null,
-                                                        tint = accentColor,
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(3.dp))
-                                                    Text(
-                                                        text = if (isEnglish) tool.titleEnglish else tool.titleBengali,
-                                                        fontSize = 10.5.sp,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = textColor,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                }
-                                            } else {
-                                                Box(
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = tool.iconVector,
-                                                        contentDescription = null,
-                                                        tint = accentColor.copy(alpha = 0.25f),
-                                                        modifier = Modifier.size(13.dp)
-                                                    )
+                                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                            ) {
+                                                if (!isThisBeingDragged) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = tool.iconVector,
+                                                            contentDescription = null,
+                                                            tint = accentColor,
+                                                            modifier = Modifier.size(14.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Text(
+                                                            text = if (isEnglish) tool.titleEnglish else tool.titleBengali,
+                                                            fontSize = 10.5.sp,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = textColor,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                } else {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = tool.iconVector,
+                                                            contentDescription = null,
+                                                            tint = accentColor.copy(alpha = 0.35f),
+                                                            modifier = Modifier.size(13.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        }
-                                    }
 
-                                    // ── VISIBLE INSERTION INDICATOR (At the end of row) ───
-                                    val showEndIndicator = (isHoveringVault && vaultDropRow == rowIndex && vaultDropCol == row.size)
-                                    if (showEndIndicator) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(5.dp)
-                                                .height(26.dp)
-                                                .shadow(6.dp, CircleShape, spotColor = accentColor)
-                                                .clip(CircleShape)
-                                                .background(accentColor)
-                                        )
+                                            // ── ZERO-SHIFT OVERLAY INSERTION INDICATOR (Before item) ───
+                                            if (showInsertionIndicator) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .align(Alignment.CenterStart)
+                                                        .offset(x = (-3.5).dp)
+                                                    .width(3.5.dp)
+                                                    .height(24.dp)
+                                                    .shadow(6.dp, CircleShape, spotColor = accentColor)
+                                                    .clip(CircleShape)
+                                                    .background(accentColor)
+                                                    .zIndex(100f)
+                                                )
+                                            }
+
+                                            // ── ZERO-SHIFT OVERLAY INSERTION INDICATOR (At end of row) ───
+                                            val showEndIndicator = (isHoveringVault && vaultDropRow == rowIndex && vaultDropCol == row.size && colIndex == row.lastIndex)
+                                            if (showEndIndicator) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .align(Alignment.CenterEnd)
+                                                        .offset(x = 3.5.dp)
+                                                    .width(3.5.dp)
+                                                    .height(24.dp)
+                                                    .shadow(6.dp, CircleShape, spotColor = accentColor)
+                                                    .clip(CircleShape)
+                                                    .background(accentColor)
+                                                    .zIndex(100f)
+                                                )
+                                            }
+                                        }
                                     }
 
                                     repeat(3 - row.size) {
@@ -883,7 +950,7 @@ fun ExtraToolsSheetView(
                     .offset {
                         IntOffset(
                             (cardOffset.x - 42.dp.toPx()).roundToInt(),
-                            (cardOffset.y - 18.dp.toPx()).roundToInt()
+                            (cardOffset.y - 36.dp.toPx()).roundToInt()
                         )
                     }
                     .zIndex(9999f)
