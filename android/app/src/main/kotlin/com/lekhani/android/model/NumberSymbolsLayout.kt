@@ -158,8 +158,8 @@ object NumberSymbolsLayout {
             Key(
                 label = "।", shiftedLabel = ".", hintLabel = ".",
                 action = KeyAction.Character("।"), shiftedAction = KeyAction.Character("."),
-                longPressAction = KeyAction.Character("."),
-                widthWeight = 1.0f, contentDesc = "Dari",
+                longPressAction = KeyAction.Character("॥"),
+                widthWeight = 1.0f, contentDesc = "Dari, long-press Double Dari",
             ),
             Key(
                 label = "↵", shiftedLabel = "↵",
@@ -178,7 +178,7 @@ object NumberSymbolsLayout {
                 Ch("{"), Ch("}"), Ch("["), Ch("]"), Ch("°"),
             ),
             listOf(
-                Ch("_"), Ch("="), Ch("৳"), Ch("€"), Ch("¥"),
+                Ch("_"), Ch("="), Ch("৳", shifted = "৲", hint = "৲"), Ch("€"), Ch("¥"),
                 Ch("£"), Ch("₹"), Ch("©"), Ch("®"), Ch("™"),
             ),
             listOf(
@@ -187,7 +187,10 @@ object NumberSymbolsLayout {
                     action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                     widthWeight = 1.32f, contentDesc = "Numbers and symbols",
                 ),
-                Ch("<"), Ch(">"), Ch("•"), Ch("✓"), Ch("§"), Ch("÷"), Ch("×"),
+                Ch("<"), Ch(">"), Ch("•", shifted = "…", hint = "…"),
+                Ch("“", shifted = "”", hint = "”"),
+                Ch("॥", shifted = "।", hint = "।"),
+                Ch("÷"), Ch("×"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,

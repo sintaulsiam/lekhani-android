@@ -69,5 +69,20 @@ class NumberSymbolsLayoutTest {
         val row3 = layout.rows[2]
         assertEquals("?123", row3[0].label)
         assertEquals(KeyAction.SwitchNumeric, row3[0].action)
+        assertTrue("More symbols must contain curly quote “", row3.any { it.label == "“" })
+        assertTrue("More symbols must contain Double Dari ॥", row3.any { it.label == "॥" })
+    }
+
+    @Test
+    fun testBengaliTypographicalGlyphs() {
+        val moreLayout = NumberSymbolsLayout.moreSymbolsLayout
+        val takaKey = moreLayout.rows[1].find { it.label == "৳" }
+        assertNotNull(takaKey)
+        assertEquals("৲", takaKey?.hintLabel)
+
+        val bengaliNumeric = NumberSymbolsLayout.bengaliNumericLayout
+        val dariKey = bengaliNumeric.spacebarRow.find { it.label == "।" }
+        assertNotNull(dariKey)
+        assertEquals(KeyAction.Character("॥"), dariKey?.longPressAction)
     }
 }
