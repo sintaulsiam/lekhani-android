@@ -107,6 +107,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var keyGlowRippleEnabled: Boolean = true
     var glideTypingEnabled: Boolean = false
 
+    var isResizeVisualGuide: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
+    private val resizeGuidePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+    }
+
     // Side Dock buttons for One-Handed mode (zero allocation in onDraw)
     enum class SideDockAction { EXPAND_STANDARD, SWAP_SIDE, TOGGLE_FLOATING }
     private class SideDockButton(var action: SideDockAction, val bounds: RectF = RectF())
@@ -507,6 +518,19 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     /**
+     * Dynamically updates the keyboard height scale in real time during visual resizing.
+     * Triggers requestLayout and redraw without allocations.
+     */
+    fun setLiveHeightScale(scale: Float) {
+        val clamped = scale.coerceIn(0.70f, 1.35f)
+        if (Math.abs(this.heightScale - clamped) > 0.001f) {
+            this.heightScale = clamped
+            requestLayout()
+            invalidate()
+        }
+    }
+
+    /**
      * Applies a [KeyboardTheme] to all pre-allocated Paint objects.
      */
     fun applyTheme(theme: KeyboardTheme) {
@@ -633,9 +657,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val rowCount = (layout?.rows?.size ?: 3) + 1 + (if (hasExtraNumberRow) 1 else 0)
         val isSixRow = rowCount >= 6
         val baseHeightDp = if (isLandscape) {
-            if (isSixRow) 160f else 135f
+            if (isSixRow) 150f else 130f
         } else {
-            if (isSixRow) 330f else 280f
+            when {
+                rowCount >= 6 -> 264f
+                rowCount == 5 -> 244f
+                else -> 220f
+            }
         }
         val defaultHeightDp = baseHeightDp * heightScale + bottomChinPaddingDp
         val rawDesiredHeight = (defaultHeightDp * density).toInt()
@@ -685,8 +713,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val availableH = (h - chinPx).coerceAtLeast(100f)
         val totalRows = rowCount + 1
         val totalMarginsV = (totalRows + 1) * keyMarginV
-        keyHeight = ((availableH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
-        spacebarRowHeight = keyHeight
+        keyHeight = ((availableH - totalMarginsV) / totalRows).coerceAtLeast(32f * density)
+        spacebarRowHeight = (keyHeight * 0.96f).coerceAtLeast(32f * density)
         labelSize = keyHeight * 0.38f * fontScale
         labelSizeSmall = keyHeight * 0.22f * fontScale
 
@@ -907,13 +935,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
             currentRowTop += kHeight + keyMarginV
         }
 
-        // Spacebar row
+        // Spacebar row: proportional, sleek, and never oversized
         val spaceRow = currentLayout.spacebarRow
         val totalSpaceWeight = spaceRow.sumOf { it.widthWeight.toDouble() }.toFloat()
         val spaceGaps = (spaceRow.size - 1) * keyMarginH
         val spaceUnitWidth = (availableRowW - spaceGaps) / totalSpaceWeight
         val spaceRowTop = currentRowTop
-        val spaceKeyHeight = (yOffset + totalH - keyMarginV - spaceRowTop).coerceAtLeast(kHeight)
+        val spaceKeyHeight = (kHeight * 0.96f).coerceAtLeast(32f * density)
 
         var spaceKeyLeft = originX + sidePadding
         for (key in spaceRow) {
@@ -992,7 +1020,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val leftSpaceKeys = spaceRow.take(halfCount)
         val rightSpaceKeys = spaceRow.drop(halfCount)
         val spaceRowTop = currentRowTop
-        val spaceKeyHeight = (totalH - keyMarginV - spaceRowTop).coerceAtLeast(kHeight)
+        val spaceKeyHeight = (kHeight * 0.96f).coerceAtLeast(32f * density)
 
         val leftWeight = leftSpaceKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
         val leftUnitW = (clusterW - keyMarginH * (leftSpaceKeys.size + 1)) / leftWeight
@@ -1362,6 +1390,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
             canvas.drawPath(glidePath, glideGlowPaint)
             canvas.drawPath(glidePath, glideStrokePaint)
             canvas.drawCircle(glideCurX, glideCurY, glideStrokePaint.strokeWidth * 0.75f, glideDotPaint)
+        }
+
+        // ── Resize Visual Guide Bounding Outline ─────────────────────────
+        if (isResizeVisualGuide) {
+            val pad = 3f * density
+            resizeGuidePaint.color = activeTheme.accentColor
+            resizeGuidePaint.strokeWidth = 2.5f * density
+            scratchRect.set(pad, pad, width - pad, height - pad)
+            canvas.drawRoundRect(scratchRect, 10f * density, 10f * density, resizeGuidePaint)
         }
     }
 

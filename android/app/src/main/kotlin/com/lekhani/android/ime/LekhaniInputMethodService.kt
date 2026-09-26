@@ -138,7 +138,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
     // ── Input modes & auxiliary views (Phase 6) ──────────────────────────────
 
-    enum class InputViewMode { KEYBOARD, EMOJI, EMOJI_SEARCH, CLIPBOARD, TEXT_EDITOR }
+    enum class InputViewMode { KEYBOARD, EMOJI, EMOJI_SEARCH, CLIPBOARD, TEXT_EDITOR, RESIZE }
 
     private var currentMode: InputViewMode = InputViewMode.KEYBOARD
     private var emojiSearchQuery: String = ""
@@ -146,6 +146,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var rootInputContainer: LinearLayout? = null
     private var modesContainer: FrameLayout? = null
     private var candidateStripComposeView: ComposeView? = null
+    private var resizeOverlayComposeView: ComposeView? = null
     private var emojiPickerView: ComposeView? = null
     private var clipboardView: ComposeView? = null
     private var textEditorView: ComposeView? = null
@@ -402,6 +403,20 @@ class LekhaniInputMethodService : InputMethodService() {
             )
         )
 
+        val resizeOverlay = ComposeView(this).apply {
+            attachLifecycleOwner(this)
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            visibility = View.GONE
+        }
+        resizeOverlayComposeView = resizeOverlay
+        rootLayout.addView(
+            resizeOverlay,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
         val container = FrameLayout(this).apply {
             clipChildren = false
             clipToPadding = false
@@ -627,16 +642,21 @@ class LekhaniInputMethodService : InputMethodService() {
 
         when (mode) {
             InputViewMode.KEYBOARD -> {
+                keyboardView?.isResizeVisualGuide = false
+                resizeOverlayComposeView?.visibility = View.GONE
                 keyboardView?.visibility = View.VISIBLE
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
                 textEditorView?.visibility = View.GONE
+                candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
                 clearCandidates()
                 updateCandidatesVisibility()
             }
             InputViewMode.EMOJI_SEARCH -> {
+                keyboardView?.isResizeVisualGuide = false
+                resizeOverlayComposeView?.visibility = View.GONE
                 keyboardView?.visibility = View.VISIBLE
                 emojiPickerView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
@@ -648,6 +668,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 updateEmojiSearchStrip()
             }
             InputViewMode.EMOJI -> {
+                keyboardView?.isResizeVisualGuide = false
+                resizeOverlayComposeView?.visibility = View.GONE
                 keyboardView?.visibility = View.GONE
                 clipboardView?.visibility = View.GONE
                 textEditorView?.visibility = View.GONE
@@ -763,6 +785,40 @@ class LekhaniInputMethodService : InputMethodService() {
                     )
                 }
                 textEditorView?.visibility = View.VISIBLE
+            }
+            InputViewMode.RESIZE -> {
+                candidateStripComposeView?.visibility = View.GONE
+                emojiPickerView?.visibility = View.GONE
+                clipboardView?.visibility = View.GONE
+                textEditorView?.visibility = View.GONE
+                emojiSearchQuery = ""
+                emojiSearchSession = null
+                clearCandidates()
+
+                keyboardView?.visibility = View.VISIBLE
+                keyboardView?.isResizeVisualGuide = true
+
+                val initialScale = keyboardPrefs.heightScale
+                resizeOverlayComposeView?.setContent {
+                    com.lekhani.android.ui.resize.KeyboardResizeOverlayView(
+                        initialScale = initialScale,
+                        theme = activeTheme,
+                        onScaleLiveChange = { liveScale ->
+                            keyboardView?.setLiveHeightScale(liveScale)
+                        },
+                        onConfirm = { confirmedScale ->
+                            keyboardPrefs.heightScale = confirmedScale
+                            setInputViewMode(InputViewMode.KEYBOARD)
+                            keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
+                        },
+                        onDismiss = {
+                            keyboardView?.setLiveHeightScale(initialScale)
+                            setInputViewMode(InputViewMode.KEYBOARD)
+                            keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
+                        },
+                    )
+                }
+                resizeOverlayComposeView?.visibility = View.VISIBLE
             }
         }
     }
@@ -1319,6 +1375,9 @@ class LekhaniInputMethodService : InputMethodService() {
             }
             KeyboardPreferences.ToolbarTool.CLIPBOARD -> {
                 setInputViewMode(InputViewMode.CLIPBOARD)
+            }
+            KeyboardPreferences.ToolbarTool.RESIZE -> {
+                setInputViewMode(InputViewMode.RESIZE)
             }
             KeyboardPreferences.ToolbarTool.THEME -> {
                 cycleTheme()

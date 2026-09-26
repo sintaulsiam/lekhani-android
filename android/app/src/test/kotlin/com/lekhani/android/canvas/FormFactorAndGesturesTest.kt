@@ -39,6 +39,7 @@ class FormFactorAndGesturesTest {
         val oneHandedTool = KeyboardPreferences.ToolbarTool.ONE_HANDED
         val floatingTool = KeyboardPreferences.ToolbarTool.FLOATING
         val splitTool = KeyboardPreferences.ToolbarTool.SPLIT
+        val resizeTool = KeyboardPreferences.ToolbarTool.RESIZE
 
         assertEquals("একহাতে", oneHandedTool.titleBengali)
         assertEquals("One-Handed", oneHandedTool.titleEnglish)
@@ -48,6 +49,9 @@ class FormFactorAndGesturesTest {
 
         assertEquals("বিভক্ত", splitTool.titleBengali)
         assertEquals("Split", splitTool.titleEnglish)
+
+        assertEquals("উচ্চতা", resizeTool.titleBengali)
+        assertEquals("Height", resizeTool.titleEnglish)
     }
 
     @Test
