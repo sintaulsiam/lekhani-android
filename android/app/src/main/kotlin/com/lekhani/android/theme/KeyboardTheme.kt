@@ -29,7 +29,54 @@ data class KeyboardTheme(
     val glideStrokeColor: Int,
     val glideGlowColor: Int,
     val isDark: Boolean = true,
-)
+    val isCustom: Boolean = false,
+) {
+    fun toJson(): org.json.JSONObject {
+        val json = org.json.JSONObject()
+        json.put("id", id)
+        json.put("nameBengali", nameBengali)
+        json.put("nameEnglish", nameEnglish)
+        json.put("backgroundColor", backgroundColor)
+        json.put("keyNormalColor", keyNormalColor)
+        json.put("keyShiftColor", keyShiftColor)
+        json.put("keySpaceColor", keySpaceColor)
+        json.put("keyHasantaColor", keyHasantaColor)
+        json.put("keyBorderColor", keyBorderColor)
+        json.put("labelColor", labelColor)
+        json.put("labelDimColor", labelDimColor)
+        json.put("accentColor", accentColor)
+        json.put("rippleColor", rippleColor)
+        json.put("glideStrokeColor", glideStrokeColor)
+        json.put("glideGlowColor", glideGlowColor)
+        json.put("isDark", isDark)
+        json.put("isCustom", isCustom)
+        return json
+    }
+
+    companion object {
+        fun fromJson(json: org.json.JSONObject): KeyboardTheme {
+            return KeyboardTheme(
+                id = json.getString("id"),
+                nameBengali = json.optString("nameBengali", "কাস্টম থিম"),
+                nameEnglish = json.optString("nameEnglish", "Custom Theme"),
+                backgroundColor = json.getInt("backgroundColor"),
+                keyNormalColor = json.getInt("keyNormalColor"),
+                keyShiftColor = json.getInt("keyShiftColor"),
+                keySpaceColor = json.getInt("keySpaceColor"),
+                keyHasantaColor = json.getInt("keyHasantaColor"),
+                keyBorderColor = json.getInt("keyBorderColor"),
+                labelColor = json.getInt("labelColor"),
+                labelDimColor = json.getInt("labelDimColor"),
+                accentColor = json.getInt("accentColor"),
+                rippleColor = json.optInt("rippleColor", 0x4000E5B8),
+                glideStrokeColor = json.optInt("glideStrokeColor", 0xFF00E5B8.toInt()),
+                glideGlowColor = json.optInt("glideGlowColor", 0x4000E5B8),
+                isDark = json.optBoolean("isDark", true),
+                isCustom = json.optBoolean("isCustom", true),
+            )
+        }
+    }
+}
 
 /**
  * ThemeRegistry
@@ -282,7 +329,13 @@ object ThemeRegistry {
         if (themeId == ID_MATERIAL_YOU) {
             return createMaterialYouTheme(context)
         }
-        return PRESET_THEMES.find { it.id == themeId } ?: THEME_FLOW_TEAL
+        val preset = PRESET_THEMES.find { it.id == themeId }
+        if (preset != null) return preset
+
+        val custom = CustomThemeManager.get(context).getCustomTheme(themeId)
+        if (custom != null) return custom
+
+        return THEME_FLOW_TEAL
     }
 
     /**

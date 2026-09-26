@@ -145,6 +145,7 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.16.0@aar")
 
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

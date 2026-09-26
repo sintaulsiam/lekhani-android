@@ -61,7 +61,11 @@ import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.foundation.BorderStroke
+import com.lekhani.android.theme.CustomThemeManager
 
 /**
  * ThemeStudioSheet
@@ -79,6 +83,11 @@ fun ThemeStudioSheet(
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val customThemeManager = remember { CustomThemeManager.get(context) }
+    var customThemes by remember { mutableStateOf(customThemeManager.getAllCustomThemes()) }
+    var themeToEdit by remember { mutableStateOf<KeyboardTheme?>(null) }
+    var showEditorDialog by remember { mutableStateOf(false) }
+
     var selectedThemeId by remember { mutableStateOf(prefs.themeId) }
     var selectedAppThemeMode by remember { mutableStateOf(prefs.appThemeMode) }
     var wallpaperUri by remember { mutableStateOf(prefs.customWallpaperUri) }
@@ -198,8 +207,100 @@ fun ThemeStudioSheet(
                     }
                 }
 
-                // Section 1: Themes
+                // Section 1: Custom Themes
                 item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isEnglish) "Custom Themes" else "কাস্টম থিমসমূহ",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                val baseTheme = ThemeRegistry.resolveTheme(context, selectedThemeId)
+                                themeToEdit = baseTheme.copy(
+                                    id = "custom_${System.currentTimeMillis()}",
+                                    nameBengali = "আমার থিম",
+                                    nameEnglish = "My Custom Theme",
+                                    isCustom = true
+                                )
+                                showEditorDialog = true
+                            },
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (isEnglish) "Create" else "নতুন থিম")
+                        }
+                    }
+                }
+
+                if (customThemes.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            )
+                        ) {
+                            Text(
+                                text = if (isEnglish) "No custom themes created yet. Tap '+ Create' or duplicate any preset below!"
+                                       else "কোনো কাস্টম থিম নেই। '+ নতুন থিম' চাপুন বা নিচের যেকোনো প্রিসেট ডুপ্লিকেট করে এডিট করুন!",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(14.dp)
+                            )
+                        }
+                    }
+                } else {
+                    items(customThemes.size) { idx ->
+                        val customTheme = customThemes[idx]
+                        val isSelected = selectedThemeId == customTheme.id
+                        ThemePreviewCard(
+                            theme = customTheme,
+                            isSelected = isSelected,
+                            isEnglish = isEnglish,
+                            onSelect = {
+                                selectedThemeId = customTheme.id
+                                prefs.themeId = customTheme.id
+                                onThemeChanged?.invoke(customTheme.id)
+                            },
+                            onEdit = {
+                                themeToEdit = customTheme
+                                showEditorDialog = true
+                            },
+                            onDuplicate = {
+                                val dup = customThemeManager.duplicateTheme(
+                                    customTheme,
+                                    if (isEnglish) "${customTheme.nameEnglish} (Copy)" else "${customTheme.nameBengali} (কপি)"
+                                )
+                                customThemes = customThemeManager.getAllCustomThemes()
+                                selectedThemeId = dup.id
+                                prefs.themeId = dup.id
+                                onThemeChanged?.invoke(dup.id)
+                            },
+                            onDelete = {
+                                customThemeManager.deleteCustomTheme(customTheme.id)
+                                customThemes = customThemeManager.getAllCustomThemes()
+                                if (selectedThemeId == customTheme.id) {
+                                    val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
+                                    selectedThemeId = fallback
+                                    prefs.themeId = fallback
+                                    onThemeChanged?.invoke(fallback)
+                                }
+                            }
+                        )
+                    }
+                }
+
+                // Section 2: Preset Themes
+                item {
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = if (isEnglish) "Keyboard Color Palettes & Presets" else "কীবোর্ড কালার প্যালেট ও প্রিসেট",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -223,6 +324,15 @@ fun ThemeStudioSheet(
                             selectedThemeId = theme.id
                             prefs.themeId = theme.id
                             onThemeChanged?.invoke(theme.id)
+                        },
+                        onDuplicate = {
+                            val dup = customThemeManager.duplicateTheme(
+                                theme,
+                                if (isEnglish) "${theme.nameEnglish} (Custom)" else "${theme.nameBengali} (কাস্টম)"
+                            )
+                            customThemes = customThemeManager.getAllCustomThemes()
+                            themeToEdit = dup
+                            showEditorDialog = true
                         }
                     )
                 }
@@ -333,6 +443,26 @@ fun ThemeStudioSheet(
                 Text(if (isEnglish) "Done" else "সম্পন্ন", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
+
+        if (showEditorDialog && themeToEdit != null) {
+            ThemeEditorDialog(
+                initialTheme = themeToEdit!!,
+                isEnglish = isEnglish,
+                onSave = { savedTheme ->
+                    customThemeManager.saveCustomTheme(savedTheme)
+                    customThemes = customThemeManager.getAllCustomThemes()
+                    selectedThemeId = savedTheme.id
+                    prefs.themeId = savedTheme.id
+                    onThemeChanged?.invoke(savedTheme.id)
+                    showEditorDialog = false
+                    themeToEdit = null
+                },
+                onDismiss = {
+                    showEditorDialog = false
+                    themeToEdit = null
+                }
+            )
+        }
     }
 }
 
@@ -342,6 +472,9 @@ private fun ThemePreviewCard(
     isSelected: Boolean,
     isEnglish: Boolean = false,
     onSelect: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onDuplicate: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
     Card(
         modifier = Modifier
@@ -425,20 +558,53 @@ private fun ThemePreviewCard(
                 }
             }
 
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Color(theme.accentColor)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = if (isEnglish) "Selected" else "নির্বাচিত",
-                        tint = if (theme.isDark) Color.Black else Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onEdit != null) {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = if (isEnglish) "Edit" else "সম্পাদনা",
+                            tint = Color(theme.labelDimColor),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                if (onDuplicate != null) {
+                    IconButton(onClick = onDuplicate, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = if (isEnglish) "Duplicate" else "কপি করুন",
+                            tint = Color(theme.labelDimColor),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                if (onDelete != null) {
+                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = if (isEnglish) "Delete" else "মুছুন",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                if (isSelected) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(theme.accentColor)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = if (isEnglish) "Selected" else "নির্বাচিত",
+                            tint = if (theme.isDark) Color.Black else Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }

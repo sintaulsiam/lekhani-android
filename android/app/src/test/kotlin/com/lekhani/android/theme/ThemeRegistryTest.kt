@@ -1,6 +1,7 @@
 package com.lekhani.android.theme
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -62,6 +63,34 @@ class ThemeRegistryTest {
             assertTrue("Theme ${theme.id} background should be non-transparent", theme.backgroundColor != 0)
             assertTrue("Theme ${theme.id} normal key should be non-transparent", theme.keyNormalColor != 0)
             assertTrue("Theme ${theme.id} accent should be non-transparent", theme.accentColor != 0)
+        }
+    }
+
+    @Test
+    fun testCustomThemeSerializationRoundtrip() {
+        val original = ThemeRegistry.THEME_FLOW_TEAL.copy(
+            id = "custom_test_123",
+            nameBengali = "পরীক্ষামূলক থিম",
+            nameEnglish = "Experimental Teal",
+            isCustom = true
+        )
+        val json = original.toJson()
+        val restored = KeyboardTheme.fromJson(json)
+
+        assertEquals(original.id, restored.id)
+        assertEquals(original.nameBengali, restored.nameBengali)
+        assertEquals(original.nameEnglish, restored.nameEnglish)
+        assertEquals(original.backgroundColor, restored.backgroundColor)
+        assertEquals(original.keyNormalColor, restored.keyNormalColor)
+        assertEquals(original.accentColor, restored.accentColor)
+        assertEquals(original.isDark, restored.isDark)
+        assertTrue(restored.isCustom)
+    }
+
+    @Test
+    fun testPresetThemesDefaultNotCustom() {
+        for (theme in ThemeRegistry.PRESET_THEMES) {
+            assertFalse("Preset ${theme.id} should not be marked as custom", theme.isCustom)
         }
     }
 }
