@@ -292,7 +292,12 @@ class LekhaniInputMethodService : InputMethodService() {
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         // If cursor moved outside the active composing region or text was selected
-        if ((candidatesStart < 0 && candidatesEnd < 0) || (newSelStart != newSelEnd)) {
+        val outsideComposing = if (candidatesStart >= 0 && candidatesEnd >= 0) {
+            newSelStart < candidatesStart || newSelEnd > candidatesEnd
+        } else {
+            true
+        }
+        if (outsideComposing || (newSelStart != newSelEnd)) {
             if (session.isComposing()) {
                 session.reset()
                 preeditShadow = ""
@@ -1235,7 +1240,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val isKarOrVowel = (ch in '\u09BE'..'\u09CC') || (ch in '\u0985'..'\u0994') || keyToken.contains("\u09CD\u09AF") || keyToken.contains("\u09CD\u09AC") || keyToken.contains("\u09CD\u09B0")
         if (isConsonant) {
             keyboardView?.setGboardKarsActive(true, consonant = keyToken)
-        } else if (isKarOrVowel) {
+        } else {
             keyboardView?.setGboardKarsActive(false, consonant = "")
         }
     }

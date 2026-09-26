@@ -323,6 +323,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     /** Index into [resolvedKeys] of the currently pressed key, or -1 */
     private var pressedKeyIndex: Int = -1
 
+    /** Active pointer ID currently tracking [pressedKeyIndex] */
+    private var pressedPointerId: Int = -1
+
     /** Timestamp (ms) when the current press began, for ripple animation */
     private var pressStartTime: Long = 0L
 
@@ -359,6 +362,23 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 key.shiftedLabel != null && key.shiftedLabel != key.label -> {
                     keyListener?.onKey(key, key.shiftedAction)
+                }
+            }
+            invalidate()
+        }
+    }
+
+    /** Pre-allocated runnable for continuous rapid Backspace deletion on hold (zero allocation) */
+    private val backspaceRepeatRunnable = object : Runnable {
+        override fun run() {
+            if (pressedKeyIndex in resolvedKeys.indices && !isBackspaceSwiping) {
+                val key = resolvedKeys[pressedKeyIndex].key
+                if (key.action == KeyAction.Backspace) {
+                    isLongPressTriggered = true
+                    feedbackManager?.onKeyFeedback(this@KeyboardCanvasView)
+                        ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    keyListener?.onKey(key, KeyAction.Backspace)
+                    postDelayed(this, 50L)
                 }
             }
         }
@@ -1271,12 +1291,28 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // ══════════════════════════════════════════════════════════════════════════
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        when (event.actionMasked) {
+        val action = event.actionMasked
+        val actionIndex = event.actionIndex
+        val px = event.getX(actionIndex)
+        val py = event.getY(actionIndex)
+
+        when (action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
-                touchStartX = event.x
-                touchStartY = event.y
-                glideCurX = event.x
-                glideCurY = event.y
+                if (action == MotionEvent.ACTION_POINTER_DOWN) {
+                    // Commit pending key from previous pointer before switching to new pointer
+                    if (pressedKeyIndex in resolvedKeys.indices && !isGliding && !isSpaceSwiping &&
+                        !isSpaceCursorMoving && !isBackspaceSwiping && !isLongPressTriggered) {
+                        dispatchKey(resolvedKeys[pressedKeyIndex].key)
+                    }
+                    removeCallbacks(longPressRunnable)
+                    removeCallbacks(backspaceRepeatRunnable)
+                }
+
+                pressedPointerId = event.getPointerId(actionIndex)
+                touchStartX = px
+                touchStartY = py
+                glideCurX = px
+                glideCurY = py
                 isGliding = false
                 glidePointCount = 0
                 visitedGlideKeys.clear()
@@ -1285,7 +1321,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 // Side Dock Buttons hit-testing (One-Handed mode)
                 if (isSideDockVisible) {
                     for (btn in sideDockButtons) {
-                        if (btn.bounds.contains(event.x, event.y)) {
+                        if (btn.bounds.contains(px, py)) {
                             feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             when (btn.action) {
                                 SideDockAction.EXPAND_STANDARD -> keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.STANDARD)
@@ -1306,20 +1342,20 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
                 // Floating mode top bar / dock button hit-testing
                 if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
-                    if (floatingDockBtnRect.contains(event.x, event.y)) {
+                    if (floatingDockBtnRect.contains(px, py)) {
                         feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.STANDARD)
                         return true
                     }
-                    if (floatingTopBarRect.contains(event.x, event.y)) {
+                    if (floatingTopBarRect.contains(px, py)) {
                         isDraggingFloatingBar = true
-                        floatingDragStartX = event.x - floatingOffsetX
-                        floatingDragStartY = event.y - floatingOffsetY
+                        floatingDragStartX = px - floatingOffsetX
+                        floatingDragStartY = py - floatingOffsetY
                         return true
                     }
                 }
 
-                val idx = findKeyIndex(event.x, event.y)
+                val idx = findKeyIndex(px, py)
                 if (idx >= 0) {
                     pressedKeyIndex = idx
                     pressStartTime = SystemClock.uptimeMillis()
@@ -1332,20 +1368,22 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
 
                     val key = resolvedKeys[idx].key
-                    val action = key.activeAction(isShifted)
-                    if (action is KeyAction.Character) {
-                        glidePointsX[0] = event.x
-                        glidePointsY[0] = event.y
+                    val keyAct = key.activeAction(isShifted)
+                    if (keyAct is KeyAction.Character) {
+                        glidePointsX[0] = px
+                        glidePointsY[0] = py
                         glidePointCount = 1
-                        visitedGlideKeys.add(action.token)
+                        visitedGlideKeys.add(keyAct.token)
                         lastVisitedKeyIdx = idx
+                        postDelayed(longPressRunnable, longPressDelayMs)
                     } else if (key.action == KeyAction.Space) {
-                        spaceTouchStartX = event.x
-                        spaceTouchStartY = event.y
-                        spaceSlideLastX = event.x
+                        spaceTouchStartX = px
+                        spaceTouchStartY = py
+                        spaceSlideLastX = px
                         postDelayed(longPressRunnable, longPressDelayMs)
                     } else if (key.action == KeyAction.Backspace) {
-                        backspaceSwipeStartX = event.x
+                        backspaceSwipeStartX = px
+                        postDelayed(backspaceRepeatRunnable, 400L)
                     }
                     invalidate()
                 }
@@ -1353,10 +1391,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
-                val curX = event.x
-                val curY = event.y
+                val curIndex = if (pressedPointerId >= 0) event.findPointerIndex(pressedPointerId) else 0
+                val curX = if (curIndex in 0 until event.pointerCount) event.getX(curIndex) else event.x
+                val curY = if (curIndex in 0 until event.pointerCount) event.getY(curIndex) else event.y
                 glideCurX = curX
                 glideCurY = curY
+
+                val moveDistSq = (curX - touchStartX) * (curX - touchStartX) + (curY - touchStartY) * (curY - touchStartY)
+                val touchSlopPx = 8f * resources.displayMetrics.density
+                if (moveDistSq > touchSlopPx * touchSlopPx) {
+                    removeCallbacks(longPressRunnable)
+                    removeCallbacks(backspaceRepeatRunnable)
+                }
 
                 // Floating mode window dragging
                 if (isDraggingFloatingBar) {
@@ -1402,6 +1448,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     if (key.action == KeyAction.Backspace && swipeToDeleteEnabled) {
                         val dx = curX - backspaceSwipeStartX
                         if (dx < -swipeThresholdPx) {
+                            removeCallbacks(backspaceRepeatRunnable)
                             isBackspaceSwiping = true
                             val words = ((-dx - swipeThresholdPx) / backspaceSwipeStepPx).toInt() + 1
                             val clamped = words.coerceIn(1, 20)
@@ -1466,9 +1513,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
                     val keyIdx = findKeyIndex(curX, curY)
                     if (keyIdx >= 0 && keyIdx != lastVisitedKeyIdx) {
-                        val action = resolvedKeys[keyIdx].key.activeAction(isShifted)
-                        if (action is KeyAction.Character) {
-                            visitedGlideKeys.add(action.token)
+                        val actionK = resolvedKeys[keyIdx].key.activeAction(isShifted)
+                        if (actionK is KeyAction.Character) {
+                            visitedGlideKeys.add(actionK.token)
                             lastVisitedKeyIdx = keyIdx
                             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         }
@@ -1480,13 +1527,34 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 return true
             }
 
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+            MotionEvent.ACTION_POINTER_UP -> {
+                val pointerId = event.getPointerId(actionIndex)
+                if (pointerId == pressedPointerId) {
+                    removeCallbacks(longPressRunnable)
+                    removeCallbacks(backspaceRepeatRunnable)
+                    val idx = findKeyIndex(px, py)
+                    if (idx >= 0 && idx == pressedKeyIndex && !isLongPressTriggered && !isSpaceSwiping &&
+                        !isGliding && !isBackspaceSwiping && !isSpaceCursorMoving) {
+                        dispatchKey(resolvedKeys[idx].key)
+                    }
+                    pressedKeyIndex = -1
+                    pressedPointerId = -1
+                    isLongPressTriggered = false
+                    isSpaceSwiping = false
+                    invalidate()
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
                 removeCallbacks(longPressRunnable)
+                removeCallbacks(backspaceRepeatRunnable)
                 isDraggingFloatingBar = false
 
                 if (isSpaceCursorMoving) {
                     isSpaceCursorMoving = false
                     pressedKeyIndex = -1
+                    pressedPointerId = -1
                     invalidate()
                     return true
                 }
@@ -1500,6 +1568,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     backspaceDeletedWordCount = 0
                     keyListener?.onSwipeDeletePreview(0)
                     pressedKeyIndex = -1
+                    pressedPointerId = -1
                     invalidate()
                     return true
                 }
@@ -1515,17 +1584,19 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     visitedGlideKeys.clear()
                     lastVisitedKeyIdx = -1
                     pressedKeyIndex = -1
+                    pressedPointerId = -1
                     isLongPressTriggered = false
                     isSpaceSwiping = false
                     invalidate()
                     return true
                 }
 
-                val idx = findKeyIndex(event.x, event.y)
+                val idx = findKeyIndex(px, py)
                 if (idx >= 0 && idx == pressedKeyIndex && !isLongPressTriggered && !isSpaceSwiping) {
                     dispatchKey(resolvedKeys[idx].key)
                 }
                 pressedKeyIndex = -1
+                pressedPointerId = -1
                 isLongPressTriggered = false
                 isSpaceSwiping = false
                 invalidate()
@@ -1534,6 +1605,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
             MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(longPressRunnable)
+                removeCallbacks(backspaceRepeatRunnable)
                 isGliding = false
                 isSpaceCursorMoving = false
                 isBackspaceSwiping = false
@@ -1541,6 +1613,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 backspaceDeletedWordCount = 0
                 keyListener?.onSwipeDeletePreview(0)
                 isSpaceSwiping = false
+                pressedKeyIndex = -1
+                pressedPointerId = -1
                 invalidate()
                 return true
             }
