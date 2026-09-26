@@ -194,13 +194,13 @@
 ---
 
 ## Phase 12: Onboarding Flow, Accessibility & Store Launch
-- [ ] **Frictionless 3-Step Onboarding Wizard**:
+- [x] **Frictionless 3-Step Onboarding Wizard**:
   - Step 1: Enable Lekhani in Android System Settings (deep-linked directly).
   - Step 2: Set Lekhani as default keyboard (deep-linked directly).
   - Step 3: Interactive typing playground with live theme preview and layout intro.
-- [ ] **TalkBack & Accessibility (WCAG 2.1)**:
-  - Full screen reader accessibility nodes for all keys and candidates.
-  - Phonetic Bengali letter readout (e.g., "ক" -> "Ka").
+- [x] **TalkBack & Accessibility (WCAG 2.1)**:
+  - Full screen reader accessibility nodes for all keys on custom hardware canvas via `KeyboardAccessibilityHelper` (`ExploreByTouchHelper`).
+  - Phonetic Bengali letter readout (e.g., "ক", "আ-কার", "হসন্ত", "দাঁড়ি", "স্পেসবার").
 - [ ] Automated integration test suite on Android emulator matrix (API 24 to 34+).
 - [ ] Latency profiling (< 3 ms keystroke-to-display, < 40 ms cold boot, < 35 MB RSS budget).
 - [ ] F-Droid reproducible build recipe and metadata submission.

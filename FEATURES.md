@@ -74,6 +74,9 @@
 - **Spacebar Cursor Control**: Slide left/right on Spacebar to position cursor precisely between letters when in Cursor Slide mode.
 - **One-Handed Mode**: Quick-dock keyboard to left or right screen edge with quick-toggle arrows.
 - **Split & Floating Modes**: Optimized split keyboard for foldables/tablets and freely movable floating window.
+- **Dedicated Top Number Row**: Optional permanent 10-key row (`১..০` / `1..0`) displayed above the keyboard for instant digit entry without switching layers.
+- **National (জাতীয়) Layout BBS Dead-Key Linker**: Official BBS typewriter standard supporting `[্ + Kar]` to produce independent vowels (`অ`, `ই`, `ঈ`, `উ`, `ঊ`, `ঋ`, `এ`, `ঐ`, `ও`, `ঔ`), plus instant long-press vowel shortcuts.
+- **Extended Bengali Typographical Glyphs**: Native Double Dari (`॥`), curly quotation marks (`“`, `”`), ellipsis (`…`), and currency numerator (`৲`).
 - **Haptic Click Physics**: Subtle tactile haptic response tuned for low latency via Android `VibratorManager`.
 
 ## 8. Deep Customization Suite
