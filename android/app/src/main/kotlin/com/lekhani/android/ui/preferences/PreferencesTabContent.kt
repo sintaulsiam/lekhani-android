@@ -97,44 +97,47 @@ fun PreferencesTabContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 18.dp, vertical = 20.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ── 1. Keyboard Form Factor Card ───────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Smartphone,
-                        contentDescription = "Form Factor",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = if (isEnglish) "Keyboard Form Factor" else "কীবোর্ড লেআউট মোড (Modes)",
+                            text = if (isEnglish) "Form Factor" else "কীবোর্ড মোড",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Text(
-                            text = if (isEnglish) "Ergonomic layout sizing and docking" else "স্ক্রিন সাইজ ও টাইপিং কমফোর্ট অনুযায়ী নির্বাচন করুন",
+                            text = if (isEnglish) "Keyboard sizing and placement" else "কীবোর্ডের আকার ও অবস্থান",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
 
                 FormFactorPrefOption(
-                    title = if (isEnglish) "Standard Full Width" else "ফুল স্ক্রিন (Standard Full)",
-                    subtitle = if (isEnglish) "Standard keyboard edge-to-edge" else "সাধারণ পূর্ণ প্রস্থ কীবোর্ড",
+                    title = if (isEnglish) "Standard" else "ফুল স্ক্রিন",
+                    subtitle = if (isEnglish) "Standard full-width keyboard" else "ডিফল্ট পূর্ণ প্রস্থ কীবোর্ড",
                     icon = Icons.Filled.Smartphone,
                     selected = formFactor == KeyboardPreferences.FormFactor.STANDARD,
                     onSelect = {
@@ -144,8 +147,8 @@ fun PreferencesTabContent(
                 )
 
                 FormFactorPrefOption(
-                    title = if (isEnglish) "One-Handed (Right)" else "একহাতে মোড - ডান (One-Handed Right)",
-                    subtitle = if (isEnglish) "Docked to right side for one-thumb typing" else "ডান পাশে সংকুচিত কীবোর্ড, একহাতে দ্রুত ব্যবহারের জন্য",
+                    title = if (isEnglish) "One-Handed (Right)" else "একহাতে (ডান)",
+                    subtitle = if (isEnglish) "Docked right for one-thumb reach" else "ডান পাশে চেপে রাখা কীবোর্ড",
                     icon = Icons.AutoMirrored.Filled.ArrowForward,
                     selected = formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT,
                     onSelect = {
@@ -155,8 +158,8 @@ fun PreferencesTabContent(
                 )
 
                 FormFactorPrefOption(
-                    title = if (isEnglish) "One-Handed (Left)" else "একহাতে মোড - বাম (One-Handed Left)",
-                    subtitle = if (isEnglish) "Docked to left side for one-thumb typing" else "বাম পাশে সংকুচিত কীবোর্ড, একহাতে দ্রুত ব্যবহারের জন্য",
+                    title = if (isEnglish) "One-Handed (Left)" else "একহাতে (বাম)",
+                    subtitle = if (isEnglish) "Docked left for one-thumb reach" else "বাম পাশে চেপে রাখা কীবোর্ড",
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     selected = formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_LEFT,
                     onSelect = {
@@ -166,8 +169,8 @@ fun PreferencesTabContent(
                 )
 
                 FormFactorPrefOption(
-                    title = if (isEnglish) "Floating Window" else "ভাসমান উইন্ডো (Floating Window)",
-                    subtitle = if (isEnglish) "Movable compact window anywhere on screen" else "স্ক্রিনের যেকোনো জায়গায় টেনে রাখা যায় এমন কমপ্যাক্ট উইন্ডো",
+                    title = if (isEnglish) "Floating" else "ভাসমান",
+                    subtitle = if (isEnglish) "Movable window anywhere on screen" else "স্ক্রিনের যেকোনো জায়গায় টেনে নেওয়া যায়",
                     icon = Icons.Filled.PictureInPictureAlt,
                     selected = formFactor == KeyboardPreferences.FormFactor.FLOATING,
                     onSelect = {
@@ -177,8 +180,8 @@ fun PreferencesTabContent(
                 )
 
                 FormFactorPrefOption(
-                    title = if (isEnglish) "Split Mode" else "স্প্লিট মোড (Split Mode)",
-                    subtitle = if (isEnglish) "Ergonomic two-thumb typing for tablets & foldables" else "ট্যাবলেট ও ফোল্ডেবলের দুই বুড়ো আঙুলে আরামদায়ক টাইপিং",
+                    title = if (isEnglish) "Split" else "স্প্লিট",
+                    subtitle = if (isEnglish) "Ergonomic layout for foldables and tablets" else "ট্যাবলেট ও ফোল্ডেবলে দুই বুড়ো আঙুলে টাইপিং",
                     icon = Icons.Filled.VerticalSplit,
                     selected = formFactor == KeyboardPreferences.FormFactor.SPLIT,
                     onSelect = {
@@ -189,56 +192,59 @@ fun PreferencesTabContent(
             }
         }
 
-        // ── 2. Smart Gestures & Input Card ─────────────────────────────────────
+        // ── 2. Gestures & Typing Card ──────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Swipe,
-                        contentDescription = "Gestures",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = if (isEnglish) "Gestures & Input Behavior" else "জেশ্চার ও টাইপিং অনুভূতি (Gestures)",
+                            text = if (isEnglish) "Gestures & Typing" else "জেশ্চার ও টাইপিং",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Text(
-                            text = if (isEnglish) "Spacebar slide, backspace delete, and glide" else "স্পেসবার সোয়াইপ, ব্যাকস্পেস মুছা ও গ্লাইড টাইপিং",
+                            text = if (isEnglish) "Spacebar, backspace, and swipe actions" else "সোয়াইপ ও টাইপিং নিয়ন্ত্রণ",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
 
                 // Spacebar Swipe Action
                 Text(
-                    text = if (isEnglish) "Spacebar Swipe Behavior" else "স্পেসবার সোয়াইপ অ্যাকশন",
+                    text = if (isEnglish) "Spacebar swipe action" else "স্পেসবার সোয়াইপ অ্যাকশন",
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.primary
                 )
 
                 val swipeOptions = if (isEnglish) {
                     listOf(
-                        KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV to ("Cursor Slide Navigation" to "Slide finger to move text cursor precisely"),
-                        KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH to ("Quick Layout Switch" to "Swipe horizontally to switch English/Bengali"),
-                        KeyboardPreferences.SpacebarSwipeMode.DISABLED to ("Disabled" to "No gesture on spacebar")
+                        KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV to ("Cursor navigation" to "Slide finger to move cursor"),
+                        KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH to ("Switch layout" to "Swipe horizontally to switch language"),
+                        KeyboardPreferences.SpacebarSwipeMode.DISABLED to ("Disabled" to "No swipe action on spacebar")
                     )
                 } else {
                     listOf(
-                        KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV to ("কার্সার স্লাইড (Cursor Slide)" to "স্পেসবারে আঙুল টেনে কার্সার সূক্ষ্মভাবে সরান"),
-                        KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH to ("লেআউট পরিবর্তন (Layout Switch)" to "সোয়াইপ করে ইংরেজি ও বাংলা পরিবর্তন"),
-                        KeyboardPreferences.SpacebarSwipeMode.DISABLED to ("নিষ্ক্রিয় (Disabled)" to "স্পেসবারে সোয়াইপ বন্ধ রাখুন")
+                        KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV to ("কার্সার নিয়ন্ত্রণ" to "স্পেসবারে আঙুল টেনে কার্সার সরান"),
+                        KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH to ("ভাষা পরিবর্তন" to "সোয়াইপ করে ভাষা অদলবদল"),
+                        KeyboardPreferences.SpacebarSwipeMode.DISABLED to ("বন্ধ" to "কোনো সোয়াইপ অ্যাকশন থাকবে না")
                     )
                 }
 
@@ -268,7 +274,10 @@ fun PreferencesTabContent(
                     }
                 }
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
 
                 // Glide Typing Toggle
                 Row(
@@ -276,13 +285,13 @@ fun PreferencesTabContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Glide Typing (Gesture Input)" else "গ্লাইড টাইপিং (সোয়াইপ ইনপুট)",
+                            text = if (isEnglish) "Glide typing" else "গ্লাইড টাইপিং",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Slide continuously over keys to write words" else "আঙুল না তুলে অক্ষরের ওপর দিয়ে টেনে টাইপ করুন",
+                            text = if (isEnglish) "Slide across letters to form words" else "আঙুল না তুলে টেনে শব্দ লিখুন",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -302,13 +311,13 @@ fun PreferencesTabContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Swipe-to-Delete on Backspace" else "ব্যাকস্পেস সোয়াইপ-টু-ডিলিট",
+                            text = if (isEnglish) "Swipe to delete" else "সোয়াইপ করে মুছুন",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Slide left from backspace to erase words rapidly" else "ব্যাকস্পেস থেকে বামে সোয়াইপ করে একসাথে একাধিক শব্দ মুছুন",
+                            text = if (isEnglish) "Slide left from backspace to erase words" else "ব্যাকস্পেস থেকে বামে টেনে শব্দ মুছুন",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -328,13 +337,13 @@ fun PreferencesTabContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Key Press Popup Preview" else "কি-প্রেস পপআপ প্রিভিউ (Popups)",
+                            text = if (isEnglish) "Popup on keypress" else "কী চাপলে প্রিভিউ বাবল",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Display magnified popup bubble when pressing a key" else "বোতাম চাপলে বড় করে প্রিভিউ বাবল প্রদর্শন",
+                            text = if (isEnglish) "Show magnified letter above pressed key" else "কী চাপলে অক্ষরের বড় বাবল দেখাবে",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -348,19 +357,19 @@ fun PreferencesTabContent(
                     )
                 }
 
-                // Key Glow & Ripple Effect
+                // Key Tap Animation
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Key Glow & Spring Ripple" else "কি গ্লো ও স্প্রিং রিপল এফেক্ট",
+                            text = if (isEnglish) "Key tap animation" else "কী ট্যাপ অ্যানিমেশন",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Smooth 120 FPS capacitive key animations" else "মসৃণ ১২০ এফপিএস টাচ লাইটিং ও প্রতিক্রিয়া অ্যানিমেশন",
+                            text = if (isEnglish) "Visual ripple effect when tapping keys" else "কী চাপলে স্পর্শ অ্যানিমেশন",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -376,36 +385,36 @@ fun PreferencesTabContent(
             }
         }
 
-        // ── 3. Haptic & Sound Feedback Card ────────────────────────────────────
+        // ── 3. Vibration & Sound Feedback Card ─────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
-            Column(modifier = Modifier.padding(18.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 // Haptics
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Icon(
                             imageVector = Icons.Filled.Vibration,
-                            contentDescription = "Haptics",
+                            contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (isEnglish) "Haptic Feedback" else "হ্যাপটিক ভাইব্রেশন (Haptics)",
+                                text = if (isEnglish) "Vibration" else "ভাইব্রেশন",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(
-                                text = if (isEnglish) "Vibrate on keystroke" else "কি-প্রেসে স্পর্শ অনুভূতি",
+                                text = if (isEnglish) "Haptic feedback on keypress" else "কী চাপলে সূক্ষ্ম কম্পন",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -421,10 +430,10 @@ fun PreferencesTabContent(
                 }
 
                 if (hapticEnabled) {
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = if (isEnglish) "Vibration strength: ${hapticDuration.toInt()} ms"
-                               else "ভাইব্রেশন মাত্রা: ${hapticDuration.toInt()} ms",
+                               else "ভাইব্রেশনের মাত্রা: ${hapticDuration.toInt()} ms",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                     )
                     Slider(
@@ -438,9 +447,9 @@ fun PreferencesTabContent(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Sound
                 Row(
@@ -448,21 +457,21 @@ fun PreferencesTabContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = "Sound",
+                            contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (isEnglish) "Key Sounds" else "কি-প্রেস সাউন্ড (Key Sounds)",
+                                text = if (isEnglish) "Key clicks" else "কী ক্লিক সাউন্ড",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(
-                                text = if (isEnglish) "Audio click on key tap" else "বোতাম স্পর্শে অডিও ফিডব্যাক",
+                                text = if (isEnglish) "Audio feedback on tap" else "কী চাপলে অডিও শব্দ",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -478,29 +487,29 @@ fun PreferencesTabContent(
                 }
 
                 if (soundEnabled) {
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = if (isEnglish) "Sound Profile" else "সাউন্ড প্রোফাইল (Sound Pack)",
+                        text = if (isEnglish) "Sound profile" else "সাউন্ড প্রোফাইল",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     val soundPacks = if (isEnglish) {
                         listOf(
-                            KeyboardPreferences.SOUND_SYSTEM to "System Click",
-                            KeyboardPreferences.SOUND_BUBBLE to "Soft Bubble",
-                            KeyboardPreferences.SOUND_MECHANICAL to "Mechanical Switch",
-                            KeyboardPreferences.SOUND_TYPEWRITER to "Classic Typewriter",
-                            KeyboardPreferences.SOUND_WOODBLOCK to "Wooden Clack"
+                            KeyboardPreferences.SOUND_SYSTEM to "System click",
+                            KeyboardPreferences.SOUND_BUBBLE to "Soft bubble",
+                            KeyboardPreferences.SOUND_MECHANICAL to "Mechanical switch",
+                            KeyboardPreferences.SOUND_TYPEWRITER to "Classic typewriter",
+                            KeyboardPreferences.SOUND_WOODBLOCK to "Wooden clack"
                         )
                     } else {
                         listOf(
-                            KeyboardPreferences.SOUND_SYSTEM to "সিস্টেম স্ট্যান্ডার্ড (System Click)",
-                            KeyboardPreferences.SOUND_BUBBLE to "সফট বাবল (Soft Bubble)",
-                            KeyboardPreferences.SOUND_MECHANICAL to "মেকানিক্যাল সুইচ (Mechanical Click)",
-                            KeyboardPreferences.SOUND_TYPEWRITER to "টাইপরাইটার (Typewriter)",
-                            KeyboardPreferences.SOUND_WOODBLOCK to "উডেন ক্ল্যাক (Wooden Clack)"
+                            KeyboardPreferences.SOUND_SYSTEM to "সিস্টেম ক্লিক",
+                            KeyboardPreferences.SOUND_BUBBLE to "সফট বাবল",
+                            KeyboardPreferences.SOUND_MECHANICAL to "মেকানিক্যাল সুইচ",
+                            KeyboardPreferences.SOUND_TYPEWRITER to "টাইপরাইটার",
+                            KeyboardPreferences.SOUND_WOODBLOCK to "উডেন ক্ল্যাক"
                         )
                     }
 
@@ -508,7 +517,11 @@ fun PreferencesTabContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp),
+                                .clickable {
+                                    activeSoundPack = id
+                                    prefs.soundPack = id
+                                }
+                                .padding(vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -518,7 +531,7 @@ fun PreferencesTabContent(
                                     prefs.soundPack = id
                                 }
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(text = label, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
@@ -526,30 +539,30 @@ fun PreferencesTabContent(
             }
         }
 
-        // ── 4. Quick Toolbar & User Dictionary Card ────────────────────────────
+        // ── 4. Quick Toolbar & Personal Dictionary Card ────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Tune,
-                        contentDescription = "Tools",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = if (isEnglish) "Advanced Customization" else "টুলস ও ডিকশনারি (Tools)",
+                            text = if (isEnglish) "Tools & Dictionary" else "টুলস ও ডিকশনারি",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Text(
-                            text = if (isEnglish) "Toolbar actions and custom vocabulary" else "টুলবার অ্যাকশন এবং নিজস্ব শব্দকোষ সাজান",
+                            text = if (isEnglish) "Toolbar actions and custom vocabulary" else "টুলবার বিন্যাস ও নিজস্ব শব্দভাণ্ডার",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -564,20 +577,20 @@ fun PreferencesTabContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Quick Toolbar Ordering" else "কুইক টুলবার বিন্যাস",
+                            text = if (isEnglish) "Candidate strip tools" else "স্ট্রিপের টুলস বিন্যাস",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Reorder or toggle emojis, clipboard, and resize icons" else "ইমোজি, ক্লিপবোর্ড, রিসাইজ বাটন সাজান বা লুকাতে পারেন",
+                            text = if (isEnglish) "Reorder or show/hide quick action icons" else "ইমোজি, ক্লিপবোর্ড, সেটিংস ইত্যাদি সাজান",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Button(
                         onClick = onOpenToolbarCustomizer,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(if (isEnglish) "Customize" else "সাজান")
                     }
@@ -591,84 +604,49 @@ fun PreferencesTabContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Personal Dictionary" else "ব্যক্তিগত শব্দকোষ",
+                            text = if (isEnglish) "Personal dictionary" else "ব্যক্তিগত শব্দকোষ",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "$userWordsCount custom learned words" else "$userWordsCount টি সংরক্ষিত নিজস্ব শব্দ",
+                            text = if (isEnglish) "$userWordsCount custom words learned" else "$userWordsCount টি নিজস্ব শব্দ সংরক্ষিত",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     OutlinedButton(
                         onClick = onOpenDictionaryManager,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(if (isEnglish) "Manage" else "ম্যানেজ")
                     }
                 }
-            }
-        }
 
-        // ── 5. About Lekhani & Privacy Card ────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Security,
-                        contentDescription = "Privacy",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = if (isEnglish) "100% Offline & Private" else "১০০% অফলাইন ও সম্পূর্ণ গোপনীয়",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                        )
-                        Text(
-                            text = if (isEnglish) "Zero network access. Keystrokes never leave your phone."
-                                   else "কোনো ইন্টারনেট অনুমতি নেই। কোনো তথ্য আপনার ফোন ত্যাগ করে না।",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-
+                // About item
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Crafted by Syntenium & Developers University"
-                                   else "নির্মাতা: সিনটেনিয়াম (Syntenium) ও ডেভেলপার্স ইউনিভার্সিটি",
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = if (isEnglish) "About Lekhani" else "লেখনি সম্পর্কে",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Free & Open Source under Apache 2.0"
-                                   else "সম্পূর্ণ উন্মুক্ত ও ওপেন সোর্স (Apache 2.0)",
-                            style = MaterialTheme.typography.labelSmall,
+                            text = if (isEnglish) "Version, privacy policy & open-source licenses" else "সংস্করণ, তথ্য সুরক্ষা ও ওপেন সোর্স লাইসেন্স",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     OutlinedButton(
                         onClick = onOpenAbout,
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text(if (isEnglish) "About App" else "সম্পর্কে")
+                        Text(if (isEnglish) "About" else "সম্পর্কে")
                     }
                 }
             }
@@ -690,14 +668,14 @@ private fun FormFactorPrefOption(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onSelect)
-            .padding(vertical = 4.dp),
+            .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = title,
+            contentDescription = null,
             tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

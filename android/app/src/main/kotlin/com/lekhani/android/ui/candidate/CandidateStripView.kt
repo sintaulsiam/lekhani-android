@@ -32,12 +32,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -260,8 +262,15 @@ private fun EmojiSearchStrip(
             contentAlignment = Alignment.Center,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = if (query.isEmpty()) Color(theme.labelDimColor) else Color(theme.accentColor),
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
                 Text(
-                    text = if (query.isEmpty()) "🔍 ইমোজি..." else "🔍 $query",
+                    text = if (query.isEmpty()) (if (isEnglish) "Search emojis" else "ইমোজি খুঁজুন") else query,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = if (query.isEmpty()) Color(theme.labelDimColor) else Color(theme.accentColor),
@@ -270,7 +279,7 @@ private fun EmojiSearchStrip(
                     ),
                 )
                 if (query.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         text = "✕",
                         fontSize = 11.sp,
@@ -329,27 +338,37 @@ private fun ToolbarContent(
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Prominent Extra Tools menu trigger on the far left:
-        // Turns into a Close icon when the vault drawer is open.
+        // Prominent Extra Tools menu trigger on the far left (44dp touch target):
+        // Turns into a Close icon when the drawer is open.
         Box(
             modifier = Modifier
-                .padding(start = 4.dp, end = 2.dp)
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(accentColor.copy(alpha = if (isToolsMenuOpen) 0.25f else 0.14f))
-                .clickable { onOpenToolsMenu?.invoke() },
+                .fillMaxHeight()
+                .width(44.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { onOpenToolsMenu?.invoke() }
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = if (isToolsMenuOpen) Icons.Filled.Close else Icons.Filled.GridView,
-                contentDescription = if (isToolsMenuOpen) {
-                    if (isEnglish) "Close Vault" else "ভল্ট বন্ধ করুন"
-                } else {
-                    if (isEnglish) "Tool Vault" else "টুল ভল্ট"
-                },
-                modifier = Modifier.size(19.dp),
-                tint = accentColor
-            )
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = if (isToolsMenuOpen) 0.25f else 0.14f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isToolsMenuOpen) Icons.Filled.Close else Icons.Filled.GridView,
+                    contentDescription = if (isToolsMenuOpen) {
+                        if (isEnglish) "Close tools" else "টুলস বন্ধ করুন"
+                    } else {
+                        if (isEnglish) "More tools" else "আরও টুলস"
+                    },
+                    modifier = Modifier.size(19.dp),
+                    tint = accentColor
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(4.dp))

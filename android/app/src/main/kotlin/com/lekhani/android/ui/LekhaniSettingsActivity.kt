@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
@@ -295,7 +296,7 @@ fun LekhaniSettingsScreen(
                         // Quick About & Privacy Dialog Trigger
                         IconButton(
                             onClick = { showAboutDialog = true },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Info,
@@ -498,172 +499,165 @@ private fun LayoutsTabContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ── Brand Header (With 'লে' Glyph) ──────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.background
-                        )
-                    )
-                ),
-            contentAlignment = Alignment.Center
+        Surface(
+            modifier = Modifier.size(64.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
         ) {
-            Text(
-                text = "লে",
-                fontSize = 38.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = "লে",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = if (isEnglish) "Lekhani Bengali Keyboard" else "লেখনী কীবোর্ড",
+                text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
             )
             Text(
-                text = if (isEnglish) "Bengali Next-Gen Ergonomic Keyboard • 2026 Edition"
-                       else "নেক্সট-জেন এরগনোমিক বাংলা কীবোর্ড • ২০২৬ এডিশন",
+                text = if (isEnglish) "Offline, private Bengali keyboard"
+                       else "সম্পূর্ণ অফলাইন ও নিরাপদ বাংলা কীবোর্ড",
                 style = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
         }
 
-        // ── Status & Activation Cards ───────────────────────────────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = if (isEnglish) "3-Step Keyboard Setup Wizard" else "৩-ধাপের কীবোর্ড সেটআপ উইজার্ড",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Step 1: Enable
+        // ── Status & Activation ─────────────────────────────────────────────────
+        if (isEnabled && isDefault) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (isEnglish) "1. Enable Lekhani Keyboard" else "১. লেখনী কীবোর্ড সক্রিয় করুন",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isEnabled) (if (isEnglish) "Enabled in System Settings" else "সিস্টেম সেটিংসে সক্রিয় করা আছে")
-                                   else (if (isEnglish) "Action required in Settings" else "সিস্টেম সেটিংসে সক্ষম করুন"),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            text = if (isEnglish) "Active as default keyboard"
+                                   else "ডিফল্ট কীবোর্ড হিসেবে সক্রিয় আছে",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         )
                     }
-                    if (!isEnabled) {
-                        Button(
-                            onClick = onOpenImeSettings,
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Text(if (isEnglish) "Enable" else "সক্ষম করুন")
-                        }
-                    } else {
-                        Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    }
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-                // Step 2: Set as Default
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (isEnglish) "2. Select as Default Keyboard" else "২. ডিফল্ট কীবোর্ড হিসেবে বেছে নিন",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                        )
-                        Text(
-                            text = if (isDefault) (if (isEnglish) "Active as Default" else "ডিফল্ট হিসেবে সক্রিয়")
-                                   else (if (isEnglish) "Tap to select Lekhani" else "প্রধান কীবোর্ড হিসেবে বেছে নিন"),
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
-                    }
-                    if (!isDefault) {
-                        FilledTonalButton(
-                            onClick = onOpenImePicker,
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Text(if (isEnglish) "Set Default" else "ডিফল্ট করুন")
-                        }
-                    } else {
-                        Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    }
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-                // Step 3: Interactive Typing Playground
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (isEnglish) "3. Interactive Typing Playground" else "৩. টাইপিং পরীক্ষা ও প্লেগ্রাউন্ড",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                        )
-                        Text(
-                            text = if (isDefault && isEnabled) {
-                                if (isEnglish) "Ready to test! Tap the test box below" else "প্রস্তুত! নিচের বক্সে লিখে পরীক্ষা করুন"
-                            } else {
-                                if (isEnglish) "Complete Steps 1 & 2 first" else "প্রথমে ধাপ ১ ও ২ সম্পন্ন করুন"
-                            },
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = if (isDefault && isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
-                    }
-                    if (isDefault && isEnabled) {
-                        Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    }
-                }
-
-                if (isEnabled && isDefault) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Surface(
+                    FilledTonalButton(
+                        onClick = onOpenImePicker,
                         shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        modifier = Modifier.fillMaxWidth()
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                        modifier = Modifier.height(30.dp)
                     ) {
                         Text(
-                            text = if (isEnglish) "🎉 Setup complete! Lekhani Keyboard is active as default."
-                                   else "🎉 সমস্ত ধাপ সম্পন্ন! লেখনী কীবোর্ড সফলভাবে সক্রিয় ও ডিফল্ট করা হয়েছে।",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            text = if (isEnglish) "Switch" else "পরিবর্তন",
+                            fontSize = 11.5.sp
                         )
+                    }
+                }
+            }
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = if (isEnglish) "Keyboard Setup" else "কীবোর্ড সেটআপ",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Step 1: Enable
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEnglish) "1. Enable Lekhani" else "১. লেখনী কীবোর্ড চালু করুন",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnabled) (if (isEnglish) "Enabled in system settings" else "সিস্টেম সেটিংসে চালু আছে")
+                                       else (if (isEnglish) "Tap to enable in settings" else "সেটিংসে গিয়ে চালু করুন"),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                )
+                            )
+                        }
+                        if (!isEnabled) {
+                            Button(
+                                onClick = onOpenImeSettings,
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(if (isEnglish) "Enable" else "চালু করুন")
+                            }
+                        } else {
+                            Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Step 2: Set as Default
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEnglish) "2. Select as Default" else "২. ডিফল্ট কীবোর্ড নির্বাচন করুন",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isDefault) (if (isEnglish) "Active as default" else "ডিফল্ট হিসেবে সক্রিয়")
+                                       else (if (isEnglish) "Tap to select Lekhani" else "ডিফল্ট কীবোর্ড হিসেবে বেছে নিন"),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                        }
+                        if (!isDefault) {
+                            FilledTonalButton(
+                                onClick = onOpenImePicker,
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(if (isEnglish) "Select" else "নির্বাচন")
+                            }
+                        } else {
+                            Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        }
                     }
                 }
             }
@@ -674,15 +668,15 @@ private fun LayoutsTabContent(
         val savedCount = remember(clips) { clips.count { it.isSaved } }
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -693,27 +687,27 @@ private fun LayoutsTabContent(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Assignment,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                     Column {
                         Text(
                             text = if (isEnglish) "Clipboard & Vault" else "ক্লিপবোর্ড ও ভল্ট",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = if (isEnglish) "${clips.size} clips • $savedCount saved in vault"
-                                   else "${clips.size}টি ক্লিপ • ${savedCount}টি ভল্টে সংরক্ষিত",
+                            text = if (isEnglish) "${clips.size} clips • $savedCount saved"
+                                   else "${clips.size}টি ক্লিপ • ${savedCount}টি সংরক্ষিত",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -721,10 +715,11 @@ private fun LayoutsTabContent(
                 }
                 FilledTonalButton(
                     onClick = onOpenClipboard,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp)
                 ) {
-                    Text(if (isEnglish) "Open" else "ওপেন করুন")
+                    Text(if (isEnglish) "Open" else "খুলুন", fontSize = 12.sp)
                 }
             }
         }
@@ -732,32 +727,32 @@ private fun LayoutsTabContent(
         // ── Layout Selection ────────────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = if (isEnglish) "Keyboard Layouts" else "কীবোর্ড লেআউটসমূহ",
+                    text = if (isEnglish) "Keyboard Layouts" else "কীবোর্ড লেআউট",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
                 Text(
-                    text = if (isEnglish) "Select enabled layouts (switch via Spacebar swipe, Globe key or Toolbar):"
-                           else "সক্রিয় লেআউটসমূহ বেছে নিন (স্পেসবার সোয়াইপ, গ্লোব কি বা টুলবারে পরিবর্তন হবে):",
+                    text = if (isEnglish) "Choose layouts to use while typing"
+                           else "টাইপ করার জন্য লেআউটগুলো বেছে নিন",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
-                    modifier = Modifier.padding(vertical = 6.dp)
+                    modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
                 )
 
                 val allLayouts = listOf(
-                    Triple(LekhaniLayoutType.PROBAHO, "Lekhani প্রবাহ (Probaho)", if (isEnglish) "Ergonomic two-thumb engine (vowels left, consonants right)" else "দ্বি-অঙ্গুলি আধুনিক প্রবাহ লেআউট (বাঁয়ে স্বরবর্ণ, ডানে ব্যঞ্জনবর্ণ)"),
-                    Triple(LekhaniLayoutType.AVRO, "অভ্র ফোনেটিক (Avro)", if (isEnglish) "Classic phonetic transliteration (ami → আমি)" else "রোমান ইংরেজি অক্ষরে ক্লাসিক ফোনেটিক প্রতিবর্ণীকরণ (ami → আমি)"),
-                    Triple(LekhaniLayoutType.NATIONAL, "জাতীয় (BBS National)", if (isEnglish) "Bangladesh Government BBS official standard layout" else "বাংলাদেশ সরকারি BBS মানসম্মত অফিশিয়াল ফিক্সড লেআউট"),
-                    Triple(LekhaniLayoutType.PROBHAT, "প্রভাত (Probhat)", if (isEnglish) "Popular phonetic fixed layout" else "জনপ্রিয় ফোনেটিক ফিক্সড লেআউট (প্রভাত স্ট্যান্ডার্ড)"),
-                    Triple(LekhaniLayoutType.GBOARD, "জি-বোর্ড বাংলা (Gboard Style)", if (isEnglish) "Familiar Google Gboard Bengali key mapping" else "অ্যান্ড্রয়েড ব্যবহারকারীদের পরিচিত গুগল জি-বোর্ড ম্যাপিং"),
-                    Triple(LekhaniLayoutType.ENGLISH, "English (QWERTY)", if (isEnglish) "Standard alphanumeric QWERTY and password layer" else "আন্তর্জাতিক মানসম্মত ইংরেজি বর্ণমালা ও পাসওয়ার্ড লেয়ার"),
+                    Triple(LekhaniLayoutType.PROBAHO, "Lekhani প্রবাহ (Probaho)", if (isEnglish) "Two-thumb ergonomic layout (vowels left, consonants right)" else "দুই হাতের বুড়ো আঙুলে দ্রুত টাইপিং লেআউট"),
+                    Triple(LekhaniLayoutType.AVRO, "অভ্র ফোনেটিক (Avro)", if (isEnglish) "Phonetic transliteration (ami → আমি)" else "ইংরেজি অক্ষরে ফোনেটিক টাইপিং (ami → আমি)"),
+                    Triple(LekhaniLayoutType.NATIONAL, "জাতীয় (BBS National)", if (isEnglish) "Official BBS National standard" else "জাতীয় (BBS) অফিশিয়াল লেআউট"),
+                    Triple(LekhaniLayoutType.PROBHAT, "প্রভাত (Probhat)", if (isEnglish) "Probhat fixed phonetic layout" else "জনপ্রিয় প্রভাত ফিক্সড লেআউট"),
+                    Triple(LekhaniLayoutType.GBOARD, "জি-বোর্ড বাংলা (Gboard Style)", if (isEnglish) "Standard Android Bengali layout" else "অ্যান্ড্রয়েড স্ট্যান্ডার্ড বাংলা লেআউট"),
+                    Triple(LekhaniLayoutType.ENGLISH, "English (QWERTY)", if (isEnglish) "Standard alphanumeric QWERTY" else "আন্তর্জাতিক ইংরেজি QWERTY"),
                 )
 
                 allLayouts.forEachIndexed { index, (type, title, desc) ->
@@ -765,7 +760,7 @@ private fun LayoutsTabContent(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp),
+                            .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -790,7 +785,10 @@ private fun LayoutsTabContent(
                         )
                     }
                     if (index < allLayouts.size - 1) {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                        )
                     }
                 }
             }
@@ -799,32 +797,30 @@ private fun LayoutsTabContent(
         // ── Interactive Typing Test Box ─────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = if (isEnglish) "Interactive Typing Test" else "টাইপিং পরীক্ষা (Test Typing)",
+                    text = if (isEnglish) "Test Typing" else "টাইপিং পরীক্ষা",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                 )
                 Text(
-                    text = if (isEnglish) "Tap below to test Lekhani Keyboard live:"
-                           else "নিচে ট্যাপ করে লেখনী কীবোর্ড সরাসরি পরীক্ষা করুন:",
+                    text = if (isEnglish) "Tap below to test Lekhani live:"
+                           else "নিচে লিখে কীবোর্ড পরীক্ষা করুন:",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
-                    modifier = Modifier.padding(vertical = 4.dp)
+                    modifier = Modifier.padding(top = 2.dp, bottom = 6.dp)
                 )
 
                 OutlinedTextField(
                     value = testText,
                     onValueChange = { testText = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    placeholder = { Text(if (isEnglish) "Type here to test..." else "এখানে বাংলা লিখে পরীক্ষা করুন...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(if (isEnglish) "Type here to test..." else "এখানে লিখে পরীক্ষা করুন...") },
                     trailingIcon = {
                         if (testText.isNotEmpty()) {
                             IconButton(onClick = { testText = "" }) {
@@ -832,7 +828,7 @@ private fun LayoutsTabContent(
                             }
                         }
                     },
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp)
                 )
             }
         }
