@@ -30,30 +30,41 @@ object LayoutRegistry {
     )
 
     fun getBengaliName(type: LekhaniLayoutType): String = when (type) {
-        LekhaniLayoutType.PROBAHO  -> "লেখনি প্রবাহ"
+        LekhaniLayoutType.PROBAHO  -> "লেখনী প্রবাহ"
         LekhaniLayoutType.AVRO     -> "অভ্র ফোনেটিক"
         LekhaniLayoutType.NATIONAL -> "জাতীয় (BBS)"
-        LekhaniLayoutType.PROBHAT  -> "प्रभात (প্রভাত)"
-        LekhaniLayoutType.GBOARD   -> "জি-বোর্ড বাংলা"
+        LekhaniLayoutType.PROBHAT  -> "প্রভাত"
+        LekhaniLayoutType.GBOARD   -> "জি-বোর্ড স্টাইল"
         LekhaniLayoutType.ENGLISH  -> "ইংরেজি (QWERTY)"
     }
 
     fun getEnglishName(type: LekhaniLayoutType): String = when (type) {
         LekhaniLayoutType.PROBAHO  -> "Lekhani Probaho"
         LekhaniLayoutType.AVRO     -> "Avro Phonetic"
-        LekhaniLayoutType.NATIONAL -> "National BBS"
+        LekhaniLayoutType.NATIONAL -> "National (BBS)"
         LekhaniLayoutType.PROBHAT  -> "Probhat"
         LekhaniLayoutType.GBOARD   -> "Gboard Style"
-        LekhaniLayoutType.ENGLISH  -> "English QWERTY"
+        LekhaniLayoutType.ENGLISH  -> "English (QWERTY)"
     }
 
-    fun getDescription(type: LekhaniLayoutType): String = when (type) {
-        LekhaniLayoutType.PROBAHO  -> "দ্বি-অঙ্গুলি আধুনিক প্রবাহ লেআউট (বাঁয়ে স্বরবর্ণ, ডানে ব্যঞ্জনবর্ণ)"
-        LekhaniLayoutType.AVRO     -> "রোমান ইংরেজি অক্ষরে ক্লাসিক ফোনেটিক প্রতিবর্ণীকরণ (ami → আমি)"
-        LekhaniLayoutType.NATIONAL -> "বাংলাদেশ সরকারি BBS মানসম্মত অফিশিয়াল ফিক্সড লেআউট"
-        LekhaniLayoutType.PROBHAT  -> "জনপ্রিয় ফোনেটিক ফিক্সড লেআউট (প্রভাত স্ট্যান্ডার্ড)"
-        LekhaniLayoutType.GBOARD   -> "অ্যান্ড্রয়েড ব্যবহারকারীদের পরিচিত গুগল জি-বোর্ড ম্যাপিং"
-        LekhaniLayoutType.ENGLISH  -> "আন্তর্জাতিক মানসম্মত ইংরেজি বর্ণমালা ও পাসওয়ার্ড লেয়ার"
+    fun getDescription(type: LekhaniLayoutType, isEnglish: Boolean = false): String = if (isEnglish) {
+        when (type) {
+            LekhaniLayoutType.PROBAHO  -> "Ergonomic two-thumb layout"
+            LekhaniLayoutType.AVRO     -> "Phonetic transliteration (ami → আমি)"
+            LekhaniLayoutType.NATIONAL -> "Official BBS National standard"
+            LekhaniLayoutType.PROBHAT  -> "Popular fixed phonetic layout"
+            LekhaniLayoutType.GBOARD   -> "Familiar Android Bengali layout"
+            LekhaniLayoutType.ENGLISH  -> "Alphanumeric & password entry"
+        }
+    } else {
+        when (type) {
+            LekhaniLayoutType.PROBAHO  -> "এরগনোমিক টু-থাম্ব লেআউট"
+            LekhaniLayoutType.AVRO     -> "ইংরেজি অক্ষরে বাংলা (ami → আমি)"
+            LekhaniLayoutType.NATIONAL -> "সরকারি মানসম্মত ফিক্সড লেআউট"
+            LekhaniLayoutType.PROBHAT  -> "জনপ্রিয় ফোনেটিক লেআউট"
+            LekhaniLayoutType.GBOARD   -> "অ্যান্ড্রয়েড পরিচিত লেআউট"
+            LekhaniLayoutType.ENGLISH  -> "ইংরেজি টাইপিং ও পাসওয়ার্ড"
+        }
     }
 
     fun getSpacebarLabel(type: LekhaniLayoutType, isEnglish: Boolean = false): String = if (isEnglish) {
@@ -77,6 +88,7 @@ object LayoutRegistry {
     }
 
     const val PREF_ENABLED_LAYOUTS = "pref_enabled_layouts_order"
+    const val PREF_ACTIVE_LAYOUT = "active_layout"
 
     /**
      * Parses a comma-separated list of enabled layouts from SharedPreferences.

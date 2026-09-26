@@ -41,6 +41,7 @@ object ThemeRegistry {
     const val ID_FLOW_TEAL = "flow_teal"
     const val ID_OLED_BLACK = "oled_black"
     const val ID_AVRO_BLUE = "avro_blue"
+    const val ID_HIGH_CONTRAST = "high_contrast"
     const val ID_CYBER_INDIGO = "cyber_indigo"
     const val ID_MATERIAL_YOU = "material_you"
     const val ID_DAYLIGHT_LIGHT = "daylight_light"
@@ -85,8 +86,8 @@ object ThemeRegistry {
 
     val THEME_AVRO_BLUE = KeyboardTheme(
         id = ID_AVRO_BLUE,
-        nameBengali = "অভ্র ব্লু",
-        nameEnglish = "Classic Avro Blue",
+        nameBengali = "ক্লাসিক ব্লু",
+        nameEnglish = "Classic Blue",
         backgroundColor = 0xFF0A111E.toInt(),
         keyNormalColor = 0xFF152238.toInt(),
         keyShiftColor = 0xFF0E1726.toInt(),
@@ -102,10 +103,29 @@ object ThemeRegistry {
         isDark = true,
     )
 
+    val THEME_HIGH_CONTRAST = KeyboardTheme(
+        id = ID_HIGH_CONTRAST,
+        nameBengali = "হাই কনট্রাস্ট হলুদ",
+        nameEnglish = "High Contrast Yellow",
+        backgroundColor = 0xFF000000.toInt(),
+        keyNormalColor = 0xFF080808.toInt(),
+        keyShiftColor = 0xFF181818.toInt(),
+        keySpaceColor = 0xFF080808.toInt(),
+        keyHasantaColor = 0xFF2A2400.toInt(),
+        keyBorderColor = 0xFF888888.toInt(),
+        labelColor = 0xFFFFD600.toInt(),
+        labelDimColor = 0xFFFFF176.toInt(),
+        accentColor = 0xFFFFD600.toInt(),
+        rippleColor = 0x40FFD600.toInt(),
+        glideStrokeColor = 0xFFFFD600.toInt(),
+        glideGlowColor = 0x50FFD600.toInt(),
+        isDark = true,
+    )
+
     val THEME_CYBER_INDIGO = KeyboardTheme(
         id = ID_CYBER_INDIGO,
-        nameBengali = "সাইবার ইন্ডিগো",
-        nameEnglish = "Cyber Indigo",
+        nameBengali = "ডিপ ভায়োলেট",
+        nameEnglish = "Deep Violet",
         backgroundColor = 0xFF0C081A.toInt(),
         keyNormalColor = 0xFF1A1333.toInt(),
         keyShiftColor = 0xFF120D24.toInt(),
@@ -144,6 +164,7 @@ object ThemeRegistry {
         THEME_FLOW_TEAL,
         THEME_OLED_BLACK,
         THEME_AVRO_BLUE,
+        THEME_HIGH_CONTRAST,
         THEME_CYBER_INDIGO,
         THEME_DAYLIGHT_LIGHT,
     )

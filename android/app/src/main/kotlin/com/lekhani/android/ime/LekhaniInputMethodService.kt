@@ -226,8 +226,11 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         // Restore the user's last-used layout from Device Protected Storage.
+        val enabledList = getEnabledLayouts()
         val savedLayout = devicePrefs.getString(PREF_LAYOUT, null)
             ?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
+            ?.takeIf { enabledList.contains(it) }
+            ?: enabledList.firstOrNull()
             ?: LekhaniLayoutType.PROBAHO
         session.setLayout(savedLayout)
         Log.i(TAG, "Lekhani IME created; layout = $savedLayout")
@@ -1727,7 +1730,7 @@ class LekhaniInputMethodService : InputMethodService() {
     companion object {
         private const val TAG = "LekhaniIME"
         private const val PREFS_NAME = KeyboardPreferences.PREFS_NAME
-        private const val PREF_LAYOUT = "active_layout"
+        const val PREF_LAYOUT = "active_layout"
         /**
          * Number of characters before the cursor fetched for AI context.
          * 256 chars covers ~2-3 sentences — sufficient for bigram/trigram scoring

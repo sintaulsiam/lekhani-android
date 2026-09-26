@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
@@ -454,10 +456,47 @@ private fun LayoutsTabContent(
 ) {
     val scrollState = rememberScrollState()
 
+    var orderedLayouts by remember {
+        val saved = LayoutRegistry.parseEnabledLayouts(prefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null))
+        val missing = LayoutRegistry.all.filter { !saved.contains(it) }
+        mutableStateOf(saved + missing)
+    }
+
     var enabledLayouts by remember {
         mutableStateOf(
-            LayoutRegistry.parseEnabledLayouts(prefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null))
+            LayoutRegistry.parseEnabledLayouts(prefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null)).toSet()
         )
+    }
+
+    fun persistLayouts(newOrder: List<LekhaniLayoutType>, newEnabled: Set<LekhaniLayoutType>) {
+        orderedLayouts = newOrder
+        enabledLayouts = newEnabled
+        val enabledOrdered = newOrder.filter { newEnabled.contains(it) }
+        prefs.edit().putString(
+            LayoutRegistry.PREF_ENABLED_LAYOUTS,
+            LayoutRegistry.serializeEnabledLayouts(enabledOrdered)
+        ).apply()
+        enabledOrdered.firstOrNull()?.let { primary ->
+            prefs.edit().putString(LayoutRegistry.PREF_ACTIVE_LAYOUT, primary.name).apply()
+        }
+    }
+
+    fun moveLayout(fromIndex: Int, toIndex: Int) {
+        if (fromIndex in orderedLayouts.indices && toIndex in orderedLayouts.indices) {
+            val mutable = orderedLayouts.toMutableList()
+            val item = mutable.removeAt(fromIndex)
+            mutable.add(toIndex, item)
+            persistLayouts(mutable, enabledLayouts)
+        }
+    }
+
+    fun toggleLayout(type: LekhaniLayoutType, isChecked: Boolean) {
+        val updated = if (isChecked) {
+            enabledLayouts + type
+        } else {
+            if (enabledLayouts.size > 1) enabledLayouts - type else enabledLayouts
+        }
+        persistLayouts(orderedLayouts, updated)
     }
 
     var isEnabled by remember { mutableStateOf(false) }
@@ -558,7 +597,7 @@ private fun LayoutsTabContent(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = if (isEnglish) "Active as default keyboard"
-                                   else "ডিফল্ট কীবোর্ড হিসেবে সক্রিয় আছে",
+                                   else "ডিফল্ট কীবোর্ড চালু আছে",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -572,7 +611,7 @@ private fun LayoutsTabContent(
                         modifier = Modifier.height(30.dp)
                     ) {
                         Text(
-                            text = if (isEnglish) "Switch" else "পরিবর্তন",
+                            text = if (isEnglish) "Switch" else "বদলান",
                             fontSize = 11.5.sp
                         )
                     }
@@ -707,7 +746,7 @@ private fun LayoutsTabContent(
                         )
                         Text(
                             text = if (isEnglish) "${clips.size} clips • $savedCount saved"
-                                   else "${clips.size}টি ক্লিপ • ${savedCount}টি সংরক্ষিত",
+                                   else "${clips.size}টি ক্লিপ • ${savedCount}টি সেভ করা",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -724,7 +763,7 @@ private fun LayoutsTabContent(
             }
         }
 
-        // ── Layout Selection ────────────────────────────────────────────────────
+        // ── 3. Keyboard Layout Selection & Ordering Card ───────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -733,61 +772,121 @@ private fun LayoutsTabContent(
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = if (isEnglish) "Keyboard Layouts" else "কীবোর্ড লেআউট",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = if (isEnglish) "Choose layouts to use while typing"
-                           else "টাইপ করার জন্য লেআউটগুলো বেছে নিন",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Keyboard,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Keyboard Layouts & Priority" else "কীবোর্ড লেআউট ও অগ্রাধিকার",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                        Text(
+                            text = if (isEnglish) "Reorder cycling sequence or toggle layouts"
+                                   else "লেআউটের ক্রম সাজান এবং চালু বা বন্ধ রাখুন",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                 )
 
-                val allLayouts = listOf(
-                    Triple(LekhaniLayoutType.PROBAHO, "Lekhani প্রবাহ (Probaho)", if (isEnglish) "Two-thumb ergonomic layout (vowels left, consonants right)" else "দুই হাতের বুড়ো আঙুলে দ্রুত টাইপিং লেআউট"),
-                    Triple(LekhaniLayoutType.AVRO, "অভ্র ফোনেটিক (Avro)", if (isEnglish) "Phonetic transliteration (ami → আমি)" else "ইংরেজি অক্ষরে ফোনেটিক টাইপিং (ami → আমি)"),
-                    Triple(LekhaniLayoutType.NATIONAL, "জাতীয় (BBS National)", if (isEnglish) "Official BBS National standard" else "জাতীয় (BBS) অফিশিয়াল লেআউট"),
-                    Triple(LekhaniLayoutType.PROBHAT, "প্রভাত (Probhat)", if (isEnglish) "Probhat fixed phonetic layout" else "জনপ্রিয় প্রভাত ফিক্সড লেআউট"),
-                    Triple(LekhaniLayoutType.GBOARD, "জি-বোর্ড বাংলা (Gboard Style)", if (isEnglish) "Standard Android Bengali layout" else "অ্যান্ড্রয়েড স্ট্যান্ডার্ড বাংলা লেআউট"),
-                    Triple(LekhaniLayoutType.ENGLISH, "English (QWERTY)", if (isEnglish) "Standard alphanumeric QWERTY" else "আন্তর্জাতিক ইংরেজি QWERTY"),
-                )
-
-                allLayouts.forEachIndexed { index, (type, title, desc) ->
+                orderedLayouts.forEachIndexed { index, type ->
                     val isChecked = enabledLayouts.contains(type)
+                    val isPrimary = isChecked && (type == orderedLayouts.firstOrNull { enabledLayouts.contains(it) })
+                    val title = if (isEnglish) LayoutRegistry.getEnglishName(type) else LayoutRegistry.getBengaliName(type)
+                    val desc = LayoutRegistry.getDescription(type, isEnglish)
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
-                            Text(text = desc, style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
-                        }
-                        Switch(
-                            checked = isChecked,
-                            onCheckedChange = { checked ->
-                                val updated = if (checked) {
-                                    enabledLayouts + type
-                                } else {
-                                    if (enabledLayouts.size > 1) enabledLayouts - type else enabledLayouts
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isChecked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+                                if (isPrimary) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                    ) {
+                                        Text(
+                                            text = if (isEnglish) "Default" else "ডিফল্ট",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Bold
+                                            ),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
                                 }
-                                enabledLayouts = updated
-                                prefs.edit().putString(
-                                    LayoutRegistry.PREF_ENABLED_LAYOUTS,
-                                    LayoutRegistry.serializeEnabledLayouts(updated)
-                                ).apply()
                             }
-                        )
+                            Text(
+                                text = desc,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                        }
+
+                        // Reorder controls
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { moveLayout(index, index - 1) },
+                                enabled = index > 0,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowUp,
+                                    contentDescription = if (isEnglish) "Move Up" else "উপরে নিন",
+                                    tint = if (index > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { moveLayout(index, index + 1) },
+                                enabled = index < orderedLayouts.lastIndex,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = if (isEnglish) "Move Down" else "নিচে নিন",
+                                    tint = if (index < orderedLayouts.lastIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            Switch(
+                                checked = isChecked,
+                                enabled = !isChecked || enabledLayouts.size > 1,
+                                onCheckedChange = { toggleLayout(type, it) }
+                            )
+                        }
                     }
-                    if (index < allLayouts.size - 1) {
+
+                    if (index < orderedLayouts.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(vertical = 4.dp),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
                         )
                     }
                 }
