@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">লেখনী কীবোর্ড</string>
+    <string name="launcher_name">লেখনী</string>
+    <string name="ime_name">লেখনী</string>
+    <string name="settings_title">লেখনী সেটিংস</string>
+
+    <string name="subtype_probaho">লেখনী প্রবাহ (Flow)</string>
+    <string name="subtype_avro">অভ্র ফোনেটিক (Avro)</string>
+    <string name="subtype_national">জাতীয় (National)</string>
+    <string name="subtype_probhat">প্রভাত (Probhat)</string>
+    <string name="subtype_gboard">জি-বোর্ড বাংলা (Gboard)</string>
+    <string name="subtype_english">ইংরেজি (English QWERTY)</string>
+</resources>
