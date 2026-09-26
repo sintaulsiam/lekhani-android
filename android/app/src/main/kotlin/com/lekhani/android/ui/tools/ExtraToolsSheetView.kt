@@ -181,25 +181,46 @@ fun ExtraToolsSheetView(
         }
     }
 
-    // Calculate Vault placement target index
-    val fromVaultIndex = if (!dragFromToolbar && draggedTool != null) vaultTools.indexOf(draggedTool) else -1
-    val vaultDropIndex = remember(currentTouchPosInRoot, vaultTools.size, isHoveringVault, fromVaultIndex) {
+    // Calculate Vault placement target index (row-aware 2D grid insertion)
+    val vaultPlacement = remember(currentTouchPosInRoot, vaultTools.size, isHoveringVault) {
         if (!isHoveringVault || vaultTools.isEmpty()) {
-            vaultTools.size
+            Triple(0, 0, vaultTools.size)
         } else {
-            var closest = vaultTools.size
-            var minDist = Float.MAX_VALUE
-            for (i in vaultTools.indices) {
-                val b = vaultItemBounds[i] ?: continue
-                val dist = (b.center - currentTouchPosInRoot).getDistance()
-                if (dist < minDist) {
-                    minDist = dist
-                    closest = i
+            val chunked = vaultTools.chunked(3)
+            var closestRow = 0
+            var minRowDist = Float.MAX_VALUE
+            for (r in chunked.indices) {
+                val firstItemIdx = r * 3
+                val b = (0 until chunked[r].size).firstNotNullOfOrNull { c -> vaultItemBounds[firstItemIdx + c] } ?: continue
+                val distY = kotlin.math.abs(b.center.y - currentTouchPosInRoot.y)
+                if (distY < minRowDist) {
+                    minRowDist = distY
+                    closestRow = r
                 }
             }
-            closest
+
+            val rowTools = chunked[closestRow]
+            val rowStartIdx = closestRow * 3
+            var rowTarget = rowTools.size
+            for (c in rowTools.indices) {
+                val itemIdx = rowStartIdx + c
+                val b = vaultItemBounds[itemIdx] ?: continue
+                if (currentTouchPosInRoot.x < b.center.x) {
+                    rowTarget = c
+                    break
+                }
+            }
+
+            val flatIdx = (rowStartIdx + rowTarget).coerceIn(0, vaultTools.size)
+            Triple(closestRow, rowTarget, flatIdx)
         }
     }
+    val vaultDropRow = vaultPlacement.first
+    val vaultDropCol = vaultPlacement.second
+    val vaultDropIndex = vaultPlacement.third
+
+    val currentToolbarDropIndex by rememberUpdatedState(toolbarDropIndex)
+    val currentVaultDropIndex by rememberUpdatedState(vaultDropIndex)
 
     Box(
         modifier = Modifier
@@ -545,9 +566,9 @@ fun ExtraToolsSheetView(
 
                                                     val vTop = if (vaultZoneBounds.top > 0) vaultZoneBounds.top else (rootBounds.top + 140f)
                                                     if (touchPos.y < vTop) {
-                                                        reorderActive(tool, toolbarDropIndex)
+                                                        reorderActive(tool, currentToolbarDropIndex)
                                                     } else {
-                                                        sendToVault(tool, vaultDropIndex)
+                                                        sendToVault(tool, currentVaultDropIndex)
                                                     }
                                                 } else {
                                                     sendToVault(tool)
@@ -664,12 +685,23 @@ fun ExtraToolsSheetView(
                                 .height(56.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = if (isEnglish) "Vault is empty — all tools on toolbar"
-                                       else "ভল্ট খালি — সকল টুল কীবোর্ড টুলবারে আছে",
-                                fontSize = 11.sp,
-                                color = subTextColor
-                            )
+                            if (isHoveringVault) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(5.dp)
+                                        .height(26.dp)
+                                        .shadow(6.dp, CircleShape, spotColor = accentColor)
+                                        .clip(CircleShape)
+                                        .background(accentColor)
+                                )
+                            } else {
+                                Text(
+                                    text = if (isEnglish) "Vault is empty — all tools on toolbar"
+                                           else "ভল্ট খালি — সকল টুল কীবোর্ড টুলবারে আছে",
+                                    fontSize = 11.sp,
+                                    color = subTextColor
+                                )
+                            }
                         }
                     } else {
                         val chunked = vaultTools.chunked(3)
@@ -677,17 +709,32 @@ fun ExtraToolsSheetView(
                             verticalArrangement = Arrangement.spacedBy(5.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            for (row in chunked) {
+                            chunked.forEachIndexed { rowIndex, row ->
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    for (tool in row) {
-                                        val index = vaultTools.indexOf(tool)
+                                    val rowStartIdx = rowIndex * 3
+                                    row.forEachIndexed { colIndex, tool ->
+                                        val index = rowStartIdx + colIndex
                                         val isThisBeingDragged = (draggedTool == tool)
-                                        val isDropTargetSlot = (isHoveringVault && vaultDropIndex == index && (!dragFromToolbar || true))
+                                        val showInsertionIndicator = (isHoveringVault && vaultDropRow == rowIndex && vaultDropCol == colIndex)
                                         var itemCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
+                                        // ── VISIBLE INSERTION INDICATOR (Before item) ─────────
+                                        if (showInsertionIndicator) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(5.dp)
+                                                    .height(26.dp)
+                                                    .shadow(6.dp, CircleShape, spotColor = accentColor)
+                                                    .clip(CircleShape)
+                                                    .background(accentColor)
+                                            )
+                                        }
+
+                                        // ── Tool Pill Box (28dp height) ──────────────────────
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
@@ -697,16 +744,10 @@ fun ExtraToolsSheetView(
                                                     vaultItemBounds[index] = coords.boundsInRoot()
                                                 }
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(
-                                                    if (isThisBeingDragged) accentColor.copy(alpha = 0.08f)
-                                                    else if (isDropTargetSlot && !isThisBeingDragged) accentColor.copy(alpha = 0.32f)
-                                                    else cardBg
-                                                )
+                                                .background(if (isThisBeingDragged) accentColor.copy(alpha = 0.08f) else cardBg)
                                                 .border(
-                                                    if (isDropTargetSlot && !isThisBeingDragged) 2.dp else 1.dp,
-                                                    if (isThisBeingDragged) accentColor.copy(alpha = 0.35f)
-                                                    else if (isDropTargetSlot && !isThisBeingDragged) accentColor
-                                                    else borderColor,
+                                                    1.dp,
+                                                    if (isThisBeingDragged) accentColor.copy(alpha = 0.35f) else borderColor,
                                                     RoundedCornerShape(10.dp)
                                                 )
                                                 .pointerInput(tool, index) {
@@ -755,9 +796,9 @@ fun ExtraToolsSheetView(
 
                                                                 val vTop = if (vaultZoneBounds.top > 0) vaultZoneBounds.top else (rootBounds.top + 140f)
                                                                 if (touchPos.y < vTop) {
-                                                                    bringToToolbar(tool, toolbarDropIndex)
+                                                                    bringToToolbar(tool, currentToolbarDropIndex)
                                                                 } else {
-                                                                    reorderVault(tool, vaultDropIndex)
+                                                                    reorderVault(tool, currentVaultDropIndex)
                                                                 }
                                                             } else {
                                                                 bringToToolbar(tool)
@@ -778,19 +819,15 @@ fun ExtraToolsSheetView(
                                                     Icon(
                                                         imageVector = tool.iconVector,
                                                         contentDescription = null,
-                                                        tint = if (isDropTargetSlot) accentColor else textColor,
+                                                        tint = accentColor,
                                                         modifier = Modifier.size(14.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(3.dp))
                                                     Text(
-                                                        text = if (isDropTargetSlot) {
-                                                            if (isEnglish) "Place" else "বসবে"
-                                                        } else {
-                                                            if (isEnglish) tool.titleEnglish else tool.titleBengali
-                                                        },
+                                                        text = if (isEnglish) tool.titleEnglish else tool.titleBengali,
                                                         fontSize = 10.5.sp,
-                                                        fontWeight = if (isDropTargetSlot) FontWeight.Bold else FontWeight.Medium,
-                                                        color = if (isDropTargetSlot) accentColor else textColor,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = textColor,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
@@ -810,6 +847,20 @@ fun ExtraToolsSheetView(
                                             }
                                         }
                                     }
+
+                                    // ── VISIBLE INSERTION INDICATOR (At the end of row) ───
+                                    val showEndIndicator = (isHoveringVault && vaultDropRow == rowIndex && vaultDropCol == row.size)
+                                    if (showEndIndicator) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(5.dp)
+                                                .height(26.dp)
+                                                .shadow(6.dp, CircleShape, spotColor = accentColor)
+                                                .clip(CircleShape)
+                                                .background(accentColor)
+                                        )
+                                    }
+
                                     repeat(3 - row.size) {
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
