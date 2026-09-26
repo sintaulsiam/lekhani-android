@@ -72,7 +72,14 @@
 - [x] Contextual homophone disambiguation badges with preview (*পড়া* vs *পরা*, *খাব* vs *যাব*) via `HomophoneAnnotator`.
 - [x] Real-time next-word continuations upon committing tokens.
 - [x] Colloquial Bengali suffix peeling & grammar morphology.
-- [x] **Candidate Blacklisting**: Long-press any candidate in the strip to remove accidental typos from memory (`CandidateBlacklist.kt`).
+- [x] Candidate Blacklisting: Long-press any candidate in the strip to remove accidental typos from memory (`CandidateBlacklist.kt`).
+- [x] **100% Offline English Suggestions & Autocorrect (Phase 4 Extension)**:
+  - Compact ~60,000-word binary PrefixTrie (`data/dictionaries/english_dict.bin`, 0.97 MB) compiled into APK assets.
+  - QWERTY proximity fat-finger correction and character transposition recovery in Rust.
+  - Casing preservation (lowercase, Titlecase, UPPERCASE).
+  - **Option B Conservative Spacebar**: Spacebar commits typed text verbatim without force-correcting; suggestions remain active in candidate strip.
+  - Conversational next-word bigram predictive pairs.
+  - Unit tests in `english.rs` and `session.rs` passing cleanly.
 - [x] Unit test suite (`HomophoneAnnotatorTest.kt`) covering pair detection, reverse mappings, and primary selection.
 
 ---
@@ -97,7 +104,10 @@
 - [x] Long-press skin-tone and gender modifiers popup.
 - [x] Kaomoji & emoticons picker (`(◕‿◕)`, `¯\_(ツ)_/¯`, `(ノಠ益ಠ)ノ彡┻━┻`) in `KaomojiData.kt`.
 - [x] Specialized math, currency (`৳`, `$`, `€`, `¥`, `₹`), and Bengali typographical symbols in `SymbolData.kt`.
-- [x] Smart local clipboard manager (`LekhaniClipboardStore.kt` & `ClipboardSheetView.kt`) with clip pinning and auto-clearing sensitive content.
+- [x] **High-Priority Clipboard Suite & Vault**:
+  - Dedicated primary navigation tab in settings and quick-access Hero Card on Home tab.
+  - Keyboard clipboard sheet with inline clip editor dialog, "+ New Clip" modal, and direct "Editor" jump button.
+  - Zero-crash thread-safe storage with atomic monotonic ID generation, duplicate key protection in Compose `LazyColumn`, and auto-purging of sensitive passwords.
 - [x] Unit test suites in `EmojiSearchTest.kt` and `ClipboardStoreTest.kt`.
 
 ---

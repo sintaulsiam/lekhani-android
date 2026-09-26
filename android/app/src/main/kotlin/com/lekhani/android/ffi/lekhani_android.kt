@@ -766,6 +766,8 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -816,6 +818,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_composing(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_private_field(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_load_english_dictionary(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_process_key(`ptr`: Pointer,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -981,6 +985,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_private_field(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_load_english_dictionary(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_reset(
@@ -1046,7 +1052,7 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_backspace() != 7915.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space() != 16343.toShort()) {
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space() != 25565.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_import_dictionary_json() != 23372.toShort()) {
@@ -1059,6 +1065,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_private_field() != 30605.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_load_english_dictionary() != 2072.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key() != 59149.toShort()) {
@@ -1519,6 +1528,8 @@ public interface AndroidLekhaniSessionInterface {
     
     /**
      * Handle Spacebar tap: NFC-normalize and commit the current composing buffer.
+     * Under Option B (Conservative spacebar), commits typed text verbatim without
+     * forced autocorrect, followed by English or Bengali next-word predictions.
      */
     fun `handleSpace`(): TypingResult
     
@@ -1541,6 +1552,11 @@ public interface AndroidLekhaniSessionInterface {
      * Returns whether the session is currently in a private/password field.
      */
     fun `isPrivateField`(): kotlin.Boolean
+    
+    /**
+     * Explicitly loads an English dictionary from an external file path.
+     */
+    fun `loadEnglishDictionary`(`path`: kotlin.String): kotlin.Boolean
     
     /**
      * Process a typed character or key token.
@@ -1826,6 +1842,8 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     
     /**
      * Handle Spacebar tap: NFC-normalize and commit the current composing buffer.
+     * Under Option B (Conservative spacebar), commits typed text verbatim without
+     * forced autocorrect, followed by English or Bengali next-word predictions.
      */
     @Throws(LekhaniException::class)override fun `handleSpace`(): TypingResult {
             return FfiConverterTypeTypingResult.lift(
@@ -1895,6 +1913,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_is_private_field(
         it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Explicitly loads an English dictionary from an external file path.
+     */override fun `loadEnglishDictionary`(`path`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_load_english_dictionary(
+        it, FfiConverterString.lower(`path`),_status)
 }
     }
     )

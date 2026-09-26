@@ -19,6 +19,12 @@
 - **Next-Word Continuations**: Multi-token predictions displayed immediately after space.
 - **Colloquial Spoken Bengali Suffix Peeling**: Seamlessly handles modern dialects (`kortesi`, `jaitasi`, `khaitam`).
 - **Candidate Blacklisting**: Long-press any candidate in the strip to remove unwanted typos or suggestions from memory.
+- **100% Offline English Suggestions & Autocorrect**:
+  - Compact ~60,000-word binary PrefixTrie (< 1 MB on disk) with sub-millisecond lookups.
+  - QWERTY adjacency fat-finger correction (distance 1 proximity + letter transpositions).
+  - Casing preservation (handles lowercase, Titlecase, and ALL-CAPS acronyms).
+  - **Option B Conservative Spacebar**: Spacebar commits typed characters verbatim without force-swapping words unless a candidate pill is explicitly tapped.
+  - Conversational next-word bigram predictive pairs.
 
 ## 3. Bengali Script Precision & Complex Text
 - **Dedicated ZWJ (`\u200D`) and ZWNJ (`\u200C`) Keys**: Clean, accessible control over explicit Hasanta, Khanda-Ta (`ৎ`), and Ya-phala (`্য`).
@@ -32,7 +38,10 @@
 - **Recents & Favorites Shelf**: Quick access to frequently used emojis with local persistence.
 - **Diverse Modifiers**: Long-press on person/hand emojis for skin-tone and gender selection.
 - **Kaomoji & Emoticons Picker**: Expressive text emoticons (`(◕‿◕)`, `¯\_(ツ)_/¯`, etc.).
-- **Smart Local Clipboard**: Pinned clips, one-tap paste, and auto-purging of sensitive passwords.
+- **Smart Local Clipboard & Vault**:
+  - Dedicated primary navigation tab in settings and quick-access hero card on Home.
+  - Keyboard clipboard sheet with inline clip editor dialog, "+ New Clip" modal, and direct "Editor" jump button.
+  - Clip pinning, duplicate key protection, and auto-purging of sensitive passwords.
 
 ## 5. 100% Local / On-Device Voice Typing
 - **Zero-Cloud Offline Speech Recognition**: Bengali and English voice typing powered entirely on-device (via embedded local ASR like `sherpa-onnx` / `vosk-android`).

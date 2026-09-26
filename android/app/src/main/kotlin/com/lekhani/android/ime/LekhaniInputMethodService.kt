@@ -196,6 +196,10 @@ class LekhaniInputMethodService : InputMethodService() {
         // Unpack bundled offline dictionaries and layouts to application storage
         try {
             LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
+            val englishDictFile = java.io.File(filesDir, "dictionaries/english_dict.bin")
+            if (englishDictFile.exists()) {
+                session.loadEnglishDictionary(englishDictFile.absolutePath)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error installing offline assets: ${e.message}")
         }
@@ -210,14 +214,19 @@ class LekhaniInputMethodService : InputMethodService() {
         // Listen for system clipboard updates; guard against private field capture
         val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
         sysClipboard?.addPrimaryClipChangedListener {
-            if (!isCurrentFieldPrivate) {
-                val clip = sysClipboard.primaryClip
-                if (clip != null && clip.itemCount > 0) {
-                    val text = clip.getItemAt(0)?.text?.toString()
-                    if (!text.isNullOrBlank()) {
-                        clipboardStore.addClip(text)
+            runCatching {
+                if (!isCurrentFieldPrivate) {
+                    val clip = sysClipboard.primaryClip
+                    if (clip != null && clip.itemCount > 0) {
+                        val item = clip.getItemAt(0)
+                        val text = item?.text?.toString() ?: item?.coerceToText(this@LekhaniInputMethodService)?.toString()
+                        if (!text.isNullOrBlank()) {
+                            clipboardStore.addClip(text)
+                        }
                     }
                 }
+            }.onFailure { e ->
+                Log.w(TAG, "Failed to read primary clip: ${e.message}")
             }
         }
     }
@@ -620,14 +629,27 @@ class LekhaniInputMethodService : InputMethodService() {
                         clipboardStore = clipboardStore,
                         theme = activeTheme,
                         onPaste = { text ->
-                            currentInputConnection?.commitText(text, 1)
+                            runCatching { currentInputConnection?.commitText(text, 1) }
                             setInputViewMode(InputViewMode.KEYBOARD)
                         },
+                        onOpenEditor = { openClipboardEditor() },
                         onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
                     )
                 }
                 clipboardView?.visibility = View.VISIBLE
             }
+        }
+    }
+
+    private fun openClipboardEditor() {
+        try {
+            val intent = Intent(this, com.lekhani.android.ui.LekhaniSettingsActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(com.lekhani.android.ui.LekhaniSettingsActivity.EXTRA_OPEN_CLIPBOARD, true)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to launch clipboard editor: ${e.message}")
         }
     }
 

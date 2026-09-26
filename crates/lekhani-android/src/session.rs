@@ -240,13 +240,56 @@ impl AndroidLekhaniSession {
             }
 
             LekhaniLayoutType::English => {
-                // Pass-through; NFC on commit even for English (handles copy-paste of mixed text)
-                Ok(TypingResult {
-                    preedit: String::new(),
-                    commit_text: Some(nfc_normalize(&key)),
-                    candidates: Vec::new(),
-                    cursor_position: 0,
-                })
+                if state.is_private_field {
+                    return Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: Some(nfc_normalize(&key)),
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    });
+                }
+
+                // If key is a word character (letters, apostrophe, hyphen)
+                let is_word_char = key.chars().all(|c| c.is_alphabetic() || c == '\'' || c == '-');
+                if is_word_char {
+                    state.composing_buffer.push_str(&key);
+                    let candidates = crate::english::get_english_candidates(&state.composing_buffer, 5);
+                    let len = state.composing_buffer.len() as u32;
+                    Ok(TypingResult {
+                        preedit: state.composing_buffer.clone(),
+                        commit_text: None,
+                        candidates,
+                        cursor_position: len,
+                    })
+                } else {
+                    // Punctuation, digits, or symbols: commit buffer + key
+                    if !state.composing_buffer.is_empty() {
+                        let mut committed = std::mem::take(&mut state.composing_buffer);
+                        state.composing_buffer = String::with_capacity(64);
+                        if !state.surrounding_context.is_empty() {
+                            state.surrounding_context.push(' ');
+                        }
+                        state.surrounding_context.push_str(&committed);
+                        committed.push_str(&key);
+
+                        let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                        let next_words = crate::english::get_english_next_words(&words, 5);
+
+                        Ok(TypingResult {
+                            preedit: String::new(),
+                            commit_text: Some(nfc_normalize(&committed)),
+                            candidates: next_words,
+                            cursor_position: 0,
+                        })
+                    } else {
+                        Ok(TypingResult {
+                            preedit: String::new(),
+                            commit_text: Some(nfc_normalize(&key)),
+                            candidates: Vec::new(),
+                            cursor_position: 0,
+                        })
+                    }
+                }
             }
 
             _ => {
@@ -316,10 +359,12 @@ impl AndroidLekhaniSession {
             }
             LekhaniLayoutType::English => {
                 let lower = raw_token.to_lowercase();
+                let candidates = crate::english::get_english_candidates(&lower, 5);
+                let top_word = if candidates.is_empty() { lower.clone() } else { candidates[0].clone() };
                 Ok(TypingResult {
-                    preedit: lower.clone(),
-                    commit_text: Some(format!("{} ", lower)),
-                    candidates: vec![lower],
+                    preedit: lower,
+                    commit_text: Some(format!("{} ", top_word)),
+                    candidates,
                     cursor_position: 0,
                 })
             }
@@ -470,6 +515,25 @@ impl AndroidLekhaniSession {
                         cursor_position: len,
                     })
                 }
+            } else if state.layout == LekhaniLayoutType::English {
+                state.composing_buffer.pop();
+                if state.composing_buffer.is_empty() {
+                    Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    })
+                } else {
+                    let candidates = crate::english::get_english_candidates(&state.composing_buffer, 5);
+                    let len = state.composing_buffer.len() as u32;
+                    Ok(TypingResult {
+                        preedit: state.composing_buffer.clone(),
+                        commit_text: None,
+                        candidates,
+                        cursor_position: len,
+                    })
+                }
             } else {
                 // Collect grapheme cluster byte-index boundaries
                 let last_grapheme_start = state
@@ -509,6 +573,8 @@ impl AndroidLekhaniSession {
     // ── Spacebar ─────────────────────────────────────────────────────────────
 
     /// Handle Spacebar tap: NFC-normalize and commit the current composing buffer.
+    /// Under Option B (Conservative spacebar), commits typed text verbatim without
+    /// forced autocorrect, followed by English or Bengali next-word predictions.
     pub fn handle_space(&self) -> Result<TypingResult, LekhaniError> {
         let mut state = self
             .state
@@ -534,9 +600,18 @@ impl AndroidLekhaniSession {
             }
             state.surrounding_context.push_str(&word);
 
-            let predictor = lekhani_ai::NextWordPredictor::new();
-            let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-            let next_words = predictor.predict_next(&words, 5);
+            let next_words = if state.layout == LekhaniLayoutType::English {
+                if state.is_private_field {
+                    Vec::new()
+                } else {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    crate::english::get_english_next_words(&words, 5)
+                }
+            } else {
+                let predictor = lekhani_ai::NextWordPredictor::new();
+                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                predictor.predict_next(&words, 5)
+            };
 
             Ok(TypingResult {
                 preedit: String::new(),
@@ -545,9 +620,18 @@ impl AndroidLekhaniSession {
                 cursor_position: 0,
             })
         } else {
-            let predictor = lekhani_ai::NextWordPredictor::new();
-            let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-            let next_words = predictor.predict_next(&words, 5);
+            let next_words = if state.layout == LekhaniLayoutType::English {
+                if state.is_private_field {
+                    Vec::new()
+                } else {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    crate::english::get_english_next_words(&words, 5)
+                }
+            } else {
+                let predictor = lekhani_ai::NextWordPredictor::new();
+                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                predictor.predict_next(&words, 5)
+            };
 
             Ok(TypingResult {
                 preedit: String::new(),
@@ -578,9 +662,18 @@ impl AndroidLekhaniSession {
         }
         state.surrounding_context.push_str(&normalized);
 
-        let predictor = lekhani_ai::NextWordPredictor::new();
-        let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-        let next_words = predictor.predict_next(&words, 5);
+        let next_words = if state.layout == LekhaniLayoutType::English {
+            if state.is_private_field {
+                Vec::new()
+            } else {
+                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                crate::english::get_english_next_words(&words, 5)
+            }
+        } else {
+            let predictor = lekhani_ai::NextWordPredictor::new();
+            let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+            predictor.predict_next(&words, 5)
+        };
 
         Ok(TypingResult {
             preedit: String::new(),
@@ -608,6 +701,11 @@ impl AndroidLekhaniSession {
             .lock()
             .map(|s| !s.composing_buffer.is_empty())
             .unwrap_or(false)
+    }
+
+    /// Explicitly loads an English dictionary from an external file path.
+    pub fn load_english_dictionary(&self, path: String) -> bool {
+        crate::english::load_english_dictionary_from_path(&path)
     }
 }
 
@@ -763,6 +861,51 @@ mod tests {
         let imported = session.import_raw_words(vec!["শব্দএক".into(), "শব্দদুই".into()]).unwrap();
         assert_eq!(imported, 2);
         assert!(session.get_user_words().unwrap().contains(&"শব্দএক".to_string()));
+    }
+
+    #[test]
+    fn test_english_suggestions_session() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::English);
+        assert_eq!(session.get_layout(), LekhaniLayoutType::English);
+
+        // Type 'h' -> 'e' -> 'l' -> 'l'
+        let _ = session.process_key("h".into()).unwrap();
+        let _ = session.process_key("e".into()).unwrap();
+        let _ = session.process_key("l".into()).unwrap();
+        let res = session.process_key("l".into()).unwrap();
+        assert_eq!(res.preedit, "hell");
+        assert!(session.is_composing());
+        assert!(!res.candidates.is_empty());
+        assert_eq!(res.candidates[0], "hell");
+
+        // Option B: Space commits verbatim "hell " without force-correcting
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(space_res.commit_text, Some("hell ".into()));
+        assert!(!session.is_composing());
+
+        // Backspace test
+        let _ = session.process_key("t".into()).unwrap();
+        let _ = session.process_key("e".into()).unwrap();
+        let _ = session.process_key("s".into()).unwrap();
+        let _ = session.process_key("t".into()).unwrap();
+        assert_eq!(session.handle_backspace().unwrap().preedit, "tes");
+        session.reset();
+
+        // Candidate selection commits chosen word + trailing space
+        let _ = session.process_key("t".into()).unwrap();
+        let _ = session.process_key("h".into()).unwrap();
+        let sel = session.select_candidate("the".into()).unwrap();
+        assert_eq!(sel.commit_text, Some("the ".into()));
+        assert!(!session.is_composing());
+
+        // Private field test: bypasses composing
+        session.set_private_field(true);
+        let priv_res = session.process_key("a".into()).unwrap();
+        assert_eq!(priv_res.commit_text, Some("a".into()));
+        assert_eq!(priv_res.preedit, "");
+        assert!(priv_res.candidates.is_empty());
+        assert!(!session.is_composing());
     }
 }
 
