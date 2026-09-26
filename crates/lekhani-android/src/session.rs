@@ -395,7 +395,7 @@ impl AndroidLekhaniSession {
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
-        if keys.is_empty() {
+        if keys.len() < 2 {
             return Ok(TypingResult {
                 preedit: String::new(),
                 commit_text: None,
@@ -404,59 +404,127 @@ impl AndroidLekhaniSession {
             });
         }
 
-        let raw_token = keys.join("");
         match state.layout {
             LekhaniLayoutType::Avro => {
-                let (preedit, mut candidates) = crate::avro::transliterate_avro(&raw_token);
+                let raw_token = keys.join("");
+                let (_preedit, mut candidates) = crate::avro::transliterate_avro(&raw_token);
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
                     let scorer = lekhani_ai::ContextScorer::new();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
-                let len = preedit.graphemes(true).count() as u32;
-                let top_word = if candidates.is_empty() { preedit.clone() } else { candidates[0].clone() };
-                Ok(TypingResult {
-                    preedit: preedit.clone(),
-                    commit_text: Some(format!("{} ", top_word)),
-                    candidates,
-                    cursor_position: len,
-                })
+
+                if candidates.is_empty() {
+                    Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    })
+                } else {
+                    let top_word = candidates[0].clone();
+                    let len = top_word.graphemes(true).count() as u32;
+                    Ok(TypingResult {
+                        preedit: top_word.clone(),
+                        commit_text: Some(format!("{} ", top_word)),
+                        candidates,
+                        cursor_position: len,
+                    })
+                }
             }
             LekhaniLayoutType::English => {
-                let lower = raw_token.to_lowercase();
-                let candidates = crate::english::get_english_candidates(&lower, 5);
-                let top_word = if candidates.is_empty() { lower.clone() } else { candidates[0].clone() };
-                Ok(TypingResult {
-                    preedit: lower,
-                    commit_text: Some(format!("{} ", top_word)),
-                    candidates,
-                    cursor_position: 0,
-                })
+                let mut candidates = crate::english::decode_english_glide(&keys, 5);
+                if candidates.is_empty() {
+                    let raw = keys.join("").to_lowercase();
+                    candidates = crate::english::get_english_candidates(&raw, 5);
+                }
+                if candidates.is_empty() {
+                    Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    })
+                } else {
+                    let top_word = candidates[0].clone();
+                    let len = top_word.graphemes(true).count() as u32;
+                    Ok(TypingResult {
+                        preedit: top_word.clone(),
+                        commit_text: Some(format!("{} ", top_word)),
+                        candidates,
+                        cursor_position: len,
+                    })
+                }
             }
             _ => {
                 // Bengali layouts (Probaho, Probhat, National, Gboard)
-                let normalized = nfc_normalize(&raw_token);
+                let start_key = &keys[0];
+                let end_key = keys.last().unwrap();
                 let db = get_core_database();
-                let mut candidates = vec![normalized.clone()];
-                let prefix_matches = db.trie.find_prefix_entries(&normalized, 4);
-                for (word, _) in prefix_matches {
-                    if !candidates.iter().any(|c| c == word) {
-                        candidates.push(word.to_string());
+                let entries = db.trie.find_prefix_entries(start_key, 250);
+                let mut scored: Vec<(String, i64)> = Vec::new();
+
+                for (word, freq) in entries {
+                    if !word.ends_with(end_key.as_str()) {
+                        continue;
+                    }
+                    let word_graphemes: Vec<&str> = word.graphemes(true).collect();
+                    let mut key_idx = 0;
+                    let mut matched = true;
+                    let mut prev = "";
+                    for g in word_graphemes {
+                        if g == prev {
+                            continue;
+                        }
+                        prev = g;
+                        let mut found = false;
+                        while key_idx < keys.len() {
+                            if keys[key_idx] == g {
+                                key_idx += 1;
+                                found = true;
+                                break;
+                            }
+                            key_idx += 1;
+                        }
+                        if !found {
+                            matched = false;
+                            break;
+                        }
+                    }
+                    if matched {
+                        let mut score = freq as i64;
+                        let len_diff = (word.len() as isize - keys.len() as isize).abs();
+                        score -= (len_diff as i64) * 30;
+                        scored.push((word.to_string(), score));
                     }
                 }
+
+                scored.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
+                let mut candidates: Vec<String> = scored.into_iter().take(5).map(|(w, _)| w).collect();
+
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
                     let scorer = lekhani_ai::ContextScorer::new();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
-                let len = normalized.graphemes(true).count() as u32;
-                let top_word = if candidates.is_empty() { normalized.clone() } else { candidates[0].clone() };
-                Ok(TypingResult {
-                    preedit: normalized.clone(),
-                    commit_text: Some(format!("{} ", top_word)),
-                    candidates,
-                    cursor_position: len,
-                })
+
+                if candidates.is_empty() {
+                    Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    })
+                } else {
+                    let top_word = candidates[0].clone();
+                    let len = top_word.graphemes(true).count() as u32;
+                    Ok(TypingResult {
+                        preedit: top_word.clone(),
+                        commit_text: Some(format!("{} ", top_word)),
+                        candidates,
+                        cursor_position: len,
+                    })
+                }
             }
         }
     }

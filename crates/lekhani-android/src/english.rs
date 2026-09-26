@@ -277,6 +277,115 @@ pub fn get_english_next_words(context: &[&str], limit: usize) -> Vec<String> {
     matches.into_iter().take(limit).collect()
 }
 
+/// Decodes a swipe gesture (sequence of visited keys) into high-probability English dictionary words.
+/// Uses start/end key bounding, QWERTY proximity tolerance, in-order subsequence verification,
+/// and trie frequency weighting.
+pub fn decode_english_glide(keys: &[String], limit: usize) -> Vec<String> {
+    decode_english_glide_with_trie(keys, get_english_trie(), limit)
+}
+
+pub fn decode_english_glide_with_trie(
+    keys: &[String],
+    trie: Option<&PrefixTrie>,
+    limit: usize,
+) -> Vec<String> {
+    if keys.len() < 2 {
+        return Vec::new();
+    }
+
+    let path_chars: Vec<char> = keys
+        .iter()
+        .filter_map(|k| k.chars().next().map(|c| c.to_ascii_lowercase()))
+        .collect();
+
+    if path_chars.len() < 2 {
+        return Vec::new();
+    }
+
+    let start_char = path_chars[0];
+    let end_char = *path_chars.last().unwrap();
+
+    let mut start_keys = vec![start_char];
+    for &adj in get_qwerty_adjacent_keys(start_char) {
+        if !start_keys.contains(&adj) {
+            start_keys.push(adj);
+        }
+    }
+
+    let mut end_keys = vec![end_char];
+    for &adj in get_qwerty_adjacent_keys(end_char) {
+        if !end_keys.contains(&adj) {
+            end_keys.push(adj);
+        }
+    }
+
+    let mut scored_candidates: Vec<(String, i64)> = Vec::new();
+
+    if let Some(trie) = trie {
+        for &sk in &start_keys {
+            let prefix = sk.to_string();
+            let entries = trie.find_prefix_entries(&prefix, 400);
+            for (word, freq) in entries {
+                if word.len() < 2 || word.len() > path_chars.len() + 3 {
+                    continue;
+                }
+                let last_c = match word.chars().last() {
+                    Some(c) => c.to_ascii_lowercase(),
+                    None => continue,
+                };
+                if !end_keys.contains(&last_c) {
+                    continue;
+                }
+                if matches_glide_subsequence(word, &path_chars) {
+                    let mut score = freq as i64;
+                    if word.starts_with(start_char) {
+                        score += 5000;
+                    }
+                    if last_c == end_char {
+                        score += 5000;
+                    }
+                    let len_diff = (word.len() as isize - path_chars.len() as isize).abs();
+                    score -= (len_diff as i64) * 40;
+
+                    if !scored_candidates.iter().any(|(w, _)| w == word) {
+                        scored_candidates.push((word.to_string(), score));
+                    }
+                }
+            }
+        }
+    }
+
+    scored_candidates.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
+    scored_candidates.into_iter().take(limit).map(|(w, _)| w).collect()
+}
+
+/// Checks whether `word` can be traced as an in-order subsequence along `path_chars`,
+/// accommodating consecutive repeated characters (e.g., 'll' in "hello").
+fn matches_glide_subsequence(word: &str, path_chars: &[char]) -> bool {
+    let mut path_idx = 0;
+    let mut prev_char = '\0';
+    for ch in word.chars() {
+        let lower = ch.to_ascii_lowercase();
+        if lower == prev_char {
+            continue;
+        }
+        prev_char = lower;
+        let mut matched = false;
+        while path_idx < path_chars.len() {
+            if path_chars[path_idx] == lower {
+                path_idx += 1;
+                matched = true;
+                break;
+            }
+            path_idx += 1;
+        }
+        if !matched {
+            return false;
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -340,5 +449,27 @@ mod tests {
 
         let next2 = get_english_next_words(&["thank"], 3);
         assert!(next2.contains(&"you".to_string()));
+    }
+
+    #[test]
+    fn test_glide_decoding_subsequence() {
+        let trie = sample_trie();
+        // User swiped across: h -> j -> u -> i -> e -> r -> l -> o (for "hello")
+        let gesture = vec![
+            "h".to_string(), "j".to_string(), "e".to_string(),
+            "r".to_string(), "l".to_string(), "o".to_string(),
+        ];
+        let cands = decode_english_glide_with_trie(&gesture, Some(&trie), 5);
+        assert!(!cands.is_empty());
+        assert_eq!(cands[0], "hello");
+
+        // Gesture: w -> e -> r -> t -> y -> u -> i -> o -> r -> l -> d (for "world")
+        let gesture_world = vec![
+            "w".to_string(), "e".to_string(), "o".to_string(),
+            "r".to_string(), "l".to_string(), "d".to_string(),
+        ];
+        let cands_world = decode_english_glide_with_trie(&gesture_world, Some(&trie), 5);
+        assert!(!cands_world.is_empty());
+        assert_eq!(cands_world[0], "world");
     }
 }

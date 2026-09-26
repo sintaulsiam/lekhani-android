@@ -67,6 +67,7 @@ fun FormFactorGesturesSheet(
     var spacebarSwipeMode by remember { mutableStateOf(prefs.spacebarSwipeMode) }
     var swipeToDelete by remember { mutableStateOf(prefs.swipeToDeleteEnabled) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
+    var glideTyping by remember { mutableStateOf(prefs.glideTypingEnabled) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -315,6 +316,32 @@ fun FormFactorGesturesSheet(
                                     onCheckedChange = { keyGlowRipple = it }
                                 )
                             }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Glide / Gesture Typing
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "গ্লাইড টাইপিং (Glide / Gesture Typing)",
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                    Text(
+                                        text = "কি-বোর্ডে আঙুল না তুলে সোয়াইপ করে দ্রুত টাইপ করুন (ডিফল্ট বন্ধ)",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Switch(
+                                    checked = glideTyping,
+                                    onCheckedChange = { glideTyping = it }
+                                )
+                            }
                         }
                     }
                 }
@@ -340,6 +367,7 @@ fun FormFactorGesturesSheet(
                         prefs.spacebarSwipeMode = spacebarSwipeMode
                         prefs.swipeToDeleteEnabled = swipeToDelete
                         prefs.keyGlowRippleEnabled = keyGlowRipple
+                        prefs.glideTypingEnabled = glideTyping
                         onClose()
                     },
                     modifier = Modifier.weight(1f),

@@ -105,6 +105,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var spaceCursorSlideEnabled: Boolean = true
     var swipeToDeleteEnabled: Boolean = true
     var keyGlowRippleEnabled: Boolean = true
+    var glideTypingEnabled: Boolean = false
 
     // Side Dock buttons for One-Handed mode (zero allocation in onDraw)
     enum class SideDockAction { EXPAND_STANDARD, SWAP_SIDE, TOGGLE_FLOATING }
@@ -373,6 +374,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
     }
 
+    private var backspaceRepeatCount = 0
+
     /** Pre-allocated runnable for continuous rapid Backspace deletion on hold (zero allocation) */
     private val backspaceRepeatRunnable = object : Runnable {
         override fun run() {
@@ -380,10 +383,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val key = resolvedKeys[pressedKeyIndex].key
                 if (key.action == KeyAction.Backspace) {
                     isLongPressTriggered = true
+                    backspaceRepeatCount++
                     feedbackManager?.onKeyFeedback(this@KeyboardCanvasView)
                         ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     keyListener?.onKey(key, KeyAction.Backspace)
-                    postDelayed(this, 50L)
+                    val nextDelay = if (backspaceRepeatCount > 10) 35L else 55L
+                    postDelayed(this, nextDelay)
                 }
             }
         }
@@ -478,6 +483,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.showHomeRowAccents = prefs.showHomeRowAccents
         this.swipeToDeleteEnabled = prefs.swipeToDeleteEnabled
         this.keyGlowRippleEnabled = prefs.keyGlowRippleEnabled
+        this.glideTypingEnabled = prefs.glideTypingEnabled
 
         val tf = when (prefs.fontStyle) {
             KeyboardPreferences.FONT_SERIF -> Typeface.SERIF
@@ -664,8 +670,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         glideStrokePaint.strokeWidth = 4.5f * density
         glideGlowPaint.strokeWidth = 11f * density
-        glideMinDistancePx = 16f * density
-        glideSampleDistSq = (8f * density) * (8f * density)
+        glideMinDistancePx = 52f * density
+        glideSampleDistSq = (18f * density) * (18f * density)
         spaceSlideTrackPaint.strokeWidth = 2.5f * density
         keyGlowPaint.strokeWidth = 2.2f * density
         sideDockTextPaint.textSize = 20f * density
@@ -1336,7 +1342,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         // ── Glide / Gesture typing trail (zero allocation, 120 FPS Bezier smoothing) ──
-        if (isGliding && glidePointCount > 0) {
+        if (glideTypingEnabled && isGliding && glidePointCount > 0) {
             glidePath.rewind()
             glidePath.moveTo(glidePointsX[0], glidePointsY[0])
             for (p in 1 until glidePointCount) {
@@ -1448,12 +1454,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
                     val key = resolvedKeys[idx].key
                     val keyAct = key.activeAction(isShifted)
-                    if (keyAct is KeyAction.Character) {
+                    if (glideTypingEnabled && keyAct is KeyAction.Character) {
                         glidePointsX[0] = px
                         glidePointsY[0] = py
                         glidePointCount = 1
+                        visitedGlideKeys.clear()
                         visitedGlideKeys.add(keyAct.token)
                         lastVisitedKeyIdx = idx
+                    }
+                    if (keyAct is KeyAction.Character) {
                         postDelayed(longPressRunnable, longPressDelayMs)
                     } else if (key.action == KeyAction.Space) {
                         spaceTouchStartX = px
@@ -1462,7 +1471,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         postDelayed(longPressRunnable, longPressDelayMs)
                     } else if (key.action == KeyAction.Backspace) {
                         backspaceSwipeStartX = px
-                        postDelayed(backspaceRepeatRunnable, 400L)
+                        backspaceRepeatCount = 0
+                        postDelayed(backspaceRepeatRunnable, 350L)
                     }
                     invalidate()
                 }
@@ -1478,7 +1488,19 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
                 val moveDistSq = (curX - touchStartX) * (curX - touchStartX) + (curY - touchStartY) * (curY - touchStartY)
                 val touchSlopPx = 8f * resources.displayMetrics.density
-                if (moveDistSq > touchSlopPx * touchSlopPx) {
+
+                val isOverBackspace = if (pressedKeyIndex in resolvedKeys.indices) {
+                    val bKey = resolvedKeys[pressedKeyIndex].key
+                    if (bKey.action == KeyAction.Backspace) {
+                        val bBounds = resolvedKeys[pressedKeyIndex].bounds
+                        val slopX = 28f * resources.displayMetrics.density
+                        val slopY = 20f * resources.displayMetrics.density
+                        curX >= bBounds.left - slopX && curX <= bBounds.right + slopX &&
+                        curY >= bBounds.top - slopY && curY <= bBounds.bottom + slopY
+                    } else false
+                } else false
+
+                if (!isOverBackspace && moveDistSq > touchSlopPx * touchSlopPx) {
                     removeCallbacks(longPressRunnable)
                     removeCallbacks(backspaceRepeatRunnable)
                 }
@@ -1579,7 +1601,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val totalDy = curY - touchStartY
                 val totalDistSq = totalDx * totalDx + totalDy * totalDy
 
-                if (!isGliding && !isSpaceSwiping && !isSpaceCursorMoving && !isBackspaceSwiping &&
+                if (glideTypingEnabled && !isGliding && !isSpaceSwiping && !isSpaceCursorMoving && !isBackspaceSwiping &&
                     totalDistSq > glideMinDistancePx * glideMinDistancePx) {
                     if (pressedKeyIndex in resolvedKeys.indices &&
                         resolvedKeys[pressedKeyIndex].key.activeAction(isShifted) is KeyAction.Character) {
@@ -1588,7 +1610,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     }
                 }
 
-                if (isGliding) {
+                if (glideTypingEnabled && isGliding) {
                     val lastP = glidePointCount - 1
                     if (lastP >= 0) {
                         val dx = curX - glidePointsX[lastP]
@@ -1662,7 +1684,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     return true
                 }
 
-                if (isGliding) {
+                if (glideTypingEnabled && isGliding) {
                     if (visitedGlideKeys.size >= 2) {
                         keyListener?.onGlideGesture(visitedGlideKeys.toList())
                     } else if (visitedGlideKeys.size == 1 && pressedKeyIndex >= 0) {
