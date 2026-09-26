@@ -994,6 +994,13 @@ class LekhaniInputMethodService : InputMethodService() {
     private fun startVoiceTyping() {
         if (!audioManager.hasRecordPermission()) {
             Log.w(TAG, "RECORD_AUDIO permission not granted; cannot start voice typing")
+            val isEnglish = keyboardPrefs.uiLanguage == "en"
+            android.widget.Toast.makeText(
+                this,
+                if (isEnglish) "Microphone permission required for voice typing"
+                else "ভয়েস টাইপিংয়ের জন্য মাইক্রোফোন অনুমতি প্রয়োজন",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
             return
         }
 

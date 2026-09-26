@@ -257,13 +257,33 @@ fun ThemeEditorDialog(
                             color = badgeColor
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isContrastPass) (if (isEnglish) "Clear text legibility" else "স্পষ্ট পাঠযোগ্যতা")
-                               else (if (isEnglish) "Text may be hard to read" else "অক্ষর অস্পষ্ট হতে পারে"),
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (!isContrastPass) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            onClick = {
+                                val whiteContrast = contrastRatio(0xFFFFFFFF.toInt(), keyColor)
+                                val blackContrast = contrastRatio(0xFF000000.toInt(), keyColor)
+                                labelColor = if (whiteContrast >= blackContrast) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                text = if (isEnglish) "⚡ Auto-Fix" else "⚡ সমাধান",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isEnglish) "Clear text legibility" else "স্পষ্ট পাঠযোগ্যতা",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
