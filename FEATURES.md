@@ -11,8 +11,12 @@
   - **?123 Numeric Layer**: Full 1..0 row with native Bengali numeral hints (`১..০`), Bengali currency (`৳`), math operators, and common punctuation.
   - **=\\< More Symbols Layer**: Extended brackets, mathematical signs, currency (`৳`, `€`, `¥`, `£`, `₹`), and typographical glyphs.
   - **Quick Digit Toggle (`১২৩` / `123`)**: Seamless 1-tap toggle between Bengali numerals and Western Arabic digits on the number row.
-- **Layout Toggle in Settings**: Individual toggle switches to enable/disable any layout, drag-to-reorder layout priority.
-- **Seamless Switching Controls**: Quick toggle via Globe key (🌐), spacebar horizontal swipe, or long-press spacebar layout menu.
+- **Layout Toggle & Dedicated Layout Flow Screen**:
+  - Individual toggle switches in Settings to enable/disable any layout, with minimum layout protection.
+  - Dedicated **Layout Flow** screen (`LayoutFlowScreen.kt`) featuring a forward-curved cylindrical 3D carousel with active `Current layout` speech bubble pill and pagination dots.
+  - De-cluttered layout ordering list using intuitive relative directional offset badges (`Home`, `1 ▸`, `◂ 1`, `2 ▸`) reflecting the true horizontal loop mental model.
+  - Drag-to-reorder layout priority with spring animations, tactile haptic feedback, and one-tap default reset.
+- **Seamless Switching Controls**: Quick toggle via Globe key (🌐), spacebar horizontal swipe with subtle chevron cues (`‹   English   ›`), or long-press spacebar layout menu.
 - **External Hardware Keyboard**: Intercepts USB & Bluetooth keyboards on tablets and Android desktop (DeX), mapping them directly to Avro or National typing.
 
 ## 2. Intelligence & Candidate Strip
@@ -37,6 +41,11 @@
 
 ## 4. Emoji, Kaomoji, Symbols & Clipboard
 - **Unicode 15.1+ Emoji Suite**: Full categorization (Smileys, People, Nature, Food, Travel, Activities, Objects, Symbols, Flags).
+- **Overhauled 4-Row High-Density Palette**:
+  - Expanded viewport to 184 dp displaying 4 full rows of 40 dp emoji cells (+137% density increase over legacy 2-row layouts).
+  - Slim 32 dp category header with compact pills.
+  - On-demand search: search input field and bilingual recommendation chips toggle via `[ 🔍 ]` search button.
+  - Ergonomic 44 dp bottom navigation bar: `[ ⌨ ABC ]`, on-canvas search toggle, wide `[ ── Space ── ]`, and repeating hold `[ ⌫ ]`.
 - **Instant Live Bilingual Search**: Real-time search in both Bengali (e.g., "হাসি", "ভালোবাসা", "আগুন") and English ("laugh", "love", "fire") with quick recommendation chips (`🔥 আগুন`, `❤️ প্রেম`, `😂 হাসি`, etc.) and instant clear button.
 - **Recents & Favorites Shelf**: Quick access to frequently used emojis with local persistence.
 - **Persistent Skin Tone & Diverse Modifiers**: Long-press on person/hand emojis for skin-tone and gender selection; selected default skin tone is saved in Device Protected Storage and automatically applied across all grids and search queries.

@@ -99,6 +99,11 @@
 
 ## Phase 6: Emoji, Kaomoji, Symbols & Clipboard Suite
 - [x] Full Unicode 15.1+ emoji palette with category tabs (Smileys, People, Nature, Food, Travel, Activities, Objects, Symbols, Flags) in `EmojiData.kt`.
+- [x] **4-Row High-Density Emoji Redesign**:
+  - Maximize vertical emoji viewport to 184 dp by reducing header chrome to slim 32 dp.
+  - Expand visible grid to 4 full rows of 40 dp emoji cells (+137% density) without clipping.
+  - On-demand search: search input field and bilingual tag chips toggle via `[ 🔍 ]` icon button.
+  - Ergonomic 44 dp bottom navigation bar: `[ ⌨ ABC ]`, on-canvas search toggle, wide `[ ── Space ── ]`, and repeating hold `[ ⌫ ]`.
 - [x] Instant bilingual live search (Bengali e.g. "হাসি", "আগুন" + English keywords) with clear button and quick recommendation chips (`🔥 আগুন`, `❤️ প্রেম`, `😂 হাসি`, etc.).
 - [x] Recents & favorites shelf with local DPS persistence (`EmojiRecentsManager.kt`).
 - [x] Long-press skin-tone and gender modifiers popup with globally persisted default skin tone applied across all grids and search results.
@@ -117,7 +122,14 @@
   - `lekhani-parser` (11 ns/char Avro Trie grammar engine) workspace integration.
   - `lekhani-ai` (on-device N-gram contextual scorer & homophone ranker) integration.
   - `lekhani-core` typing engine & layout databases integrated.
-- [x] **Layout Management in Settings**:
+- [x] **Layout Management & Dedicated Layout Flow Screen**:
+  - Curated default 4-layout pack: `[Probaho, English, Probhat, Avro]` with English startup default.
+  - Spacebar layout switch mode with clean standard chevron cues (`‹   English   ›`).
+  - Dedicated **Layout Flow** screen (`LayoutFlowScreen.kt`):
+    - Forward-curved cylindrical 3D carousel (`HorizontalPager` + `graphicsLayer` projection with `rotationY`, scale, and alpha interpolation).
+    - Top speech-bubble `Current layout` pill on the active card, flanking `<` and `>` chevrons, and pagination dots.
+    - De-cluttered layout order list with relative directional offset badges (`Home`, `1 ▸`, `◂ 1`, `2 ▸`) matching the spatial horizontal loop mental model.
+    - Reorder items with fluid spring animations, tactile haptic feedback, and one-tap `Reset to default`.
   - Individual toggle switches to enable/disable each layout (Probaho, Avro, National, Probhat, Gboard-style, English).
   - Minimum layout protection (at least one layout remains active).
   - Device Protected Storage persistence (`pref_enabled_layouts_order`).
