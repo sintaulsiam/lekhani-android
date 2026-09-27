@@ -23,6 +23,37 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = findProperty("LEKHANI_KEYSTORE_PATH") as? String
+                ?: System.getenv("LEKHANI_KEYSTORE_PATH")
+            val keystorePass = findProperty("LEKHANI_KEYSTORE_PASSWORD") as? String
+                ?: System.getenv("LEKHANI_KEYSTORE_PASSWORD")
+            val keyAliasStr = findProperty("LEKHANI_KEY_ALIAS") as? String
+                ?: System.getenv("LEKHANI_KEY_ALIAS")
+            val keyPass = findProperty("LEKHANI_KEY_PASSWORD") as? String
+                ?: System.getenv("LEKHANI_KEY_PASSWORD")
+
+            if (keystorePath != null && file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = keystorePass
+                keyAlias = keyAliasStr
+                keyPassword = keyPass
+            } else {
+                // Fallback to debug keystore if no release keystore is supplied
+                val debugKeystore = signingConfigs.getByName("debug").storeFile
+                storeFile = debugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = true
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -31,7 +62,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isDebuggable = true
