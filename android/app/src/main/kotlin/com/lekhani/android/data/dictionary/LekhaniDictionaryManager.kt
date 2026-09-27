@@ -91,6 +91,41 @@ class LekhaniDictionaryManager(
     }
 
     /**
+     * Persist user-learned vocabulary and bigrams to local binary file.
+     */
+    fun saveLearned(path: String): Boolean {
+        return try {
+            session.saveUserLearned(path)
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error saving learned dictionary to $path: $e")
+            false
+        }
+    }
+
+    /**
+     * Load user-learned vocabulary and bigrams from local binary file.
+     */
+    fun loadLearned(path: String): Boolean {
+        return try {
+            session.loadUserLearned(path)
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error loading learned dictionary from $path: $e")
+            false
+        }
+    }
+
+    /**
+     * Check if user learner has unsaved in-memory mutations.
+     */
+    fun isLearnedDirty(): Boolean {
+        return try {
+            session.isUserLearnedDirty()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Import words from plain text, CSV, Avro .txt format, or Ridmik user dictionary backup.
      *
      * Supported formats:

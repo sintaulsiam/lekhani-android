@@ -9,6 +9,6 @@ pub mod session;
 pub use audio::{AsrAudioProcessor, AudioAnalysisResult, restore_bengali_punctuation};
 pub use error::LekhaniError;
 pub use layout::LekhaniLayoutType;
-pub use session::{AndroidLekhaniSession, TypingResult};
+pub use session::{AndroidLekhaniSession, TypingResult, set_dictionary_directory};
 
 uniffi::setup_scaffolding!("lekhani_android");

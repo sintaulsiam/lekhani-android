@@ -2,6 +2,7 @@ package com.lekhani.android.ime
 
 import android.content.Context
 import android.content.Intent
+import java.io.File
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.text.InputType
@@ -18,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
@@ -166,6 +168,9 @@ class LekhaniInputMethodService : InputMethodService() {
     private var toolsMenuView: ComposeView? = null
     private var isCurrentFieldPrivate: Boolean = false
     private var isEnglishDictLoaded: Boolean = false
+    private var previousLayoutBeforePassword: LekhaniLayoutType? = null
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var lastMeasuredKeyboardHeightPx: Int = 0
 
     private var isNumericMode: Boolean = false
     private var isMoreSymbolsMode: Boolean = false
@@ -226,6 +231,19 @@ class LekhaniInputMethodService : InputMethodService() {
             Log.e(TAG, "Error installing offline assets: ${e.message}")
         }
 
+        // Load user-learned vocabulary & bigrams from private storage
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val f = File(filesDir, "user_learned.bin")
+                if (f.exists()) {
+                    val ok = session.loadUserLearned(f.absolutePath)
+                    Log.i(TAG, "User learned dictionary loaded ($ok): ${f.absolutePath}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading user learned dictionary: ${e.message}")
+            }
+        }
+
         // Restore the user's last-used layout from Device Protected Storage.
         val enabledList = getEnabledLayouts()
         val savedLayout = devicePrefs.getString(PREF_LAYOUT, null)
@@ -238,10 +256,10 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // Listen for system clipboard updates; guard against private field capture
         val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-        sysClipboard?.addPrimaryClipChangedListener {
+        val listener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
             runCatching {
                 if (!isCurrentFieldPrivate) {
-                    val clip = sysClipboard.primaryClip
+                    val clip = sysClipboard?.primaryClip
                     if (clip != null && clip.itemCount > 0) {
                         val item = clip.getItemAt(0)
                         val text = item?.text?.toString() ?: item?.coerceToText(this@LekhaniInputMethodService)?.toString()
@@ -254,9 +272,24 @@ class LekhaniInputMethodService : InputMethodService() {
                 Log.w(TAG, "Failed to read primary clip: ${e.message}")
             }
         }
+        clipboardListener = listener
+        sysClipboard?.addPrimaryClipChangedListener(listener)
     }
 
     override fun onDestroy() {
+        clipboardListener?.let { listener ->
+            val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            sysClipboard?.removePrimaryClipChangedListener(listener)
+            clipboardListener = null
+        }
+        try {
+            if (session.isUserLearnedDirty()) {
+                val f = File(filesDir, "user_learned.bin")
+                session.saveUserLearned(f.absolutePath)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving learned dictionary on destroy: ${e.message}")
+        }
         imeLifecycleOwner.onDestroy()
         audioManager.cancelStreaming()
         feedbackManager.release()
@@ -285,6 +318,7 @@ class LekhaniInputMethodService : InputMethodService() {
         session.reset()
         preeditShadow = ""
         clearCandidates()
+        persistUserLearnedAsync()
         super.onFinishInput()
     }
 
@@ -375,6 +409,14 @@ class LekhaniInputMethodService : InputMethodService() {
                         },
                         onBlacklist = { text ->
                             blacklist.add(text)
+                            try {
+                                session.deleteUserWord(text)
+                                persistUserLearnedAsync()
+                                val msg = if (keyboardPrefs.uiLanguage == "en") "Removed from suggestions" else "পরামর্শটি মুছে ফেলা হয়েছে"
+                                android.widget.Toast.makeText(this@LekhaniInputMethodService, msg, android.widget.Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to delete user word '$text': ${e.message}")
+                            }
                             // Re-publish current candidates with the blacklisted word removed
                             val current = _candidateState.value
                             if (current is CandidateStripState.Candidates) {
@@ -500,7 +542,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
             }
         }
+        canvasView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (canvasView.height > 0) {
+                lastMeasuredKeyboardHeightPx = canvasView.height
+            }
+        }
         keyboardView = canvasView
+        container.clipChildren = false
+        container.clipToPadding = false
         container.addView(
             canvasView,
             FrameLayout.LayoutParams(
@@ -508,6 +557,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
         )
+        rootLayout.clipChildren = false
+        rootLayout.clipToPadding = false
         rootLayout.addView(
             container,
             LinearLayout.LayoutParams(
@@ -752,11 +803,17 @@ class LekhaniInputMethodService : InputMethodService() {
                         )
                     )
                 }
+                val kbHeightDp = if (lastMeasuredKeyboardHeightPx > 0) {
+                    (lastMeasuredKeyboardHeightPx / resources.displayMetrics.density).dp
+                } else {
+                    260.dp
+                }
                 emojiPickerView?.setContent {
                     EmojiPickerView(
                         recentsManager = recentsManager,
                         theme = activeTheme,
                         isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                        paletteHeight = kbHeightDp,
                         onEmojiSelected = { emoji ->
                             emojiPickerView?.let { feedbackManager.onKeyFeedback(it) }
                             currentInputConnection?.commitText(emoji, 1)
@@ -793,10 +850,16 @@ class LekhaniInputMethodService : InputMethodService() {
                         )
                     )
                 }
+                val kbHeightDp = if (lastMeasuredKeyboardHeightPx > 0) {
+                    (lastMeasuredKeyboardHeightPx / resources.displayMetrics.density).dp
+                } else {
+                    260.dp
+                }
                 clipboardView?.setContent {
                     ClipboardSheetView(
                         clipboardStore = clipboardStore,
                         theme = activeTheme,
+                        sheetHeight = kbHeightDp,
                         isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onPaste = { text ->
                             runCatching { currentInputConnection?.commitText(text, 1) }
@@ -1001,6 +1064,7 @@ class LekhaniInputMethodService : InputMethodService() {
         if (currentMode != InputViewMode.KEYBOARD) {
             setInputViewMode(InputViewMode.KEYBOARD)
         }
+        persistUserLearnedAsync()
     }
 
     private fun updateCandidatesVisibility() {
@@ -1058,9 +1122,27 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun commitEnter() {
-        currentInputConnection?.performEditorAction(
-            currentInputEditorInfo?.imeOptions ?: android.view.inputmethod.EditorInfo.IME_ACTION_DONE
-        )
+        val ic = currentInputConnection ?: return
+        val info = currentInputEditorInfo
+        val imeOptions = info?.imeOptions ?: 0
+        val action = imeOptions and EditorInfo.IME_MASK_ACTION
+        val inputType = info?.inputType ?: 0
+        val isMultiline = (inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
+
+        if (isMultiline && (action == EditorInfo.IME_ACTION_UNSPECIFIED || action == EditorInfo.IME_ACTION_NONE)) {
+            ic.commitText("\n", 1)
+        } else if (action != EditorInfo.IME_ACTION_UNSPECIFIED && action != EditorInfo.IME_ACTION_NONE) {
+            val handled = ic.performEditorAction(action)
+            if (!handled) {
+                if (isMultiline) {
+                    ic.commitText("\n", 1)
+                } else {
+                    sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                }
+            }
+        } else {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+        }
         session.reset()
         keyboardView?.setShifted(false)
         keyboardView?.setGboardKarsActive(false)
@@ -1436,6 +1518,7 @@ class LekhaniInputMethodService : InputMethodService() {
         if (currentMode == InputViewMode.EMOJI_SEARCH) {
             currentInputConnection?.commitText(candidate, 1)
             recentsManager.addRecent(candidate)
+            setInputViewMode(InputViewMode.KEYBOARD)
             return
         }
 
@@ -1533,6 +1616,24 @@ class LekhaniInputMethodService : InputMethodService() {
             Log.e(TAG, "Error installing assets for English dict: ${e.message}")
         }
         Log.w(TAG, "English dictionary file not found or failed to load")
+    }
+
+    /**
+     * Persists user-learned vocabulary, candidate memory, and bigrams to local private storage
+     * asynchronously on Dispatchers.IO. Skips I/O if no in-memory mutations occurred.
+     */
+    fun persistUserLearnedAsync() {
+        val file = File(filesDir, "user_learned.bin")
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                if (session.isUserLearnedDirty()) {
+                    session.saveUserLearned(file.absolutePath)
+                    Log.i(TAG, "User learned data successfully persisted to ${file.absolutePath}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to persist user learned data: ${e.message}")
+            }
+        }
     }
 
     /**
@@ -1731,18 +1832,21 @@ class LekhaniInputMethodService : InputMethodService() {
         isCurrentFieldPrivate = isPasswordField || noSuggestions
         session.setPrivateField(isPasswordField)
 
-        if (!isPasswordField) {
-            // Restore the user's preferred layout when leaving a password field.
-            val preferred = devicePrefs.getString(PREF_LAYOUT, null)
-                ?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
-                ?: LekhaniLayoutType.PROBAHO
-            if (session.getLayout() != preferred && isPasswordField) {
-                switchLayout(preferred)
+        if (isPasswordField) {
+            // Auto-switch to English QWERTY for passwords and preserve the previous layout
+            if (session.getLayout() != LekhaniLayoutType.ENGLISH) {
+                if (previousLayoutBeforePassword == null) {
+                    previousLayoutBeforePassword = session.getLayout()
+                }
+                switchLayout(LekhaniLayoutType.ENGLISH)
             }
         } else {
-            // Auto-switch to English QWERTY for passwords
-            if (session.getLayout() != LekhaniLayoutType.ENGLISH) {
-                switchLayout(LekhaniLayoutType.ENGLISH)
+            // Restore previous layout if returning from a password field
+            previousLayoutBeforePassword?.let { restoreLayout ->
+                previousLayoutBeforePassword = null
+                if (session.getLayout() != restoreLayout) {
+                    switchLayout(restoreLayout)
+                }
             }
         }
     }

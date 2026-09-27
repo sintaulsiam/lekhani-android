@@ -6,13 +6,31 @@ use crate::layout::LekhaniLayoutType;
 use crate::probaho::{get_conjunct_suggestions, nfc_normalize, promote_kar_if_needed};
 
 static CORE_DB: OnceLock<PhoneticDatabase> = OnceLock::new();
+static CUSTOM_DICT_DIR: OnceLock<String> = OnceLock::new();
+
+/// Sets a custom dictionary directory dynamically from Android application context.
+#[uniffi::export]
+pub fn set_dictionary_directory(path: String) {
+    let _ = CUSTOM_DICT_DIR.set(path);
+}
 
 pub fn get_core_database() -> &'static PhoneticDatabase {
     CORE_DB.get_or_init(|| {
         let mut db = PhoneticDatabase::new();
+        if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
+            let path = std::path::Path::new(custom_dir);
+            if path.exists() {
+                let _ = db.load_from_dir(path);
+                return db;
+            }
+        }
         let candidate_dirs = [
             std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries"),
+            std::path::Path::new("/data/data/com.lekhani.android.debug/files/dictionaries"),
             std::path::Path::new("/data/user/0/com.lekhani.android/files/dictionaries"),
+            std::path::Path::new("/data/user/0/com.lekhani.android.debug/files/dictionaries"),
+            std::path::Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),
+            std::path::Path::new("/data/user_de/0/com.lekhani.android.debug/files/dictionaries"),
             std::path::Path::new("./data/dictionaries"),
             std::path::Path::new("../data/dictionaries"),
             std::path::Path::new("../../data/dictionaries"),
@@ -59,6 +77,43 @@ struct SessionState {
     /// Whether the session is currently in a secure/incognito field.
     /// When true: no learning, no clipboard capture, auto English layout.
     is_private_field: bool,
+    /// Last committed word, optional preceding word, and the Instant it was committed.
+    /// Used for rapid backspace mistake penalty (<1500 ms).
+    last_commit_info: Option<(Option<String>, String, std::time::Instant)>,
+}
+
+/// Helper to retrieve next-word predictions combining personalized user bigrams
+/// from AutonomousLearner with statistical n-gram predictions.
+fn get_bengali_next_words(context: &str) -> Vec<String> {
+    let words: Vec<&str> = context.split_whitespace().collect();
+    let last_word = words.last().copied();
+
+    let mut results: Vec<String> = Vec::with_capacity(5);
+
+    // 1. Personalized User Bigrams from AutonomousLearner
+    let db = get_core_database();
+    if let (Some(last), Ok(learner)) = (last_word, db.learner.read()) {
+        let user_conts = learner.get_top_user_continuations(last, 3);
+        for cont in user_conts {
+            if !results.contains(&cont) {
+                results.push(cont);
+            }
+        }
+    }
+
+    // 2. Idioms and Statistical N-gram predictions
+    let predictor = lekhani_ai::NextWordPredictor::new();
+    let predictions = predictor.predict_next(&words, 5);
+    for pred in predictions {
+        if !results.contains(&pred) {
+            results.push(pred);
+            if results.len() >= 5 {
+                break;
+            }
+        }
+    }
+
+    results
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -99,6 +154,7 @@ impl AndroidLekhaniSession {
                 composing_buffer: String::with_capacity(64),
                 surrounding_context: String::with_capacity(256),
                 is_private_field: false,
+                last_commit_info: None,
             }),
         }
     }
@@ -633,6 +689,33 @@ impl AndroidLekhaniSession {
         Ok(true)
     }
 
+    /// Persist user-learned vocabulary, candidate memory, and bigrams to disk.
+    pub fn save_user_learned(&self, path: String) -> Result<bool, LekhaniError> {
+        let db = get_core_database();
+        db.save_user_learned(path)
+            .map(|_| true)
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))
+    }
+
+    /// Load user-learned vocabulary, candidate memory, and bigrams from disk.
+    pub fn load_user_learned(&self, path: String) -> Result<bool, LekhaniError> {
+        let path_ref = std::path::Path::new(&path);
+        if !path_ref.exists() {
+            return Ok(false);
+        }
+        let db = get_core_database();
+        if let Ok(mut learner) = db.learner.write() {
+            *learner = lekhani_core::phonetic::AutonomousLearner::load_from_path(path_ref);
+        }
+        Ok(true)
+    }
+
+    /// Check if the user learner has unsaved modifications.
+    pub fn is_user_learned_dirty(&self) -> bool {
+        let db = get_core_database();
+        db.learner.read().map(|l| l.dirty).unwrap_or(false)
+    }
+
     // ── Backspace ────────────────────────────────────────────────────────────
 
     /// Handle Backspace keypress.
@@ -713,6 +796,16 @@ impl AndroidLekhaniSession {
         } else {
             // Buffer empty — signal Android to delete the preceding character
             // in the target application's InputConnection.
+            // Check for rapid backspace mistake penalty (<1500 ms).
+            if let Some((prev, committed, ts)) = state.last_commit_info.take() {
+                if ts.elapsed().as_millis() <= 1500 && !state.is_private_field {
+                    let db = get_core_database();
+                    if let Ok(mut learner) = db.learner.write() {
+                        learner.penalize_mistake(prev.as_deref(), &committed);
+                    }
+                }
+            }
+
             Ok(TypingResult {
                 preedit: String::new(),
                 commit_text: None,
@@ -747,6 +840,26 @@ impl AndroidLekhaniSession {
             let word = normalized.clone();
             normalized.push(' ');
 
+            let prev_word = state
+                .surrounding_context
+                .split_whitespace()
+                .last()
+                .map(|s| s.to_string());
+
+            if !state.is_private_field {
+                let db = get_core_database();
+                if let Ok(mut learner) = db.learner.write() {
+                    learner.observe_and_learn(&word, &db.trie);
+                    if let Some(ref p) = prev_word {
+                        learner.observe_committed_pair(p, &word);
+                    }
+                }
+                state.last_commit_info =
+                    Some((prev_word, word.clone(), std::time::Instant::now()));
+            } else {
+                state.last_commit_info = None;
+            }
+
             if !state.surrounding_context.is_empty() {
                 state.surrounding_context.push(' ');
             }
@@ -760,9 +873,7 @@ impl AndroidLekhaniSession {
                     crate::english::get_english_next_words(&words, 5)
                 }
             } else {
-                let predictor = lekhani_ai::NextWordPredictor::new();
-                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                predictor.predict_next(&words, 5)
+                get_bengali_next_words(&state.surrounding_context)
             };
 
             Ok(TypingResult {
@@ -772,6 +883,7 @@ impl AndroidLekhaniSession {
                 cursor_position: 0,
             })
         } else {
+            state.last_commit_info = None;
             let next_words = if state.layout == LekhaniLayoutType::English {
                 if state.is_private_field {
                     Vec::new()
@@ -780,9 +892,7 @@ impl AndroidLekhaniSession {
                     crate::english::get_english_next_words(&words, 5)
                 }
             } else {
-                let predictor = lekhani_ai::NextWordPredictor::new();
-                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                predictor.predict_next(&words, 5)
+                get_bengali_next_words(&state.surrounding_context)
             };
 
             Ok(TypingResult {
@@ -804,10 +914,33 @@ impl AndroidLekhaniSession {
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
-        state.composing_buffer.clear();
+        let typed_buffer = std::mem::take(&mut state.composing_buffer);
         state.composing_buffer = String::with_capacity(64);
         let normalized = nfc_normalize(&candidate);
         let commit = format!("{} ", normalized);
+
+        let prev_word = state
+            .surrounding_context
+            .split_whitespace()
+            .last()
+            .map(|s| s.to_string());
+
+        if !state.is_private_field {
+            let db = get_core_database();
+            if let Ok(mut learner) = db.learner.write() {
+                if !typed_buffer.is_empty() {
+                    learner.record_candidate_selection(&typed_buffer, &normalized);
+                }
+                learner.observe_and_learn(&normalized, &db.trie);
+                if let Some(ref p) = prev_word {
+                    learner.observe_committed_pair(p, &normalized);
+                }
+            }
+            state.last_commit_info =
+                Some((prev_word, normalized.clone(), std::time::Instant::now()));
+        } else {
+            state.last_commit_info = None;
+        }
 
         if !state.surrounding_context.is_empty() {
             state.surrounding_context.push(' ');
@@ -822,9 +955,7 @@ impl AndroidLekhaniSession {
                 crate::english::get_english_next_words(&words, 5)
             }
         } else {
-            let predictor = lekhani_ai::NextWordPredictor::new();
-            let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-            predictor.predict_next(&words, 5)
+            get_bengali_next_words(&state.surrounding_context)
         };
 
         Ok(TypingResult {
@@ -844,6 +975,7 @@ impl AndroidLekhaniSession {
             state.composing_buffer.clear();
             state.surrounding_context.clear();
             state.is_private_field = false;
+            state.last_commit_info = None;
         }
     }
 
@@ -1095,6 +1227,82 @@ mod tests {
         let _ = session.process_key("্".into()).unwrap();
         let res = session.process_key("ত".into()).unwrap();
         assert_eq!(res.preedit, "ক্ত");
+    }
+
+    #[test]
+    fn test_continuous_learning_and_persistence() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+
+        // 1. Candidate selection records override and learns word
+        let _ = session.process_key("k".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let _ = session.process_key("r".into()).unwrap();
+        let _ = session.process_key("m".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let sel = session.select_candidate("কৰ্ম".into()).unwrap();
+        assert_eq!(sel.commit_text, Some("কৰ্ম ".into()));
+
+        let db = get_core_database();
+        {
+            let learner = db.learner.read().unwrap();
+            assert_eq!(learner.candidate_memory.get("kormo"), Some(&"কৰ্ম".to_string()));
+            assert!(learner.observed_counts.contains_key("কৰ্ম"));
+        }
+
+        // 2. Spacebar commit records bigram pair ("কৰ্ম" -> "ভালো")
+        let _ = session.process_key("b".into()).unwrap();
+        let _ = session.process_key("h".into()).unwrap();
+        let _ = session.process_key("a".into()).unwrap();
+        let _ = session.process_key("l".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(space_res.commit_text, Some("ভালো ".into()));
+
+        {
+            let learner = db.learner.read().unwrap();
+            assert!(learner.user_bigrams.contains_key("কৰ্ম\tভালো"));
+        }
+
+        // 3. Rapid backspace applies mistake penalty
+        let bs_res = session.handle_backspace().unwrap();
+        assert_eq!(bs_res.commit_text, None);
+        {
+            let learner = db.learner.read().unwrap();
+            // User bigram should be decremented or removed
+            assert!(!learner.user_bigrams.contains_key("কৰ্ম\tভালো"));
+        }
+
+        // 4. Persistence test: save and load roundtrip
+        let temp_dir = std::env::temp_dir();
+        let test_path = temp_dir.join("lekhani_test_user_learned.bin").to_string_lossy().to_string();
+        let save_ok = session.save_user_learned(test_path.clone()).unwrap();
+        assert!(save_ok);
+
+        let session2 = AndroidLekhaniSession::new();
+        let load_ok = session2.load_user_learned(test_path.clone()).unwrap();
+        assert!(load_ok);
+
+        let _ = std::fs::remove_file(test_path);
+    }
+
+    #[test]
+    fn test_private_field_freezes_learning() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+        session.set_private_field(true);
+
+        let _ = session.process_key("s".into()).unwrap();
+        let _ = session.process_key("e".into()).unwrap();
+        let _ = session.process_key("c".into()).unwrap();
+        let _ = session.process_key("r".into()).unwrap();
+        let _ = session.process_key("e".into()).unwrap();
+        let _ = session.process_key("t".into()).unwrap();
+        let _ = session.select_candidate("গোপন".into()).unwrap();
+
+        let db = get_core_database();
+        let learner = db.learner.read().unwrap();
+        assert!(!learner.candidate_memory.contains_key("secret"));
     }
 }
 

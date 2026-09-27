@@ -97,8 +97,24 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
         return (String::new(), Vec::new());
     }
 
-    // 1. Exact common word match
     let lower = input.to_lowercase();
+
+    // 0. User candidate override memory (personal learned overrides)
+    let db = crate::session::get_core_database();
+    if let Ok(learner) = db.learner.read() {
+        if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
+            let primary = user_choice.clone();
+            let mut candidates = vec![primary.clone()];
+            let parser = get_avro_parser();
+            let def = parser.convert(input);
+            if def != primary {
+                candidates.push(def);
+            }
+            return (primary, candidates);
+        }
+    }
+
+    // 1. Exact common word match
     if let Some(&words) = get_common_words().get(input) {
         let primary = words[0].to_string();
         let candidates = words.iter().map(|&s| s.to_string()).collect();
