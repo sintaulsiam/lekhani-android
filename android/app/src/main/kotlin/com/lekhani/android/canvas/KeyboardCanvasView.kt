@@ -368,7 +368,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
         if (pressedKeyIndex in resolvedKeys.indices) {
             val key = resolvedKeys[pressedKeyIndex].key
             isLongPressTriggered = true
-            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            feedbackManager?.onLongPressFeedback(this@KeyboardCanvasView)
+                ?: performHapticFeedback(
+                    HapticFeedbackConstants.LONG_PRESS,
+                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                )
             when {
                 key.action == KeyAction.Space -> {
                     keyListener?.onSpaceLongPress()
@@ -398,7 +402,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     isLongPressTriggered = true
                     backspaceRepeatCount++
                     feedbackManager?.onKeyFeedback(this@KeyboardCanvasView)
-                        ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        ?: performHapticFeedback(
+                            HapticFeedbackConstants.KEYBOARD_TAP,
+                            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                        )
                     keyListener?.onKey(key, KeyAction.Backspace)
                     val nextDelay = if (backspaceRepeatCount > 10) 35L else 55L
                     postDelayed(this, nextDelay)
@@ -465,6 +472,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         setLayerType(LAYER_TYPE_HARDWARE, null)
         isClickable = true
         isFocusable = false
+        isHapticFeedbackEnabled = true
         ViewCompat.setAccessibilityDelegate(this, accessibilityHelper)
     }
 
@@ -481,7 +489,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * Zero-allocation in draw/touch hot paths.
      */
     fun applyPreferences(prefs: KeyboardPreferences, feedbackMgr: LekhaniFeedbackManager? = null) {
-        this.feedbackManager = feedbackMgr
+        if (feedbackMgr != null) {
+            this.feedbackManager = feedbackMgr
+        }
         this.longPressDelayMs = prefs.longPressDelayMs
         this.showKeyBorders = prefs.showKeyBorders
         this.showDedicatedNumberRow = prefs.showDedicatedNumberRow
@@ -1448,7 +1458,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 if (isSideDockVisible) {
                     for (btn in sideDockButtons) {
                         if (btn.bounds.contains(px, py)) {
-                            feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            feedbackManager?.onKeyFeedback(this)
+                                ?: performHapticFeedback(
+                                    HapticFeedbackConstants.KEYBOARD_TAP,
+                                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                                )
                             when (btn.action) {
                                 SideDockAction.EXPAND_STANDARD -> keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.STANDARD)
                                 SideDockAction.SWAP_SIDE -> {
@@ -1469,7 +1483,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 // Floating mode top bar / dock button hit-testing
                 if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
                     if (floatingDockBtnRect.contains(px, py)) {
-                        feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        feedbackManager?.onKeyFeedback(this)
+                            ?: performHapticFeedback(
+                                HapticFeedbackConstants.KEYBOARD_TAP,
+                                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                            )
                         keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.STANDARD)
                         return true
                     }
@@ -1491,7 +1509,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     isBackspaceSwiping = false
                     backspaceDeletedWordCount = 0
 
-                    feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    feedbackManager?.onKeyFeedback(this)
+                        ?: performHapticFeedback(
+                            HapticFeedbackConstants.KEYBOARD_TAP,
+                            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                        )
 
                     val key = resolvedKeys[idx].key
                     val keyAct = key.activeAction(isShifted)
@@ -1573,13 +1595,21 @@ class KeyboardCanvasView @JvmOverloads constructor(
                                 val steps = (stepDelta / spaceSlideStepPx).toInt()
                                 keyListener?.onCursorMove(steps)
                                 spaceSlideLastX += steps * spaceSlideStepPx
-                                feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                feedbackManager?.onTickFeedback(this)
+                                    ?: performHapticFeedback(
+                                        HapticFeedbackConstants.CLOCK_TICK,
+                                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                                    )
                                 invalidate()
                             } else if (stepDelta <= -spaceSlideStepPx) {
                                 val steps = (-stepDelta / spaceSlideStepPx).toInt()
                                 keyListener?.onCursorMove(-steps)
                                 spaceSlideLastX -= steps * spaceSlideStepPx
-                                feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                feedbackManager?.onTickFeedback(this)
+                                    ?: performHapticFeedback(
+                                        HapticFeedbackConstants.CLOCK_TICK,
+                                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                                    )
                                 invalidate()
                             }
                             return true
@@ -1597,7 +1627,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                             if (clamped != backspaceDeletedWordCount) {
                                 backspaceDeletedWordCount = clamped
                                 keyListener?.onSwipeDeletePreview(backspaceDeletedWordCount)
-                                feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                feedbackManager?.onTickFeedback(this)
+                                    ?: performHapticFeedback(
+                                        HapticFeedbackConstants.CLOCK_TICK,
+                                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                                    )
                                 invalidate()
                             }
                             return true
@@ -1714,7 +1748,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 if (isBackspaceSwiping) {
                     if (backspaceDeletedWordCount > 0) {
                         keyListener?.onSwipeDelete(backspaceDeletedWordCount)
-                        feedbackManager?.onKeyFeedback(this) ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        feedbackManager?.onKeyFeedback(this)
+                            ?: performHapticFeedback(
+                                HapticFeedbackConstants.KEYBOARD_TAP,
+                                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                            )
                     }
                     isBackspaceSwiping = false
                     backspaceDeletedWordCount = 0
@@ -1880,7 +1918,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val key = resolvedKeys[virtualViewId].key
                 val act = key.activeAction(isShifted)
                 feedbackManager?.onKeyFeedback(this@KeyboardCanvasView)
-                    ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    ?: performHapticFeedback(
+                        HapticFeedbackConstants.KEYBOARD_TAP,
+                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+                    )
                 keyListener?.onKey(key, act)
                 return true
             }

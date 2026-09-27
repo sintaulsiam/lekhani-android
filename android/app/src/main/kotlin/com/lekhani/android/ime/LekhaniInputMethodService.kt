@@ -369,7 +369,10 @@ class LekhaniInputMethodService : InputMethodService() {
                 Box {
                     CandidateStripView(
                         stateFlow = candidateState,
-                        onCandidateClick = { text -> onCandidateSelected(text) },
+                        onCandidateClick = { text ->
+                            candidateStripComposeView?.let { feedbackManager.onKeyFeedback(it) }
+                            onCandidateSelected(text)
+                        },
                         onBlacklist = { text ->
                             blacklist.add(text)
                             // Re-publish current candidates with the blacklisted word removed
@@ -386,7 +389,10 @@ class LekhaniInputMethodService : InputMethodService() {
                         activeTools = currentTools,
                         isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         isToolsMenuOpen = (currentMode == InputViewMode.TOOLS_MENU),
-                        onToolClick = { tool -> handleToolbarToolClick(tool) },
+                        onToolClick = { tool ->
+                            candidateStripComposeView?.let { feedbackManager.onKeyFeedback(it) }
+                            handleToolbarToolClick(tool)
+                        },
                         onOpenToolsMenu = {
                             if (currentMode == InputViewMode.TOOLS_MENU) {
                                 setInputViewMode(InputViewMode.KEYBOARD)
@@ -752,6 +758,7 @@ class LekhaniInputMethodService : InputMethodService() {
                         theme = activeTheme,
                         isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onEmojiSelected = { emoji ->
+                            emojiPickerView?.let { feedbackManager.onKeyFeedback(it) }
                             currentInputConnection?.commitText(emoji, 1)
                         },
                         onBackspace = { onBackspace() },

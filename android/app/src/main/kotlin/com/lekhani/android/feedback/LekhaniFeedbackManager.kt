@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Build
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -23,20 +24,64 @@ import kotlin.math.sin
  * Guarantees (AGENTS.md §1.2 & §1.1):
  *   ✅ Zero runtime allocation during [onKeyFeedback]
  *   ✅ 100% offline, synthesized PCM sound packs for Bubble, Mechanical, Typewriter, Woodblock
- *   ✅ Android 12+ VibratorManager support with amplitude control
+ *   ✅ Android 12+ VibratorManager support with amplitude control and USAGE_TOUCH
+ *   ✅ Silent-mode resilient touch haptics and hardware-calibrated tactile click
  */
 class LekhaniFeedbackManager(private val context: Context) {
 
     private val prefs = KeyboardPreferences.get(context)
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
-    private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-        vibratorManager?.defaultVibrator
-    } else {
-        @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    private val vibrator: Vibrator? = run {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator ?: (context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
     }
+
+    // Touch haptic attributes for Android 13+ (API 33+) so keyboard haptics are honored
+    // regardless of whether ringer is set to Silent/Vibrate mode.
+    private val vibrationAttributes: VibrationAttributes? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        VibrationAttributes.Builder()
+            .setUsage(VibrationAttributes.USAGE_TOUCH)
+            .build()
+    } else {
+        null
+    }
+
+    // Touch audio/haptic attributes for Android 8.0 - 12L (API 26-32)
+    private val touchAudioAttributes: AudioAttributes = AudioAttributes.Builder()
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+        .build()
+
+    // Pre-allocated hardware-calibrated effects (Android 10+ / API 29+)
+    private val predefinedClickEffect: VibrationEffect? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        try {
+            VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+        } catch (_: Exception) {
+            null
+        }
+    } else null
+
+    private val predefinedTickEffect: VibrationEffect? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        try {
+            VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+        } catch (_: Exception) {
+            null
+        }
+    } else null
+
+    private val predefinedHeavyClickEffect: VibrationEffect? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        try {
+            VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+        } catch (_: Exception) {
+            null
+        }
+    } else null
 
     // ── Pre-synthesized PCM sound buffers (44.1 kHz, 16-bit mono) ───────────
     private val SAMPLE_RATE = 44100
@@ -177,20 +222,104 @@ class LekhaniFeedbackManager(private val context: Context) {
         }
     }
 
-    private fun performVibration(fallbackView: View) {
-        val duration = prefs.hapticDurationMs.toLong().coerceIn(1L, 100L)
-        if (vibrator != null && vibrator.hasVibrator()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Amplitude 160/255 gives a punchy yet crisp sensation
-                val effect = VibrationEffect.createOneShot(duration, 160)
-                vibrator.vibrate(effect)
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(duration)
-            }
-        } else {
-            fallbackView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    /**
+     * Subtle tick vibration for cursor sliding or swipe scrubbing (no sound).
+     */
+    @Suppress("DEPRECATION")
+    fun onTickFeedback(fallbackView: View) {
+        if (!prefs.hapticEnabled) return
+        val v = vibrator
+        if (v != null && v.hasVibrator()) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && predefinedTickEffect != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && vibrationAttributes != null) {
+                        v.vibrate(predefinedTickEffect, vibrationAttributes)
+                    } else {
+                        v.vibrate(predefinedTickEffect, touchAudioAttributes)
+                    }
+                    return
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val effect = VibrationEffect.createOneShot(8L, if (v.hasAmplitudeControl()) 100 else VibrationEffect.DEFAULT_AMPLITUDE)
+                    v.vibrate(effect, touchAudioAttributes)
+                    return
+                }
+            } catch (_: Exception) {}
         }
+        fallbackView.performHapticFeedback(
+            HapticFeedbackConstants.CLOCK_TICK,
+            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+        )
+    }
+
+    /**
+     * Tactile feedback for long-press actions.
+     */
+    @Suppress("DEPRECATION")
+    fun onLongPressFeedback(fallbackView: View) {
+        if (!prefs.hapticEnabled) return
+        val v = vibrator
+        if (v != null && v.hasVibrator()) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && predefinedHeavyClickEffect != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && vibrationAttributes != null) {
+                        v.vibrate(predefinedHeavyClickEffect, vibrationAttributes)
+                    } else {
+                        v.vibrate(predefinedHeavyClickEffect, touchAudioAttributes)
+                    }
+                    return
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val effect = VibrationEffect.createOneShot(35L, if (v.hasAmplitudeControl()) 220 else VibrationEffect.DEFAULT_AMPLITUDE)
+                    v.vibrate(effect, touchAudioAttributes)
+                    return
+                }
+            } catch (_: Exception) {}
+        }
+        fallbackView.performHapticFeedback(
+            HapticFeedbackConstants.LONG_PRESS,
+            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    private fun performVibration(fallbackView: View) {
+        val v = vibrator
+        if (v != null && v.hasVibrator()) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val duration = prefs.hapticDurationMs.toLong().coerceIn(1L, 100L)
+                    // If near default 20ms, use the hardware-calibrated click waveform
+                    val effect = if (duration in 15L..25L && predefinedClickEffect != null) {
+                        predefinedClickEffect
+                    } else {
+                        val amplitude = if (v.hasAmplitudeControl()) {
+                            // Scale amplitude from user duration (range ~100 to 255)
+                            (100 + (duration * 2.5f).toInt()).coerceIn(1, 255)
+                        } else {
+                            VibrationEffect.DEFAULT_AMPLITUDE
+                        }
+                        VibrationEffect.createOneShot(duration, amplitude)
+                    }
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && vibrationAttributes != null) {
+                        v.vibrate(effect, vibrationAttributes)
+                    } else {
+                        v.vibrate(effect, touchAudioAttributes)
+                    }
+                    return
+                } else {
+                    @Suppress("DEPRECATION")
+                    v.vibrate(prefs.hapticDurationMs.toLong().coerceIn(1L, 100L))
+                    return
+                }
+            } catch (_: Exception) {
+                // Fall back to view-level haptics below
+            }
+        }
+
+        fallbackView.performHapticFeedback(
+            HapticFeedbackConstants.KEYBOARD_TAP,
+            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+        )
     }
 
     private fun performSound() {
