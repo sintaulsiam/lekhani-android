@@ -91,6 +91,77 @@ object NumberSymbolsLayout {
         ),
     )
 
+    /** Pure English Numeric & Symbols layer (dedicated for English QWERTY mode) */
+    val englishNumericLayout: KeyboardLayout = KeyboardLayout(
+        name = "English Numbers & Symbols",
+        rows = listOf(
+            // Row 1: Clean English digits (no Bengali hints)
+            listOf(
+                Ch("1"), Ch("2"), Ch("3"), Ch("4"), Ch("5"),
+                Ch("6"), Ch("7"), Ch("8"), Ch("9"), Ch("0"),
+            ),
+            // Row 2: Standard currency & math symbols ($ instead of ৳)
+            listOf(
+                Ch("@", shifted = "~", hint = "~"),
+                Ch("#", shifted = "|", hint = "|"),
+                Ch("$", shifted = "€", hint = "€"),
+                Ch("%", shifted = "^", hint = "^"),
+                Ch("&", shifted = "*", hint = "*"),
+                Ch("-", shifted = "_", hint = "_"),
+                Ch("+", shifted = "=", hint = "="),
+                Ch("(", shifted = "{", hint = "{"),
+                Ch(")", shifted = "}", hint = "}"),
+                Ch("/", shifted = "\\", hint = "\\"),
+            ),
+            // Row 3: More symbols toggle, punctuations, and backspace
+            listOf(
+                Key(
+                    label = "=\\<", shiftedLabel = "=\\<",
+                    action = KeyAction.SwitchMoreSymbols, shiftedAction = KeyAction.SwitchMoreSymbols,
+                    widthWeight = 1.32f, contentDesc = "More symbols",
+                ),
+                Ch("*"), Ch("\""), Ch("'"), Ch(":"), Ch(";"), Ch("!"), Ch("?"),
+                Key(
+                    label = "⌫", shiftedLabel = "⌫",
+                    action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                    widthWeight = 1.32f, contentDesc = "Backspace",
+                ),
+            ),
+        ),
+        spacebarRow = listOf(
+            Key(
+                label = "ABC", shiftedLabel = "ABC",
+                action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
+                widthWeight = 1.4f, contentDesc = "Alphabet",
+            ),
+            Key(
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                widthWeight = 1.0f, contentDesc = "Switch layout",
+            ),
+            Key(
+                label = ",", shiftedLabel = ",",
+                action = KeyAction.Character(","), shiftedAction = KeyAction.Character(","),
+                widthWeight = 1.0f, contentDesc = "Comma",
+            ),
+            Key(
+                label = "Space", shiftedLabel = "Space",
+                action = KeyAction.Space, shiftedAction = KeyAction.Space,
+                widthWeight = 3.2f, contentDesc = "Space",
+            ),
+            Key(
+                label = ".", shiftedLabel = ".",
+                action = KeyAction.Character("."), shiftedAction = KeyAction.Character("."),
+                widthWeight = 1.0f, contentDesc = "Period",
+            ),
+            Key(
+                label = "↵", shiftedLabel = "↵",
+                action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
+                widthWeight = 1.4f, contentDesc = "Enter",
+            ),
+        ),
+    )
+
     /** Native Bengali Numerals (১..০) layout */
     val bengaliNumericLayout: KeyboardLayout = KeyboardLayout(
         name = "Bengali Numbers",

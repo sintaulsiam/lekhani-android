@@ -142,6 +142,13 @@ class KeyboardPreferences private constructor(context: Context) {
             spaceCursorSlideEnabled = (value == SpacebarSwipeMode.CURSOR_NAV)
         }
 
+    var bottomRowKeyMode: BottomRowKeyMode
+        get() {
+            val name = prefs.getString(KEY_BOTTOM_ROW_KEY_MODE, BottomRowKeyMode.SMART.name) ?: BottomRowKeyMode.SMART.name
+            return runCatching { BottomRowKeyMode.valueOf(name) }.getOrDefault(BottomRowKeyMode.SMART)
+        }
+        set(value) = prefs.edit().putString(KEY_BOTTOM_ROW_KEY_MODE, value.name).apply()
+
     var spaceCursorSlideEnabled: Boolean
         get() = prefs.getBoolean(KEY_SPACE_CURSOR_SLIDE, true)
         set(value) = prefs.edit().putBoolean(KEY_SPACE_CURSOR_SLIDE, value).apply()
@@ -209,6 +216,12 @@ class KeyboardPreferences private constructor(context: Context) {
         DISABLED("নিষ্ক্রিয় (Disabled)", "Disabled"),
     }
 
+    enum class BottomRowKeyMode(val titleBengali: String, val titleEnglish: String) {
+        SMART("স্মার্ট / স্বয়ংক্রিয় (Smart)", "Smart (Automatic)"),
+        EMOJI("সর্বদা ইমোজি (Emoji)", "Always Emoji Key (😊)"),
+        LANGUAGE_SWITCH("সর্বদা ভাষা (Language)", "Always Language Key (🌐)"),
+    }
+
     enum class FormFactor(val titleBengali: String, val titleEnglish: String) {
         STANDARD("ফুল স্ক্রিন (Standard)", "Standard Full"),
         ONE_HANDED_LEFT("একহাতে বাম (One-Handed Left)", "One-Handed Left"),
@@ -262,6 +275,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_FORM_FACTOR = "keyboard_form_factor"
         const val KEY_SPACE_CURSOR_SLIDE = "space_cursor_slide"
         const val KEY_SPACEBAR_SWIPE_MODE = "spacebar_swipe_mode"
+        const val KEY_BOTTOM_ROW_KEY_MODE = "bottom_row_key_mode"
         const val KEY_SWIPE_TO_DELETE = "swipe_to_delete"
         const val KEY_KEY_GLOW_RIPPLE = "key_glow_ripple"
         const val KEY_GLIDE_TYPING_ENABLED = "glide_typing_enabled"

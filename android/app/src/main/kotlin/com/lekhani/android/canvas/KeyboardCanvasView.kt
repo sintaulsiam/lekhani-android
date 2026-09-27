@@ -89,6 +89,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var showKeyBorders: Boolean = false
     var showHomeRowAccents: Boolean = false
     var spacebarSwipeMode: KeyboardPreferences.SpacebarSwipeMode = KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV
+    var bottomRowKeyMode: KeyboardPreferences.BottomRowKeyMode = KeyboardPreferences.BottomRowKeyMode.SMART
+    var enabledLayoutsCount: Int = 2
+
+    val isBottomRowKeyEmoji: Boolean
+        get() = when (bottomRowKeyMode) {
+            KeyboardPreferences.BottomRowKeyMode.EMOJI -> true
+            KeyboardPreferences.BottomRowKeyMode.LANGUAGE_SWITCH -> false
+            KeyboardPreferences.BottomRowKeyMode.SMART -> {
+                spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH || enabledLayoutsCount <= 1
+            }
+        }
+
     var longPressDelayMs: Long = 300L
 
     var formFactor: KeyboardPreferences.FormFactor = KeyboardPreferences.FormFactor.STANDARD
@@ -396,7 +408,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 ?: performHapticFeedback(
                     HapticFeedbackConstants.LONG_PRESS)
             when {
-                key.action == KeyAction.Space -> {
+                key.action == KeyAction.Space || key.action == KeyAction.SwitchLayout -> {
                     keyListener?.onSpaceLongPress()
                 }
                 key.longPressAction != null -> {
@@ -518,21 +530,22 @@ class KeyboardCanvasView @JvmOverloads constructor(
     )
 
     private val englishDedicatedNumberRow = listOf(
-        Key("1", shiftedLabel = "১", hintLabel = "১", action = KeyAction.Character("1"), contentDesc = "Digit 1"),
-        Key("2", shiftedLabel = "২", hintLabel = "২", action = KeyAction.Character("2"), contentDesc = "Digit 2"),
-        Key("3", shiftedLabel = "৩", hintLabel = "৩", action = KeyAction.Character("3"), contentDesc = "Digit 3"),
-        Key("4", shiftedLabel = "৪", hintLabel = "৪", action = KeyAction.Character("4"), contentDesc = "Digit 4"),
-        Key("5", shiftedLabel = "৫", hintLabel = "৫", action = KeyAction.Character("5"), contentDesc = "Digit 5"),
-        Key("6", shiftedLabel = "৬", hintLabel = "৬", action = KeyAction.Character("6"), contentDesc = "Digit 6"),
-        Key("7", shiftedLabel = "৭", hintLabel = "৭", action = KeyAction.Character("7"), contentDesc = "Digit 7"),
-        Key("8", shiftedLabel = "৮", hintLabel = "৮", action = KeyAction.Character("8"), contentDesc = "Digit 8"),
-        Key("9", shiftedLabel = "৯", hintLabel = "৯", action = KeyAction.Character("9"), contentDesc = "Digit 9"),
-        Key("0", shiftedLabel = "০", hintLabel = "০", action = KeyAction.Character("0"), contentDesc = "Digit 0"),
+        Key("1", action = KeyAction.Character("1"), contentDesc = "Digit 1"),
+        Key("2", action = KeyAction.Character("2"), contentDesc = "Digit 2"),
+        Key("3", action = KeyAction.Character("3"), contentDesc = "Digit 3"),
+        Key("4", action = KeyAction.Character("4"), contentDesc = "Digit 4"),
+        Key("5", action = KeyAction.Character("5"), contentDesc = "Digit 5"),
+        Key("6", action = KeyAction.Character("6"), contentDesc = "Digit 6"),
+        Key("7", action = KeyAction.Character("7"), contentDesc = "Digit 7"),
+        Key("8", action = KeyAction.Character("8"), contentDesc = "Digit 8"),
+        Key("9", action = KeyAction.Character("9"), contentDesc = "Digit 9"),
+        Key("0", action = KeyAction.Character("0"), contentDesc = "Digit 0"),
     )
 
     private fun isNumberSymbolsActive(): Boolean =
         layout == com.lekhani.android.model.NumberSymbolsLayout.numericLayout ||
         layout == com.lekhani.android.model.NumberSymbolsLayout.bengaliNumericLayout ||
+        layout == com.lekhani.android.model.NumberSymbolsLayout.englishNumericLayout ||
         layout == com.lekhani.android.model.NumberSymbolsLayout.moreSymbolsLayout
 
     private val accessibilityHelper = KeyboardAccessibilityHelper()
@@ -583,6 +596,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.fontScale = prefs.fontScale
         this.formFactor = prefs.formFactor
         this.spacebarSwipeMode = prefs.spacebarSwipeMode
+        this.bottomRowKeyMode = prefs.bottomRowKeyMode
         this.spaceCursorSlideEnabled = (prefs.spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV)
         this.showHomeRowAccents = prefs.showHomeRowAccents
         this.swipeToDeleteEnabled = prefs.swipeToDeleteEnabled
@@ -1259,6 +1273,21 @@ class KeyboardCanvasView @JvmOverloads constructor(
         canvas.drawOval(scratchRect, strokePaint)
     }
 
+    private fun drawVectorSmiley(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        val r = size * 0.38f
+        // Outer face circle
+        canvas.drawCircle(cx, cy, r, strokePaint)
+        // Two eyes
+        val eyeOffsetX = r * 0.38f
+        val eyeOffsetY = r * 0.26f
+        val eyeR = (r * 0.11f).coerceAtLeast(1.5f)
+        canvas.drawCircle(cx - eyeOffsetX, cy - eyeOffsetY, eyeR, vectorIconFillPaint)
+        canvas.drawCircle(cx + eyeOffsetX, cy - eyeOffsetY, eyeR, vectorIconFillPaint)
+        // Smile arc
+        scratchRect.set(cx - r * 0.50f, cy - r * 0.30f, cx + r * 0.50f, cy + r * 0.55f)
+        canvas.drawArc(scratchRect, 25f, 130f, false, strokePaint)
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (!isThemeApplied) {
@@ -1403,12 +1432,16 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 KeyAction.SwitchLayout -> {
                     val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
-                    drawVectorGlobe(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                    val hint = key.hintLabel
-                    if (hint != null) {
-                        val hintX = drawBounds.right - 5f * density
-                        val hintY = drawBounds.top + 13f * density
-                        canvas.drawText(hint, hintX, hintY, hintPaint)
+                    if (isBottomRowKeyEmoji) {
+                        drawVectorSmiley(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                    } else {
+                        drawVectorGlobe(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                        val hint = key.hintLabel
+                        if (hint != null) {
+                            val hintX = drawBounds.right - 5f * density
+                            val hintY = drawBounds.top + 13f * density
+                            canvas.drawText(hint, hintX, hintY, hintPaint)
+                        }
                     }
                 }
                 KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits, KeyAction.Space -> {
@@ -2033,7 +2066,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     private fun dispatchKey(key: Key) {
-        val action = key.activeAction(isShifted)
+        var action = key.activeAction(isShifted)
+        if (action == KeyAction.SwitchLayout && isBottomRowKeyEmoji) {
+            action = KeyAction.SwitchEmoji
+        }
         keyListener?.onKey(key, action)
 
         // Auto-release shift after one character (one-shot shift)
@@ -2111,7 +2147,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             KeyAction.SwitchMoreSymbols -> "অতিরিক্ত প্রতীক (More symbols)"
             KeyAction.SwitchAlpha -> "বর্ণমালা (Alphabet)"
             KeyAction.ToggleBengaliDigits -> "সংখ্যা পরিবর্তন (Toggle Digits)"
-            KeyAction.SwitchLayout -> "লেআউট পরিবর্তন (Switch Layout)"
+            KeyAction.SwitchLayout -> if (isBottomRowKeyEmoji) "ইমোজি (Emoji)" else "লেআউট পরিবর্তন (Switch Layout)"
             KeyAction.VoiceTyping -> "ভয়েস টাইপিং (Voice Typing)"
             KeyAction.SwitchEmoji -> "ইমোজি (Emoji)"
             KeyAction.SwitchClipboard -> "ক্লিপবোর্ড (Clipboard)"

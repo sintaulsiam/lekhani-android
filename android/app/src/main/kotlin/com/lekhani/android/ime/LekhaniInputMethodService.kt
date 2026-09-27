@@ -366,6 +366,7 @@ class LekhaniInputMethodService : InputMethodService() {
         _themeFlow.value = activeTheme
         keyboardView?.applyTheme(activeTheme)
         keyboardView?.setGboardKarsActive(false)
+        keyboardView?.enabledLayoutsCount = getEnabledLayouts().size
         feedbackManager.updateCache()
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
         updateCandidatesVisibility()
@@ -1067,11 +1068,12 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun updateNumberSymbolsKeyboard() {
         val currentLayoutType = session.getLayout()
-        val isBengali = currentLayoutType != LekhaniLayoutType.ENGLISH
+        val isEnglish = currentLayoutType == LekhaniLayoutType.ENGLISH
         val layout = when {
             isMoreSymbolsMode -> NumberSymbolsLayout.moreSymbolsLayout
+            isEnglish -> NumberSymbolsLayout.englishNumericLayout
             isBengaliDigitsMode -> NumberSymbolsLayout.bengaliNumericLayout
-            isNumericMode && isBengali -> NumberSymbolsLayout.bengaliNumericLayout
+            isNumericMode -> NumberSymbolsLayout.bengaliNumericLayout
             else -> NumberSymbolsLayout.numericLayout
         }
         keyboardView?.setLayout(layout, currentLayoutType, shifted = false)
@@ -1751,6 +1753,9 @@ class LekhaniInputMethodService : InputMethodService() {
     fun switchLayout(layout: LekhaniLayoutType) {
         isNumericMode = false
         isMoreSymbolsMode = false
+        if (layout == LekhaniLayoutType.ENGLISH) {
+            isBengaliDigitsMode = false
+        }
         session.setLayout(layout)
         emojiSearchSession?.setLayout(layout)
         keyboardView?.setLayout(LayoutRegistry.get(layout), layout, shifted = false)

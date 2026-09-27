@@ -86,6 +86,7 @@ fun PreferencesTabContent(
 
     var formFactor by remember { mutableStateOf(prefs.formFactor) }
     var spacebarSwipeMode by remember { mutableStateOf(prefs.spacebarSwipeMode) }
+    var bottomRowKeyMode by remember { mutableStateOf(prefs.bottomRowKeyMode) }
     var swipeToDelete by remember { mutableStateOf(prefs.swipeToDeleteEnabled) }
     var glideTyping by remember { mutableStateOf(prefs.glideTypingEnabled) }
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
@@ -281,6 +282,58 @@ fun PreferencesTabContent(
                             onClick = {
                                 spacebarSwipeMode = mode
                                 prefs.spacebarSwipeMode = mode
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(text = pair.first, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+                            Text(text = pair.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                // Bottom Row Secondary Key Mode
+                Text(
+                    text = if (isEnglish) "Bottom-row secondary key" else "নিচের সারির বিকল্প কি",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                val bottomKeyOptions = if (isEnglish) {
+                    listOf(
+                        KeyboardPreferences.BottomRowKeyMode.SMART to ("Smart (Automatic)" to "Emoji key when spacebar switches layout or only 1 layout; Globe otherwise"),
+                        KeyboardPreferences.BottomRowKeyMode.EMOJI to ("Always Emoji Key (😊)" to "Dedicated instant-access emoji button"),
+                        KeyboardPreferences.BottomRowKeyMode.LANGUAGE_SWITCH to ("Always Language Key (🌐)" to "Dedicated language / layout switch button")
+                    )
+                } else {
+                    listOf(
+                        KeyboardPreferences.BottomRowKeyMode.SMART to ("স্মার্ট / স্বয়ংক্রিয়" to "স্পেসবারে ভাষা পরিবর্তন থাকলে ইমোজি কি, নয়তো ভাষা কি"),
+                        KeyboardPreferences.BottomRowKeyMode.EMOJI to ("সর্বদা ইমোজি কি (😊)" to "সহজে ইমোজি ব্যবহারের জন্য স্থায়ী বাটন"),
+                        KeyboardPreferences.BottomRowKeyMode.LANGUAGE_SWITCH to ("সর্বদা ভাষা কি (🌐)" to "লেআউট ও ভাষা পরিবর্তনের জন্য স্থায়ী বাটন")
+                    )
+                }
+
+                bottomKeyOptions.forEach { (mode, pair) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                bottomRowKeyMode = mode
+                                prefs.bottomRowKeyMode = mode
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (bottomRowKeyMode == mode),
+                            onClick = {
+                                bottomRowKeyMode = mode
+                                prefs.bottomRowKeyMode = mode
                             }
                         )
                         Spacer(modifier = Modifier.width(8.dp))
