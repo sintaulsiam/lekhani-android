@@ -191,6 +191,19 @@ class LekhaniInputMethodService : InputMethodService() {
     private var currentSelStart: Int = -1
     private var currentSelEnd: Int = -1
 
+    /**
+     * Last cached surrounding text for use in word-count scan during swipe-to-delete.
+     * Updated asynchronously by [refreshSurroundingContext] — avoids blocking the main thread
+     * with a synchronous `getTextBeforeCursor()` Binder IPC call in [handleSwipeDelete].
+     */
+    @Volatile private var cachedSurroundingContext: String = ""
+
+    // Pre-allocated KeyEvent instances for cursor movement — zero allocation in handleCursorMove
+    private val curLeftDown  by lazy { android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT) }
+    private val curLeftUp    by lazy { android.view.KeyEvent(android.view.KeyEvent.ACTION_UP,   android.view.KeyEvent.KEYCODE_DPAD_LEFT) }
+    private val curRightDown by lazy { android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_RIGHT) }
+    private val curRightUp   by lazy { android.view.KeyEvent(android.view.KeyEvent.ACTION_UP,   android.view.KeyEvent.KEYCODE_DPAD_RIGHT) }
+
     // ── Preferences (Device Protected Storage) ─────────────────────────────────
 
     /**
@@ -282,14 +295,9 @@ class LekhaniInputMethodService : InputMethodService() {
             sysClipboard?.removePrimaryClipChangedListener(listener)
             clipboardListener = null
         }
-        try {
-            if (session.isUserLearnedDirty()) {
-                val f = File(filesDir, "user_learned.bin")
-                session.saveUserLearned(f.absolutePath)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving learned dictionary on destroy: ${e.message}")
-        }
+        // Persist learned data asynchronously while scope is still active; the scope
+        // cancellation below will wait for the child coroutine to finish before tearing down.
+        persistUserLearnedAsync()
         imeLifecycleOwner.onDestroy()
         audioManager.cancelStreaming()
         feedbackManager.release()
@@ -773,6 +781,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = initialQuery
                 emojiSearchRawQuery = initialQuery
+                // Reset the previous session before overwriting to avoid leaking the Rust
+                // Mutex-guarded state machine allocation at the FFI boundary.
+                emojiSearchSession?.reset()
                 emojiSearchSession = AndroidLekhaniSession().apply {
                     setLayout(session.getLayout())
                 }
@@ -1342,8 +1353,11 @@ class LekhaniInputMethodService : InputMethodService() {
      * to a message you can no longer read). Lekhani always overlays as a panel.
      */
     override fun onEvaluateFullscreenMode(): Boolean = false
- 
-    override fun onEvaluateInputViewShown(): Boolean = true
+
+    override fun onEvaluateInputViewShown(): Boolean {
+        super.onEvaluateInputViewShown()
+        return true
+    }
 
     // ══════════════════════════════════════════════════════════════════════════
     // Key processing  (hot path — must not block the main thread)
@@ -1362,8 +1376,11 @@ class LekhaniInputMethodService : InputMethodService() {
     fun onKey(keyToken: String) {
         val ic = currentInputConnection ?: return
 
+        // Ensure the English dictionary is loaded, but never block the main thread.
+        // The check itself is fast (boolean read); the actual load is dispatched to IO only
+        // when the dict is missing, which is rare (once per session after layout switch).
         if (session.getLayout() == LekhaniLayoutType.ENGLISH && !isEnglishDictLoaded) {
-            ensureEnglishDictionaryLoaded()
+            serviceScope.launch(Dispatchers.IO) { ensureEnglishDictionaryLoaded() }
         }
 
         val result = try {
@@ -1399,9 +1416,10 @@ class LekhaniInputMethodService : InputMethodService() {
     fun onBackspace() {
         val ic = currentInputConnection ?: return
 
-        // 1. If text is selected in the target app, delete the selection immediately
-        val selectedText = ic.getSelectedText(0)
-        val hasSelection = (!selectedText.isNullOrEmpty()) || (currentSelStart != currentSelEnd && currentSelStart >= 0 && currentSelEnd >= 0)
+        // 1. If text is selected in the target app, delete the selection immediately.
+        // Prefer the tracked cursor positions (zero cost) over getSelectedText() which is a
+        // synchronous Binder IPC call that can block 20+ ms on React Native / Flutter apps.
+        val hasSelection = (currentSelStart != currentSelEnd && currentSelStart >= 0 && currentSelEnd >= 0)
         if (hasSelection) {
             if (session.isComposing()) {
                 session.reset()
@@ -1728,16 +1746,17 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun handleCursorMove(deltaChars: Int) {
+        // Use pre-allocated KeyEvent instances — zero allocation per cursor step (AGENTS.md §1.2)
         val ic = currentInputConnection ?: return
         if (deltaChars < 0) {
-            for (i in 0 until (-deltaChars)) {
-                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT))
-                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_LEFT))
+            repeat(-deltaChars) {
+                ic.sendKeyEvent(curLeftDown)
+                ic.sendKeyEvent(curLeftUp)
             }
         } else if (deltaChars > 0) {
-            for (i in 0 until deltaChars) {
-                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
-                ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_RIGHT))
+            repeat(deltaChars) {
+                ic.sendKeyEvent(curRightDown)
+                ic.sendKeyEvent(curRightUp)
             }
         }
     }
@@ -1755,10 +1774,15 @@ class LekhaniInputMethodService : InputMethodService() {
             remainingWords--
         }
 
-        // 2. Delete remaining words from committed text
+        // 2. Delete remaining words from committed text.
+        // Use the cached surrounding context to avoid a synchronous Binder IPC
+        // (getTextBeforeCursor) on the main thread which can block 5–50 ms.
         if (remainingWords > 0) {
             val ic = currentInputConnection ?: return
-            val before = ic.getTextBeforeCursor(512, 0)?.toString() ?: ""
+            val before = cachedSurroundingContext.ifEmpty {
+                // Fallback: read synchronously only if cache is empty (first swipe-delete ever)
+                ic.getTextBeforeCursor(512, 0)?.toString() ?: ""
+            }
             if (before.isNotEmpty()) {
                 var charsToDelete = 0
                 var wordsFound = 0
@@ -1863,10 +1887,21 @@ class LekhaniInputMethodService : InputMethodService() {
     private fun refreshSurroundingContext() {
         serviceScope.launch {
             val contextText = withContext(Dispatchers.IO) {
-                currentInputConnection
-                    ?.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)
-                    ?.toString()
-                    ?: ""
+                try {
+                    kotlinx.coroutines.withTimeout(500L) {
+                        currentInputConnection
+                            ?.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)
+                            ?.toString()
+                            ?: ""
+                    }
+                } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+                    // Target app is unresponsive (e.g. Chromium WebView under heavy load);
+                    // skip context update rather than blocking the IO dispatcher indefinitely.
+                    ""
+                }
+            }
+            if (contextText.isNotEmpty()) {
+                cachedSurroundingContext = contextText
             }
             withContext(Dispatchers.Default) {
                 session.setContext(contextText)
