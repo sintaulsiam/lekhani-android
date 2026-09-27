@@ -278,26 +278,35 @@ class LekhaniInputMethodService : InputMethodService() {
         session.setLayout(savedLayout)
         Log.i(TAG, "Lekhani IME created; layout = $savedLayout")
 
-        // Listen for system clipboard updates; guard against private field capture
+        // Listen for system clipboard updates; guard against password field capture
         val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
         val listener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
-            runCatching {
-                if (!isCurrentFieldPrivate) {
-                    val clip = sysClipboard?.primaryClip
-                    if (clip != null && clip.itemCount > 0) {
-                        val item = clip.getItemAt(0)
-                        val text = item?.text?.toString() ?: item?.coerceToText(this@LekhaniInputMethodService)?.toString()
-                        if (!text.isNullOrBlank()) {
-                            clipboardStore.addClip(text)
-                        }
-                    }
-                }
-            }.onFailure { e ->
-                Log.w(TAG, "Failed to read primary clip: ${e.message}")
-            }
+            syncSystemClipboard()
         }
         clipboardListener = listener
         sysClipboard?.addPrimaryClipChangedListener(listener)
+    }
+
+    /**
+     * Synchronizes the system primary clipboard into Lekhani's local store.
+     * Guaranteed to work in Android 10+ where background listeners may be restricted.
+     */
+    private fun syncSystemClipboard() {
+        val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager ?: return
+        runCatching {
+            if (!isCurrentFieldPrivate && sysClipboard.hasPrimaryClip()) {
+                val clip = sysClipboard.primaryClip
+                if (clip != null && clip.itemCount > 0) {
+                    val item = clip.getItemAt(0)
+                    val text = item?.text?.toString() ?: item?.coerceToText(this@LekhaniInputMethodService)?.toString()
+                    if (!text.isNullOrBlank()) {
+                        clipboardStore.addClip(text)
+                    }
+                }
+            }
+        }.onFailure { e ->
+            Log.w(TAG, "Failed to sync system primary clip: ${e.message}")
+        }
     }
 
     override fun onDestroy() {
@@ -348,6 +357,7 @@ class LekhaniInputMethodService : InputMethodService() {
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         ensureEnglishDictionaryLoaded()
+        syncSystemClipboard()
         currentSelStart = -1
         currentSelEnd = -1
         // Re-apply policy in case the editor info changed after the view appeared
@@ -890,6 +900,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
+                syncSystemClipboard()
 
                 if (clipboardView == null) {
                     val compose = ComposeView(this).apply {
@@ -2068,7 +2079,7 @@ class LekhaniInputMethodService : InputMethodService() {
             inputVariation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
             inputVariation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
         )
-        isCurrentFieldPrivate = isPasswordField || noSuggestions
+        isCurrentFieldPrivate = isPasswordField
         session.setPrivateField(isPasswordField)
 
         if (isPasswordField) {
