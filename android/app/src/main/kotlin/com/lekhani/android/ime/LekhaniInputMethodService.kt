@@ -273,8 +273,8 @@ class LekhaniInputMethodService : InputMethodService() {
         val savedLayout = devicePrefs.getString(PREF_LAYOUT, null)
             ?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
             ?.takeIf { enabledList.contains(it) }
-            ?: enabledList.firstOrNull()
-            ?: LekhaniLayoutType.PROBAHO
+            ?: (if (enabledList.contains(LayoutRegistry.DEFAULT_ACTIVE_LAYOUT)) LayoutRegistry.DEFAULT_ACTIVE_LAYOUT else enabledList.firstOrNull())
+            ?: LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
         session.setLayout(savedLayout)
         Log.i(TAG, "Lekhani IME created; layout = $savedLayout")
 

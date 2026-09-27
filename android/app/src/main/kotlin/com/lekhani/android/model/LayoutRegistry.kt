@@ -87,6 +87,16 @@ object LayoutRegistry {
         }
     }
 
+    /** Default enabled layouts for initial onboarding and clean reset */
+    val DEFAULT_ENABLED_LAYOUTS: List<LekhaniLayoutType> = listOf(
+        LekhaniLayoutType.PROBAHO,
+        LekhaniLayoutType.ENGLISH,
+        LekhaniLayoutType.PROBHAT,
+        LekhaniLayoutType.AVRO,
+    )
+
+    val DEFAULT_ACTIVE_LAYOUT: LekhaniLayoutType = LekhaniLayoutType.ENGLISH
+
     const val PREF_ENABLED_LAYOUTS = "pref_enabled_layouts_order"
     const val PREF_ACTIVE_LAYOUT = "active_layout"
 
@@ -96,14 +106,14 @@ object LayoutRegistry {
      */
     fun parseEnabledLayouts(csv: String?): List<LekhaniLayoutType> {
         if (csv.isNullOrBlank()) {
-            return all
+            return DEFAULT_ENABLED_LAYOUTS
         }
         val parsed = csv.split(",")
             .mapNotNull { name ->
                 runCatching { LekhaniLayoutType.valueOf(name.trim()) }.getOrNull()
             }
             .distinct()
-        return if (parsed.isEmpty()) listOf(LekhaniLayoutType.PROBAHO, LekhaniLayoutType.ENGLISH) else parsed
+        return if (parsed.isEmpty()) DEFAULT_ENABLED_LAYOUTS else parsed
     }
 
     /**

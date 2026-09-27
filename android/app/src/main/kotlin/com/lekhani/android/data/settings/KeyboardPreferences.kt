@@ -134,8 +134,8 @@ class KeyboardPreferences private constructor(context: Context) {
 
     var spacebarSwipeMode: SpacebarSwipeMode
         get() {
-            val name = prefs.getString(KEY_SPACEBAR_SWIPE_MODE, SpacebarSwipeMode.CURSOR_NAV.name) ?: SpacebarSwipeMode.CURSOR_NAV.name
-            return runCatching { SpacebarSwipeMode.valueOf(name) }.getOrDefault(SpacebarSwipeMode.CURSOR_NAV)
+            val name = prefs.getString(KEY_SPACEBAR_SWIPE_MODE, SpacebarSwipeMode.LAYOUT_SWITCH.name) ?: SpacebarSwipeMode.LAYOUT_SWITCH.name
+            return runCatching { SpacebarSwipeMode.valueOf(name) }.getOrDefault(SpacebarSwipeMode.LAYOUT_SWITCH)
         }
         set(value) {
             prefs.edit().putString(KEY_SPACEBAR_SWIPE_MODE, value.name).apply()
