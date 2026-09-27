@@ -20,6 +20,17 @@ data class CandidateItem(
 )
 
 /**
+ * UndoInfo — metadata for rolling back an autocorrection / transliteration commit.
+ *
+ * @param originalText The verbatim raw text typed by user before commitment
+ * @param committedText The text that was committed (including trailing space if any)
+ */
+data class UndoInfo(
+    val originalText: String,
+    val committedText: String,
+)
+
+/**
  * CandidateStripState — the full state published to the Compose strip.
  */
 sealed class CandidateStripState {
@@ -29,12 +40,22 @@ sealed class CandidateStripState {
     /**
      * Candidates are available.
      * [items] is always non-empty when this state is active.
+     * [undoInfo] is optional rollback info if the previous word was substituted.
      */
-    data class Candidates(val items: List<CandidateItem>) : CandidateStripState()
+    data class Candidates(
+        val items: List<CandidateItem>,
+        val undoInfo: UndoInfo? = null,
+    ) : CandidateStripState()
 
     /**
      * Real-time Emoji Search Mode.
      * Displays current search query and live matching emojis above the keyboard.
      */
     data class EmojiSearch(val query: String, val emojis: List<String>) : CandidateStripState()
+
+    /**
+     * Single Undo chip mode (shown when no next-word candidates exist, but a substitution occurred).
+     */
+    data class Undo(val undoInfo: UndoInfo) : CandidateStripState()
 }
+

@@ -228,6 +228,28 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private val keyPopupShadowRect = RectF()
     private val keyDrawRect = RectF()
 
+    // Alternate Character Popup (Gboard Parity, zero allocation)
+    private var isAlternatePopupActive: Boolean = false
+    private val alternateLabels = ArrayList<String>(8)
+    private val alternatePillRects = Array(8) { RectF() }
+    private var alternateCount: Int = 0
+    private var selectedAlternateIndex: Int = 0
+    private val alternatePopupBoundingRect = RectF()
+    private val alternatePopupShadowRect = RectF()
+    private val alternateHighlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+    private val alternatePillBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+    private val alternateTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+    }
+    private val alternateSelectedTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.DEFAULT_BOLD
+    }
+
     private var wallpaperBitmap: Bitmap? = null
     private var wallpaperOpacity: Float = 0.25f
     private val wallpaperPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -380,15 +402,63 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 key.longPressAction != null -> {
                     keyListener?.onKey(key, key.longPressAction)
                 }
-                key.hintLabel != null -> {
-                    keyListener?.onKey(key, KeyAction.Character(key.hintLabel))
-                }
-                key.shiftedLabel != null && key.shiftedLabel != key.label -> {
-                    keyListener?.onKey(key, key.shiftedAction)
+                else -> {
+                    val rawChar = key.displayLabel(isShifted)
+                    val alts = com.lekhani.android.model.BengaliAlternates.getAlternates(rawChar)
+                    if (!alts.isNullOrEmpty()) {
+                        showAlternatePopup(resolvedKeys[pressedKeyIndex], alts)
+                    } else if (key.hintLabel != null) {
+                        keyListener?.onKey(key, KeyAction.Character(key.hintLabel))
+                    } else if (key.shiftedLabel != null && key.shiftedLabel != key.label) {
+                        keyListener?.onKey(key, key.shiftedAction)
+                    }
                 }
             }
             invalidate()
         }
+    }
+
+    private fun showAlternatePopup(resolvedKey: ResolvedKey, alts: Array<String>) {
+        alternateLabels.clear()
+        alternateCount = alts.size.coerceAtMost(8)
+        for (i in 0 until alternateCount) {
+            alternateLabels.add(alts[i])
+        }
+        selectedAlternateIndex = 0
+
+        val density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
+        val pillW = (resolvedKey.bounds.width() * 0.95f).coerceAtLeast(36f * density)
+        val pillH = (resolvedKey.bounds.height() * 0.95f).coerceAtLeast(42f * density)
+        val spacing = 4f * density
+        val pad = 6f * density
+        val totalW = alternateCount * pillW + (alternateCount - 1) * spacing + pad * 2
+        val totalH = pillH + pad * 2
+
+        var left = resolvedKey.bounds.centerX() - totalW / 2f
+        var right = left + totalW
+        if (left < 6f * density) {
+            left = 6f * density
+            right = left + totalW
+        } else if (right > width - 6f * density) {
+            right = width - 6f * density
+            left = right - totalW
+        }
+
+        val bottom = resolvedKey.bounds.top - 8f * density
+        val top = bottom - totalH
+
+        alternatePopupBoundingRect.set(left, top, right, bottom)
+        alternatePopupShadowRect.set(left, top + 2f * density, right, bottom + 4f * density)
+
+        for (i in 0 until alternateCount) {
+            val pLeft = left + pad + i * (pillW + spacing)
+            val pRight = pLeft + pillW
+            val pTop = top + pad
+            val pBottom = pTop + pillH
+            alternatePillRects[i].set(pLeft, pTop, pRight, pBottom)
+        }
+
+        isAlternatePopupActive = true
     }
 
     private var backspaceRepeatCount = 0
@@ -506,7 +576,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.longPressDelayMs = prefs.longPressDelayMs
         this.showKeyBorders = prefs.showKeyBorders
         this.showDedicatedNumberRow = prefs.showDedicatedNumberRow
-        this.heightScale = prefs.heightScale
+        this.heightScale = prefs.getHeightScaleForOrientation(resources.configuration.orientation)
         this.marginHDp = prefs.keyMarginH
         this.marginVDp = prefs.keyMarginV
         this.bottomChinPaddingDp = prefs.bottomChinPadding
@@ -592,6 +662,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
         keyPopupStrokePaint.color = if (theme.isDark) 0x33FFFFFF.toInt() else 0x1A000000
         keyPopupTextPaint.color = theme.labelColor
+
+        alternateHighlightPaint.color = theme.accentColor
+        alternateSelectedTextPaint.color = if (theme.isDark) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
+        alternateTextPaint.color = theme.labelColor
+        alternatePillBgPaint.color = if (theme.isDark) 0x1AFFFFFF.toInt() else 0x0D000000
         invalidate()
     }
 
@@ -750,6 +825,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         labelPaintSmall.textSize = labelSizeSmall
         hintPaint.textSize = labelSizeSmall * 0.92f
         keyPopupTextPaint.textSize = labelSize * 1.50f
+        alternateTextPaint.textSize = labelSize * 1.05f
+        alternateSelectedTextPaint.textSize = labelSize * 1.15f
 
         // Zone divider: exactly at x = width / 2 (5 keys left, 5 keys right)
         zoneDividerX = w / 2f
@@ -1370,7 +1447,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         // ── Floating Key Preview Bubble (Material 3 Elevated Keycap) ─────────
-        if (showKeyPreviews && pressedKeyIndex in resolvedKeys.indices && !isGliding && !isSpaceCursorMoving && !isBackspaceSwiping) {
+        if (showKeyPreviews && !isAlternatePopupActive && pressedKeyIndex in resolvedKeys.indices && !isGliding && !isSpaceCursorMoving && !isBackspaceSwiping) {
             val pressedResolved = resolvedKeys[pressedKeyIndex]
             val pKey = pressedResolved.key
             if (pKey.action is KeyAction.Character && pKey.label.isNotEmpty()) {
@@ -1396,6 +1473,29 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val charStr = pKey.displayLabel(isShifted)
                 val pTextY = keyPopupRect.centerY() - (keyPopupTextPaint.ascent() + keyPopupTextPaint.descent()) / 2f
                 canvas.drawText(charStr, keyPopupRect.centerX(), pTextY, keyPopupTextPaint)
+            }
+        }
+
+        // ── Alternate Characters Radial / Floating Popup (Gboard Parity) ──────
+        if (isAlternatePopupActive && alternateCount > 0) {
+            // Popup shadow
+            canvas.drawRoundRect(alternatePopupShadowRect, 14f * density, 14f * density, keyPopupShadowPaint)
+            // Popup body & border
+            canvas.drawRoundRect(alternatePopupBoundingRect, 14f * density, 14f * density, keyPopupBgPaint)
+            canvas.drawRoundRect(alternatePopupBoundingRect, 14f * density, 14f * density, keyPopupStrokePaint)
+
+            for (i in 0 until alternateCount) {
+                val rect = alternatePillRects[i]
+                val isSelected = (i == selectedAlternateIndex)
+                if (isSelected) {
+                    canvas.drawRoundRect(rect, 10f * density, 10f * density, alternateHighlightPaint)
+                } else {
+                    canvas.drawRoundRect(rect, 10f * density, 10f * density, alternatePillBgPaint)
+                }
+                val label = alternateLabels[i]
+                val tp = if (isSelected) alternateSelectedTextPaint else alternateTextPaint
+                val ty = rect.centerY() - (tp.ascent() + tp.descent()) / 2f
+                canvas.drawText(label, rect.centerX(), ty, tp)
             }
         }
 
@@ -1558,6 +1658,25 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
 
             MotionEvent.ACTION_MOVE -> {
+                if (isAlternatePopupActive && alternateCount > 0) {
+                    val touchX = event.x
+                    var bestIdx = selectedAlternateIndex
+                    var minDistance = Float.MAX_VALUE
+                    for (i in 0 until alternateCount) {
+                        val dist = Math.abs(touchX - alternatePillRects[i].centerX())
+                        if (dist < minDistance) {
+                            minDistance = dist
+                            bestIdx = i
+                        }
+                    }
+                    if (bestIdx != selectedAlternateIndex) {
+                        selectedAlternateIndex = bestIdx
+                        feedbackManager?.onTickFeedback(this)
+                        invalidate()
+                    }
+                    return true
+                }
+
                 val curIndex = if (pressedPointerId >= 0) event.findPointerIndex(pressedPointerId) else 0
                 val curX = if (curIndex in 0 until event.pointerCount) event.getX(curIndex) else event.x
                 val curY = if (curIndex in 0 until event.pointerCount) event.getY(curIndex) else event.y
@@ -1755,6 +1874,20 @@ class KeyboardCanvasView @JvmOverloads constructor(
             MotionEvent.ACTION_UP -> {
                 removeCallbacks(longPressRunnable)
                 removeCallbacks(backspaceRepeatRunnable)
+                if (isAlternatePopupActive) {
+                    isAlternatePopupActive = false
+                    if (selectedAlternateIndex in 0 until alternateCount && pressedKeyIndex in resolvedKeys.indices) {
+                        val key = resolvedKeys[pressedKeyIndex].key
+                        val chosen = alternateLabels[selectedAlternateIndex]
+                        keyListener?.onKey(key, KeyAction.Character(chosen))
+                        feedbackManager?.onKeyFeedback(this)
+                    }
+                    pressedKeyIndex = -1
+                    pressedPointerId = -1
+                    invalidate()
+                    return true
+                }
+
                 if (isDraggingFloatingBar) {
                     isDraggingFloatingBar = false
                     committedFloatingOffsetX = floatingOffsetX
@@ -1834,6 +1967,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(longPressRunnable)
                 removeCallbacks(backspaceRepeatRunnable)
+                isAlternatePopupActive = false
                 isGliding = false
                 isSpaceCursorMoving = false
                 isBackspaceSwiping = false

@@ -49,6 +49,7 @@ import com.lekhani.android.ui.candidate.CandidateBlacklist
 import com.lekhani.android.ui.candidate.CandidateStripState
 import com.lekhani.android.ui.candidate.CandidateStripView
 import com.lekhani.android.ui.candidate.HomophoneAnnotator
+import com.lekhani.android.ui.candidate.UndoInfo
 import com.lekhani.android.ui.clipboard.ClipboardSheetView
 import com.lekhani.android.ui.emoji.EmojiPickerView
 import com.lekhani.android.ui.voice.VoiceWaveformOverlay
@@ -196,6 +197,11 @@ class LekhaniInputMethodService : InputMethodService() {
     private var currentSelStart: Int = -1
     private var currentSelEnd: Int = -1
 
+    // Raw keystroke buffer and undo action state
+    private val rawInputBuffer = StringBuilder()
+    private var activeUndoInfo: UndoInfo? = null
+    private var undoDismissJob: kotlinx.coroutines.Job? = null
+
     /**
      * Last cached surrounding text for use in word-count scan during swipe-to-delete.
      * Updated asynchronously by [refreshSurroundingContext] — avoids blocking the main thread
@@ -317,6 +323,8 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onStartInput(info: EditorInfo, restarting: Boolean) {
         super.onStartInput(info, restarting)
+        clearUndo()
+        rawInputBuffer.clear()
         session.reset()
         preeditShadow = ""
         isNumericMode = false
@@ -327,6 +335,8 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     override fun onFinishInput() {
+        clearUndo()
+        rawInputBuffer.clear()
         audioManager.cancelStreaming()
         session.reset()
         preeditShadow = ""
@@ -362,17 +372,20 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         currentSelStart = newSelStart
         currentSelEnd = newSelEnd
-        // If cursor moved outside the active composing region or text was selected
-        val outsideComposing = if (candidatesStart >= 0 && candidatesEnd >= 0) {
-            newSelStart < candidatesStart || newSelEnd > candidatesEnd
-        } else {
-            false
-        }
-        if (outsideComposing || (newSelStart != newSelEnd)) {
-            if (session.isComposing()) {
+
+        // Check if user manually repositioned the cursor or changed selection
+        if (session.isComposing() || preeditShadow.isNotEmpty()) {
+            val cursorAtComposingEnd = (candidatesStart >= 0 && candidatesEnd >= 0 &&
+                    newSelStart == candidatesEnd && newSelEnd == candidatesEnd)
+            if (!cursorAtComposingEnd) {
+                // Cursor moved away from composing tail, or composing span was dropped by editor.
+                // Finalize any active composing text so it stays in place as committed text.
+                currentInputConnection?.finishComposingText()
                 session.reset()
                 preeditShadow = ""
+                rawInputBuffer.clear()
                 clearCandidates()
+                clearUndo()
             }
         }
     }
@@ -438,7 +451,7 @@ class LekhaniInputMethodService : InputMethodService() {
                                 _candidateState.value = if (filtered.isEmpty())
                                     CandidateStripState.Empty
                                 else
-                                    CandidateStripState.Candidates(filtered)
+                                    CandidateStripState.Candidates(filtered, undoInfo = current.undoInfo)
                             }
                         },
                         theme = currentTheme,
@@ -464,6 +477,10 @@ class LekhaniInputMethodService : InputMethodService() {
                             emojiSearchRawQuery = ""
                             emojiSearchSession?.reset()
                             updateEmojiSearchStrip()
+                        },
+                        onUndoClick = { undo ->
+                            candidateStripComposeView?.let { feedbackManager.onKeyFeedback(it) }
+                            onUndoCommit(undo)
                         },
                     )
 
@@ -1149,6 +1166,14 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun commitEnter() {
         val ic = currentInputConnection ?: return
+        if (session.isComposing() || preeditShadow.isNotEmpty()) {
+            ic.finishComposingText()
+            session.reset()
+            preeditShadow = ""
+            rawInputBuffer.clear()
+            clearCandidates()
+            clearUndo()
+        }
         val info = currentInputEditorInfo
         val imeOptions = info?.imeOptions ?: 0
         val action = imeOptions and EditorInfo.IME_MASK_ACTION
@@ -1405,6 +1430,30 @@ class LekhaniInputMethodService : InputMethodService() {
     // ══════════════════════════════════════════════════════════════════════════
 
     /**
+     * Checks if the user manually repositioned the cursor away from the active
+     * composing text before IPC delivered onUpdateSelection. If so, cleanly
+     * finalizes the existing composition at its current location and resets state.
+     */
+    private fun ensureCursorInComposingRegion(ic: InputConnection) {
+        if (!session.isComposing() && preeditShadow.isEmpty()) return
+
+        val textBefore = try {
+            ic.getTextBeforeCursor(preeditShadow.length, 0)?.toString()
+        } catch (_: Exception) {
+            null
+        }
+
+        if (textBefore != null && !textBefore.endsWith(preeditShadow)) {
+            ic.finishComposingText()
+            session.reset()
+            preeditShadow = ""
+            rawInputBuffer.clear()
+            clearCandidates()
+            clearUndo()
+        }
+    }
+
+    /**
      * Processes a key from the Kotlin keyboard view layer.
      *
      * Called by [KeyboardCanvasView] (Phase 3) for every tap / long-press.
@@ -1415,7 +1464,14 @@ class LekhaniInputMethodService : InputMethodService() {
      * that is unavoidable at the Android layer).
      */
     fun onKey(keyToken: String) {
+        clearUndo()
         val ic = currentInputConnection ?: return
+        ensureCursorInComposingRegion(ic)
+
+        if (!session.isComposing() && preeditShadow.isEmpty()) {
+            rawInputBuffer.clear()
+        }
+        rawInputBuffer.append(keyToken)
 
         // Ensure the English dictionary is loaded, but never block the main thread.
         // The check itself is fast (boolean read); the actual load is dispatched to IO only
@@ -1438,6 +1494,7 @@ class LekhaniInputMethodService : InputMethodService() {
             try {
                 ic.commitText(text, 1)
                 preeditShadow = ""
+                rawInputBuffer.clear()
             } finally {
                 ic.endBatchEdit()
             }
@@ -1455,13 +1512,16 @@ class LekhaniInputMethodService : InputMethodService() {
      * the InputConnection so the target app deletes its own preceding character.
      */
     fun onBackspace() {
+        clearUndo()
         val ic = currentInputConnection ?: return
+        ensureCursorInComposingRegion(ic)
 
         // 1. If text is selected in the target app, delete the selection immediately.
         // Prefer the tracked cursor positions (zero cost) over getSelectedText() which is a
         // synchronous Binder IPC call that can block 20+ ms on React Native / Flutter apps.
         val hasSelection = (currentSelStart != currentSelEnd && currentSelStart >= 0 && currentSelEnd >= 0)
         if (hasSelection) {
+            rawInputBuffer.clear()
             if (session.isComposing()) {
                 session.reset()
                 preeditShadow = ""
@@ -1479,6 +1539,9 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // 2. If composing buffer is non-empty, delegate to Rust engine
         if (session.isComposing()) {
+            if (rawInputBuffer.isNotEmpty()) {
+                rawInputBuffer.setLength(rawInputBuffer.length - 1)
+            }
             val result = try {
                 session.handleBackspace()
             } catch (e: LekhaniException) {
@@ -1488,14 +1551,70 @@ class LekhaniInputMethodService : InputMethodService() {
             setComposingTextSafe(ic, result.preedit)
             publishCandidates(result.candidates)
         } else {
-            // 3. Fallback: send KEYCODE_DEL key event so Android's BaseInputConnection handles
-            // selection deletion natively across all apps (even if getSelectedText returned null)
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+            rawInputBuffer.clear()
+            // 3. Script-aware grapheme & conjunct backspace (AGENTS.md Script Integrity)
+            handleScriptAwareBackspace(ic)
             if (session.getLayout() == LekhaniLayoutType.GBOARD) {
                 keyboardView?.setGboardKarsActive(false)
             }
             clearCandidates()
         }
+    }
+
+    /**
+     * Script-aware backspace that ensures Bengali conjunct roots and grapheme clusters
+     * are never left in corrupted, orphan states (AGENTS.md Script Integrity).
+     */
+    private fun handleScriptAwareBackspace(ic: InputConnection) {
+        val textBefore = try {
+            ic.getTextBeforeCursor(16, 0)?.toString()
+        } catch (_: Exception) {
+            null
+        }
+
+        if (textBefore.isNullOrEmpty()) {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+            return
+        }
+
+        val len = textBefore.length
+        val lastChar = textBefore[len - 1]
+        var deleteChars = 1
+
+        when {
+            // Case 1: Preceded by Virama (Hasanta \u09CD) right before last char (e.g. ক্ষ -> deletes ্ + ষ, leaving ক)
+            len >= 2 && textBefore[len - 2] == '\u09CD' -> {
+                deleteChars = 2
+            }
+            // Case 2: Ends with Virama (orphan Hasanta) -> delete Hasanta + previous consonant together
+            lastChar == '\u09CD' && len >= 2 -> {
+                deleteChars = 2
+            }
+            // Case 3: Bengali Nukta character (ড + ় = ড়, ঢ + ় = ঢ়, য + ় = য়)
+            lastChar == '\u09BC' && len >= 2 -> {
+                deleteChars = 2
+            }
+            // Case 4: UTF-16 Surrogate pair (Emoji, extended Unicode)
+            Character.isSurrogate(lastChar) && len >= 2 -> {
+                deleteChars = 2
+            }
+            // Case 5: Standard Bengali grapheme cluster via BreakIterator
+            else -> {
+                try {
+                    val it = java.text.BreakIterator.getCharacterInstance(java.util.Locale("bn", "BD"))
+                    it.setText(textBefore)
+                    val end = it.last()
+                    val start = it.previous()
+                    if (start != java.text.BreakIterator.DONE && end > start) {
+                        deleteChars = end - start
+                    }
+                } catch (_: Exception) {
+                    deleteChars = 1
+                }
+            }
+        }
+
+        ic.deleteSurroundingText(deleteChars, 0)
     }
 
     /**
@@ -1505,6 +1624,12 @@ class LekhaniInputMethodService : InputMethodService() {
     fun onSpace() {
         keyboardView?.setGboardKarsActive(false)
         val ic = currentInputConnection ?: return
+        clearUndo()
+        ensureCursorInComposingRegion(ic)
+
+        val originalRaw = rawInputBuffer.toString()
+        val preeditBeforeSpace = preeditShadow
+        rawInputBuffer.clear()
 
         val result = try {
             session.handleSpace()
@@ -1521,8 +1646,23 @@ class LekhaniInputMethodService : InputMethodService() {
             } finally {
                 ic.endBatchEdit()
             }
+
+            val trimmedCommitted = text.trim()
+            val candidateOriginal = when {
+                originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
+                preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted -> preeditBeforeSpace
+                else -> null
+            }
+            val undo = if (candidateOriginal != null && candidateOriginal.isNotBlank()) {
+                UndoInfo(originalText = candidateOriginal, committedText = text)
+            } else null
+
             if (result.candidates.isNotEmpty()) {
-                publishCandidates(result.candidates)
+                publishCandidates(result.candidates, undo = undo)
+            } else if (undo != null) {
+                scheduleUndoExpiry()
+                _candidateState.value = CandidateStripState.Undo(undo)
+                updateCandidatesVisibility()
             } else {
                 clearCandidates()
             }
@@ -1539,6 +1679,8 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     fun handleGlideGesture(keys: List<String>) {
         if (keys.isEmpty()) return
+        clearUndo()
+        rawInputBuffer.clear()
         val ic = currentInputConnection ?: return
 
         val result = try {
@@ -1574,6 +1716,8 @@ class LekhaniInputMethodService : InputMethodService() {
      * Clears composing state and commits the NFC-normalized candidate + space.
      */
     fun onCandidateSelected(candidate: String) {
+        clearUndo()
+        rawInputBuffer.clear()
         if (currentMode == InputViewMode.EMOJI_SEARCH) {
             currentInputConnection?.commitText(candidate, 1)
             recentsManager.addRecent(candidate)
@@ -1695,17 +1839,58 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
+    private fun clearUndo() {
+        undoDismissJob?.cancel()
+        undoDismissJob = null
+        activeUndoInfo = null
+        val cur = _candidateState.value
+        if (cur is CandidateStripState.Undo) {
+            _candidateState.value = CandidateStripState.Empty
+        } else if (cur is CandidateStripState.Candidates && cur.undoInfo != null) {
+            _candidateState.value = CandidateStripState.Candidates(cur.items, undoInfo = null)
+        }
+    }
+
+    private fun scheduleUndoExpiry() {
+        undoDismissJob?.cancel()
+        undoDismissJob = serviceScope.launch {
+            kotlinx.coroutines.delay(3500)
+            clearUndo()
+        }
+    }
+
+    fun onUndoCommit(undoInfo: UndoInfo) {
+        val ic = currentInputConnection ?: return
+        ic.beginBatchEdit()
+        try {
+            ic.deleteSurroundingText(undoInfo.committedText.length, 0)
+            ic.commitText(undoInfo.originalText, 1)
+            preeditShadow = ""
+            rawInputBuffer.clear()
+        } finally {
+            ic.endBatchEdit()
+        }
+        clearUndo()
+        refreshSurroundingContext()
+    }
+
     /**
      * Publishes candidate list to the Compose candidate strip.
      * Filters out user-blacklisted words and applies homophone disambiguation badges.
      */
-    private fun publishCandidates(raw: List<String>) {
+    private fun publishCandidates(raw: List<String>, undo: UndoInfo? = null) {
         if (currentMode == InputViewMode.EMOJI_SEARCH) return
         val filtered = raw.filter { !blacklist.isBlacklisted(it) }
         _candidateState.value = if (filtered.isEmpty()) {
-            CandidateStripState.Empty
+            if (undo != null) {
+                scheduleUndoExpiry()
+                CandidateStripState.Undo(undo)
+            } else {
+                CandidateStripState.Empty
+            }
         } else {
-            CandidateStripState.Candidates(HomophoneAnnotator.annotate(filtered))
+            if (undo != null) scheduleUndoExpiry()
+            CandidateStripState.Candidates(HomophoneAnnotator.annotate(filtered), undoInfo = undo)
         }
         updateCandidatesVisibility()
     }
@@ -1787,8 +1972,15 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun handleCursorMove(deltaChars: Int) {
-        // Use pre-allocated KeyEvent instances — zero allocation per cursor step (AGENTS.md §1.2)
         val ic = currentInputConnection ?: return
+        if (session.isComposing() || preeditShadow.isNotEmpty()) {
+            ic.finishComposingText()
+            session.reset()
+            preeditShadow = ""
+            rawInputBuffer.clear()
+            clearCandidates()
+            clearUndo()
+        }
         if (deltaChars < 0) {
             repeat(-deltaChars) {
                 ic.sendKeyEvent(curLeftDown)

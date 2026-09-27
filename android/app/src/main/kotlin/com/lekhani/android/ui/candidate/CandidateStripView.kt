@@ -34,6 +34,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import com.lekhani.android.ui.theme.iconVector
 import androidx.compose.runtime.Composable
@@ -130,6 +132,7 @@ fun CandidateStripView(
     onOpenToolsMenu: (() -> Unit)? = null,
     onEmojiSearchClose: (() -> Unit)? = null,
     onEmojiSearchClear: (() -> Unit)? = null,
+    onUndoClick: ((UndoInfo) -> Unit)? = null,
 ) {
     val state by stateFlow.collectAsState()
     val hasItems = state is CandidateStripState.Candidates && !isToolsMenuOpen
@@ -148,6 +151,7 @@ fun CandidateStripView(
         val displayMode = when {
             state is CandidateStripState.EmojiSearch -> 0
             hasItems && !showToolbarOverride && !isToolsMenuOpen -> 1
+            state is CandidateStripState.Undo && !isToolsMenuOpen -> 3
             else -> 2
         }
 
@@ -194,7 +198,17 @@ fun CandidateStripView(
                             )
                         }
 
-                        val items = (state as? CandidateStripState.Candidates)?.items ?: emptyList()
+                        val candState = state as? CandidateStripState.Candidates
+                        candState?.undoInfo?.let { undo: UndoInfo ->
+                            UndoChip(
+                                undoInfo = undo,
+                                onUndoClick = { onUndoClick?.invoke(undo) },
+                                theme = theme,
+                                isEnglish = isEnglish,
+                            )
+                        }
+
+                        val items = candState?.items ?: emptyList()
                         Box(modifier = Modifier.weight(1f)) {
                             StripContent(
                                 items = items,
@@ -205,27 +219,19 @@ fun CandidateStripView(
                         }
                     }
                 }
-                else -> {
+                3 -> {
+                    val undoState = state as? CandidateStripState.Undo
                     Row(
                         modifier = Modifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (hasItems && !isToolsMenuOpen) {
-                            // Collapse toolbar button back to candidates
-                            Box(
-                                modifier = Modifier
-                                    .size(StripHeight)
-                                    .clip(CircleShape)
-                                    .clickable { showToolbarOverride = false },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = if (isEnglish) "Show Candidates" else "পরামর্শ প্রদর্শন",
-                                    tint = Color(theme.accentColor),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                        undoState?.undoInfo?.let { undo: UndoInfo ->
+                            UndoChip(
+                                undoInfo = undo,
+                                onUndoClick = { onUndoClick?.invoke(undo) },
+                                theme = theme,
+                                isEnglish = isEnglish,
+                            )
                         }
 
                         Box(modifier = Modifier.weight(1f)) {
@@ -240,10 +246,46 @@ fun CandidateStripView(
                         }
                     }
                 }
+                else -> {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (hasItems && !isToolsMenuOpen) {
+                            // Collapse toolbar button back to candidates
+                            Box(
+                                modifier = Modifier
+                                .size(StripHeight)
+                                .clip(CircleShape)
+                                .clickable { showToolbarOverride = false },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = if (isEnglish) "Show Candidates" else "পরামর্শ প্রদর্শন",
+                                tint = Color(theme.accentColor),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        ToolbarContent(
+                            tools = activeTools,
+                            onToolClick = onToolClick,
+                            onOpenToolsMenu = onOpenToolsMenu,
+                            theme = theme,
+                            isEnglish = isEnglish,
+                            isToolsMenuOpen = isToolsMenuOpen,
+                        )
+                    }
+                }
             }
         }
     }
 }
+}
+
 
 @Composable
 private fun EmojiSearchStrip(
@@ -598,6 +640,50 @@ private fun HomophoneBadge(alternate: String, theme: KeyboardTheme) {
             fontWeight = FontWeight.Medium,
             maxLines = 1,
         )
+    }
+}
+
+/**
+ * A sleek chip shown when a word was autocorrected or transliterated,
+ * allowing single-tap rollback to the verbatim original text.
+ */
+@Composable
+private fun UndoChip(
+    undoInfo: UndoInfo,
+    onUndoClick: () -> Unit,
+    theme: KeyboardTheme,
+    isEnglish: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onUndoClick,
+        shape = RoundedCornerShape(16.dp),
+        color = Color(theme.accentColor).copy(alpha = 0.16f),
+        border = BorderStroke(1.dp, Color(theme.accentColor).copy(alpha = 0.45f)),
+        modifier = modifier
+            .padding(start = 4.dp, end = 4.dp)
+            .height(30.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = if (isEnglish) "Undo autocorrection" else "পূর্বাবস্থায় ফেরান",
+                tint = Color(theme.accentColor),
+                modifier = Modifier.size(13.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "${if (isEnglish) "Undo" else "পূর্বাবস্থা"}: \"${undoInfo.originalText}\"",
+                color = Color(theme.labelColor),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

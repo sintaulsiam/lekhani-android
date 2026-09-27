@@ -207,6 +207,21 @@ fun ThemeStudioSheet(
                     }
                 }
 
+                // ── Live Interactive Keyboard Preview ─────────────────────────
+                item {
+                    val activePreviewTheme = remember(selectedThemeId, customThemes) {
+                        customThemes.firstOrNull { it.id == selectedThemeId }
+                            ?: ThemeRegistry.resolveTheme(context, selectedThemeId)
+                    }
+                    Text(
+                        text = if (isEnglish) "Live Theme Preview" else "লাইভ থিম প্রিভিউ",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LiveKeyboardMiniPreview(theme = activePreviewTheme, isEnglish = isEnglish)
+                }
+
                 // Section 1: Custom Themes
                 item {
                     Row(
@@ -605,6 +620,154 @@ private fun ThemePreviewCard(
                             modifier = Modifier.size(18.dp)
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveKeyboardMiniPreview(
+    theme: KeyboardTheme,
+    isEnglish: Boolean = false
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundColor)),
+        border = BorderStroke(1.5.dp, Color(theme.accentColor).copy(alpha = 0.6f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            // Header: Theme Name Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color(theme.labelColor)
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(theme.accentColor).copy(alpha = 0.2f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = if (theme.isDark) "OLED / Dark" else "Light / Crisp",
+                        fontSize = 10.sp,
+                        color = Color(theme.accentColor),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Row 1: Vowels / Consonants
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল").forEach { ch ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(theme.keyNormalColor))
+                            .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(ch, color = Color(theme.labelColor), fontSize = 12.sp)
+                    }
+                }
+            }
+
+            // Row 2: Home Row with accent
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক").forEach { ch ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(theme.keyNormalColor))
+                            .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(ch, color = Color(theme.labelColor), fontSize = 12.sp)
+                    }
+                }
+            }
+
+            // Row 3: Shift, Hasanta, Spacebar & Enter
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .height(30.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(theme.keyShiftColor))
+                        .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("⇧", color = Color(theme.labelDimColor), fontSize = 12.sp)
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1.0f)
+                        .height(30.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(theme.keyHasantaColor))
+                        .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("্", color = Color(theme.accentColor), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(3.6f)
+                        .height(30.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(theme.keySpaceColor))
+                        .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        if (isEnglish) "Space • Lekhani" else "স্পেস • লেখনী",
+                        color = Color(theme.labelDimColor),
+                        fontSize = 11.sp
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1.4f)
+                        .height(30.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(theme.accentColor))
+                        .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "↵",
+                        color = if (theme.isDark) Color.Black else Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

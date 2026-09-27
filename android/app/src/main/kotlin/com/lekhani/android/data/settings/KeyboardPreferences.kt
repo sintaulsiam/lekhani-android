@@ -43,10 +43,21 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getFloat(KEY_WALLPAPER_OPACITY, 0.25f)
         set(value) = prefs.edit().putFloat(KEY_WALLPAPER_OPACITY, value).apply()
 
-    // ── Ergonomics & Sizing Settings ──────────────────────────────────────────
     var heightScale: Float
         get() = prefs.getFloat(KEY_HEIGHT_SCALE, 1.0f)
         set(value) = prefs.edit().putFloat(KEY_HEIGHT_SCALE, value).apply()
+
+    var heightScaleLandscape: Float
+        get() = prefs.getFloat(KEY_HEIGHT_SCALE_LANDSCAPE, 0.82f)
+        set(value) = prefs.edit().putFloat(KEY_HEIGHT_SCALE_LANDSCAPE, value).apply()
+
+    fun getHeightScaleForOrientation(orientation: Int): Float {
+        return if (orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+            heightScaleLandscape
+        } else {
+            heightScale
+        }
+    }
 
     var keyMarginH: Float
         get() = prefs.getFloat(KEY_MARGIN_H, 3.0f)
@@ -236,6 +247,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_WALLPAPER_OPACITY = "custom_wallpaper_opacity"
 
         const val KEY_HEIGHT_SCALE = "keyboard_height_scale"
+        const val KEY_HEIGHT_SCALE_LANDSCAPE = "keyboard_height_scale_landscape"
         const val KEY_MARGIN_H = "key_margin_h"
         const val KEY_MARGIN_V = "key_margin_v"
         const val KEY_BOTTOM_CHIN = "bottom_chin_padding"
