@@ -34,15 +34,18 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -89,8 +92,9 @@ import kotlinx.coroutines.launch
 /**
  * LayoutFlowScreen
  * ══════════════════════════════════════════════════════════════════════════════
- * Dedicated Material 3 screen for configuring keyboard layout sequence and Home layout.
- * Features a forward-tilted cylindrical 3D carousel and clean relative-offset reorder list.
+ * Modern, polished Material 3 screen for configuring keyboard layout sequence and Home layout.
+ * Features an inward-tilted amphitheater 3D carousel with keyboard previews,
+ * explicit 1-tap Home selection, and smooth jitter-free reordering.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,41 +171,43 @@ fun LayoutFlowScreen(
                 .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Subtitle
+            // Screen subtitle
             Text(
-                text = if (isEnglish) "Arrange the order used when switching layouts."
-                       else "লেআউট পরিবর্তনের সোয়াইপ ক্রম সাজান।",
-                style = MaterialTheme.typography.bodyMedium,
+                text = if (isEnglish) "Set your Home starting layout and arrange the spacebar swipe order."
+                       else "হোম লেআউট নির্ধারণ করুন এবং স্পেসবারের সোয়াইপ ক্রম সাজান।",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp)
+                    .padding(bottom = 10.dp)
             )
 
-            // ── 1. Forward-Tilted Cylindrical Carousel Preview ─────────────────
+            // ── 1. Inward Amphitheater 3D Carousel Preview ─────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(170.dp),
+                    .height(180.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (enabledLayouts.isNotEmpty()) {
                     HorizontalPager(
                         state = pagerState,
-                        contentPadding = PaddingValues(horizontal = 96.dp),
-                        pageSpacing = 16.dp,
+                        contentPadding = PaddingValues(horizontal = 68.dp),
+                        pageSpacing = 12.dp,
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
                         val layoutType = enabledLayouts[page]
-                        val isCurrent = (page == pagerState.currentPage)
+                        val isCenterCard = (page == pagerState.currentPage)
+                        val isHome = (layoutType == activeLayout)
                         val title = if (isEnglish) LayoutRegistry.getEnglishName(layoutType)
                                     else LayoutRegistry.getBengaliName(layoutType)
 
-                        // 3D cylindrical projection: curve forward toward the viewer
-                        val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
-                        val rotationY = (pageOffset * -16f).coerceIn(-25f, 25f)
-                        val scale = lerp(0.86f, 1.0f, 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f))
-                        val alpha = lerp(0.55f, 1.0f, 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f))
+                        // Inward 3D curve (amphitheater perspective)
+                        val pageOffset = (page - pagerState.currentPage) + pagerState.currentPageOffsetFraction
+                        // Negative distance: left edge comes forward; Positive distance: right edge goes back
+                        val rotationY = (-pageOffset * 22f).coerceIn(-26f, 26f)
+                        val scale = lerp(0.88f, 1.0f, 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f))
+                        val alpha = lerp(0.68f, 1.0f, 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f))
 
                         Box(
                             modifier = Modifier
@@ -210,13 +216,12 @@ fun LayoutFlowScreen(
                                     this.scaleX = scale
                                     this.scaleY = scale
                                     this.alpha = alpha
-                                    cameraDistance = 18f * density
+                                    cameraDistance = 16f * density
                                 }
-                                .width(155.dp)
-                                .height(145.dp)
+                                .width(185.dp)
+                                .height(160.dp)
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onActiveLayoutChanged(layoutType)
                                     coroutineScope.launch {
                                         pagerState.animateScrollToPage(page)
                                     }
@@ -225,58 +230,129 @@ fun LayoutFlowScreen(
                         ) {
                             Surface(
                                 shape = RoundedCornerShape(18.dp),
-                                color = if (isCurrent) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
-                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                border = if (isCurrent) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                                color = if (isCenterCard) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                border = if (isHome) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                                          else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                                shadowElevation = if (isCurrent) 10.dp else 2.dp,
+                                shadowElevation = if (isCenterCard) 8.dp else 2.dp,
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(12.dp),
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
+                                    verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Keyboard,
-                                        contentDescription = null,
-                                        tint = if (isCurrent) MaterialTheme.colorScheme.primary
-                                               else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(34.dp)
+                                    // Top tag row
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                        ) {
+                                            Text(
+                                                text = when (layoutType) {
+                                                    LekhaniLayoutType.PROBAHO -> "FLOW"
+                                                    LekhaniLayoutType.ENGLISH -> "QWERTY"
+                                                    LekhaniLayoutType.PROBHAT -> "FIXED"
+                                                    LekhaniLayoutType.AVRO -> "PHONETIC"
+                                                    LekhaniLayoutType.NATIONAL -> "BBS"
+                                                    LekhaniLayoutType.GBOARD -> "GBOARD"
+                                                },
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+
+                                        if (isHome) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Home,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                Text(
+                                                    text = if (isEnglish) "Home" else "হোম",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Miniature 3-Row Keyboard Keycaps Graphic
+                                    MiniatureKeyboardGraphic(
+                                        isHome = isHome,
+                                        modifier = Modifier.padding(vertical = 4.dp)
                                     )
-                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Title
                                     Text(
                                         text = title,
                                         style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium
+                                            fontWeight = if (isCenterCard) FontWeight.Bold else FontWeight.SemiBold
                                         ),
-                                        color = if (isCurrent) MaterialTheme.colorScheme.onSurface
+                                        color = if (isCenterCard) MaterialTheme.colorScheme.onSurface
                                                else MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center,
-                                        maxLines = 2,
+                                        maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                }
-                            }
 
-                            // Speech-bubble pill on top of active card
-                            if (isCurrent) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shadowElevation = 4.dp,
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .graphicsLayer { translationY = -12.dp.toPx() }
-                                ) {
-                                    Text(
-                                        text = if (isEnglish) "Current layout" else "বর্তমান লেআউট",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-                                    )
+                                    // Action / Status Pill
+                                    if (isHome) {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.height(24.dp)
+                                        ) {
+                                            Box(
+                                                contentAlignment = Alignment.Center,
+                                                modifier = Modifier.padding(horizontal = 10.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isEnglish) "✓ Active Home" else "✓ সক্রিয় হোম",
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                            contentColor = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier
+                                                .height(24.dp)
+                                                .clickable {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    onActiveLayoutChanged(layoutType)
+                                                }
+                                        ) {
+                                            Box(
+                                                contentAlignment = Alignment.Center,
+                                                modifier = Modifier.padding(horizontal = 10.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isEnglish) "Set as Home" else "হোম করুন",
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -327,13 +403,13 @@ fun LayoutFlowScreen(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 4.dp, bottom = 14.dp)
+                modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
             ) {
                 repeat(enabledLayouts.size) { idx ->
                     val isSelected = (idx == pagerState.currentPage)
                     Box(
                         modifier = Modifier
-                            .size(if (isSelected) 8.dp else 6.dp)
+                            .size(if (isSelected) 8.dp else 5.dp)
                             .clip(CircleShape)
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.primary
@@ -343,33 +419,35 @@ fun LayoutFlowScreen(
                 }
             }
 
-            // ── 2. Your Layouts (order) List with Relative Badges ──────────────
+            // ── 2. Swipe Sequence Reorder List ────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (isEnglish) "Your Layouts (order)" else "আপনার লেআউটসমূহ (সোয়াইপ ক্রম)",
+                    text = if (isEnglish) "Spacebar Swipe Sequence" else "স্পেসবারে সোয়াইপ ক্রম",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                Text(
+                    text = if (isEnglish) "Swipe Left ⟷ Right" else "বাম ⟷ ডান",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
 
-            var draggingLayout by remember { mutableStateOf<LekhaniLayoutType?>(null) }
-            var dragOffsetY by remember { mutableFloatStateOf(0f) }
-            var dragStartIndex by remember { mutableIntStateOf(-1) }
-            var currentDropIndex by remember { mutableIntStateOf(-1) }
-            var itemHeightPx by remember { mutableFloatStateOf(0f) }
-            val itemCenterYs = remember { mutableStateMapOf<Int, Float>() }
-            val density = LocalDensity.current
-
-            val isDraggingActive = (draggingLayout != null && dragStartIndex in enabledLayouts.indices && currentDropIndex in enabledLayouts.indices)
-            val effectiveRowHeight = if (itemHeightPx > 0f) itemHeightPx else with(density) { 60.dp.toPx() }
-
-            val activeLayoutTitle = if (isEnglish) LayoutRegistry.getEnglishName(activeLayout)
-                                   else LayoutRegistry.getBengaliName(activeLayout)
+            fun swapLayouts(fromIndex: Int, toIndex: Int) {
+                if (fromIndex in enabledLayouts.indices && toIndex in enabledLayouts.indices && fromIndex != toIndex) {
+                    val mutable = enabledLayouts.toMutableList()
+                    val item = mutable.removeAt(fromIndex)
+                    mutable.add(toIndex, item)
+                    onLayoutsReordered(mutable)
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            }
 
             LazyColumn(
                 modifier = Modifier
@@ -381,200 +459,131 @@ fun LayoutFlowScreen(
                     val isHome = (type == activeLayout)
                     val offset = index - activeIndex
                     val title = if (isEnglish) LayoutRegistry.getEnglishName(type) else LayoutRegistry.getBengaliName(type)
-                    val isThisDragging = (draggingLayout == type)
 
-                    val targetShift = when {
-                        !isDraggingActive -> 0f
-                        isThisDragging -> 0f
-                        dragStartIndex > currentDropIndex && index >= currentDropIndex && index < dragStartIndex -> effectiveRowHeight
-                        dragStartIndex < currentDropIndex && index > dragStartIndex && index <= currentDropIndex -> -effectiveRowHeight
-                        else -> 0f
-                    }
-
-                    val shiftAnim = remember(type) { Animatable(0f) }
-                    LaunchedEffect(targetShift, isDraggingActive) {
-                        if (isDraggingActive) {
-                            shiftAnim.animateTo(
-                                targetValue = targetShift,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                            )
-                        } else {
-                            shiftAnim.snapTo(0f)
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onSizeChanged { size ->
-                                if (size.height > 0 && !isThisDragging) {
-                                    itemHeightPx = size.height.toFloat()
-                                }
-                            }
-                            .onGloballyPositioned { coords ->
-                                val bounds = coords.boundsInParent()
-                                itemCenterYs[index] = bounds.top + bounds.height / 2f
-                            }
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isHome) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        border = if (isHome) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                                 else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                        shadowElevation = if (isHome) 3.dp else 0.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (isThisDragging) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.98f)
-                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                            border = when {
-                                isThisDragging -> BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
-                                isHome -> BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
-                                else -> BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
-                            },
-                            shadowElevation = if (isThisDragging) 12.dp else 0.dp,
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .zIndex(if (isThisDragging) 30f else 0f)
-                                .graphicsLayer {
-                                    translationY = if (isThisDragging) dragOffsetY else shiftAnim.value
-                                    scaleX = if (isThisDragging) 1.02f else 1f
-                                    scaleY = if (isThisDragging) 1.02f else 1f
-                                }
-                                .clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onActiveLayoutChanged(type)
-                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Title and dynamic relative subtitle
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = title,
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            fontWeight = if (isHome) FontWeight.Bold else FontWeight.SemiBold
-                                        ),
-                                        color = if (isHome) MaterialTheme.colorScheme.primary
-                                               else MaterialTheme.colorScheme.onSurface
-                                    )
-                                    val subtitleText = when {
-                                        isHome -> if (isEnglish) "Home layout (tap to switch)" else "হোম লেআউট"
-                                        offset > 0 -> if (isEnglish) "Swipe right from $activeLayoutTitle"
-                                                      else "$activeLayoutTitle থেকে ডানে সোয়াইপ"
-                                        else -> if (isEnglish) "Swipe left from $activeLayoutTitle"
-                                                else "$activeLayoutTitle থেকে বামে সোয়াইপ"
-                                    }
-                                    Text(
-                                        text = subtitleText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
-                                // Relative Directional Offset Badge on the right
-                                if (isHome) {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.padding(end = 12.dp)
+                            // Relative Sequence Pill Badge
+                            if (isHome) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.padding(end = 10.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Home,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                            Text(
-                                                text = if (isEnglish) "Home" else "হোম",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    val badgeText = if (offset > 0) "$offset ▸" else "◂ ${-offset}"
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        contentColor = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(end = 12.dp)
-                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Home,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(12.dp)
+                                        )
                                         Text(
-                                            text = badgeText,
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                            text = if (isEnglish) "Home" else "হোম",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                                         )
                                     }
                                 }
+                            } else {
+                                val badgeText = if (offset > 0) "$offset ▸" else "◂ ${-offset}"
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
+                                    modifier = Modifier.padding(end = 10.dp)
+                                ) {
+                                    Text(
+                                        text = badgeText,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
 
-                                // Drag handle
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .pointerInput(type) {
-                                            detectDragGestures(
-                                                onDragStart = {
-                                                    draggingLayout = type
-                                                    val sIdx = enabledLayouts.indexOf(type)
-                                                    dragStartIndex = sIdx
-                                                    currentDropIndex = sIdx
-                                                    dragOffsetY = 0f
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                },
-                                                onDragEnd = {
-                                                    val from = dragStartIndex
-                                                    val to = currentDropIndex
-                                                    if (from in enabledLayouts.indices && to in enabledLayouts.indices && from != to) {
-                                                        val mutable = enabledLayouts.toMutableList()
-                                                        val item = mutable.removeAt(from)
-                                                        mutable.add(to, item)
-                                                        onLayoutsReordered(mutable)
-                                                    }
-                                                    draggingLayout = null
-                                                    dragStartIndex = -1
-                                                    currentDropIndex = -1
-                                                    dragOffsetY = 0f
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                },
-                                                onDragCancel = {
-                                                    draggingLayout = null
-                                                    dragStartIndex = -1
-                                                    currentDropIndex = -1
-                                                    dragOffsetY = 0f
-                                                },
-                                                onDrag = { change, dragAmount ->
-                                                    change.consume()
-                                                    dragOffsetY += dragAmount.y
-                                                    val originCenterY = itemCenterYs[dragStartIndex] ?: 0f
-                                                    val currentDragCenterY = originCenterY + dragOffsetY
-                                                    var closestIndex = dragStartIndex
-                                                    var minDistance = Float.MAX_VALUE
-                                                    itemCenterYs.forEach { (idx, centerY) ->
-                                                        val dist = kotlin.math.abs(centerY - currentDragCenterY)
-                                                        if (dist < minDistance) {
-                                                            minDistance = dist
-                                                            closestIndex = idx
-                                                        }
-                                                    }
-                                                    if (closestIndex != currentDropIndex && closestIndex in enabledLayouts.indices) {
-                                                        currentDropIndex = closestIndex
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                    }
-                                                }
-                                            )
-                                        },
-                                    contentAlignment = Alignment.Center
+                            // Layout Title
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = if (isHome) FontWeight.Bold else FontWeight.SemiBold
+                                    ),
+                                    color = if (isHome) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = when {
+                                        isHome -> if (isEnglish) "Default startup layout" else "ডিফল্ট প্রারম্ভিক লেআউট"
+                                        offset > 0 -> if (isEnglish) "Swipe right from Home" else "হোম থেকে ডানে সোয়াইপ"
+                                        else -> if (isEnglish) "Swipe left from Home" else "হোম থেকে বামে সোয়াইপ"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            // 1-Tap "Set as Home" button for non-home items
+                            if (!isHome) {
+                                TextButton(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onActiveLayoutChanged(type)
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Text(
+                                        text = if (isEnglish) "Make Home" else "হোম করুন",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            // Precision Reorder Buttons (▲ and ▼) — 100% reliable, zero jank
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { swapLayouts(index, index - 1) },
+                                    enabled = index > 0,
+                                    modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Filled.Menu,
-                                        contentDescription = if (isEnglish) "Reorder handle" else "ক্রম পরিবর্তন",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        imageVector = Icons.Filled.KeyboardArrowUp,
+                                        contentDescription = if (isEnglish) "Move up" else "উপরে নিন",
+                                        tint = if (index > 0) MaterialTheme.colorScheme.onSurface
+                                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = { swapLayouts(index, index + 1) },
+                                    enabled = index < enabledLayouts.lastIndex,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = if (isEnglish) "Move down" else "নিচে নিন",
+                                        tint = if (index < enabledLayouts.lastIndex) MaterialTheme.colorScheme.onSurface
+                                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -594,7 +603,7 @@ fun LayoutFlowScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp)
+                    .padding(vertical = 10.dp)
                     .height(44.dp)
             ) {
                 Icon(
@@ -604,40 +613,37 @@ fun LayoutFlowScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isEnglish) "Reset to default" else "ডিফল্ট ক্রমে ফিরুন",
+                    text = if (isEnglish) "Reset to default flow" else "ডিফল্ট ক্রমে ফিরুন",
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
                 )
             }
         }
     }
 
-    // Help Dialog
     if (showHelpDialog) {
         AlertDialog(
             onDismissRequest = { showHelpDialog = false },
             title = {
                 Text(
-                    text = if (isEnglish) "Layout Flow Navigation" else "লেআউট ফ্লো নির্দেশিকা",
+                    text = if (isEnglish) "How Layout Flow Works" else "লেআউট ফ্লো ব্যবহারের নিয়ম",
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
-                Text(
-                    text = if (isEnglish) {
-                        "The layouts are arranged in a horizontal loop on your keyboard spacebar.\n\n" +
-                        "• Home Layout: Your primary startup keyboard.\n" +
-                        "• Swipe Left (◂): Steps backward to layouts on the left.\n" +
-                        "• Swipe Right (▸): Steps forward to layouts on the right.\n\n" +
-                        "Drag the handles (≡) to reorder the sequence, or tap any card in the carousel to set it as your Home layout."
-                    } else {
-                        "লেআউটগুলো আপনার কীবোর্ড স্পেসবারে একটি আনুভূমিক বৃত্তের মতো কাজ করে।\n\n" +
-                        "• হোম লেআউট: কীবোর্ড খোলার সাথে সাথে চালু হওয়া প্রধান লেআউট।\n" +
-                        "• বামে সোয়াইপ (◂): বামের লেআউটে যায়।\n" +
-                        "• ডানে সোয়াইপ (▸): ডানের লেআউটে যায়।\n\n" +
-                        "ক্রম পরিবর্তন করতে হ্যান্ডেল (≡) ধরে টানুন, অথবা যেকোনো কার্ডে ট্যাপ করে হোম লেআউট হিসেবে সেট করুন।"
-                    },
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = if (isEnglish)
+                            "• Home Layout: The keyboard layout that opens by default.\n\n" +
+                            "• Spacebar Swipe: Swiping left or right on the spacebar smoothly switches to adjacent layouts.\n\n" +
+                            "• Reorder: Use the ▲ and ▼ buttons to move layouts up or down to set your ideal swipe order.\n\n" +
+                            "• Set as Home: Tap 'Make Home' on any layout to set it as your primary starting keyboard."
+                        else
+                            "• হোম লেআউট: কীবোর্ড চালু হলে প্রথমে এই লেআউটটি থাকবে।\n\n" +
+                            "• স্পেসবার সোয়াইপ: স্পেসবারে বামে বা ডানে সোয়াইপ করে সহজে অন্য লেআউটে যাওয়া যায়।\n\n" +
+                            "• ক্রম পরিবর্তন: পছন্দের সোয়াইপ ক্রম সাজাতে ▲ এবং ▼ বোতাম ব্যবহার করুন।\n\n" +
+                            "• হোম নির্ধারণ: যেকোনো লেআউটের 'হোম করুন' বোতামে চাপ দিয়ে প্রাথমিক লেআউট নির্বাচন করুন।"
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = { showHelpDialog = false }) {
@@ -645,5 +651,69 @@ fun LayoutFlowScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * MiniatureKeyboardGraphic
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Sleek 3-row miniature keycaps graphic giving the card an authentic keyboard look.
+ */
+@Composable
+private fun MiniatureKeyboardGraphic(
+    isHome: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val keyColor = if (isHome) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                   else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.20f)
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        // Row 1: 5 small keycaps
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            repeat(5) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 18.dp, height = 9.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(keyColor)
+                )
+            }
+        }
+        // Row 2: 5 small keycaps
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            repeat(5) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 18.dp, height = 9.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(keyColor)
+                )
+            }
+        }
+        // Row 3: Spacebar + 2 flank keys
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(width = 14.dp, height = 9.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(keyColor)
+            )
+            Box(
+                modifier = Modifier
+                    .size(width = 54.dp, height = 9.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(if (isHome) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else keyColor)
+            )
+            Box(
+                modifier = Modifier
+                    .size(width = 14.dp, height = 9.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(keyColor)
+            )
+        }
     }
 }
