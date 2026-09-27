@@ -60,6 +60,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -102,6 +103,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -797,80 +799,105 @@ private fun LayoutsTabContent(
                 ) {
                     Row(
                         modifier = Modifier.weight(1f),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Keyboard,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Keyboard,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (isEnglish) "Keyboard Layouts & Priority" else "কীবোর্ড লেআউট ও অগ্রাধিকার",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                                text = if (isEnglish) "Keyboard Layouts" else "কীবোর্ড লেআউট",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = if (isReorderMode) {
                                     if (isEnglish) "Drag handles to reorder priority" else "অগ্রাধিকার পরিবর্তন করতে টেনে সাজান"
                                 } else {
-                                    if (isEnglish) "Priority sequence & toggles" else "লেআউটের ক্রম ও চালু/বন্ধ রাখুন"
+                                    if (isEnglish) "Priority order & toggles" else "লেআউটের অগ্রাধিকার ও সক্রিয়করণ"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                resetToDefaultLayoutOrder()
-                                isReorderMode = false
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.RestartAlt,
-                                contentDescription = if (isEnglish) "Reset to Default Order" else "ডিফল্ট ক্রমে ফিরুন",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        FilterChip(
-                            selected = isReorderMode,
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                isReorderMode = !isReorderMode
-                            },
-                            label = {
-                                Text(
-                                    text = if (isReorderMode) {
-                                        if (isEnglish) "Done" else "সম্পন্ন"
-                                    } else {
-                                        if (isEnglish) "Reorder" else "সাজান"
-                                    },
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
-                                )
-                            },
-                            leadingIcon = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (isReorderMode) {
+                            IconButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    resetToDefaultLayoutOrder()
+                                    isReorderMode = false
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
                                 Icon(
-                                    imageVector = if (isReorderMode) Icons.Filled.Check else Icons.Filled.Edit,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp)
+                                    imageVector = Icons.Filled.RestartAlt,
+                                    contentDescription = if (isEnglish) "Reset to Default Order" else "ডিফল্ট ক্রমে ফিরুন",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        )
+                            }
+
+                            FilledTonalButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    isReorderMode = false
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Text(
+                                    text = if (isEnglish) "Done" else "সম্পন্ন",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                            }
+                        } else {
+                            FilledTonalButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    isReorderMode = true
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = if (isEnglish) "Reorder" else "সাজান",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -1042,22 +1069,36 @@ private fun LayoutsTabContent(
                                             .padding(vertical = 7.dp, horizontal = 6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Priority Slot Number Badge
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = if (isPrimary) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                            modifier = Modifier.padding(end = 10.dp)
-                                        ) {
-                                            Text(
-                                                text = "#${index + 1}",
-                                                style = MaterialTheme.typography.labelSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (isPrimary) MaterialTheme.colorScheme.primary
-                                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                        // In Reorder Mode: Clean circular step rank badge (1, 2, 3... or ১, ২, ৩...)
+                                        // In Normal Mode: Clean typography with NO leading icons or badges
+                                        if (isReorderMode) {
+                                            val bengaliDigits = charArrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
+                                            val rankText = if (isEnglish) "${index + 1}"
+                                                           else (index + 1).toString().map { if (it in '0'..'9') bengaliDigits[it - '0'] else it }.joinToString("")
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = if (isPrimary) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                                border = BorderStroke(
+                                                    1.dp,
+                                                    if (isPrimary) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                                                 ),
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
+                                                modifier = Modifier
+                                                    .padding(end = 12.dp)
+                                                    .size(28.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text(
+                                                        text = rankText,
+                                                        style = MaterialTheme.typography.labelSmall.copy(
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (isPrimary) MaterialTheme.colorScheme.primary
+                                                                    else MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                    )
+                                                }
+                                            }
                                         }
 
                                         Column(modifier = Modifier.weight(1f)) {
@@ -1077,8 +1118,11 @@ private fun LayoutsTabContent(
                                                         contentColor = MaterialTheme.colorScheme.onPrimary
                                                     ) {
                                                         val targetSlot = currentDropIndex + 1
+                                                        val bengaliDigits = charArrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
+                                                        val targetSlotStr = if (isEnglish) "$targetSlot"
+                                                                           else targetSlot.toString().map { if (it in '0'..'9') bengaliDigits[it - '0'] else it }.joinToString("")
                                                         Text(
-                                                            text = if (isEnglish) "→ Slot #$targetSlot" else "→ $targetSlot নং এ",
+                                                            text = if (isEnglish) "→ Slot $targetSlotStr" else "→ $targetSlotStr নং অবস্থানে",
                                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                         )
