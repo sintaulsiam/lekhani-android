@@ -1444,7 +1444,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         }
                     }
                 }
-                KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits, KeyAction.Space -> {
+                KeyAction.Space -> {
+                    if (spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH && enabledLayoutsCount > 1 && !isSpaceCursorMoving) {
+                        canvas.drawText("‹   $labelText   ›", cx, cy, labelPaintSmall)
+                    } else {
+                        canvas.drawText(labelText, cx, cy, labelPaintSmall)
+                    }
+                }
+                KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits -> {
                     canvas.drawText(labelText, cx, cy, labelPaintSmall)
                 }
                 else -> {
