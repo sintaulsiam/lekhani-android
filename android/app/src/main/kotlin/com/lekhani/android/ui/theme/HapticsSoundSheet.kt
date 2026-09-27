@@ -63,6 +63,7 @@ fun HapticsSoundSheet(
     var soundEnabled by remember { mutableStateOf(prefs.soundEnabled) }
     var soundPack by remember { mutableStateOf(prefs.soundPack) }
     var soundVolume by remember { mutableFloatStateOf(prefs.soundVolume) }
+    var testTapCount by remember { mutableIntStateOf(0) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -154,6 +155,9 @@ fun HapticsSoundSheet(
                                         val v = it.toInt()
                                         hapticDuration = v
                                         prefs.hapticDurationMs = v
+                                    },
+                                    onValueChangeFinished = {
+                                        feedbackManager.onKeyFeedback(view)
                                     },
                                     valueRange = 5f..80f
                                 )
@@ -270,18 +274,37 @@ fun HapticsSoundSheet(
 
                 // Section 3: Test Key Tap
                 item {
-                    OutlinedButton(
-                        onClick = {
-                            feedbackManager.onKeyFeedback(view)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("এখানে চাপ দিয়ে টেস্ট করুন", fontWeight = FontWeight.Medium)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = {
+                                testTapCount++
+                                feedbackManager.onKeyFeedback(view)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("এখানে চাপ দিয়ে টেস্ট করুন", fontWeight = FontWeight.Medium)
+                        }
+
+                        if (testTapCount > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            ) {
+                                Text(
+                                    text = "✓ ফিডব্যাক সক্রিয়: ${if (hapticEnabled) "${hapticDuration}ms ভাইব্রেশন" else "ভাইব্রেশন বন্ধ"}${if (soundEnabled) " + সাউন্ড" else ""} (ট্যাপ #$testTapCount)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }

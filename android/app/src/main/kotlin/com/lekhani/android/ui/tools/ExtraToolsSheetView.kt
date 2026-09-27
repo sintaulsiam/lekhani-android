@@ -246,12 +246,12 @@ fun ExtraToolsSheetView(
     // Magnetic Haptic Snapping when crossing slots during drag
     LaunchedEffect(toolbarDropIndex) {
         if (draggedTool != null && isHoveringToolbar) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
     LaunchedEffect(vaultDropIndex) {
         if (draggedTool != null && isHoveringVault) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
 

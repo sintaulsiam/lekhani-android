@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PictureInPictureAlt
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Swipe
@@ -42,12 +43,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import com.lekhani.android.feedback.LekhaniFeedbackManager
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -90,6 +96,17 @@ fun PreferencesTabContent(
 
     var soundEnabled by remember { mutableStateOf(prefs.soundEnabled) }
     var activeSoundPack by remember { mutableStateOf(prefs.soundPack) }
+
+    val context = LocalContext.current
+    val view = LocalView.current
+    val feedbackManager = remember { LekhaniFeedbackManager(context) }
+    var testHapticCounter by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            feedbackManager.release()
+        }
+    }
 
     val userWordsCount = remember { dictManager.getUserWords().size }
 
@@ -442,9 +459,40 @@ fun PreferencesTabContent(
                             hapticDuration = it
                             prefs.hapticDurationMs = it.toInt()
                         },
+                        onValueChangeFinished = {
+                            feedbackManager.onKeyFeedback(view)
+                        },
                         valueRange = 5f..60f,
                         steps = 11
                     )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                testHapticCounter++
+                                feedbackManager.onKeyFeedback(view)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isEnglish) "Test Haptic Pulse" else "ভাইব্রেশন টেস্ট করুন", fontSize = 12.sp)
+                        }
+                        if (testHapticCounter > 0) {
+                            Text(
+                                text = if (isEnglish) "✓ Fired (${hapticDuration.toInt()} ms #$testHapticCounter)"
+                                       else "✓ সম্পন্ন (${hapticDuration.toInt()} ms #$testHapticCounter)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

@@ -1056,7 +1056,7 @@ private fun LayoutsTabContent(
                                                                 dragStartIndex = -1
                                                                 currentDropIndex = -1
                                                                 dragOffsetY = 0f
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                             },
                                                             onDragCancel = {
                                                                 draggingLayout = null
@@ -1081,7 +1081,7 @@ private fun LayoutsTabContent(
                                                                     val newDropIndex = closest.coerceIn(0, orderedLayouts.lastIndex)
                                                                     if (newDropIndex != currentDropIndex) {
                                                                         currentDropIndex = newDropIndex
-                                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                                     }
                                                                 }
                                                             }
