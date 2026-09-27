@@ -770,28 +770,32 @@ impl AndroidLekhaniSession {
                     })
                 }
             } else {
-                // Collect grapheme cluster byte-index boundaries
-                let last_grapheme_start = state
-                    .composing_buffer
-                    .grapheme_indices(true)
-                    .next_back()
-                    .map(|(i, _)| i)
-                    .unwrap_or(0);
-                state.composing_buffer.truncate(last_grapheme_start);
-
-                let len = state.composing_buffer.graphemes(true).count() as u32;
-                let candidates = if state.composing_buffer.is_empty() {
-                    Vec::new()
+                state.composing_buffer.pop();
+                if state.composing_buffer.is_empty() {
+                    Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    })
                 } else {
-                    vec![state.composing_buffer.clone()]
-                };
-
-                Ok(TypingResult {
-                    preedit: state.composing_buffer.clone(),
-                    commit_text: None,
-                    candidates,
-                    cursor_position: len,
-                })
+                    let len = state.composing_buffer.chars().count() as u32;
+                    let mut candidates = Vec::new();
+                    let db = get_core_database();
+                    let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
+                    candidates.push(state.composing_buffer.clone());
+                    for (word, _) in prefix_matches {
+                        if !candidates.iter().any(|c| c == word) {
+                            candidates.push(word.to_string());
+                        }
+                    }
+                    Ok(TypingResult {
+                        preedit: state.composing_buffer.clone(),
+                        commit_text: None,
+                        candidates,
+                        cursor_position: len,
+                    })
+                }
             }
         } else {
             // Buffer empty — signal Android to delete the preceding character
@@ -1026,23 +1030,25 @@ mod tests {
     #[test]
     fn test_grapheme_safe_backspace() {
         let session = AndroidLekhaniSession::new();
-        // Type ক্ষ (ka + hasanta + sha).
-        // Unicode treats the full conjunct as ONE grapheme cluster once sha is appended.
-        // So each of the 3 process_key calls grows the raw codepoint buffer, but the
-        // grapheme count goes: 1 (ক) → 1 (ক্) → 1 (ক্ষ).
-        // A single backspace therefore removes the ENTIRE conjunct at once,
-        // leaving an empty buffer.
+        // Type ক, then backspace -> buffer empty
         let _ = session.process_key("ক".into()).unwrap();
         assert_eq!(session.handle_backspace().unwrap().preedit, "");
 
-        // Re-type ক্ষ step by step, showing the conjunct formation:
+        // Type ক্ষ step by step (ক + ্ + ষ):
         let _ = session.process_key("ক".into()).unwrap();
-        let _ = session.process_key("্".into()).unwrap(); // ক্  (incomplete conjunct, 1 cluster)
-        let _ = session.process_key("ষ".into()).unwrap(); // ক্ষ (complete conjunct, 1 cluster)
-        // One backspace removes the complete conjunct cluster.
-        let r = session.handle_backspace().unwrap();
-        assert_eq!(r.preedit, "",
-            "Expected full conjunct ক্ষ to be deleted as a single grapheme cluster");
+        let _ = session.process_key("্".into()).unwrap(); // ক্
+        let _ = session.process_key("ষ".into()).unwrap(); // ক্ষ
+        // Backspace pops the last character 'ষ', leaving 'ক্'
+        let r1 = session.handle_backspace().unwrap();
+        assert_eq!(r1.preedit, "ক্");
+
+        // Next backspace pops the hasanta '্', leaving 'ক'
+        let r2 = session.handle_backspace().unwrap();
+        assert_eq!(r2.preedit, "ক");
+
+        // Next backspace pops 'ক', leaving empty buffer
+        let r3 = session.handle_backspace().unwrap();
+        assert_eq!(r3.preedit, "");
 
         // Buffer now empty — next backspace signals system delete
         let empty = session.handle_backspace().unwrap();
@@ -1053,14 +1059,23 @@ mod tests {
     #[test]
     fn test_backspace_and_candidate_selection() {
         let session = AndroidLekhaniSession::new();
-        // Type 'ব' then 'া'.
-        // 'বা' (ba + aa-kar) is ONE grapheme cluster in Unicode — the Aa-kar
-        // is a combining character that attaches to the base consonant.
-        // A single backspace therefore removes the whole 'বা' cluster.
-        let _ = session.process_key("ব".into()).unwrap();
-        let _ = session.process_key("া".into()).unwrap();
-        // Backspace on 'বা' (1 grapheme) → empty buffer
-        assert_eq!(session.handle_backspace().unwrap().preedit, "");
+        // Type 'ল' then 'ক' then 'ে' -> "লকে"
+        let _ = session.process_key("ল".into()).unwrap();
+        let _ = session.process_key("ক".into()).unwrap();
+        let r0 = session.process_key("ে".into()).unwrap();
+        assert_eq!(r0.preedit, "লকে");
+
+        // Backspace on 'লকে' pops 'ে' -> "লক"
+        let r1 = session.handle_backspace().unwrap();
+        assert_eq!(r1.preedit, "লক");
+
+        // Backspace on 'লক' pops 'ক' -> "ল"
+        let r2 = session.handle_backspace().unwrap();
+        assert_eq!(r2.preedit, "ল");
+
+        // Backspace on 'ল' pops 'ল' -> empty
+        let r3 = session.handle_backspace().unwrap();
+        assert_eq!(r3.preedit, "");
 
         // Candidate selection commits NFC-normalized text + space
         let select_res = session.select_candidate("বাংলাদেশ".into()).unwrap();

@@ -1549,10 +1549,16 @@ class LekhaniInputMethodService : InputMethodService() {
                 return
             }
             setComposingTextSafe(ic, result.preedit)
-            publishCandidates(result.candidates)
+            if (result.preedit.isEmpty()) {
+                preeditShadow = ""
+                rawInputBuffer.clear()
+                clearCandidates()
+            } else {
+                publishCandidates(result.candidates)
+            }
         } else {
             rawInputBuffer.clear()
-            // 3. Script-aware grapheme & conjunct backspace (AGENTS.md Script Integrity)
+            // 3. Script-aware character & emoji backspace
             handleScriptAwareBackspace(ic)
             if (session.getLayout() == LekhaniLayoutType.GBOARD) {
                 keyboardView?.setGboardKarsActive(false)
@@ -1562,12 +1568,13 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     /**
-     * Script-aware backspace that ensures Bengali conjunct roots and grapheme clusters
-     * are never left in corrupted, orphan states (AGENTS.md Script Integrity).
+     * Deletes the preceding character or surrogate pair (emoji).
+     * Preserves script integrity by deleting atomic characters/kars individually
+     * (e.g. 'লকে' + backspace leaves 'লক') rather than deleting entire [consonant + vowel kar] clusters.
      */
     private fun handleScriptAwareBackspace(ic: InputConnection) {
         val textBefore = try {
-            ic.getTextBeforeCursor(16, 0)?.toString()
+            ic.getTextBeforeCursor(4, 0)?.toString()
         } catch (_: Exception) {
             null
         }
@@ -1579,42 +1586,17 @@ class LekhaniInputMethodService : InputMethodService() {
 
         val len = textBefore.length
         val lastChar = textBefore[len - 1]
-        var deleteChars = 1
+        // Delete 2 code units only if the previous character is a UTF-16 surrogate pair (emoji)
+        val deleteChars = if (Character.isSurrogate(lastChar) && len >= 2) 2 else 1
 
-        when {
-            // Case 1: Preceded by Virama (Hasanta \u09CD) right before last char (e.g. ক্ষ -> deletes ্ + ষ, leaving ক)
-            len >= 2 && textBefore[len - 2] == '\u09CD' -> {
-                deleteChars = 2
-            }
-            // Case 2: Ends with Virama (orphan Hasanta) -> delete Hasanta + previous consonant together
-            lastChar == '\u09CD' && len >= 2 -> {
-                deleteChars = 2
-            }
-            // Case 3: Bengali Nukta character (ড + ় = ড়, ঢ + ় = ঢ়, য + ় = য়)
-            lastChar == '\u09BC' && len >= 2 -> {
-                deleteChars = 2
-            }
-            // Case 4: UTF-16 Surrogate pair (Emoji, extended Unicode)
-            Character.isSurrogate(lastChar) && len >= 2 -> {
-                deleteChars = 2
-            }
-            // Case 5: Standard Bengali grapheme cluster via BreakIterator
-            else -> {
-                try {
-                    val it = java.text.BreakIterator.getCharacterInstance(java.util.Locale("bn", "BD"))
-                    it.setText(textBefore)
-                    val end = it.last()
-                    val start = it.previous()
-                    if (start != java.text.BreakIterator.DONE && end > start) {
-                        deleteChars = end - start
-                    }
-                } catch (_: Exception) {
-                    deleteChars = 1
-                }
-            }
+        val handled = try {
+            ic.deleteSurroundingText(deleteChars, 0)
+        } catch (_: Exception) {
+            false
         }
-
-        ic.deleteSurroundingText(deleteChars, 0)
+        if (!handled) {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+        }
     }
 
     /**
