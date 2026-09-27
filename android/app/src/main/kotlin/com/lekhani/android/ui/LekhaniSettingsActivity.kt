@@ -2,12 +2,14 @@ package com.lekhani.android.ui
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import com.lekhani.android.ui.layoutflow.LayoutFlowScreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -220,6 +222,7 @@ fun LekhaniSettingsScreen(
     var showDictionarySheet by remember { mutableStateOf(false) }
     var showToolbarSheet by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var showLayoutFlowScreen by remember { mutableStateOf(false) }
 
     val navItems = if (isEnglish) {
         listOf(
@@ -237,6 +240,50 @@ fun LekhaniSettingsScreen(
         )
     }
 
+    if (showLayoutFlowScreen) {
+        var flowEnabledLayouts by remember(showLayoutFlowScreen) {
+            mutableStateOf(LayoutRegistry.parseEnabledLayouts(prefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null)))
+        }
+        var flowActiveLayout by remember(showLayoutFlowScreen) {
+            val name = prefs.getString(LayoutRegistry.PREF_ACTIVE_LAYOUT, null)
+            mutableStateOf(
+                try {
+                    if (name != null) LekhaniLayoutType.valueOf(name) else LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
+                } catch (_: Exception) {
+                    LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
+                }
+            )
+        }
+
+        LayoutFlowScreen(
+            enabledLayouts = flowEnabledLayouts,
+            activeLayout = flowActiveLayout,
+            isEnglish = isEnglish,
+            onLayoutsReordered = { newOrder ->
+                flowEnabledLayouts = newOrder
+                prefs.edit().putString(
+                    LayoutRegistry.PREF_ENABLED_LAYOUTS,
+                    LayoutRegistry.serializeEnabledLayouts(newOrder)
+                ).apply()
+            },
+            onActiveLayoutChanged = { newActive ->
+                flowActiveLayout = newActive
+                prefs.edit().putString(LayoutRegistry.PREF_ACTIVE_LAYOUT, newActive.name).apply()
+            },
+            onResetToDefault = {
+                flowEnabledLayouts = LayoutRegistry.DEFAULT_ENABLED_LAYOUTS
+                flowActiveLayout = LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
+                prefs.edit().putString(
+                    LayoutRegistry.PREF_ENABLED_LAYOUTS,
+                    LayoutRegistry.serializeEnabledLayouts(LayoutRegistry.DEFAULT_ENABLED_LAYOUTS)
+                ).putString(
+                    LayoutRegistry.PREF_ACTIVE_LAYOUT,
+                    LayoutRegistry.DEFAULT_ACTIVE_LAYOUT.name
+                ).apply()
+            },
+            onBack = { showLayoutFlowScreen = false }
+        )
+    } else {
     Scaffold(
         topBar = {
             Surface(
@@ -368,7 +415,8 @@ fun LekhaniSettingsScreen(
                     isEnglish = isEnglish,
                     onOpenImeSettings = onOpenImeSettings,
                     onOpenImePicker = onOpenImePicker,
-                    onOpenClipboard = { selectedTab = 3 }
+                    onOpenClipboard = { selectedTab = 3 },
+                    onOpenLayoutFlow = { showLayoutFlowScreen = true }
                 )
                 1 -> ThemeStudioSheet(
                     prefs = keyboardPrefs,
@@ -457,6 +505,7 @@ fun LekhaniSettingsScreen(
             )
         }
     }
+    }
 }
 
 @Composable
@@ -468,19 +517,42 @@ private fun LayoutsTabContent(
     onOpenImeSettings: () -> Unit,
     onOpenImePicker: () -> Unit,
     onOpenClipboard: () -> Unit,
+    onOpenLayoutFlow: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
 
-    var orderedLayouts by remember {
+    var layoutPrefVersion by remember { mutableIntStateOf(0) }
+    DisposableEffect(prefs) {
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == LayoutRegistry.PREF_ENABLED_LAYOUTS || key == LayoutRegistry.PREF_ACTIVE_LAYOUT) {
+                layoutPrefVersion++
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    var orderedLayouts by remember(layoutPrefVersion) {
         val saved = LayoutRegistry.parseEnabledLayouts(prefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null))
         val missing = LayoutRegistry.all.filter { !saved.contains(it) }
         mutableStateOf(saved + missing)
     }
 
-    var enabledLayouts by remember {
+    var enabledLayouts by remember(layoutPrefVersion) {
         mutableStateOf(
             LayoutRegistry.parseEnabledLayouts(prefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null)).toSet()
         )
+    }
+
+    val activeLayout = remember(layoutPrefVersion) {
+        val name = prefs.getString(LayoutRegistry.PREF_ACTIVE_LAYOUT, null)
+        try {
+            if (name != null) LekhaniLayoutType.valueOf(name) else LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
+        } catch (_: Exception) {
+            LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
+        }
     }
 
     fun persistLayouts(newOrder: List<LekhaniLayoutType>, newEnabled: Set<LekhaniLayoutType>) {
@@ -491,17 +563,10 @@ private fun LayoutsTabContent(
             LayoutRegistry.PREF_ENABLED_LAYOUTS,
             LayoutRegistry.serializeEnabledLayouts(enabledOrdered)
         ).apply()
-        enabledOrdered.firstOrNull()?.let { primary ->
-            prefs.edit().putString(LayoutRegistry.PREF_ACTIVE_LAYOUT, primary.name).apply()
-        }
-    }
-
-    fun moveLayout(fromIndex: Int, toIndex: Int) {
-        if (fromIndex in orderedLayouts.indices && toIndex in orderedLayouts.indices) {
-            val mutable = orderedLayouts.toMutableList()
-            val item = mutable.removeAt(fromIndex)
-            mutable.add(toIndex, item)
-            persistLayouts(mutable, enabledLayouts)
+        if (!newEnabled.contains(activeLayout)) {
+            enabledOrdered.firstOrNull()?.let { primary ->
+                prefs.edit().putString(LayoutRegistry.PREF_ACTIVE_LAYOUT, primary.name).apply()
+            }
         }
     }
 
@@ -515,7 +580,8 @@ private fun LayoutsTabContent(
     }
 
     fun resetToDefaultLayoutOrder() {
-        persistLayouts(LayoutRegistry.all, LayoutRegistry.all.toSet())
+        persistLayouts(LayoutRegistry.DEFAULT_ENABLED_LAYOUTS, LayoutRegistry.DEFAULT_ENABLED_LAYOUTS.toSet())
+        prefs.edit().putString(LayoutRegistry.PREF_ACTIVE_LAYOUT, LayoutRegistry.DEFAULT_ACTIVE_LAYOUT.name).apply()
     }
 
     fun checkImeStatus(): Pair<Boolean, Boolean> {
@@ -737,7 +803,6 @@ private fun LayoutsTabContent(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 val haptic = LocalHapticFeedback.current
-                var isReorderMode by remember { mutableStateOf(false) }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -771,11 +836,8 @@ private fun LayoutsTabContent(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = if (isReorderMode) {
-                                    if (isEnglish) "Drag handles to reorder priority" else "অগ্রাধিকার পরিবর্তন করতে টেনে সাজান"
-                                } else {
-                                    if (isEnglish) "Priority order & toggles" else "লেআউটের অগ্রাধিকার ও সক্রিয়করণ"
-                                },
+                                text = if (isEnglish) "Swipe sequence on spacebar (Left ⟷ Right)"
+                                       else "স্পেসবারে সোয়াইপ ক্রম (বাম ⟷ ডান)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -784,67 +846,29 @@ private fun LayoutsTabContent(
                         }
                     }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    FilledTonalButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onOpenLayoutFlow()
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(34.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
                     ) {
-                        if (isReorderMode) {
-                            IconButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    resetToDefaultLayoutOrder()
-                                    isReorderMode = false
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.RestartAlt,
-                                    contentDescription = if (isEnglish) "Reset to Default Order" else "ডিফল্ট ক্রমে ফিরুন",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            FilledTonalButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    isReorderMode = false
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-                                modifier = Modifier.height(32.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                )
-                            ) {
-                                Text(
-                                    text = if (isEnglish) "Done" else "সম্পন্ন",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                                )
-                            }
-                        } else {
-                            FilledTonalButton(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    isReorderMode = true
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Edit,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    text = if (isEnglish) "Reorder" else "সাজান",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = if (isEnglish) "Edit Flow" else "ফ্লো সাজান",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
                     }
                 }
 
@@ -853,350 +877,106 @@ private fun LayoutsTabContent(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                 )
 
-                var draggingLayout by remember { mutableStateOf<LekhaniLayoutType?>(null) }
-                var dragOffsetY by remember { mutableFloatStateOf(0f) }
-                var dragStartIndex by remember { mutableIntStateOf(-1) }
-                var currentDropIndex by remember { mutableIntStateOf(-1) }
-                var itemHeightPx by remember { mutableFloatStateOf(0f) }
-                val itemCenterYs = remember { mutableStateMapOf<Int, Float>() }
-                val density = LocalDensity.current
-
-                val isDraggingActive = (draggingLayout != null && dragStartIndex in orderedLayouts.indices && currentDropIndex in orderedLayouts.indices)
-                val effectiveRowHeight = if (itemHeightPx > 0f) itemHeightPx else with(density) { 68.dp.toPx() }
+                // Direction cue: Swiping Left
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ) {
+                        Text(
+                            text = if (isEnglish) "◂ SWIPING LEFT" else "◂ বামে সোয়াইপ",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
 
                 orderedLayouts.forEachIndexed { index, type ->
                     key(type) {
                         val isChecked = enabledLayouts.contains(type)
-                        val isPrimary = isChecked && (type == orderedLayouts.firstOrNull { enabledLayouts.contains(it) })
+                        val isHome = isChecked && (type == activeLayout)
                         val title = if (isEnglish) LayoutRegistry.getEnglishName(type) else LayoutRegistry.getBengaliName(type)
                         val desc = LayoutRegistry.getDescription(type, isEnglish)
-                        val isThisDragging = (draggingLayout == type)
 
-                        // Calculate slot opening displacement for non-dragged items
-                        val targetShift = when {
-                            !isDraggingActive -> 0f
-                            isThisDragging -> 0f
-                            dragStartIndex > currentDropIndex && index >= currentDropIndex && index < dragStartIndex -> effectiveRowHeight
-                            dragStartIndex < currentDropIndex && index > dragStartIndex && index <= currentDropIndex -> -effectiveRowHeight
-                            else -> 0f
-                        }
-
-                        val shiftAnim = remember(type) { Animatable(0f) }
-                        LaunchedEffect(targetShift, isDraggingActive) {
-                            if (isDraggingActive) {
-                                shiftAnim.animateTo(
-                                    targetValue = targetShift,
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    )
-                                )
-                            } else {
-                                shiftAnim.snapTo(0f)
-                            }
-                        }
-
-
-                        val showIndicatorAbove = isDraggingActive && (dragStartIndex > currentDropIndex) && (index == currentDropIndex)
-                        val showIndicatorBelow = isDraggingActive && (dragStartIndex < currentDropIndex) && (index == currentDropIndex)
-
-                        if (showIndicatorAbove) {
-                            DropPlacementIndicator(
-                                targetSlotNumber = currentDropIndex + 1,
-                                isDefaultSlot = currentDropIndex == 0,
-                                isEnglish = isEnglish
-                            )
-                        }
-
-                        Box(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .onSizeChanged { size ->
-                                    if (size.height > 0 && !isThisDragging) {
-                                        itemHeightPx = size.height.toFloat()
-                                    }
-                                }
-                                .onGloballyPositioned { coords ->
-                                    val bounds = coords.boundsInParent()
-                                    itemCenterYs[index] = bounds.top + bounds.height / 2f
-                                }
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Minimalist Origin placeholder slot when this item is lifted
-                            if (isThisDragging) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .matchParentSize()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f))
-                                        .border(
-                                            BorderStroke(
-                                                1.dp,
-                                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                                            ),
-                                            RoundedCornerShape(12.dp)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
-                                        )
-                                        Text(
-                                            text = if (isEnglish) "Origin slot" else "মূল অবস্থান",
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Active layout item surface (floats with shadow, glow, and tilt when dragging)
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = if (isThisDragging) {
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.96f)
-                                } else {
-                                    Color.Transparent
-                                },
-                                shadowElevation = if (isThisDragging) 16.dp else 0.dp,
-                                border = if (isThisDragging) {
-                                    BorderStroke(
-                                        1.5.dp,
-                                        Brush.horizontalGradient(
-                                            listOf(
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
-                                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isChecked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     )
-                                } else null,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .zIndex(if (isThisDragging) 30f else 0f)
-                                    .graphicsLayer {
-                                        translationY = if (isThisDragging) dragOffsetY else shiftAnim.value
-                                        scaleX = if (isThisDragging) 1.03f else 1f
-                                        scaleY = if (isThisDragging) 1.03f else 1f
-                                    }
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .then(
-                                            if (isThisDragging) {
-                                                Modifier.background(
-                                                    Brush.verticalGradient(
-                                                        listOf(
-                                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
-                                                            Color.Transparent
-                                                        )
-                                                    )
-                                                )
-                                            } else Modifier
-                                        )
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 7.dp, horizontal = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        // In Reorder Mode: Clean circular step rank badge (1, 2, 3... or ১, ২, ৩...)
-                                        // In Normal Mode: Clean typography with NO leading icons or badges
-                                        if (isReorderMode) {
-                                            val bengaliDigits = charArrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
-                                            val rankText = if (isEnglish) "${index + 1}"
-                                                           else (index + 1).toString().map { if (it in '0'..'9') bengaliDigits[it - '0'] else it }.joinToString("")
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = if (isPrimary) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                                border = BorderStroke(
-                                                    1.dp,
-                                                    if (isPrimary) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                                ),
-                                                modifier = Modifier
-                                                    .padding(end = 12.dp)
-                                                    .size(28.dp)
-                                            ) {
-                                                Box(contentAlignment = Alignment.Center) {
-                                                    Text(
-                                                        text = rankText,
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = if (isPrimary) MaterialTheme.colorScheme.primary
-                                                                    else MaterialTheme.colorScheme.onSurface
-                                                        )
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = title,
-                                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        color = if (isChecked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                )
-                                                if (isThisDragging) {
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Surface(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        color = MaterialTheme.colorScheme.primary,
-                                                        contentColor = MaterialTheme.colorScheme.onPrimary
-                                                    ) {
-                                                        val targetSlot = currentDropIndex + 1
-                                                        val bengaliDigits = charArrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
-                                                        val targetSlotStr = if (isEnglish) "$targetSlot"
-                                                                           else targetSlot.toString().map { if (it in '0'..'9') bengaliDigits[it - '0'] else it }.joinToString("")
-                                                        Text(
-                                                            text = if (isEnglish) "→ Slot $targetSlotStr" else "→ $targetSlotStr নং অবস্থানে",
-                                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                        )
-                                                    }
-                                                } else if (isPrimary) {
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Surface(
-                                                        shape = RoundedCornerShape(6.dp),
-                                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                                    ) {
-                                                        Text(
-                                                            text = if (isEnglish) "Default" else "ডিফল্ট",
-                                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                                color = MaterialTheme.colorScheme.primary,
-                                                                fontWeight = FontWeight.Bold
-                                                            ),
-                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                        )
-                                                    }
-                                                }
-                                            }
+                                    if (isHome) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                        ) {
                                             Text(
-                                                text = desc,
-                                                style = MaterialTheme.typography.bodySmall.copy(
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
+                                                text = if (isEnglish) "Home" else "হোম",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.Bold
+                                                ),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
-                                        }
-
-                                        // Switch (Normal Mode) or Drag Handle (Reorder Mode)
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            if (!isReorderMode) {
-                                                Switch(
-                                                    checked = isChecked,
-                                                    enabled = !isChecked || enabledLayouts.size > 1,
-                                                    onCheckedChange = { toggleLayout(type, it) }
-                                                )
-                                            } else {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(44.dp)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(
-                                                            if (isThisDragging) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                                        )
-                                                        .pointerInput(type) {
-                                                            detectDragGestures(
-                                                                onDragStart = {
-                                                                    draggingLayout = type
-                                                                    val sIdx = orderedLayouts.indexOf(type)
-                                                                    dragStartIndex = sIdx
-                                                                    currentDropIndex = sIdx
-                                                                    dragOffsetY = 0f
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                },
-                                                                onDragEnd = {
-                                                                    val from = dragStartIndex
-                                                                    val to = currentDropIndex
-                                                                    if (from in orderedLayouts.indices && to in orderedLayouts.indices && from != to) {
-                                                                        moveLayout(from, to)
-                                                                    }
-                                                                    draggingLayout = null
-                                                                    dragStartIndex = -1
-                                                                    currentDropIndex = -1
-                                                                    dragOffsetY = 0f
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                },
-                                                                onDragCancel = {
-                                                                    draggingLayout = null
-                                                                    dragStartIndex = -1
-                                                                    currentDropIndex = -1
-                                                                    dragOffsetY = 0f
-                                                                },
-                                                                onDrag = { change, dragAmount ->
-                                                                    change.consume()
-                                                                    val sIdx = dragStartIndex
-                                                                    if (sIdx >= 0) {
-                                                                        val startCenter = itemCenterYs[sIdx] ?: 0f
-                                                                        val minCenter = itemCenterYs[0] ?: startCenter
-                                                                        val maxCenter = itemCenterYs[orderedLayouts.lastIndex] ?: startCenter
-                                                                        val minDragY = minCenter - startCenter - with(density) { 24.dp.toPx() }
-                                                                        val maxDragY = maxCenter - startCenter + with(density) { 24.dp.toPx() }
-
-                                                                        dragOffsetY = (dragOffsetY + dragAmount.y).coerceIn(minDragY, maxDragY)
-                                                                        val currentFingerY = startCenter + dragOffsetY
-
-                                                                        val closest = itemCenterYs.entries.minByOrNull { kotlin.math.abs(it.value - currentFingerY) }?.key ?: sIdx
-                                                                        val newDropIndex = closest.coerceIn(0, orderedLayouts.lastIndex)
-                                                                        if (newDropIndex != currentDropIndex) {
-                                                                            currentDropIndex = newDropIndex
-                                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                                        }
-                                                                    }
-                                                                }
-                                                            )
-                                                        },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.DragHandle,
-                                                        contentDescription = if (isEnglish) "Drag to reorder $title" else "$title এর ক্রম পরিবর্তন করতে টানুন",
-                                                        tint = if (isThisDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(24.dp)
-                                                    )
-                                                }
-                                            }
                                         }
                                     }
                                 }
+                                Text(
+                                    text = desc,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
                             }
-                        }
 
-                        if (showIndicatorBelow) {
-                            DropPlacementIndicator(
-                                targetSlotNumber = currentDropIndex + 1,
-                                isDefaultSlot = false,
-                                isEnglish = isEnglish
+                            Switch(
+                                checked = isChecked,
+                                enabled = !isChecked || enabledLayouts.size > 1,
+                                onCheckedChange = { toggleLayout(type, it) }
                             )
                         }
 
-                        if (index < orderedLayouts.lastIndex && !showIndicatorBelow) {
+                        if (index < orderedLayouts.lastIndex) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(vertical = 4.dp),
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
                             )
                         }
+                    }
+                }
+
+                // Direction cue: Swiping Right
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ) {
+                        Text(
+                            text = if (isEnglish) "SWIPING RIGHT ▸" else "ডানে সোয়াইপ ▸",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
                     }
                 }
             }
