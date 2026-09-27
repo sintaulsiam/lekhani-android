@@ -1,6 +1,8 @@
 package com.lekhani.android.ui.candidate
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -143,80 +145,100 @@ fun CandidateStripView(
             .height(StripHeight)
             .background(Color(theme.backgroundColor)),
     ) {
-        if (state is CandidateStripState.EmojiSearch) {
-            val emojiState = state as CandidateStripState.EmojiSearch
-            EmojiSearchStrip(
-                query = emojiState.query,
-                emojis = emojiState.emojis,
-                onEmojiClick = onCandidateClick,
-                onBack = { onEmojiSearchClose?.invoke() },
-                onClearQuery = { onEmojiSearchClear?.invoke() },
-                theme = theme,
-                isEnglish = isEnglish,
-            )
-        } else if (hasItems && !showToolbarOverride && !isToolsMenuOpen) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Persistent toolbar expand button on far left
-                Box(
-                    modifier = Modifier
-                        .size(StripHeight)
-                        .clip(CircleShape)
-                        .clickable { showToolbarOverride = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = if (isEnglish) "Show Toolbar" else "টুলবার প্রদর্শন",
-                        tint = Color(theme.labelColor).copy(alpha = 0.7f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+        val displayMode = when {
+            state is CandidateStripState.EmojiSearch -> 0
+            hasItems && !showToolbarOverride && !isToolsMenuOpen -> 1
+            else -> 2
+        }
 
-                val items = (state as? CandidateStripState.Candidates)?.items ?: emptyList()
-                Box(modifier = Modifier.weight(1f)) {
-                    StripContent(
-                        items = items,
-                        onCandidateClick = onCandidateClick,
-                        onBlacklist = onBlacklist,
-                        theme = theme,
-                    )
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (hasItems && !isToolsMenuOpen) {
-                    // Collapse toolbar button back to candidates
-                    Box(
-                        modifier = Modifier
-                            .size(StripHeight)
-                            .clip(CircleShape)
-                            .clickable { showToolbarOverride = false },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = if (isEnglish) "Show Candidates" else "পরামর্শ প্রদর্শন",
-                            tint = Color(theme.accentColor),
-                            modifier = Modifier.size(18.dp)
+        AnimatedContent(
+            targetState = displayMode,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(90)) togetherWith fadeOut(animationSpec = tween(90))
+            },
+            label = "CandidateStripModeTransition"
+        ) { mode ->
+            when (mode) {
+                0 -> {
+                    val emojiState = state as? CandidateStripState.EmojiSearch
+                    if (emojiState != null) {
+                        EmojiSearchStrip(
+                            query = emojiState.query,
+                            emojis = emojiState.emojis,
+                            onEmojiClick = onCandidateClick,
+                            onBack = { onEmojiSearchClose?.invoke() },
+                            onClearQuery = { onEmojiSearchClear?.invoke() },
+                            theme = theme,
+                            isEnglish = isEnglish,
                         )
                     }
                 }
+                1 -> {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Persistent toolbar expand button on far left
+                        Box(
+                            modifier = Modifier
+                                .size(StripHeight)
+                                .clip(CircleShape)
+                                .clickable { showToolbarOverride = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = if (isEnglish) "Show Toolbar" else "টুলবার প্রদর্শন",
+                                tint = Color(theme.labelColor).copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
 
-                Box(modifier = Modifier.weight(1f)) {
-                    ToolbarContent(
-                        tools = activeTools,
-                        onToolClick = onToolClick,
-                        onOpenToolsMenu = onOpenToolsMenu,
-                        theme = theme,
-                        isEnglish = isEnglish,
-                        isToolsMenuOpen = isToolsMenuOpen,
-                    )
+                        val items = (state as? CandidateStripState.Candidates)?.items ?: emptyList()
+                        Box(modifier = Modifier.weight(1f)) {
+                            StripContent(
+                                items = items,
+                                onCandidateClick = onCandidateClick,
+                                onBlacklist = onBlacklist,
+                                theme = theme,
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (hasItems && !isToolsMenuOpen) {
+                            // Collapse toolbar button back to candidates
+                            Box(
+                                modifier = Modifier
+                                    .size(StripHeight)
+                                    .clip(CircleShape)
+                                    .clickable { showToolbarOverride = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = if (isEnglish) "Show Candidates" else "পরামর্শ প্রদর্শন",
+                                    tint = Color(theme.accentColor),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Box(modifier = Modifier.weight(1f)) {
+                            ToolbarContent(
+                                tools = activeTools,
+                                onToolClick = onToolClick,
+                                onOpenToolsMenu = onOpenToolsMenu,
+                                theme = theme,
+                                isEnglish = isEnglish,
+                                isToolsMenuOpen = isToolsMenuOpen,
+                            )
+                        }
+                    }
                 }
             }
         }

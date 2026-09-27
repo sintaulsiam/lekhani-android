@@ -155,6 +155,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // Floating mode drag state
     private var floatingOffsetX: Float = 0f
     private var floatingOffsetY: Float = 0f
+    private var committedFloatingOffsetX: Float = 0f
+    private var committedFloatingOffsetY: Float = 0f
     private var isDraggingFloatingBar: Boolean = false
     private var floatingDragStartX: Float = 0f
     private var floatingDragStartY: Float = 0f
@@ -760,7 +762,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
 
-        val density = resources.displayMetrics.density
+        val density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
         val chinPx = bottomChinPaddingDp * density
         val availableH = (h - chinPx).coerceAtLeast(100f)
 
@@ -1213,6 +1215,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         // ── Floating Mode Top Drag Bar ────────────────────────────────────
+        val isLiveDraggingFloating = isDraggingFloatingBar && formFactor == KeyboardPreferences.FormFactor.FLOATING
+        if (isLiveDraggingFloating) {
+            canvas.save()
+            canvas.translate(floatingOffsetX - committedFloatingOffsetX, floatingOffsetY - committedFloatingOffsetY)
+        }
         if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
             canvas.drawRoundRect(floatingTopBarRect, 8f * density, 8f * density, sideDockBgPaint)
             val barMidX = floatingTopBarRect.centerX()
@@ -1418,6 +1425,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
             scratchRect.set(pad, pad, width - pad, height - pad)
             canvas.drawRoundRect(scratchRect, 10f * density, 10f * density, resizeGuidePaint)
         }
+        if (isLiveDraggingFloating) {
+            canvas.restore()
+        }
     }
 
     private fun isSpacebarKey(key: Key): Boolean =
@@ -1493,6 +1503,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     }
                     if (floatingTopBarRect.contains(px, py)) {
                         isDraggingFloatingBar = true
+                        committedFloatingOffsetX = floatingOffsetX
+                        committedFloatingOffsetY = floatingOffsetY
                         floatingDragStartX = px - floatingOffsetX
                         floatingDragStartY = py - floatingOffsetY
                         return true
@@ -1566,11 +1578,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     removeCallbacks(backspaceRepeatRunnable)
                 }
 
-                // Floating mode window dragging
+                // Floating mode window dragging — zero allocations and zero bound recalculations during drag
                 if (isDraggingFloatingBar) {
                     floatingOffsetX = curX - floatingDragStartX
                     floatingOffsetY = curY - floatingDragStartY
-                    computeKeyBounds()
                     invalidate()
                     return true
                 }
@@ -1739,7 +1750,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
             MotionEvent.ACTION_UP -> {
                 removeCallbacks(longPressRunnable)
                 removeCallbacks(backspaceRepeatRunnable)
-                isDraggingFloatingBar = false
+                if (isDraggingFloatingBar) {
+                    isDraggingFloatingBar = false
+                    committedFloatingOffsetX = floatingOffsetX
+                    committedFloatingOffsetY = floatingOffsetY
+                    computeKeyBounds()
+                    invalidate()
+                    return true
+                }
 
                 if (isSpaceCursorMoving) {
                     isSpaceCursorMoving = false
@@ -1767,7 +1785,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
                 if (glideTypingEnabled && isGliding) {
                     if (visitedGlideKeys.size >= 2) {
-                        keyListener?.onGlideGesture(visitedGlideKeys.toList())
+                        keyListener?.onGlideGesture(visitedGlideKeys)
                     } else if (visitedGlideKeys.size == 1 && pressedKeyIndex >= 0) {
                         dispatchKey(resolvedKeys[pressedKeyIndex].key)
                     }
@@ -1785,7 +1803,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
                 val targetKeyIdx = if (pressedKeyIndex in resolvedKeys.indices) {
                     val bounds = resolvedKeys[pressedKeyIndex].bounds
-                    val slop = (keyMarginH * 1.5f).coerceAtLeast(10f * resources.displayMetrics.density)
+                    val slopDensity = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
+                    val slop = (keyMarginH * 1.5f).coerceAtLeast(10f * slopDensity)
                     if (px >= bounds.left - slop && px <= bounds.right + slop &&
                         py >= bounds.top - slop && py <= bounds.bottom + slop) {
                         pressedKeyIndex

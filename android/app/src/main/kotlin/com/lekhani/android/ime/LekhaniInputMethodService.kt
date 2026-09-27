@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ import com.lekhani.android.voice.AudioStreamingManager
 import com.lekhani.android.voice.VoiceTypingState
 import com.lekhani.android.model.NumberSymbolsLayout
 import com.lekhani.android.ui.editor.TextEditorSheetView
+import com.lekhani.android.ui.picker.QuickLayoutPickerSheet
 import com.lekhani.android.ui.tools.ExtraToolsSheetView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -166,6 +168,9 @@ class LekhaniInputMethodService : InputMethodService() {
     private var clipboardView: ComposeView? = null
     private var textEditorView: ComposeView? = null
     private var toolsMenuView: ComposeView? = null
+    private var quickLayoutPickerComposeView: ComposeView? = null
+    private val _showQuickLayoutPickerFlow = MutableStateFlow(false)
+    private val _paletteHeightDp = MutableStateFlow(260.dp)
     private var isCurrentFieldPrivate: Boolean = false
     private var isEnglishDictLoaded: Boolean = false
     private var previousLayoutBeforePassword: LekhaniLayoutType? = null
@@ -745,24 +750,58 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
+    private fun crossfadeViewMode(activeView: View?, vararg otherViews: View?) {
+        for (view in otherViews) {
+            if (view != null && view.visibility == View.VISIBLE) {
+                view.animate().cancel()
+                view.animate()
+                    .alpha(0f)
+                    .setDuration(120L)
+                    .withEndAction {
+                        view.visibility = View.GONE
+                        view.alpha = 1f
+                    }
+                    .start()
+            } else if (view != null) {
+                view.visibility = View.GONE
+                view.alpha = 1f
+            }
+        }
+        activeView?.let { view ->
+            if (view.visibility != View.VISIBLE || view.alpha < 1f) {
+                view.animate().cancel()
+                view.alpha = 0f
+                view.visibility = View.VISIBLE
+                view.animate()
+                    .alpha(1f)
+                    .setDuration(120L)
+                    .start()
+            }
+        }
+    }
+
     /**
      * Toggles between Keyboard Canvas, Emoji/Symbol Picker, and Clipboard History.
      */
     fun setInputViewMode(mode: InputViewMode, initialQuery: String = "") {
+        _showQuickLayoutPickerFlow.value = false
         currentMode = mode
         _inputViewModeFlow.value = mode
         val container = modesContainer ?: return
         val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
 
+        val kbHeightDp = if (lastMeasuredKeyboardHeightPx > 0) {
+            (lastMeasuredKeyboardHeightPx / resources.displayMetrics.density).dp
+        } else {
+            260.dp
+        }
+        _paletteHeightDp.value = kbHeightDp
+
         when (mode) {
             InputViewMode.KEYBOARD -> {
                 keyboardView?.isResizeVisualGuide = false
                 resizeOverlayComposeView?.visibility = View.GONE
-                keyboardView?.visibility = View.VISIBLE
-                emojiPickerView?.visibility = View.GONE
-                clipboardView?.visibility = View.GONE
-                textEditorView?.visibility = View.GONE
-                toolsMenuView?.visibility = View.GONE
+                crossfadeViewMode(keyboardView, emojiPickerView, clipboardView, textEditorView, toolsMenuView)
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = ""
                 emojiSearchRawQuery = ""
@@ -773,11 +812,7 @@ class LekhaniInputMethodService : InputMethodService() {
             InputViewMode.EMOJI_SEARCH -> {
                 keyboardView?.isResizeVisualGuide = false
                 resizeOverlayComposeView?.visibility = View.GONE
-                keyboardView?.visibility = View.VISIBLE
-                emojiPickerView?.visibility = View.GONE
-                clipboardView?.visibility = View.GONE
-                textEditorView?.visibility = View.GONE
-                toolsMenuView?.visibility = View.GONE
+                crossfadeViewMode(keyboardView, emojiPickerView, clipboardView, textEditorView, toolsMenuView)
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = initialQuery
                 emojiSearchRawQuery = initialQuery
@@ -792,18 +827,35 @@ class LekhaniInputMethodService : InputMethodService() {
             InputViewMode.EMOJI -> {
                 keyboardView?.isResizeVisualGuide = false
                 resizeOverlayComposeView?.visibility = View.GONE
-                keyboardView?.visibility = View.GONE
-                clipboardView?.visibility = View.GONE
-                textEditorView?.visibility = View.GONE
-                toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchRawQuery = ""
                 emojiSearchSession = null
+
                 if (emojiPickerView == null) {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                        setContent {
+                            val theme by _themeFlow.collectAsState()
+                            val heightDp by _paletteHeightDp.collectAsState()
+                            EmojiPickerView(
+                                recentsManager = recentsManager,
+                                theme = theme,
+                                isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                                paletteHeight = heightDp,
+                                onEmojiSelected = { emoji ->
+                                    emojiPickerView?.let { feedbackManager.onKeyFeedback(it) }
+                                    currentInputConnection?.commitText(emoji, 1)
+                                },
+                                onBackspace = { onBackspace() },
+                                onSpace = { onSpace() },
+                                onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                                onSearchClick = { query ->
+                                    setInputViewMode(InputViewMode.EMOJI_SEARCH, query)
+                                },
+                            )
+                        }
                     }
                     emojiPickerView = compose
                     container.addView(
@@ -814,43 +866,33 @@ class LekhaniInputMethodService : InputMethodService() {
                         )
                     )
                 }
-                val kbHeightDp = if (lastMeasuredKeyboardHeightPx > 0) {
-                    (lastMeasuredKeyboardHeightPx / resources.displayMetrics.density).dp
-                } else {
-                    260.dp
-                }
-                emojiPickerView?.setContent {
-                    EmojiPickerView(
-                        recentsManager = recentsManager,
-                        theme = activeTheme,
-                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
-                        paletteHeight = kbHeightDp,
-                        onEmojiSelected = { emoji ->
-                            emojiPickerView?.let { feedbackManager.onKeyFeedback(it) }
-                            currentInputConnection?.commitText(emoji, 1)
-                        },
-                        onBackspace = { onBackspace() },
-                        onSpace = { onSpace() },
-                        onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
-                        onSearchClick = { query ->
-                            setInputViewMode(InputViewMode.EMOJI_SEARCH, query)
-                        },
-                    )
-                }
-                emojiPickerView?.visibility = View.VISIBLE
+                crossfadeViewMode(emojiPickerView, keyboardView, clipboardView, textEditorView, toolsMenuView)
             }
             InputViewMode.CLIPBOARD -> {
-                keyboardView?.visibility = View.GONE
-                emojiPickerView?.visibility = View.GONE
-                textEditorView?.visibility = View.GONE
-                toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
+
                 if (clipboardView == null) {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                        setContent {
+                            val theme by _themeFlow.collectAsState()
+                            val heightDp by _paletteHeightDp.collectAsState()
+                            ClipboardSheetView(
+                                clipboardStore = clipboardStore,
+                                theme = theme,
+                                sheetHeight = heightDp,
+                                isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                                onPaste = { text ->
+                                    runCatching { currentInputConnection?.commitText(text, 1) }
+                                    setInputViewMode(InputViewMode.KEYBOARD)
+                                },
+                                onOpenEditor = { openClipboardEditor() },
+                                onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                            )
+                        }
                     }
                     clipboardView = compose
                     container.addView(
@@ -861,39 +903,42 @@ class LekhaniInputMethodService : InputMethodService() {
                         )
                     )
                 }
-                val kbHeightDp = if (lastMeasuredKeyboardHeightPx > 0) {
-                    (lastMeasuredKeyboardHeightPx / resources.displayMetrics.density).dp
-                } else {
-                    260.dp
-                }
-                clipboardView?.setContent {
-                    ClipboardSheetView(
-                        clipboardStore = clipboardStore,
-                        theme = activeTheme,
-                        sheetHeight = kbHeightDp,
-                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
-                        onPaste = { text ->
-                            runCatching { currentInputConnection?.commitText(text, 1) }
-                            setInputViewMode(InputViewMode.KEYBOARD)
-                        },
-                        onOpenEditor = { openClipboardEditor() },
-                        onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
-                    )
-                }
-                clipboardView?.visibility = View.VISIBLE
+                crossfadeViewMode(clipboardView, keyboardView, emojiPickerView, textEditorView, toolsMenuView)
             }
             InputViewMode.TEXT_EDITOR -> {
-                keyboardView?.visibility = View.GONE
-                emojiPickerView?.visibility = View.GONE
-                clipboardView?.visibility = View.GONE
-                toolsMenuView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
+
                 if (textEditorView == null) {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                        setContent {
+                            val theme by _themeFlow.collectAsState()
+                            TextEditorSheetView(
+                                theme = theme,
+                                isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                                onMoveLeft = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_LEFT, select) },
+                                onMoveRight = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_RIGHT, select) },
+                                onMoveUp = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_UP, select) },
+                                onMoveDown = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_DOWN, select) },
+                                onMoveHome = { select -> sendEditorNavKey(KeyEvent.KEYCODE_MOVE_HOME, select) },
+                                onMoveEnd = { select -> sendEditorNavKey(KeyEvent.KEYCODE_MOVE_END, select) },
+                                onSelectAll = {
+                                    val ic = currentInputConnection ?: return@TextEditorSheetView
+                                    if (!ic.performContextMenuAction(android.R.id.selectAll)) {
+                                        sendEditorKeyWithMeta(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON)
+                                    }
+                                },
+                                onCut = { currentInputConnection?.performContextMenuAction(android.R.id.cut) },
+                                onCopy = { currentInputConnection?.performContextMenuAction(android.R.id.copy) },
+                                onPaste = { currentInputConnection?.performContextMenuAction(android.R.id.paste) },
+                                onBackspace = { onBackspace() },
+                                onEnter = { commitEnter() },
+                                onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                            )
+                        }
                     }
                     textEditorView = compose
                     container.addView(
@@ -904,43 +949,15 @@ class LekhaniInputMethodService : InputMethodService() {
                         )
                     )
                 }
-                textEditorView?.setContent {
-                    TextEditorSheetView(
-                        theme = activeTheme,
-                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
-                        onMoveLeft = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_LEFT, select) },
-                        onMoveRight = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_RIGHT, select) },
-                        onMoveUp = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_UP, select) },
-                        onMoveDown = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_DOWN, select) },
-                        onMoveHome = { select -> sendEditorNavKey(KeyEvent.KEYCODE_MOVE_HOME, select) },
-                        onMoveEnd = { select -> sendEditorNavKey(KeyEvent.KEYCODE_MOVE_END, select) },
-                        onSelectAll = {
-                            val ic = currentInputConnection ?: return@TextEditorSheetView
-                            if (!ic.performContextMenuAction(android.R.id.selectAll)) {
-                                sendEditorKeyWithMeta(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON)
-                            }
-                        },
-                        onCut = { currentInputConnection?.performContextMenuAction(android.R.id.cut) },
-                        onCopy = { currentInputConnection?.performContextMenuAction(android.R.id.copy) },
-                        onPaste = { currentInputConnection?.performContextMenuAction(android.R.id.paste) },
-                        onBackspace = { onBackspace() },
-                        onEnter = { commitEnter() },
-                        onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
-                    )
-                }
-                textEditorView?.visibility = View.VISIBLE
+                crossfadeViewMode(textEditorView, keyboardView, emojiPickerView, clipboardView, toolsMenuView)
             }
             InputViewMode.RESIZE -> {
                 candidateStripComposeView?.visibility = View.GONE
-                emojiPickerView?.visibility = View.GONE
-                clipboardView?.visibility = View.GONE
-                textEditorView?.visibility = View.GONE
-                toolsMenuView?.visibility = View.GONE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
                 clearCandidates()
 
-                keyboardView?.visibility = View.VISIBLE
+                crossfadeViewMode(keyboardView, emojiPickerView, clipboardView, textEditorView, toolsMenuView)
                 keyboardView?.isResizeVisualGuide = true
 
                 val initialScale = keyboardPrefs.heightScale
@@ -969,10 +986,6 @@ class LekhaniInputMethodService : InputMethodService() {
             InputViewMode.TOOLS_MENU -> {
                 keyboardView?.isResizeVisualGuide = false
                 resizeOverlayComposeView?.visibility = View.GONE
-                keyboardView?.visibility = View.GONE
-                emojiPickerView?.visibility = View.GONE
-                clipboardView?.visibility = View.GONE
-                textEditorView?.visibility = View.GONE
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = ""
                 emojiSearchSession = null
@@ -985,6 +998,24 @@ class LekhaniInputMethodService : InputMethodService() {
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                        setContent {
+                            val theme by _themeFlow.collectAsState()
+                            ExtraToolsSheetView(
+                                theme = theme,
+                                prefs = keyboardPrefs,
+                                isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                                onToolSelected = { tool ->
+                                    setInputViewMode(InputViewMode.KEYBOARD)
+                                    handleToolbarToolClick(tool)
+                                },
+                                onToolsUpdated = { newTools ->
+                                    _toolsFlow.value = newTools
+                                },
+                                onClose = {
+                                    setInputViewMode(InputViewMode.KEYBOARD)
+                                }
+                            )
+                        }
                     }
                     toolsMenuView = compose
                     container.addView(
@@ -1000,24 +1031,7 @@ class LekhaniInputMethodService : InputMethodService() {
                         kbHeight
                     )
                 }
-                toolsMenuView?.setContent {
-                    ExtraToolsSheetView(
-                        theme = activeTheme,
-                        prefs = keyboardPrefs,
-                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
-                        onToolSelected = { tool ->
-                            setInputViewMode(InputViewMode.KEYBOARD)
-                            handleToolbarToolClick(tool)
-                        },
-                        onToolsUpdated = { newTools ->
-                            _toolsFlow.value = newTools
-                        },
-                        onClose = {
-                            setInputViewMode(InputViewMode.KEYBOARD)
-                        }
-                    )
-                }
-                toolsMenuView?.visibility = View.VISIBLE
+                crossfadeViewMode(toolsMenuView, keyboardView, emojiPickerView, clipboardView, textEditorView)
             }
         }
     }
@@ -1177,30 +1191,51 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun showQuickLayoutPicker() {
-        val enabled = getEnabledLayouts()
-        val names = enabled.map { 
-            "${LayoutRegistry.getBengaliName(it)} • ${LayoutRegistry.getEnglishName(it)}" 
-        }.toTypedArray()
-        val currentIdx = enabled.indexOf(session.getLayout()).coerceAtLeast(0)
+        val container = modesContainer ?: return
+        if (quickLayoutPickerComposeView == null) {
+            val compose = ComposeView(this).apply {
+                attachLifecycleOwner(this)
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                setContent {
+                    val isVisible by _showQuickLayoutPickerFlow.collectAsState()
+                    val theme by _themeFlow.collectAsState()
+                    val enabledLayouts = remember(isVisible) { getEnabledLayouts() }
+                    val currentLayout = session.getLayout()
 
-        val dialog = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("কীবোর্ড লেআউট নির্বাচন (Select Layout)")
-            .setSingleChoiceItems(names, currentIdx) { d, which ->
-                switchLayout(enabled[which])
-                d.dismiss()
+                    QuickLayoutPickerSheet(
+                        visible = isVisible,
+                        theme = theme,
+                        enabledLayouts = enabledLayouts,
+                        currentLayout = currentLayout,
+                        isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                        onSelectLayout = { selected ->
+                            switchLayout(selected)
+                            _showQuickLayoutPickerFlow.value = false
+                            quickLayoutPickerComposeView?.visibility = View.GONE
+                        },
+                        onOpenTextEditor = {
+                            _showQuickLayoutPickerFlow.value = false
+                            quickLayoutPickerComposeView?.visibility = View.GONE
+                            setInputViewMode(InputViewMode.TEXT_EDITOR)
+                        },
+                        onDismiss = {
+                            _showQuickLayoutPickerFlow.value = false
+                            quickLayoutPickerComposeView?.visibility = View.GONE
+                        }
+                    )
+                }
             }
-            .setPositiveButton("কার্সার ও এডিটর") { d, _ ->
-                setInputViewMode(InputViewMode.TEXT_EDITOR)
-                d.dismiss()
-            }
-            .setNegativeButton("বাতিল", null)
-            .create()
-
-        dialog.window?.let { w ->
-            w.attributes?.token = rootInputContainer?.windowToken
-            w.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG)
+            quickLayoutPickerComposeView = compose
+            container.addView(
+                compose,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+            )
         }
-        dialog.show()
+        quickLayoutPickerComposeView?.visibility = View.VISIBLE
+        _showQuickLayoutPickerFlow.value = true
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -1208,8 +1243,13 @@ class LekhaniInputMethodService : InputMethodService() {
     // ══════════════════════════════════════════════════════════════════════════
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        // Intercept back key when inside Emoji or Clipboard view to return to Keyboard
+        // Intercept back key when inside Quick Layout Picker, Emoji or Clipboard view to return to Keyboard
         if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (_showQuickLayoutPickerFlow.value) {
+                _showQuickLayoutPickerFlow.value = false
+                quickLayoutPickerComposeView?.visibility = View.GONE
+                return true
+            }
             if (currentMode == InputViewMode.EMOJI_SEARCH) {
                 setInputViewMode(InputViewMode.EMOJI)
                 return true
