@@ -107,7 +107,9 @@ fun EmojiPickerView(
     val coroutineScope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
+    var isSearchOpen by remember { mutableStateOf(false) }
     var selectedTabIdx by remember { mutableIntStateOf(1) } // 0: Recents, 1: Emojis, 2: Kaomoji, 3: Symbols
+    var currentCategoryIndex by remember { mutableIntStateOf(0) }
     var skinToneTarget by remember { mutableStateOf<EmojiItem?>(null) }
     var defaultSkinToneIndex by remember { mutableIntStateOf(recentsManager.defaultSkinToneIndex) }
 
@@ -141,129 +143,132 @@ fun EmojiPickerView(
             .background(pickerBg)
             .semantics { contentDescription = if (isEnglish) "Emoji and symbol palette" else "ইমোজি এবং প্রতীক প্যালেট" },
     ) {
-        // ── Search & Filter Bar ───────────────────────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-        ) {
-            Row(
+        // ── Top Header Area: Slim Category Bar (Resting) OR Search Bar (On-Demand) ──
+        if (isSearchOpen) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(19.dp))
-                    .background(searchBg)
-                    .border(1.dp, borderColor.copy(alpha = 0.4f), RoundedCornerShape(19.dp))
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .background(pickerBg)
+                    .padding(bottom = 2.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = if (isEnglish) "Search" else "অনুসন্ধান",
-                    tint = activeTabPill,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                BasicTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    textStyle = TextStyle(
-                        fontSize = 13.sp,
-                        color = textColor,
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    ),
-                    cursorBrush = SolidColor(activeTabPill),
-                    singleLine = true,
-                    decorationBox = { innerTextField ->
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = if (isEnglish) "Search emojis (e.g. smile, love, kanna)..."
-                                       else "ইমোজি খুঁজুন (যেমন: হাসি, প্রেম, কান্না, আগুন)...",
-                                fontSize = 12.sp,
-                                color = inactiveTabText,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        innerTextField()
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                if (searchQuery.isNotEmpty()) {
+                // Search Input Field
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(searchBg)
+                        .border(1.dp, borderColor.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                        .padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = if (isEnglish) "Search" else "অনুসন্ধান",
+                        tint = activeTabPill,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        textStyle = TextStyle(
+                            fontSize = 13.sp,
+                            color = textColor,
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        ),
+                        cursorBrush = SolidColor(activeTabPill),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = if (isEnglish) "Search emojis (e.g. smile, love, fire)..."
+                                           else "ইমোজি খুঁজুন (যেমন: হাসি, প্রেম, আগুন)...",
+                                    fontSize = 12.sp,
+                                    color = inactiveTabText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            innerTextField()
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                     IconButton(
                         onClick = {
-                            searchQuery = ""
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            if (searchQuery.isNotEmpty()) {
+                                searchQuery = ""
+                            } else {
+                                isSearchOpen = false
+                            }
                         },
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = if (isEnglish) "Clear search" else "মুছুন",
+                            contentDescription = if (isEnglish) "Close search" else "অনুসন্ধান বন্ধ করুন",
                             tint = inactiveTabText,
                             modifier = Modifier.size(16.dp)
                         )
                     }
                 }
-            }
-        }
 
-        // Quick Tag Chips when not searching or for quick filtering
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(28.dp)
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val quickChips = listOf(
-                "🔥" to if (isEnglish) "fire" else "আগুন",
-                "❤️" to if (isEnglish) "love" else "ভালোবাসা",
-                "😂" to if (isEnglish) "laugh" else "হাসি",
-                "😭" to if (isEnglish) "cry" else "কান্না",
-                "👍" to if (isEnglish) "hand" else "হাত",
-                "🎉" to if (isEnglish) "party" else "উৎসব",
-                "☕" to if (isEnglish) "tea" else "চা",
-                "৳" to if (isEnglish) "money" else "টাকা",
-                "🌧️" to if (isEnglish) "rain" else "বৃষ্টি",
-                "✨" to if (isEnglish) "star" else "তারা",
-                "🇧🇩" to if (isEnglish) "flag" else "বাংলাদেশ"
-            )
-            quickChips.forEach { (emoji, tag) ->
-                val isTagActive = (searchQuery.trim().lowercase() == tag.lowercase())
-                Box(
+                // Compact Quick Tag Chips
+                Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isTagActive) activeTabPill else tabBarBg)
-                        .clickable {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            searchQuery = if (isTagActive) "" else tag
-                        }
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .fillMaxWidth()
+                        .height(26.dp)
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "$emoji $tag",
-                        fontSize = 11.sp,
-                        fontWeight = if (isTagActive) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isTagActive) Color.Black else inactiveTabText
+                    val quickChips = listOf(
+                        "🔥" to if (isEnglish) "fire" else "আগুন",
+                        "❤️" to if (isEnglish) "love" else "ভালোবাসা",
+                        "😂" to if (isEnglish) "laugh" else "হাসি",
+                        "😭" to if (isEnglish) "cry" else "কান্না",
+                        "👍" to if (isEnglish) "hand" else "হাত",
+                        "🎉" to if (isEnglish) "party" else "উৎসব",
+                        "☕" to if (isEnglish) "tea" else "চা",
+                        "৳" to if (isEnglish) "money" else "টাকা",
+                        "🇧🇩" to if (isEnglish) "flag" else "বাংলাদেশ"
                     )
+                    quickChips.forEach { (emoji, tag) ->
+                        val isTagActive = (searchQuery.trim().lowercase() == tag.lowercase())
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isTagActive) activeTabPill else tabBarBg)
+                                .clickable {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    searchQuery = if (isTagActive) "" else tag
+                                }
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "$emoji $tag",
+                                fontSize = 10.sp,
+                                fontWeight = if (isTagActive) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isTagActive) Color.Black else inactiveTabText
+                            )
+                        }
+                    }
                 }
             }
-        }
-
-        // ── Category Tab Bar (When not actively searching) ────────────────────
-        if (searchQuery.isBlank()) {
+        } else {
+            // Slim 32 dp Top Category Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(36.dp)
+                    .height(32.dp)
                     .background(tabBarBg)
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 // Tab 0: Recents
                 TabItem(
@@ -280,13 +285,14 @@ fun EmojiPickerView(
 
                 // Tab 1..N: Standard Categories
                 EmojiData.categories.forEachIndexed { index, cat ->
-                    val isCatSelected = (selectedTabIdx == 1)
+                    val isCatSelected = (selectedTabIdx == 1 && currentCategoryIndex == index)
                     TabItem(
                         label = cat.icon,
-                        isSelected = selectedTabIdx == 1 && index == 0,
+                        isSelected = isCatSelected,
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             selectedTabIdx = 1
+                            currentCategoryIndex = index
                             val targetOffset = categoryScrollOffsets.getOrElse(index) { 0 }
                             coroutineScope.launch {
                                 gridState.animateScrollToItem(targetOffset)
@@ -345,8 +351,8 @@ fun EmojiPickerView(
                     }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 42.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        columns = GridCells.Adaptive(minSize = 40.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -354,7 +360,7 @@ fun EmojiPickerView(
                                 text = if (isEnglish) "${searchResults.size} results found" else "${searchResults.size}টি ইমোজি পাওয়া গেছে",
                                 fontSize = 11.sp,
                                 color = inactiveTabText,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
                         items(searchResults) { item ->
@@ -393,8 +399,8 @@ fun EmojiPickerView(
                         }
                     } else {
                         LazyVerticalGrid(
-                            columns = GridCells.Adaptive(minSize = 42.dp),
-                            contentPadding = PaddingValues(8.dp),
+                            columns = GridCells.Adaptive(minSize = 40.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                             modifier = Modifier.fillMaxSize(),
                         ) {
                             items(recents) { emoji ->
@@ -414,21 +420,21 @@ fun EmojiPickerView(
                     // Continuous Vertical Scroll with Sticky Section Headers
                     LazyVerticalGrid(
                         state = gridState,
-                        columns = GridCells.Adaptive(minSize = 42.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        columns = GridCells.Adaptive(minSize = 40.dp),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         EmojiData.categories.forEach { cat ->
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
                                     text = "${cat.icon} ${cat.title}",
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = activeTabPill,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(pickerBg.copy(alpha = 0.95f))
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                        .padding(horizontal = 6.dp, vertical = 3.dp)
                                 )
                             }
                             items(cat.items) { item ->
@@ -569,7 +575,7 @@ fun EmojiPickerView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(46.dp)
+                .height(44.dp)
                 .background(tabBarBg)
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -578,19 +584,20 @@ fun EmojiPickerView(
             // Prominent ABC key returning to the typing keyboard
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
+                    .width(54.dp)
+                    .height(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(Color(theme.keyNormalColor))
                     .clickable {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         onClose()
                     }
-                    .padding(horizontal = 16.dp, vertical = 7.dp)
                     .semantics { contentDescription = if (isEnglish) "Return to keyboard" else "কীবোর্ডে ফিরে যান" },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = "⌨ ABC",
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = textColor,
                 )
@@ -599,20 +606,21 @@ fun EmojiPickerView(
             // Dedicated On-Canvas Search toggle
             Box(
                 modifier = Modifier
-                    .size(width = 42.dp, height = 36.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(theme.keyNormalColor))
+                    .size(width = 40.dp, height = 34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSearchOpen) activeTabPill else Color(theme.keyNormalColor))
                     .clickable {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        onSearchClick(searchQuery)
+                        isSearchOpen = !isSearchOpen
+                        if (!isSearchOpen) searchQuery = ""
                     }
-                    .semantics { contentDescription = if (isEnglish) "Search with keyboard" else "কীবোর্ড দিয়ে খুঁজুন" },
+                    .semantics { contentDescription = if (isEnglish) "Search emojis" else "ইমোজি অনুসন্ধান" },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
-                    tint = activeTabPill,
+                    tint = if (isSearchOpen) Color.Black else activeTabPill,
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -621,8 +629,8 @@ fun EmojiPickerView(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(36.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .height(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(Color(theme.keySpaceColor))
                     .clickable {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -640,8 +648,8 @@ fun EmojiPickerView(
             // Backspace key in emoji palette with repeating hold
             Box(
                 modifier = Modifier
-                    .size(width = 48.dp, height = 36.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(width = 46.dp, height = 34.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(Color(theme.keyNormalColor))
                     .pointerInput(Unit) {
                         detectTapGestures(
@@ -686,16 +694,16 @@ private fun TabItem(
 ) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(if (isSelected) activePill else Color.Transparent)
             .clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .padding(horizontal = 7.dp, vertical = 2.dp)
             .semantics { contentDescription = desc },
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             color = if (isSelected) Color.Black else inactiveColor,
         )
     }
@@ -710,7 +718,7 @@ private fun EmojiCell(
 ) {
     Box(
         modifier = Modifier
-            .size(42.dp)
+            .size(40.dp)
             .clip(RoundedCornerShape(8.dp))
             .combinedClickable(
                 onClick = onSelect,
@@ -719,7 +727,7 @@ private fun EmojiCell(
             .semantics { contentDescription = emoji },
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = emoji, fontSize = 22.sp, textAlign = TextAlign.Center)
+        Text(text = emoji, fontSize = 21.sp, textAlign = TextAlign.Center)
     }
 }
 
