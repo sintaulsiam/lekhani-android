@@ -186,14 +186,14 @@ fun LayoutFlowScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp),
+                    .height(185.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (enabledLayouts.isNotEmpty()) {
                     HorizontalPager(
                         state = pagerState,
-                        contentPadding = PaddingValues(horizontal = 68.dp),
-                        pageSpacing = 12.dp,
+                        contentPadding = PaddingValues(horizontal = 105.dp),
+                        pageSpacing = 10.dp,
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
                         val layoutType = enabledLayouts[page]
@@ -205,21 +205,21 @@ fun LayoutFlowScreen(
                         // Inward 3D curve (amphitheater perspective)
                         val pageOffset = (page - pagerState.currentPage) + pagerState.currentPageOffsetFraction
                         // Negative distance: left edge comes forward; Positive distance: right edge goes back
-                        val rotationY = (-pageOffset * 22f).coerceIn(-26f, 26f)
+                        val rotationY = (-pageOffset * 26f).coerceIn(-30f, 30f)
                         val scale = lerp(0.88f, 1.0f, 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f))
-                        val alpha = lerp(0.68f, 1.0f, 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f))
+                        val alpha = lerp(0.72f, 1.0f, 1f - kotlin.math.abs(pageOffset).coerceIn(0f, 1f))
 
                         Box(
                             modifier = Modifier
+                                .fillMaxWidth()
+                                .height(165.dp)
                                 .graphicsLayer {
                                     this.rotationY = rotationY
                                     this.scaleX = scale
                                     this.scaleY = scale
                                     this.alpha = alpha
-                                    cameraDistance = 16f * density
+                                    cameraDistance = 12f * density
                                 }
-                                .width(185.dp)
-                                .height(160.dp)
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     coroutineScope.launch {
@@ -231,10 +231,10 @@ fun LayoutFlowScreen(
                             Surface(
                                 shape = RoundedCornerShape(18.dp),
                                 color = if (isCenterCard) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
-                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f),
                                 border = if (isHome) BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                                          else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                                shadowElevation = if (isCenterCard) 8.dp else 2.dp,
+                                shadowElevation = if (isCenterCard) 10.dp else 2.dp,
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 Column(
@@ -279,7 +279,7 @@ fun LayoutFlowScreen(
                                                     imageVector = Icons.Filled.Home,
                                                     contentDescription = null,
                                                     tint = MaterialTheme.colorScheme.primary,
-                                                    modifier = Modifier.size(14.dp)
+                                                    modifier = Modifier.size(13.dp)
                                                 )
                                                 Text(
                                                     text = if (isEnglish) "Home" else "হোম",
@@ -294,7 +294,7 @@ fun LayoutFlowScreen(
                                     // Miniature 3-Row Keyboard Keycaps Graphic
                                     MiniatureKeyboardGraphic(
                                         isHome = isHome,
-                                        modifier = Modifier.padding(vertical = 4.dp)
+                                        modifier = Modifier.padding(vertical = 2.dp)
                                     )
 
                                     // Title
@@ -355,46 +355,27 @@ fun LayoutFlowScreen(
                                     }
                                 }
                             }
+
+                            // Speech bubble on top of center card
+                            if (isCenterCard) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shadowElevation = 4.dp,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .graphicsLayer { translationY = -10.dp.toPx() }
+                                ) {
+                                    Text(
+                                        text = if (isHome) (if (isEnglish) "Default Home" else "ডিফল্ট হোম")
+                                               else (if (isEnglish) "Tap to preview" else "প্রিভিউ"),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
-                    }
-
-                    // Flanking chevrons
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0))
-                            }
-                        },
-                        enabled = pagerState.currentPage > 0,
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = if (isEnglish) "Previous" else "পূর্ববর্তী",
-                            tint = if (pagerState.currentPage > 0) MaterialTheme.colorScheme.onSurface
-                                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(enabledLayouts.size - 1))
-                            }
-                        },
-                        enabled = pagerState.currentPage < enabledLayouts.size - 1,
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = if (isEnglish) "Next" else "পরবর্তী",
-                            tint = if (pagerState.currentPage < enabledLayouts.size - 1) MaterialTheme.colorScheme.onSurface
-                                   else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
-                        )
                     }
                 }
             }
