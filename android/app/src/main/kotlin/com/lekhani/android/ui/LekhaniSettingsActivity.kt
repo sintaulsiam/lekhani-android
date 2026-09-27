@@ -836,8 +836,8 @@ private fun LayoutsTabContent(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = if (isEnglish) "Swipe sequence on spacebar (Left ⟷ Right)"
-                                       else "স্পেসবারে সোয়াইপ ক্রম (বাম ⟷ ডান)",
+                                text = if (isEnglish) "Spacebar swipe sequence"
+                                       else "স্পেসবারে সোয়াইপ ক্রম",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -877,26 +877,6 @@ private fun LayoutsTabContent(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                 )
 
-                // Direction cue: Swiping Left
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ) {
-                        Text(
-                            text = if (isEnglish) "◂ SWIPING LEFT" else "◂ বামে সোয়াইপ",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                }
-
                 orderedLayouts.forEachIndexed { index, type ->
                     key(type) {
                         val isChecked = enabledLayouts.contains(type)
@@ -915,7 +895,7 @@ private fun LayoutsTabContent(
                                     Text(
                                         text = title,
                                         style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = FontWeight.SemiBold,
+                                             fontWeight = FontWeight.SemiBold,
                                             color = if (isChecked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     )
@@ -957,26 +937,6 @@ private fun LayoutsTabContent(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
                             )
                         }
-                    }
-                }
-
-                // Direction cue: Swiping Right
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ) {
-                        Text(
-                            text = if (isEnglish) "SWIPING RIGHT ▸" else "ডানে সোয়াইপ ▸",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
                     }
                 }
             }
