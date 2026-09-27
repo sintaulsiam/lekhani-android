@@ -51,16 +51,20 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -507,6 +511,10 @@ private fun LayoutsTabContent(
         persistLayouts(orderedLayouts, updated)
     }
 
+    fun resetToDefaultLayoutOrder() {
+        persistLayouts(LayoutRegistry.all, LayoutRegistry.all.toSet())
+    }
+
     fun checkImeStatus(): Pair<Boolean, Boolean> {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         val enabledList = imm?.enabledInputMethodList ?: emptyList()
@@ -779,24 +787,89 @@ private fun LayoutsTabContent(
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Keyboard,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = if (isEnglish) "Keyboard Layouts & Priority" else "কীবোর্ড লেআউট ও অগ্রাধিকার",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                val haptic = LocalHapticFeedback.current
+                var isReorderMode by remember { mutableStateOf(false) }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Keyboard,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
                         )
-                        Text(
-                            text = if (isEnglish) "Reorder cycling sequence or toggle layouts"
-                                   else "লেআউটের ক্রম সাজান এবং চালু বা বন্ধ রাখুন",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = if (isEnglish) "Keyboard Layouts & Priority" else "কীবোর্ড লেআউট ও অগ্রাধিকার",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Text(
+                                text = if (isReorderMode) {
+                                    if (isEnglish) "Drag handles to reorder priority" else "অগ্রাধিকার পরিবর্তন করতে টেনে সাজান"
+                                } else {
+                                    if (isEnglish) "Priority sequence & toggles" else "লেআউটের ক্রম ও চালু/বন্ধ রাখুন"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                resetToDefaultLayoutOrder()
+                                isReorderMode = false
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.RestartAlt,
+                                contentDescription = if (isEnglish) "Reset to Default Order" else "ডিফল্ট ক্রমে ফিরুন",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        FilterChip(
+                            selected = isReorderMode,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                isReorderMode = !isReorderMode
+                            },
+                            label = {
+                                Text(
+                                    text = if (isReorderMode) {
+                                        if (isEnglish) "Done" else "সম্পন্ন"
+                                    } else {
+                                        if (isEnglish) "Reorder" else "সাজান"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (isReorderMode) Icons.Filled.Check else Icons.Filled.Edit,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
                         )
                     }
                 }
@@ -812,7 +885,6 @@ private fun LayoutsTabContent(
                 var currentDropIndex by remember { mutableIntStateOf(-1) }
                 var itemHeightPx by remember { mutableFloatStateOf(0f) }
                 val itemCenterYs = remember { mutableStateMapOf<Int, Float>() }
-                val haptic = LocalHapticFeedback.current
                 val density = LocalDensity.current
 
                 val isDraggingActive = (draggingLayout != null && dragStartIndex in orderedLayouts.indices && currentDropIndex in orderedLayouts.indices)
@@ -970,6 +1042,24 @@ private fun LayoutsTabContent(
                                             .padding(vertical = 7.dp, horizontal = 6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        // Priority Slot Number Badge
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = if (isPrimary) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                            modifier = Modifier.padding(end = 10.dp)
+                                        ) {
+                                            Text(
+                                                text = "#${index + 1}",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isPrimary) MaterialTheme.colorScheme.primary
+                                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                                ),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+
                                         Column(modifier = Modifier.weight(1f)) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(
@@ -1018,83 +1108,83 @@ private fun LayoutsTabContent(
                                             )
                                         }
 
-                                        // Switch & Drag Handle
+                                        // Switch (Normal Mode) or Drag Handle (Reorder Mode)
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Switch(
-                                                checked = isChecked,
-                                                enabled = !isChecked || enabledLayouts.size > 1,
-                                                onCheckedChange = { toggleLayout(type, it) }
-                                            )
+                                            if (!isReorderMode) {
+                                                Switch(
+                                                    checked = isChecked,
+                                                    enabled = !isChecked || enabledLayouts.size > 1,
+                                                    onCheckedChange = { toggleLayout(type, it) }
+                                                )
+                                            } else {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(44.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(
+                                                            if (isThisDragging) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+                                                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                                        )
+                                                        .pointerInput(type) {
+                                                            detectDragGestures(
+                                                                onDragStart = {
+                                                                    draggingLayout = type
+                                                                    val sIdx = orderedLayouts.indexOf(type)
+                                                                    dragStartIndex = sIdx
+                                                                    currentDropIndex = sIdx
+                                                                    dragOffsetY = 0f
+                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                },
+                                                                onDragEnd = {
+                                                                    val from = dragStartIndex
+                                                                    val to = currentDropIndex
+                                                                    if (from in orderedLayouts.indices && to in orderedLayouts.indices && from != to) {
+                                                                        moveLayout(from, to)
+                                                                    }
+                                                                    draggingLayout = null
+                                                                    dragStartIndex = -1
+                                                                    currentDropIndex = -1
+                                                                    dragOffsetY = 0f
+                                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                },
+                                                                onDragCancel = {
+                                                                    draggingLayout = null
+                                                                    dragStartIndex = -1
+                                                                    currentDropIndex = -1
+                                                                    dragOffsetY = 0f
+                                                                },
+                                                                onDrag = { change, dragAmount ->
+                                                                    change.consume()
+                                                                    val sIdx = dragStartIndex
+                                                                    if (sIdx >= 0) {
+                                                                        val startCenter = itemCenterYs[sIdx] ?: 0f
+                                                                        val minCenter = itemCenterYs[0] ?: startCenter
+                                                                        val maxCenter = itemCenterYs[orderedLayouts.lastIndex] ?: startCenter
+                                                                        val minDragY = minCenter - startCenter - with(density) { 24.dp.toPx() }
+                                                                        val maxDragY = maxCenter - startCenter + with(density) { 24.dp.toPx() }
 
-                                            Spacer(modifier = Modifier.width(6.dp))
+                                                                        dragOffsetY = (dragOffsetY + dragAmount.y).coerceIn(minDragY, maxDragY)
+                                                                        val currentFingerY = startCenter + dragOffsetY
 
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(44.dp)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(
-                                                        if (isThisDragging) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-                                                        else Color.Transparent
-                                                    )
-                                                    .pointerInput(type) {
-                                                        detectDragGestures(
-                                                            onDragStart = {
-                                                                draggingLayout = type
-                                                                val sIdx = orderedLayouts.indexOf(type)
-                                                                dragStartIndex = sIdx
-                                                                currentDropIndex = sIdx
-                                                                dragOffsetY = 0f
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                            },
-                                                            onDragEnd = {
-                                                                val from = dragStartIndex
-                                                                val to = currentDropIndex
-                                                                if (from in orderedLayouts.indices && to in orderedLayouts.indices && from != to) {
-                                                                    moveLayout(from, to)
-                                                                }
-                                                                draggingLayout = null
-                                                                dragStartIndex = -1
-                                                                currentDropIndex = -1
-                                                                dragOffsetY = 0f
-                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                            },
-                                                            onDragCancel = {
-                                                                draggingLayout = null
-                                                                dragStartIndex = -1
-                                                                currentDropIndex = -1
-                                                                dragOffsetY = 0f
-                                                            },
-                                                            onDrag = { change, dragAmount ->
-                                                                change.consume()
-                                                                val sIdx = dragStartIndex
-                                                                if (sIdx >= 0) {
-                                                                    val startCenter = itemCenterYs[sIdx] ?: 0f
-                                                                    val minCenter = itemCenterYs[0] ?: startCenter
-                                                                    val maxCenter = itemCenterYs[orderedLayouts.lastIndex] ?: startCenter
-                                                                    val minDragY = minCenter - startCenter - with(density) { 24.dp.toPx() }
-                                                                    val maxDragY = maxCenter - startCenter + with(density) { 24.dp.toPx() }
-
-                                                                    dragOffsetY = (dragOffsetY + dragAmount.y).coerceIn(minDragY, maxDragY)
-                                                                    val currentFingerY = startCenter + dragOffsetY
-
-                                                                    val closest = itemCenterYs.entries.minByOrNull { kotlin.math.abs(it.value - currentFingerY) }?.key ?: sIdx
-                                                                    val newDropIndex = closest.coerceIn(0, orderedLayouts.lastIndex)
-                                                                    if (newDropIndex != currentDropIndex) {
-                                                                        currentDropIndex = newDropIndex
-                                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                        val closest = itemCenterYs.entries.minByOrNull { kotlin.math.abs(it.value - currentFingerY) }?.key ?: sIdx
+                                                                        val newDropIndex = closest.coerceIn(0, orderedLayouts.lastIndex)
+                                                                        if (newDropIndex != currentDropIndex) {
+                                                                            currentDropIndex = newDropIndex
+                                                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                        }
                                                                     }
                                                                 }
-                                                            }
-                                                        )
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Filled.DragHandle,
-                                                    contentDescription = if (isEnglish) "Drag to reorder $title" else "$title এর ক্রম পরিবর্তন করতে টানুন",
-                                                    tint = if (isThisDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
+                                                            )
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Filled.DragHandle,
+                                                        contentDescription = if (isEnglish) "Drag to reorder $title" else "$title এর ক্রম পরিবর্তন করতে টানুন",
+                                                        tint = if (isThisDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
