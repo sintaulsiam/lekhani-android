@@ -471,6 +471,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // Initialization
     // ══════════════════════════════════════════════════════════════════════════
 
+    private var isThemeApplied: Boolean = false
+
     init {
         // Hardware canvas is required for 120 FPS
         setLayerType(LAYER_TYPE_HARDWARE, null)
@@ -478,6 +480,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
         isFocusable = false
         isHapticFeedbackEnabled = true
         ViewCompat.setAccessibilityDelegate(this, accessibilityHelper)
+        try {
+            val initialTheme = ThemeRegistry.resolveTheme(context, KeyboardPreferences.get(context).themeId)
+            applyTheme(initialTheme)
+        } catch (_: Exception) {}
     }
 
     override fun dispatchHoverEvent(event: MotionEvent): Boolean {
@@ -495,6 +501,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     fun applyPreferences(prefs: KeyboardPreferences, feedbackMgr: LekhaniFeedbackManager? = null) {
         if (feedbackMgr != null) {
             this.feedbackManager = feedbackMgr
+            feedbackMgr.updateCache()
         }
         this.longPressDelayMs = prefs.longPressDelayMs
         this.showKeyBorders = prefs.showKeyBorders
@@ -553,6 +560,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
      */
     fun applyTheme(theme: KeyboardTheme) {
         activeTheme = theme
+        isThemeApplied = true
         keyBgPaint.color = theme.keyNormalColor
         keyShiftBgPaint.color = theme.keyShiftColor
         keySpaceBgPaint.color = theme.keySpaceColor
@@ -1174,14 +1182,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
         canvas.drawOval(scratchRect, strokePaint)
     }
 
-    private fun sanitizeLabelForDisplay(label: String): String = label
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // Drawing — ZERO allocations permitted here
-    // ══════════════════════════════════════════════════════════════════════════
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (!isThemeApplied) {
+            try {
+                val initialTheme = ThemeRegistry.resolveTheme(context, KeyboardPreferences.get(context).themeId)
+                applyTheme(initialTheme)
+            } catch (_: Exception) {}
+        }
         if (resolvedKeys.isEmpty()) return
 
         // ── Keyboard Canvas Background ─────────────────────────────────────
@@ -1295,12 +1303,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
 
             // Draw label
-            val rawLabel = if (key.action == KeyAction.Space) {
+            val labelText = if (key.action == KeyAction.Space) {
                 com.lekhani.android.model.LayoutRegistry.getSpacebarLabel(layoutType, isUiLanguageEnglish)
             } else {
                 key.displayLabel(isShifted)
             }
-            val labelText = sanitizeLabelForDisplay(rawLabel)
             val cx = drawBounds.centerX()
             val cy = drawBounds.centerY() - (labelPaint.ascent() + labelPaint.descent()) / 2f
 
@@ -1322,10 +1329,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     drawVectorGlobe(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
                     val hint = key.hintLabel
                     if (hint != null) {
-                        val displayHint = sanitizeLabelForDisplay(hint)
                         val hintX = drawBounds.right - 5f * density
                         val hintY = drawBounds.top + 13f * density
-                        canvas.drawText(displayHint, hintX, hintY, hintPaint)
+                        canvas.drawText(hint, hintX, hintY, hintPaint)
                     }
                 }
                 KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits, KeyAction.Space -> {
@@ -1335,10 +1341,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     canvas.drawText(labelText, cx, cy, labelPaint)
                     val hint = key.hintLabel ?: if (!isShifted && key.shiftedLabel != null && key.shiftedLabel != key.label && key.shiftedLabel.isNotEmpty()) key.shiftedLabel else null
                     if (hint != null) {
-                        val displayHint = sanitizeLabelForDisplay(hint)
                         val hintX = drawBounds.right - 5f * density
                         val hintY = drawBounds.top + 13f * density
-                        canvas.drawText(displayHint, hintX, hintY, hintPaint)
+                        canvas.drawText(hint, hintX, hintY, hintPaint)
                     }
                 }
             }
@@ -1388,7 +1393,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 canvas.drawRoundRect(keyPopupRect, 12f * density, 12f * density, keyPopupStrokePaint)
 
                 // Popup character
-                val charStr = sanitizeLabelForDisplay(pKey.displayLabel(isShifted))
+                val charStr = pKey.displayLabel(isShifted)
                 val pTextY = keyPopupRect.centerY() - (keyPopupTextPaint.ascent() + keyPopupTextPaint.descent()) / 2f
                 canvas.drawText(charStr, keyPopupRect.centerX(), pTextY, keyPopupTextPaint)
             }

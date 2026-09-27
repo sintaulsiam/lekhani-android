@@ -32,6 +32,12 @@ class LekhaniFeedbackManager(private val context: Context) {
     private val prefs = KeyboardPreferences.get(context)
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
+    private var cachedHapticEnabled: Boolean = false
+    private var cachedSoundEnabled: Boolean = false
+    private var cachedHapticDurationMs: Long = 10L
+    private var cachedSoundVolume: Float = 0.5f
+    private var cachedSoundPack: String = KeyboardPreferences.SOUND_SYSTEM
+
     private val vibrator: Vibrator? = run {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
@@ -76,6 +82,15 @@ class LekhaniFeedbackManager(private val context: Context) {
 
     init {
         initSoundSynthesizers()
+        updateCache()
+    }
+
+    fun updateCache() {
+        cachedHapticEnabled = prefs.hapticEnabled
+        cachedSoundEnabled = prefs.soundEnabled
+        cachedHapticDurationMs = prefs.hapticDurationMs.toLong().coerceIn(1L, 100L)
+        cachedSoundVolume = prefs.soundVolume.coerceIn(0.05f, 1.0f)
+        cachedSoundPack = prefs.soundPack
     }
 
     private fun initSoundSynthesizers() {
@@ -192,10 +207,10 @@ class LekhaniFeedbackManager(private val context: Context) {
      * Triggers vibration and key sound on touch down (zero allocation).
      */
     fun onKeyFeedback(fallbackView: View) {
-        if (prefs.hapticEnabled) {
+        if (cachedHapticEnabled) {
             performVibration(fallbackView)
         }
-        if (prefs.soundEnabled) {
+        if (cachedSoundEnabled) {
             performSound()
         }
     }
@@ -205,7 +220,7 @@ class LekhaniFeedbackManager(private val context: Context) {
      */
     @Suppress("DEPRECATION")
     fun onTickFeedback(fallbackView: View) {
-        if (!prefs.hapticEnabled) return
+        if (!cachedHapticEnabled) return
         val v = vibrator
         if (v != null && v.hasVibrator()) {
             try {
@@ -234,7 +249,7 @@ class LekhaniFeedbackManager(private val context: Context) {
      */
     @Suppress("DEPRECATION")
     fun onLongPressFeedback(fallbackView: View) {
-        if (!prefs.hapticEnabled) return
+        if (!cachedHapticEnabled) return
         val v = vibrator
         if (v != null && v.hasVibrator()) {
             try {
@@ -251,10 +266,7 @@ class LekhaniFeedbackManager(private val context: Context) {
             } catch (_: Exception) {}
         }
         try {
-            fallbackView.performHapticFeedback(
-                HapticFeedbackConstants.LONG_PRESS,
-                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
-            )
+            fallbackView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         } catch (_: Exception) {}
     }
 
@@ -263,7 +275,7 @@ class LekhaniFeedbackManager(private val context: Context) {
         val v = vibrator
         if (v != null && v.hasVibrator()) {
             try {
-                val duration = prefs.hapticDurationMs.toLong().coerceIn(1L, 100L)
+                val duration = cachedHapticDurationMs
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     val effect = VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && vibrationAttributes != null) {
@@ -282,23 +294,17 @@ class LekhaniFeedbackManager(private val context: Context) {
         // Always also trigger view-level haptic feedback for vendor-tuned tactile engines (Samsung, Xiaomi, Pixel)
         // and emulators that route keyboard taps through ViewRootImpl
         try {
-            fallbackView.performHapticFeedback(
-                HapticFeedbackConstants.KEYBOARD_TAP,
-                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
-            )
+            fallbackView.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         } catch (_: Exception) {
             try {
-                fallbackView.performHapticFeedback(
-                    HapticFeedbackConstants.VIRTUAL_KEY,
-                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING or HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
-                )
+                fallbackView.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             } catch (_: Exception) {}
         }
     }
 
     private fun performSound() {
-        val volume = prefs.soundVolume.coerceIn(0.05f, 1.0f)
-        when (prefs.soundPack) {
+        val volume = cachedSoundVolume
+        when (cachedSoundPack) {
             KeyboardPreferences.SOUND_BUBBLE -> playStaticTrack(bubbleTrack, volume)
             KeyboardPreferences.SOUND_MECHANICAL -> playStaticTrack(mechanicalTrack, volume)
             KeyboardPreferences.SOUND_TYPEWRITER -> playStaticTrack(typewriterTrack, volume)

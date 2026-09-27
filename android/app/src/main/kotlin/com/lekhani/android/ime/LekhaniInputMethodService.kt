@@ -346,6 +346,7 @@ class LekhaniInputMethodService : InputMethodService() {
         _themeFlow.value = activeTheme
         keyboardView?.applyTheme(activeTheme)
         keyboardView?.setGboardKarsActive(false)
+        feedbackManager.updateCache()
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
         updateCandidatesVisibility()
     }

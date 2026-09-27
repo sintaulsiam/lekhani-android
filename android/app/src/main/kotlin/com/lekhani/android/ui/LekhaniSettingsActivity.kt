@@ -51,6 +51,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Keyboard
@@ -719,66 +720,12 @@ private fun LayoutsTabContent(
             }
         }
 
-        // ── Quick Access: Clipboard & Vault Card ──────────────────────────────
-        val clips by clipboardStore.clips.collectAsState()
-        val savedCount = remember(clips) { clips.count { it.isSaved } }
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Assignment,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = if (isEnglish) "Clipboard & Vault" else "ক্লিপবোর্ড ও ভল্ট",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (isEnglish) "${clips.size} clips • $savedCount saved"
-                                   else "${clips.size}টি ক্লিপ • ${savedCount}টি সেভ করা",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                FilledTonalButton(
-                    onClick = onOpenClipboard,
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text(if (isEnglish) "Open" else "খুলুন", fontSize = 12.sp)
-                }
-            }
-        }
+        // ── Quick Access: Clipboard & Vault Card (Isolated collection) ─────────
+        QuickClipboardCard(
+            clipboardStore = clipboardStore,
+            isEnglish = isEnglish,
+            onOpenClipboard = onOpenClipboard
+        )
 
         // ── 3. Keyboard Layout Selection & Ordering Card ───────────────────────
         Card(
@@ -1264,37 +1211,151 @@ private fun LayoutsTabContent(
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = if (isEnglish) "Test Typing" else "টাইপিং পরীক্ষা",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Text(
-                    text = if (isEnglish) "Tap below to test Lekhani live:"
-                           else "নিচে লিখে কীবোর্ড পরীক্ষা করুন:",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.padding(top = 2.dp, bottom = 6.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEnglish) "Test Typing" else "টাইপিং পরীক্ষা",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                        Text(
+                            text = if (isEnglish) "Tap below to test Lekhani live:"
+                                   else "নিচে লিখে কীবোর্ড পরীক্ষা করুন:",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                    if (testText.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilledTonalButton(
+                                onClick = {
+                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                    cm?.setPrimaryClip(android.content.ClipData.newPlainText("Lekhani Text", testText))
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        if (isEnglish) "Copied to clipboard" else "ক্লিপবোর্ডে কপি করা হয়েছে",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(30.dp)
+                            ) {
+                                Icon(Icons.Filled.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (isEnglish) "Copy" else "কপি", fontSize = 11.sp)
+                            }
+                            FilledTonalButton(
+                                onClick = { testText = "" },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.height(30.dp)
+                            ) {
+                                Icon(Icons.Filled.Clear, contentDescription = "Clear", modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (isEnglish) "Clear" else "মুছুন", fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 OutlinedTextField(
                     value = testText,
                     onValueChange = { testText = it },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text(if (isEnglish) "Type here to test..." else "এখানে লিখে পরীক্ষা করুন...") },
-                    trailingIcon = {
-                        if (testText.isNotEmpty()) {
-                            IconButton(onClick = { testText = "" }) {
-                                Icon(Icons.Filled.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    },
                     shape = RoundedCornerShape(10.dp)
                 )
+
+                if (testText.isNotEmpty()) {
+                    val charCount = testText.length
+                    val wordCount = if (testText.isBlank()) 0 else testText.trim().split(Regex("\\s+")).size
+                    Text(
+                        text = if (isEnglish) "$charCount characters • $wordCount words"
+                               else "${charCount}টি অক্ষর • ${wordCount}টি শব্দ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 6.dp, start = 4.dp)
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun QuickClipboardCard(
+    clipboardStore: LekhaniClipboardStore,
+    isEnglish: Boolean,
+    onOpenClipboard: () -> Unit
+) {
+    val clips by clipboardStore.clips.collectAsState()
+    val savedCount = remember(clips) { clips.count { it.isSaved } }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Assignment,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = if (isEnglish) "Clipboard & Vault" else "ক্লিপবোর্ড ও ভল্ট",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isEnglish) "${clips.size} clips • $savedCount saved"
+                               else "${clips.size}টি ক্লিপ • ${savedCount}টি সেভ করা",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            FilledTonalButton(
+                onClick = onOpenClipboard,
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text(if (isEnglish) "Open" else "খুলুন", fontSize = 12.sp)
+            }
+        }
     }
 }
 
