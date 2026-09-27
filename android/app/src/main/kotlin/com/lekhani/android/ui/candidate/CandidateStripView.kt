@@ -53,6 +53,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -305,11 +307,15 @@ private fun EmojiSearchStrip(
                 )
             }
         } else {
+            val emojiScrollState = rememberScrollState()
+            LaunchedEffect(emojis) {
+                emojiScrollState.scrollTo(0)
+            }
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .horizontalScroll(rememberScrollState())
+                    .horizontalScroll(emojiScrollState)
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -426,6 +432,9 @@ private fun StripContent(
     theme: KeyboardTheme,
 ) {
     val scrollState = rememberScrollState()
+    LaunchedEffect(items) {
+        scrollState.scrollTo(0)
+    }
 
     Box(
         modifier = Modifier
@@ -499,6 +508,7 @@ private fun CandidatePill(
 
     Box(
         modifier = Modifier
+            .semantics { contentDescription = semanticDesc }
             .alpha(pillAlpha)
             .height(34.dp)
             .clip(RoundedCornerShape(17.dp))
@@ -539,7 +549,7 @@ private fun CandidatePill(
             // Homophone disambiguation badge
             if (item.homophones != null) {
                 Spacer(Modifier.width(4.dp))
-                HomophoneBadge(alternate = item.homophones)
+                HomophoneBadge(alternate = item.homophones, theme = theme)
             }
         }
     }
@@ -550,17 +560,19 @@ private fun CandidatePill(
  * Example: "পড়া" shows a badge "≠ পরা" to help the user pick the right spelling.
  */
 @Composable
-private fun HomophoneBadge(alternate: String) {
+private fun HomophoneBadge(alternate: String, theme: KeyboardTheme) {
+    val badgeBg = Color(theme.keyShiftColor)
+    val badgeText = Color(theme.accentColor)
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(BadgeCorner))
-            .background(BadgeBg)
+            .background(badgeBg)
             .padding(horizontal = 6.dp, vertical = 1.dp),
     ) {
         Text(
             text = "≠ $alternate",
             fontSize = 9.sp,
-            color = BadgeText,
+            color = badgeText,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
         )

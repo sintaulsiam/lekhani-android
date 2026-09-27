@@ -446,16 +446,118 @@ object EmojiData {
     }
 
     /**
-     * Searches emojis across Bengali and English keywords.
-     * Matches prefixes or exact substring matches.
+     * Common phonetic Bengali (Avro/Banglish) transliteration synonyms
+     * mapped to Bengali and English search tokens.
+     */
+    private val PHONETIC_SYNONYMS: Map<String, List<String>> = mapOf(
+        "kanna" to listOf("কান্না", "cry", "tear"),
+        "kade" to listOf("কান্না", "cry"),
+        "hasi" to listOf("হাসি", "smile", "laugh"),
+        "haste" to listOf("হাসি", "laugh"),
+        "khushi" to listOf("খুশি", "আনন্দ", "happy", "joy"),
+        "anondo" to listOf("আনন্দ", "খুশি", "celebrate"),
+        "bhalobasha" to listOf("ভালোবাসা", "প্রেম", "love", "heart"),
+        "valobasha" to listOf("ভালোবাসা", "প্রেম", "love", "heart"),
+        "bhalobasi" to listOf("ভালোবাসা", "প্রেম", "love"),
+        "valobasi" to listOf("ভালোবাসা", "প্রেম", "love"),
+        "prem" to listOf("ভালোবাসা", "প্রেম", "love"),
+        "mon" to listOf("হৃদয়", "মন", "heart"),
+        "taka" to listOf("টাকা", "money", "cash"),
+        "poisa" to listOf("টাকা", "পয়সা", "coin"),
+        "cha" to listOf("চা", "tea", "coffee"),
+        "coffee" to listOf("চা", "কফি", "coffee"),
+        "pani" to listOf("পানি", "জল", "water"),
+        "jol" to listOf("পানি", "জল", "water"),
+        "bristi" to listOf("বৃষ্টি", "rain", "cloud"),
+        "megh" to listOf("মেঘ", "বৃষ্টি", "cloud"),
+        "ful" to listOf("ফুল", "flower", "rose"),
+        "rose" to listOf("গোলাপ", "ফুল", "rose"),
+        "tara" to listOf("তারা", "star"),
+        "chand" to listOf("চাঁদ", "moon"),
+        "chad" to listOf("চাঁদ", "moon"),
+        "surjo" to listOf("সূর্য", "sun"),
+        "shurjo" to listOf("সূর্য", "sun"),
+        "agun" to listOf("আগুন", "fire"),
+        "alo" to listOf("আলো", "light", "bulb"),
+        "biral" to listOf("বিড়াল", "cat"),
+        "bilai" to listOf("বিড়াল", "cat"),
+        "kukur" to listOf("কুকুর", "dog"),
+        "pakhi" to listOf("পাখি", "bird"),
+        "mach" to listOf("মাছ", "fish"),
+        "gari" to listOf("গাড়ি", "car"),
+        "biman" to listOf("বিমান", "airplane"),
+        "ghor" to listOf("বাড়ি", "ঘর", "house"),
+        "bari" to listOf("বাড়ি", "ঘর", "house"),
+        "bhoot" to listOf("ভূত", "ghost"),
+        "vut" to listOf("ভূত", "ghost"),
+        "rag" to listOf("রাগ", "angry"),
+        "ragi" to listOf("রাগ", "angry"),
+        "dua" to listOf("দোয়া", "prayer"),
+        "doa" to listOf("দোয়া", "prayer"),
+        "namaz" to listOf("নামাজ", "প্রার্থনা", "prayer"),
+        "somoy" to listOf("সময়", "ঘড়ি", "clock", "time"),
+        "ghori" to listOf("ঘড়ি", "সময়", "clock", "watch"),
+        "khabar" to listOf("খাবার", "food"),
+        "bhat" to listOf("খাবার", "ভাত", "food", "rice"),
+        "mishti" to listOf("মিষ্টি", "sweet", "candy"),
+        "mithai" to listOf("মিষ্টি", "sweet"),
+        "desh" to listOf("বাংলাদেশ", "দেশ", "flag"),
+        "bangladesh" to listOf("বাংলাদেশ", "পতাকা", "flag", "bd"),
+        "uttsob" to listOf("উৎসব", "পার্টি", "celebrate", "party"),
+        "party" to listOf("উৎসব", "পার্টি", "party"),
+        "shanto" to listOf("শান্ত", "peace"),
+        "shanti" to listOf("শান্তি", "peace"),
+        "ghum" to listOf("ঘুম", "sleep"),
+        "klanto" to listOf("ক্লান্ত", "tired"),
+        "choshma" to listOf("চশমা", "sunglasses", "glasses"),
+        "police" to listOf("পুলিশ", "police"),
+        "daktar" to listOf("ডাক্তার", "doctor", "hospital"),
+    )
+
+    /**
+     * Searches emojis across Bengali, English, and phonetic Avro/Banglish transliterations
+     * with relevance-based scoring (exact keyword matches prioritized).
      */
     fun search(query: String): List<EmojiItem> {
         val q = query.trim().lowercase()
         if (q.isEmpty()) return emptyList()
 
-        return allEmojis.filter { item ->
-            item.name.lowercase().contains(q) ||
-            item.keywords.any { kw -> kw.lowercase().contains(q) }
-        }.take(40)
+        val expandedSynonyms = PHONETIC_SYNONYMS[q] ?: emptyList()
+        val allSearchTokens = (listOf(q) + expandedSynonyms).distinct()
+
+        return allEmojis
+            .mapNotNull { item ->
+                var score = 0
+                val nameLower = item.name.lowercase()
+                val kwLowers = item.keywords.map { it.lowercase() }
+
+                for (token in allSearchTokens) {
+                    val isPrimaryToken = (token == q)
+                    val weightMultiplier = if (isPrimaryToken) 2 else 1
+
+                    if (nameLower == token) {
+                        score += 100 * weightMultiplier
+                    } else if (nameLower.startsWith(token)) {
+                        score += 70 * weightMultiplier
+                    } else if (nameLower.contains(token)) {
+                        score += 30 * weightMultiplier
+                    }
+
+                    for (kw in kwLowers) {
+                        if (kw == token) {
+                            score += 120 * weightMultiplier
+                        } else if (kw.startsWith(token)) {
+                            score += 80 * weightMultiplier
+                        } else if (kw.contains(token)) {
+                            score += 40 * weightMultiplier
+                        }
+                    }
+                }
+
+                if (score > 0) item to score else null
+            }
+            .sortedByDescending { it.second }
+            .map { it.first }
+            .take(50)
     }
 }

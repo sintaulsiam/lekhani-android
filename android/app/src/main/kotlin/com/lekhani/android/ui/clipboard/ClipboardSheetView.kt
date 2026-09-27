@@ -84,6 +84,7 @@ fun ClipboardSheetView(
     onOpenEditor: (() -> Unit)? = null,
     isEnglish: Boolean = false,
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
+    sheetHeight: androidx.compose.ui.unit.Dp = 260.dp,
     modifier: Modifier = Modifier,
 ) {
     val clips by clipboardStore.clips.collectAsState()
@@ -109,7 +110,7 @@ fun ClipboardSheetView(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(260.dp)
+            .height(sheetHeight)
             .background(clipboardBg)
             .semantics { contentDescription = if (isEnglish) "Clipboard Panel" else "ক্লিপবোর্ড প্যানেল" },
     ) {
