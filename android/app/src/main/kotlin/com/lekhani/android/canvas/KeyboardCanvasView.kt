@@ -1364,7 +1364,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val pcx = pBounds.centerX()
                 val pLeft = (pcx - popupW / 2f).coerceIn(4f * density, (width.toFloat() - popupW - 4f * density).coerceAtLeast(4f * density))
                 val pRight = pLeft + popupW
-                val pTop = (pBounds.top - popupH - 4f * density).coerceAtLeast(0f)
+                val pTop = pBounds.top - popupH - 6f * density
                 val pBottom = pTop + popupH
 
                 // Popup shadow
@@ -1718,10 +1718,22 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 if (pointerId == pressedPointerId) {
                     removeCallbacks(longPressRunnable)
                     removeCallbacks(backspaceRepeatRunnable)
-                    val idx = findKeyIndex(px, py)
-                    if (idx >= 0 && idx == pressedKeyIndex && !isLongPressTriggered && !isSpaceSwiping &&
+                    val targetKeyIdx = if (pressedKeyIndex in resolvedKeys.indices) {
+                        val bounds = resolvedKeys[pressedKeyIndex].bounds
+                        val slop = (keyMarginH * 1.5f).coerceAtLeast(10f * resources.displayMetrics.density)
+                        if (px >= bounds.left - slop && px <= bounds.right + slop &&
+                            py >= bounds.top - slop && py <= bounds.bottom + slop) {
+                            pressedKeyIndex
+                        } else {
+                            val idx = findKeyIndex(px, py)
+                            if (idx == pressedKeyIndex) pressedKeyIndex else -1
+                        }
+                    } else {
+                        -1
+                    }
+                    if (targetKeyIdx >= 0 && !isLongPressTriggered && !isSpaceSwiping &&
                         !isGliding && !isBackspaceSwiping && !isSpaceCursorMoving) {
-                        dispatchKey(resolvedKeys[idx].key)
+                        dispatchKey(resolvedKeys[targetKeyIdx].key)
                     }
                     pressedKeyIndex = -1
                     pressedPointerId = -1
@@ -1781,9 +1793,21 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     return true
                 }
 
-                val idx = findKeyIndex(px, py)
-                if (idx >= 0 && idx == pressedKeyIndex && !isLongPressTriggered && !isSpaceSwiping) {
-                    dispatchKey(resolvedKeys[idx].key)
+                val targetKeyIdx = if (pressedKeyIndex in resolvedKeys.indices) {
+                    val bounds = resolvedKeys[pressedKeyIndex].bounds
+                    val slop = (keyMarginH * 1.5f).coerceAtLeast(10f * resources.displayMetrics.density)
+                    if (px >= bounds.left - slop && px <= bounds.right + slop &&
+                        py >= bounds.top - slop && py <= bounds.bottom + slop) {
+                        pressedKeyIndex
+                    } else {
+                        val idx = findKeyIndex(px, py)
+                        if (idx == pressedKeyIndex) pressedKeyIndex else -1
+                    }
+                } else {
+                    -1
+                }
+                if (targetKeyIdx >= 0 && !isLongPressTriggered && !isSpaceSwiping) {
+                    dispatchKey(resolvedKeys[targetKeyIdx].key)
                 }
                 pressedKeyIndex = -1
                 pressedPointerId = -1
