@@ -433,7 +433,8 @@ dependencies = [
 
 [[package]]
 name = "lekhani-ai"
-version = "0.1.0"
+version = "1.1.0"
+source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.1.0#9f17b6611a0eb5d3abb8566cd83cf2d2f3f21cbe"
 dependencies = [
  "anyhow",
  "hashbrown",
@@ -462,7 +463,8 @@ dependencies = [
 
 [[package]]
 name = "lekhani-core"
-version = "0.1.0"
+version = "1.1.0"
+source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.1.0#9f17b6611a0eb5d3abb8566cd83cf2d2f3f21cbe"
 dependencies = [
  "bincode",
  "chrono",
@@ -479,12 +481,11 @@ dependencies = [
 
 [[package]]
 name = "lekhani-parser"
-version = "0.1.0"
+version = "1.1.0"
+source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.1.0#9f17b6611a0eb5d3abb8566cd83cf2d2f3f21cbe"
 dependencies = [
- "rupantor",
  "serde",
  "serde_json",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -624,16 +625,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rupantor"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04eb802986005129b0946dbb4baa420bf14cea547c5ee6b57ba081d9e85f6a4b"
-dependencies = [
- "serde_json",
- "stringplus",
-]
-
-[[package]]
 name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -741,12 +732,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "stringplus"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9057d3b491a3eee749e52560657c4d93b0badc04fb3fa8dae3c942c5c066f222"
 
 [[package]]
 name = "strsim"
