@@ -1022,6 +1022,23 @@ impl AndroidLekhaniSession {
         }
     }
 
+    /// Explicitly penalize a reverted commit or mistaken auto-correction
+    pub fn penalize_commit(&self, reverted_word: String) -> Result<(), LekhaniError> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+
+        if !state.is_private_field {
+            let prev = state.last_commit_info.take().and_then(|(p, _, _)| p);
+            let db = get_core_database();
+            if let Ok(mut learner) = db.learner.write() {
+                learner.penalize_mistake(prev.as_deref(), &reverted_word);
+            }
+        }
+        Ok(())
+    }
+
     /// Returns whether the keyboard is currently composing a word.
     pub fn is_composing(&self) -> bool {
         self.state

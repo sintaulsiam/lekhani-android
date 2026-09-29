@@ -1581,7 +1581,12 @@ class LekhaniInputMethodService : InputMethodService() {
             }
         } else {
             rawInputBuffer.clear()
-            // 3. Script-aware character & emoji backspace
+            // 3. Notify session to trigger rapid-undo mistake penalization (<1500 ms)
+            try {
+                session.handleBackspace()
+            } catch (_: Exception) {}
+
+            // 4. Script-aware character & emoji backspace
             handleScriptAwareBackspace(ic)
             if (session.getLayout() == LekhaniLayoutType.GBOARD) {
                 keyboardView?.setGboardKarsActive(false)
@@ -1904,6 +1909,11 @@ class LekhaniInputMethodService : InputMethodService() {
             rawInputBuffer.clear()
         } finally {
             ic.endBatchEdit()
+        }
+        try {
+            session.penalizeCommit(undoInfo.committedText.trim())
+        } catch (e: Exception) {
+            Log.w(TAG, "penalizeCommit error: $e")
         }
         clearUndo()
         refreshSurroundingContext()
