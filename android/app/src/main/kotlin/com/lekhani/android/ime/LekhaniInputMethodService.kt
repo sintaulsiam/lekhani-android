@@ -201,6 +201,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private val rawInputBuffer = StringBuilder()
     private var activeUndoInfo: UndoInfo? = null
     private var undoDismissJob: kotlinx.coroutines.Job? = null
+    private var lastSpaceTapTime: Long = 0L
 
     /**
      * Last cached surrounding text for use in word-count scan during swipe-to-delete.
@@ -1525,9 +1526,18 @@ class LekhaniInputMethodService : InputMethodService() {
      * the InputConnection so the target app deletes its own preceding character.
      */
     fun onBackspace() {
-        clearUndo()
         val ic = currentInputConnection ?: return
         ensureCursorInComposingRegion(ic)
+
+        // 0. Revert-on-Backspace: If we have an active undo from a recent space/autocorrect,
+        // revert the committed word back to verbatim raw input.
+        if (!session.isComposing() && activeUndoInfo != null) {
+            val undo = activeUndoInfo!!
+            onUndoCommit(undo)
+            return
+        }
+
+        clearUndo()
 
         // 1. If text is selected in the target app, delete the selection immediately.
         // Prefer the tracked cursor positions (zero cost) over getSelectedText() which is a
@@ -1619,6 +1629,32 @@ class LekhaniInputMethodService : InputMethodService() {
     fun onSpace() {
         keyboardView?.setGboardKarsActive(false)
         val ic = currentInputConnection ?: return
+
+        // 0. Double-tap space shortcut: insert Bengali Dāṛi ("। ") or English period (". ")
+        val now = android.os.SystemClock.uptimeMillis()
+        if (!session.isComposing() && (now - lastSpaceTapTime <= 450)) {
+            val textBefore = try { ic.getTextBeforeCursor(2, 0)?.toString() } catch (_: Exception) { null }
+            if (textBefore != null && textBefore.endsWith(" ") && textBefore.length == 2) {
+                val prevChar = textBefore[0]
+                val isPunctuation = prevChar in listOf('।', '॥', '.', '?', '!', ',', ';', ':', '\n', ' ')
+                if (!isPunctuation) {
+                    val punctuation = if (session.getLayout() == LekhaniLayoutType.ENGLISH) ". " else "। "
+                    ic.beginBatchEdit()
+                    try {
+                        ic.deleteSurroundingText(1, 0)
+                        ic.commitText(punctuation, 1)
+                    } finally {
+                        ic.endBatchEdit()
+                    }
+                    lastSpaceTapTime = 0L
+                    clearUndo()
+                    refreshSurroundingContext()
+                    return
+                }
+            }
+        }
+        lastSpaceTapTime = now
+
         clearUndo()
         ensureCursorInComposingRegion(ic)
 
@@ -1652,6 +1688,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 UndoInfo(originalText = candidateOriginal, committedText = text)
             } else null
 
+            activeUndoInfo = undo
             if (result.candidates.isNotEmpty()) {
                 publishCandidates(result.candidates, undo = undo)
             } else if (undo != null) {
@@ -1878,16 +1915,18 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     private fun publishCandidates(raw: List<String>, undo: UndoInfo? = null) {
         if (currentMode == InputViewMode.EMOJI_SEARCH) return
+        if (undo != null) {
+            activeUndoInfo = undo
+            scheduleUndoExpiry()
+        }
         val filtered = raw.filter { !blacklist.isBlacklisted(it) }
         _candidateState.value = if (filtered.isEmpty()) {
             if (undo != null) {
-                scheduleUndoExpiry()
                 CandidateStripState.Undo(undo)
             } else {
                 CandidateStripState.Empty
             }
         } else {
-            if (undo != null) scheduleUndoExpiry()
             CandidateStripState.Candidates(HomophoneAnnotator.annotate(filtered), undoInfo = undo)
         }
         updateCandidatesVisibility()
