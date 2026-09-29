@@ -85,12 +85,31 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("korchi", &["করছি"][..]);
         m.insert("kori", &["করি"][..]);
         m.insert("koro", &["করো"][..]);
-        m.insert("koren", &["করেন"][..]);
+        m.insert("kono", &["কোনো", "কোন"][..]);
+        m.insert("kon", &["কোন", "কোনো"][..]);
+        m.insert("boi", &["বই"][..]);
+        m.insert("pora", &["পরা", "পড়া"][..]);
+        m.insert("poRa", &["পড়া", "পরা"][..]);
+        m.insert("valo", &["ভালো"][..]);
+        m.insert("valobasha", &["ভালোবাসা"][..]);
+        m.insert("valobashi", &["ভালোবাসি"][..]);
+        m.insert("shathe", &["সাথে"][..]);
+        m.insert("sathe", &["সাথে"][..]);
+        m.insert("kotha", &["কথা"][..]);
+        m.insert("kichu", &["কিছু"][..]);
+        m.insert("gari", &["গাড়ি"][..]);
+        m.insert("gaRi", &["গাড়ি"][..]);
+        m.insert("bari", &["বাড়ি"][..]);
+        m.insert("baRi", &["বাড়ি"][..]);
+        m.insert("rasta", &["রাস্তা"][..]);
+        m.insert("gaan", &["গান"][..]);
+        m.insert("gan", &["গান"][..]);
         m
     })
 }
 
-/// Transliterates Romanized ASCII text to Bengali script using `lekhani-parser` Trie grammar rules.
+/// Transliterates Romanized ASCII text to Bengali script using `lekhani-parser` Trie grammar rules,
+/// bilingual loanword dictionary, and phonetic database.
 /// Returns a tuple of (primary_transliteration, list_of_candidates).
 pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
     if input.is_empty() {
@@ -114,7 +133,22 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
         }
     }
 
-    // 1. Exact common word match
+    // 1. Bilingual Loanword Dictionary (e.g. "shirt" -> "শার্ট", "copy" -> "কপি", "password" -> "পাসওয়ার্ড")
+    if let Some((bn_loan, en_loan)) = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower) {
+        let primary = bn_loan.to_string();
+        let mut candidates = vec![primary.clone()];
+        let parser = get_avro_parser();
+        let def = parser.convert(input);
+        if def != primary && !candidates.contains(&def) {
+            candidates.push(def);
+        }
+        if !candidates.iter().any(|c| c == en_loan) {
+            candidates.push(en_loan.to_string());
+        }
+        return (primary, candidates);
+    }
+
+    // 2. Exact common word match
     if let Some(&words) = get_common_words().get(input) {
         let primary = words[0].to_string();
         let candidates = words.iter().map(|&s| s.to_string()).collect();
@@ -126,12 +160,26 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
         return (primary, candidates);
     }
 
-    // 2. Upstream lekhani-parser Trie grammar engine (11 ns/char)
+    // 3. Upstream lekhani-parser Trie grammar engine (11 ns/char)
     let parser = get_avro_parser();
     let primary = parser.convert(input);
     let mut candidates = vec![primary.clone()];
 
-    // Generate alternate phonetic candidates if applicable
+    // Generate alternate phonetic candidates for casual mobile typing:
+    // 3a. 'r' <-> 'R' (র vs ড়) homophone expansion (e.g. "pora" -> "পরা" and "পড়া")
+    if input.contains('r') && !input.contains("rr") {
+        let alt_r = parser.convert(&input.replace('r', "R"));
+        if alt_r != primary && !candidates.contains(&alt_r) {
+            candidates.push(alt_r);
+        }
+    } else if input.contains('R') {
+        let alt_r = parser.convert(&input.replace('R', "r"));
+        if alt_r != primary && !candidates.contains(&alt_r) {
+            candidates.push(alt_r);
+        }
+    }
+
+    // 3b. 'sh' <-> 's' (শ vs স) alternation
     if input.contains("sh") || input.contains('s') {
         let alt_input = if input.contains("sh") {
             input.replace("sh", "s")
@@ -144,8 +192,8 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
         }
     }
 
-    // 3. QWERTY adjacency auto-correction for fat-finger typos
-    if candidates.len() < 4 && lower.len() >= 3 {
+    // 4. QWERTY adjacency auto-correction for fat-finger typos
+    if lower.len() >= 3 {
         let chars: Vec<char> = lower.chars().collect();
         for (i, &ch) in chars.iter().enumerate() {
             for &adj in crate::english::get_qwerty_adjacent_keys(ch) {
@@ -159,6 +207,20 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // 5. Core database PrefixTrie lookup to expand matching vocabulary
+    if candidates.len() < 6 {
+        let db = crate::session::get_core_database();
+        let prefix_matches = db.trie.find_prefix_entries(&primary, 4);
+        for (w, _) in prefix_matches {
+            if candidates.len() >= 8 {
+                break;
+            }
+            if !candidates.iter().any(|c| c == w) {
+                candidates.push(w.to_string());
             }
         }
     }
@@ -216,5 +278,28 @@ mod tests {
         // 'i' is next to 'o' on QWERTY -> "bhali" typo suggests "ভালো"
         let (_, cands_bhali) = transliterate_avro("bhali");
         assert!(cands_bhali.contains(&"ভালো".to_string()));
+    }
+
+    #[test]
+    fn test_user_reported_avro_words() {
+        let (boi, _) = transliterate_avro("boi");
+        assert_eq!(boi, "বই");
+
+        let (kono, cands_kono) = transliterate_avro("kono");
+        assert_eq!(kono, "কোনো");
+        assert!(cands_kono.contains(&"কোন".to_string()));
+
+        let (shirt, _) = transliterate_avro("shirt");
+        assert_eq!(shirt, "শার্ট");
+
+        let (password, _) = transliterate_avro("password");
+        assert_eq!(password, "পাসওয়ার্ড");
+
+        let (copy, _) = transliterate_avro("copy");
+        assert_eq!(copy, "কপি");
+
+        let (_, cands_pora) = transliterate_avro("pora");
+        assert!(cands_pora.contains(&"পরা".to_string()));
+        assert!(cands_pora.contains(&"পড়া".to_string()));
     }
 }

@@ -426,11 +426,14 @@ impl AndroidLekhaniSession {
 
             LekhaniLayoutType::Avro => {
                 state.composing_buffer.push_str(&key);
-                let (preedit, mut candidates) = crate::avro::transliterate_avro(&state.composing_buffer);
+                let (mut preedit, mut candidates) = crate::avro::transliterate_avro(&state.composing_buffer);
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
                     let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
+                    if let Some(top) = candidates.first() {
+                        preedit = top.clone();
+                    }
                 }
                 let len = preedit.graphemes(true).count() as u32;
                 Ok(TypingResult {
@@ -981,8 +984,14 @@ impl AndroidLekhaniSession {
             // the composing buffer shrinking to zero capacity after `take`.
             state.composing_buffer = String::with_capacity(64);
             let mut normalized = if state.layout == LekhaniLayoutType::Avro {
-                let (transliterated, _) = crate::avro::transliterate_avro(&raw);
-                nfc_normalize(&transliterated)
+                let (_, mut candidates) = crate::avro::transliterate_avro(&raw);
+                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let scorer = get_context_scorer();
+                    candidates = scorer.rank_candidates(&words, &candidates);
+                }
+                let chosen = candidates.first().map(|s| s.as_str()).unwrap_or(&raw);
+                nfc_normalize(chosen)
             } else {
                 nfc_normalize(&raw)
             };
@@ -1319,6 +1328,34 @@ mod tests {
         let space_res = session.handle_space().unwrap();
         assert_eq!(space_res.commit_text, Some("আমি ".into()));
         assert!(!session.is_composing());
+    }
+
+    #[test]
+    fn test_avro_homophone_context_disambiguation() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+
+        // 1. Context: "আমি বই " -> typing "pora" should rank "পড়া" first
+        session.set_context("আমি বই".into());
+        let _ = session.process_key("p".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let _ = session.process_key("r".into()).unwrap();
+        let res_book = session.process_key("a".into()).unwrap();
+        assert_eq!(res_book.preedit, "পড়া");
+        assert_eq!(res_book.candidates.first().map(|s| s.as_str()), Some("পড়া"));
+        let commit_book = session.handle_space().unwrap();
+        assert_eq!(commit_book.commit_text, Some("পড়া ".into()));
+
+        // 2. Context: "নতুন শার্ট " -> typing "pora" should rank "পরা" first
+        session.set_context("নতুন শার্ট".into());
+        let _ = session.process_key("p".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let _ = session.process_key("r".into()).unwrap();
+        let res_shirt = session.process_key("a".into()).unwrap();
+        assert_eq!(res_shirt.preedit, "পরা");
+        assert_eq!(res_shirt.candidates.first().map(|s| s.as_str()), Some("পরা"));
+        let commit_shirt = session.handle_space().unwrap();
+        assert_eq!(commit_shirt.commit_text, Some("পরা ".into()));
     }
 
     #[test]
