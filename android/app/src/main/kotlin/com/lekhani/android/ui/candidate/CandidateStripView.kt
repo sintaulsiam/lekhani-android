@@ -3,9 +3,14 @@ package com.lekhani.android.ui.candidate
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -14,9 +19,15 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -132,6 +143,7 @@ fun CandidateStripView(
     onOpenToolsMenu: (() -> Unit)? = null,
     onEmojiSearchClose: (() -> Unit)? = null,
     onEmojiSearchClear: (() -> Unit)? = null,
+    onEmojiSearchExitToKeyboard: (() -> Unit)? = null,
     onUndoClick: ((UndoInfo) -> Unit)? = null,
 ) {
     val state by stateFlow.collectAsState()
@@ -142,10 +154,18 @@ fun CandidateStripView(
         if (!hasItems) showToolbarOverride = false
     }
 
+    val isEmojiSearch = state is CandidateStripState.EmojiSearch
+    val targetStripHeight = if (isEmojiSearch) 124.dp else StripHeight
+    val animatedStripHeight by animateDpAsState(
+        targetValue = targetStripHeight,
+        animationSpec = tween(120),
+        label = "StripHeightAnim"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(StripHeight)
+            .height(animatedStripHeight)
             .background(Color(theme.backgroundColor)),
     ) {
         val displayMode = when {
@@ -179,6 +199,7 @@ fun CandidateStripView(
                             onEmojiClick = onCandidateClick,
                             onBack = { onEmojiSearchClose?.invoke() },
                             onClearQuery = { onEmojiSearchClear?.invoke() },
+                            onExitToKeyboard = { onEmojiSearchExitToKeyboard?.invoke() },
                             theme = theme,
                             isEnglish = isEnglish,
                         )
@@ -301,110 +322,208 @@ private fun EmojiSearchStrip(
     onEmojiClick: (String) -> Unit,
     onBack: () -> Unit,
     onClearQuery: () -> Unit,
+    onExitToKeyboard: () -> Unit,
     theme: KeyboardTheme,
     isEnglish: Boolean = false,
 ) {
-    Row(
-        modifier = Modifier.fillMaxSize(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // Back button returning to full Emoji palette
-        Box(
-            modifier = Modifier
-                .size(StripHeight)
-                .clip(CircleShape)
-                .clickable { onBack() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = if (isEnglish) "Back to emojis" else "ইমোজিতে ফিরে যান",
-                tint = Color(theme.accentColor),
-                modifier = Modifier.size(20.dp),
-            )
-        }
+    val accentColor = Color(theme.accentColor)
+    val labelColor = Color(theme.labelColor)
+    val labelDimColor = Color(theme.labelDimColor)
+    val keyBg = Color(theme.keyNormalColor)
+    val borderColor = Color(theme.keyBorderColor)
+    val barBg = Color(theme.keyShiftColor)
 
-        // Active search query indicator badge
+    val infiniteTransition = rememberInfiniteTransition(label = "SearchCursorBlink")
+    val cursorAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 530, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "CursorAlpha"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(124.dp)
+            .background(Color(theme.backgroundColor))
+    ) {
+        // ── Top: 2-Row Emoji Results Grid ───────────────────────────────────
         Box(
             modifier = Modifier
-                .padding(vertical = 4.dp, horizontal = 4.dp)
-                .clip(RoundedCornerShape(CornerRadius))
-                .background(Color(theme.keyNormalColor))
-                .clickable { if (query.isNotEmpty()) onClearQuery() }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center,
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 2.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = null,
-                    tint = if (query.isEmpty()) Color(theme.labelDimColor) else Color(theme.accentColor),
-                    modifier = Modifier.size(15.dp)
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    text = if (query.isEmpty()) (if (isEnglish) "Search emojis" else "ইমোজি খুঁজুন") else query,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (query.isEmpty()) Color(theme.labelDimColor) else Color(theme.accentColor),
-                    style = TextStyle(
-                        platformStyle = PlatformTextStyle(includeFontPadding = false),
-                    ),
-                )
-                if (query.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(5.dp))
+            if (emojis.isEmpty() && query.isNotBlank()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "✕",
-                        fontSize = 11.sp,
-                        color = Color(theme.labelDimColor),
+                        text = if (isEnglish) "No emojis matching \"$query\""
+                               else "\"$query\"-এর জন্য কোনো ইমোজি পাওয়া যায়নি",
+                        fontSize = 12.sp,
+                        color = labelDimColor,
                     )
+                }
+            } else {
+                val gridState = rememberLazyGridState()
+                LaunchedEffect(query) {
+                    gridState.scrollToItem(0)
+                }
+                LazyHorizontalGrid(
+                    rows = GridCells.Fixed(2),
+                    state = gridState,
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    items(emojis) { emoji ->
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(keyBg.copy(alpha = 0.35f))
+                                .clickable { onEmojiClick(emoji) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = emoji,
+                                fontSize = 21.sp,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // Emoji results or empty hint
-        if (emojis.isEmpty() && query.isNotBlank()) {
+        // ── Bottom: Search Query Bar (Docked Directly Above Keyboard) ────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp)
+                .background(barBg)
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // [ ⬅ Back ] Button returning to full Emoji Palette
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.CenterStart
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(keyBg)
+                    .clickable { onBack() },
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = if (isEnglish) "No matching emojis" else "কোনো ইমোজি পাওয়া যায়নি",
-                    fontSize = 12.sp,
-                    color = Color(theme.labelDimColor),
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = if (isEnglish) "Back to emojis" else "ইমোজিতে ফিরে যান",
+                    tint = accentColor,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-        } else {
-            val emojiScrollState = rememberScrollState()
-            LaunchedEffect(emojis) {
-                emojiScrollState.scrollTo(0)
-            }
+
+            // Search Query Pill (Center, weight 1f) with Live Blinking Cursor
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    .horizontalScroll(emojiScrollState)
-                    .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    .height(34.dp)
+                    .clip(RoundedCornerShape(17.dp))
+                    .background(keyBg)
+                    .border(1.dp, borderColor.copy(alpha = 0.5f), RoundedCornerShape(17.dp))
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                for (emoji in emojis) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onEmojiClick(emoji) },
-                        contentAlignment = Alignment.Center,
-                    ) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = if (query.isEmpty()) labelDimColor else accentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (query.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .height(16.dp)
+                                .alpha(cursorAlpha)
+                                .background(accentColor, RoundedCornerShape(1.dp))
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = emoji,
-                            fontSize = 22.sp,
+                            text = if (isEnglish) "Search emojis..." else "ইমোজি খুঁজুন...",
+                            fontSize = 13.sp,
+                            color = labelDimColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                        )
+                    } else {
+                        Text(
+                            text = query,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = labelColor,
+                            maxLines = 1,
+                            style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .height(16.dp)
+                                .alpha(cursorAlpha)
+                                .background(accentColor, RoundedCornerShape(1.dp))
                         )
                     }
                 }
+                if (query.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .clickable { onClearQuery() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Clear",
+                            tint = labelDimColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                } else if (emojis.isNotEmpty()) {
+                    Text(
+                        text = "${emojis.size}",
+                        fontSize = 11.sp,
+                        color = labelDimColor.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            // Quick [ ABC ] Button returning directly to normal typing keyboard
+            Box(
+                modifier = Modifier
+                    .height(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(keyBg)
+                    .clickable { onExitToKeyboard() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "ABC",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = labelColor,
+                    modifier = Modifier.padding(horizontal = 10.dp)
+                )
             }
         }
     }

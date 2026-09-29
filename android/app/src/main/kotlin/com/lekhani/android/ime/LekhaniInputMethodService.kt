@@ -517,6 +517,9 @@ class LekhaniInputMethodService : InputMethodService() {
                             emojiSearchSession?.reset()
                             updateEmojiSearchStrip()
                         },
+                        onEmojiSearchExitToKeyboard = {
+                            setInputViewMode(InputViewMode.KEYBOARD)
+                        },
                         onUndoClick = { undo ->
                             candidateStripComposeView?.let { feedbackManager.onKeyFeedback(it) }
                             onUndoCommit(undo)
@@ -1808,7 +1811,6 @@ class LekhaniInputMethodService : InputMethodService() {
         if (currentMode == InputViewMode.EMOJI_SEARCH) {
             currentInputConnection?.commitText(candidate, 1)
             recentsManager.addRecent(candidate)
-            setInputViewMode(InputViewMode.KEYBOARD)
             return
         }
 
