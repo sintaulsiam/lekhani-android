@@ -22,6 +22,8 @@ ACTION="${1:---pull}"
 
 SYNC_FILES=(
     "bengali_lm.bin"
+    "english_lm.bin"
+    "english_dict.bin"
     "dictionary.bin"
     "dictionary.json"
     "autocorrect.json"

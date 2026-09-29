@@ -21,6 +21,7 @@ object LekhaniAssetInstaller {
 
     private val BUNDLED_DICTIONARIES = listOf(
         "english_dict.bin",
+        "english_lm.bin",
         "dictionary.bin",
         "dictionary.json",
         "bengali_lm.bin",

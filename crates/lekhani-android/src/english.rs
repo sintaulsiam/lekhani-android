@@ -10,6 +10,7 @@ use std::sync::OnceLock;
 use lekhani_core::trie::PrefixTrie;
 
 static ENGLISH_TRIE: OnceLock<PrefixTrie> = OnceLock::new();
+static ENGLISH_LM: OnceLock<lekhani_ai::LanguageModel> = OnceLock::new();
 
 /// Explicitly loads an English PrefixTrie from a binary dictionary file path.
 pub fn load_english_dictionary_from_path(path: &str) -> bool {
@@ -23,6 +24,48 @@ pub fn load_english_dictionary_from_path(path: &str) -> bool {
         }
     }
     false
+}
+
+/// Explicitly loads an English Language Model from a binary file path.
+pub fn load_english_lm_from_path(path: &str) -> bool {
+    if ENGLISH_LM.get().is_some() {
+        return true;
+    }
+    let mut lm = lekhani_ai::LanguageModel::new();
+    if lm.load_binary_file(std::path::Path::new(path)).is_ok() {
+        let _ = ENGLISH_LM.set(lm);
+        return true;
+    }
+    false
+}
+
+/// Returns a reference to the global memory-resident English Language Model, if loaded.
+pub fn get_english_lm() -> Option<&'static lekhani_ai::LanguageModel> {
+    if let Some(lm) = ENGLISH_LM.get() {
+        return Some(lm);
+    }
+    let candidate_dirs = [
+        std::path::Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),
+        std::path::Path::new("/data/user_de/0/com.lekhani.android.debug/files/dictionaries"),
+        std::path::Path::new("/data/user/0/com.lekhani.android/files/dictionaries"),
+        std::path::Path::new("/data/user/0/com.lekhani.android.debug/files/dictionaries"),
+        std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries"),
+        std::path::Path::new("/data/data/com.lekhani.android.debug/files/dictionaries"),
+        std::path::Path::new("./data/dictionaries"),
+        std::path::Path::new("../data/dictionaries"),
+        std::path::Path::new("../../data/dictionaries"),
+    ];
+    for dir in candidate_dirs {
+        let bin_path = dir.join("english_lm.bin");
+        if bin_path.exists() {
+            let mut lm = lekhani_ai::LanguageModel::new();
+            if lm.load_binary_file(&bin_path).is_ok() {
+                let _ = ENGLISH_LM.set(lm);
+                return ENGLISH_LM.get();
+            }
+        }
+    }
+    None
 }
 
 /// Returns a reference to the global memory-resident English PrefixTrie, if loaded.
@@ -287,6 +330,7 @@ pub fn get_english_next_words(context: &[&str], limit: usize) -> Vec<String> {
     let lower_context: Vec<String> = context.iter().map(|s| s.to_lowercase()).collect();
     let lower_slices: Vec<&str> = lower_context.iter().map(|s| s.as_str()).collect();
 
+    // 1. High-confidence conversational idioms/pairs
     for &(pattern, continuations) in ENGLISH_PREDICTIVE_PAIRS {
         if lower_slices.len() >= pattern.len() {
             let tail = &lower_slices[lower_slices.len() - pattern.len()..];
@@ -295,6 +339,31 @@ pub fn get_english_next_words(context: &[&str], limit: usize) -> Vec<String> {
                     if !matches.iter().any(|m| m.eq_ignore_ascii_case(cont)) {
                         matches.push(cont.to_string());
                     }
+                }
+            }
+        }
+    }
+
+    // 2. Query English Language Model (LLM3 N-gram)
+    if let Some(lm) = get_english_lm() {
+        if lower_slices.len() >= 2 {
+            let prev2 = lower_slices[lower_slices.len() - 2];
+            let prev1 = lower_slices[lower_slices.len() - 1];
+            for w in lm.get_next_words_trigram(prev2, prev1, limit) {
+                if !matches.iter().any(|m| m.eq_ignore_ascii_case(&w)) {
+                    matches.push(w);
+                }
+            }
+            for w in lm.get_next_words(prev1, limit) {
+                if !matches.iter().any(|m| m.eq_ignore_ascii_case(&w)) {
+                    matches.push(w);
+                }
+            }
+        } else if !lower_slices.is_empty() {
+            let prev1 = lower_slices[lower_slices.len() - 1];
+            for w in lm.get_next_words(prev1, limit) {
+                if !matches.iter().any(|m| m.eq_ignore_ascii_case(&w)) {
+                    matches.push(w);
                 }
             }
         }
@@ -504,5 +573,15 @@ mod tests {
         let cands_world = decode_english_glide_with_trie(&gesture_world, Some(&trie), 5);
         assert!(!cands_world.is_empty());
         assert_eq!(cands_world[0], "world");
+    }
+
+    #[test]
+    fn test_english_lm_predictions() {
+        if let Some(lm) = get_english_lm() {
+            println!("Loaded English LM unigrams: {}, bigrams: {}, trigrams: {}", lm.unigram_count(), lm.bigram_count(), lm.trigram_count());
+            let next = get_english_next_words(&["how", "are"], 5);
+            println!("ENGLISH LM 'how are' -> {:?}", next);
+            assert!(next.contains(&"you".to_string()));
+        }
     }
 }
