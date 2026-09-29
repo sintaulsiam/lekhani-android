@@ -119,7 +119,10 @@ struct SessionState {
     /// Last committed word, optional preceding word, and the Instant it was committed.
     /// Used for rapid backspace mistake penalty (<1500 ms).
     last_commit_info: Option<(Option<String>, String, std::time::Instant)>,
+    /// Bivariate Gaussian spatial touch model for fat-finger correction
+    spatial_model: crate::spatial::SpatialTouchModel,
 }
+
 
 /// Helper to retrieve next-word predictions combining personalized user bigrams
 /// from AutonomousLearner with statistical n-gram predictions.
@@ -194,8 +197,10 @@ impl AndroidLekhaniSession {
                 surrounding_context: String::with_capacity(256),
                 is_private_field: false,
                 last_commit_info: None,
+                spatial_model: crate::spatial::SpatialTouchModel::new(),
             }),
         }
+
     }
 
     // ── Layout management ────────────────────────────────────────────────────
@@ -252,7 +257,108 @@ impl AndroidLekhaniSession {
         }
     }
 
+    // ── Spatial touch correction ─────────────────────────────────────────────
+
+    /// Update keyboard geometry for spatial touch error correction.
+    /// Called from Android when onSizeChanged() or layout switch occurs.
+    pub fn update_keyboard_geometry(&self, configs: Vec<crate::spatial::KeyGeometryConfig>) {
+        if let Ok(mut state) = self.state.lock() {
+            state.spatial_model.update_geometry(configs);
+        }
+    }
+
+    /// Retrieve spatial log-probability for a given key label at touch coordinate (x, y).
+    pub fn get_spatial_log_prob(&self, key: String, touch_x: f32, touch_y: f32) -> f32 {
+        self.state
+            .lock()
+            .map(|s| s.spatial_model.log_prob_for_key(&key, touch_x, touch_y))
+            .unwrap_or(-20.0)
+    }
+
+    /// Rank candidate keys by descending spatial probability at touch coordinate (x, y).
+    pub fn rank_spatial_keys(
+        &self,
+        touch_x: f32,
+        touch_y: f32,
+        top_k: u32,
+    ) -> Vec<crate::spatial::SpatialKeyCandidate> {
+        self.state
+            .lock()
+            .map(|s| s.spatial_model.rank_keys_at(touch_x, touch_y, top_k as usize))
+            .unwrap_or_default()
+    }
+
+    /// Process a typed character or key token with physical touch coordinates (x, y).
+    /// Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
+    /// on key boundaries.
+    pub fn process_key_with_touch(
+        &self,
+        key: String,
+        touch_x: f32,
+        touch_y: f32,
+    ) -> Result<TypingResult, LekhaniError> {
+        let mut result = self.process_key(key.clone())?;
+
+        // If spatial model is populated, check for adjacent fat-finger candidates
+        let spatial_candidates = {
+            let state = self
+                .state
+                .lock()
+                .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+            if !state.spatial_model.is_empty() {
+                state.spatial_model.rank_keys_at(touch_x, touch_y, 2)
+            } else {
+                Vec::new()
+            }
+        };
+
+        // If the top spatial key differs from the tapped key (touch landed closer to neighbor)
+        // or neighbor has high likelihood within 2.8 log-prob, explore neighbor
+        if spatial_candidates.len() >= 2 {
+            let neighbor = if spatial_candidates[0].key == key {
+                &spatial_candidates[1]
+            } else {
+                &spatial_candidates[0]
+            };
+
+            let key_prob = self.get_spatial_log_prob(key, touch_x, touch_y);
+            if (neighbor.log_prob - key_prob).abs() <= 2.8 {
+                let state = self
+                    .state
+                    .lock()
+                    .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+                if !state.composing_buffer.is_empty() {
+                    let mut alt_buf = state.composing_buffer[..state.composing_buffer.len().saturating_sub(1)].to_string();
+                    alt_buf.push_str(&neighbor.key);
+
+                    match state.layout {
+                        LekhaniLayoutType::English => {
+                            let alt_cands = crate::english::get_english_candidates(&alt_buf, 2);
+                            for cand in alt_cands {
+                                if !result.candidates.contains(&cand) && result.candidates.len() < 7 {
+                                    result.candidates.push(cand);
+                                }
+                            }
+                        }
+                        LekhaniLayoutType::Avro => {
+                            let (_, alt_cands) = crate::avro::transliterate_avro(&alt_buf);
+                            for cand in alt_cands {
+                                if !result.candidates.contains(&cand) && result.candidates.len() < 7 {
+                                    result.candidates.push(cand);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
     // ── Key processing hot path ──────────────────────────────────────────────
+
 
     /// Process a typed character or key token.
     ///
@@ -1375,5 +1481,42 @@ mod tests {
         let learner = db.learner.read().unwrap();
         assert!(!learner.candidate_memory.contains_key("secret"));
     }
+
+    #[test]
+    fn test_spatial_touch_model_integration() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::English);
+
+        session.update_keyboard_geometry(vec![
+            crate::spatial::KeyGeometryConfig {
+                label: "t".to_string(),
+                center_x: 100.0,
+                center_y: 200.0,
+                width: 40.0,
+                height: 50.0,
+            },
+            crate::spatial::KeyGeometryConfig {
+                label: "y".to_string(),
+                center_x: 140.0,
+                center_y: 200.0,
+                width: 40.0,
+                height: 50.0,
+            },
+        ]);
+
+        let prob_t = session.get_spatial_log_prob("t".into(), 100.0, 204.0);
+        let prob_y = session.get_spatial_log_prob("y".into(), 100.0, 204.0);
+        assert!(prob_t > prob_y, "Center of 't' must have higher probability for 't' than 'y'");
+
+        let ranked = session.rank_spatial_keys(135.0, 204.0, 2);
+        assert_eq!(ranked.len(), 2);
+        assert_eq!(ranked[0].key, "y");
+        assert_eq!(ranked[1].key, "t");
+
+        // Touch slightly to the left of 'y' (x = 138), should include 't' / 'y' suggestions
+        let res = session.process_key_with_touch("y".into(), 138.0, 204.0).unwrap();
+        assert_eq!(res.preedit, "y");
+    }
 }
+
 
