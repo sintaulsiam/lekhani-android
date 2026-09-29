@@ -1115,7 +1115,32 @@ impl AndroidLekhaniSession {
         })
     }
 
+    /// Asynchronous next-word prediction helper for background coroutine dispatch.
+    /// Reads surrounding context without blocking UI typing loop.
+    pub fn predict_next_words(&self, max_results: u32) -> Vec<String> {
+        let state = match self.state.lock() {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+
+        if state.is_private_field || state.surrounding_context.is_empty() {
+            return Vec::new();
+        }
+
+        let limit = (max_results as usize).clamp(1, 10);
+        if state.layout == LekhaniLayoutType::English {
+            let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+            crate::english::get_english_next_words(&words, limit)
+        } else {
+            get_bengali_next_words(&state.surrounding_context)
+                .into_iter()
+                .take(limit)
+                .collect()
+        }
+    }
+
     // ── Lifecycle helpers ─────────────────────────────────────────────────────
+
 
     /// Reset and clear all internal composing state.
     /// Called on `onFinishInput()` and layout switches.
@@ -1517,6 +1542,18 @@ mod tests {
         let res = session.process_key_with_touch("y".into(), 138.0, 204.0).unwrap();
         assert_eq!(res.preedit, "y");
     }
+
+    #[test]
+    fn test_predict_next_words_async_helper() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::English);
+        session.set_context("how are".into());
+
+        let preds = session.predict_next_words(3);
+        assert!(!preds.is_empty(), "English context 'how are' should produce next words");
+        assert!(preds.contains(&"you".to_string()));
+    }
 }
+
 
 

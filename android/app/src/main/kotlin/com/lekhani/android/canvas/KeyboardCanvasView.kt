@@ -62,6 +62,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
     /** Callback interface implemented by LekhaniInputMethodService */
     interface KeyListener {
         fun onKey(key: Key, action: KeyAction)
+        fun onKeyWithTouch(key: Key, action: KeyAction, touchX: Float, touchY: Float) {}
+        fun onGeometryChanged(geometries: List<com.lekhani.android.ffi.KeyGeometryConfig>) {}
         fun onSpaceSwipe(direction: Int) // -1 for previous layout, +1 for next layout
         fun onSpaceSwipeUp() {}
         fun onSpaceLongPress()
@@ -1158,6 +1160,21 @@ class KeyboardCanvasView @JvmOverloads constructor(
             resolvedKeys.add(ResolvedKey(key, RectF(rightKeyLeft, spaceRowTop, rightKeyLeft + keyW, spaceRowTop + spaceKeyHeight)))
             rightKeyLeft += keyW + keyMarginH
         }
+
+        // Notify session of updated key geometries for spatial Gaussian touch correction
+        val configs = resolvedKeys.mapNotNull { rk ->
+            val label = rk.key.primaryLabel
+            if (label.isNotEmpty()) {
+                com.lekhani.android.ffi.KeyGeometryConfig(
+                    label = label,
+                    centerX = rk.bounds.centerX(),
+                    centerY = rk.bounds.centerY(),
+                    width = rk.bounds.width(),
+                    height = rk.bounds.height(),
+                )
+            } else null
+        }
+        keyListener?.onGeometryChanged(configs)
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -2078,6 +2095,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             action = KeyAction.SwitchEmoji
         }
         keyListener?.onKey(key, action)
+        keyListener?.onKeyWithTouch(key, action, touchStartX, touchStartY)
 
         // Auto-release shift after one character (one-shot shift)
         if (isShifted && action !is KeyAction.Shift) {

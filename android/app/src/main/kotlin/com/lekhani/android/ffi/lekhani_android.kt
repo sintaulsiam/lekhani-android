@@ -776,6 +776,18 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -813,6 +825,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_layout(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_spatial_log_prob(`ptr`: Pointer,`key`: RustBuffer.ByValue,`touchX`: Float,`touchY`: Float,uniffi_out_err: UniffiRustCallStatus, 
+    ): Float
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_user_words(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_backspace(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -833,7 +847,15 @@ internal interface UniffiLib : Library {
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_load_user_learned(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_penalize_commit(`ptr`: Pointer,`revertedWord`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_predict_next_words(`ptr`: Pointer,`maxResults`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_process_key(`ptr`: Pointer,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_process_key_with_touch(`ptr`: Pointer,`key`: RustBuffer.ByValue,`touchX`: Float,`touchY`: Float,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_rank_spatial_keys(`ptr`: Pointer,`touchX`: Float,`touchY`: Float,`topK`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_reset(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -846,6 +868,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_layout(`ptr`: Pointer,`layout`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_private_field(`ptr`: Pointer,`isPrivate`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_update_keyboard_geometry(`ptr`: Pointer,`configs`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_clone_asraudioprocessor(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
@@ -989,6 +1013,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_spatial_log_prob(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_user_words(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_backspace(
@@ -1009,7 +1035,15 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_load_user_learned(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_penalize_commit(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_predict_next_words(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key_with_touch(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_rank_spatial_keys(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_reset(
     ): Short
@@ -1022,6 +1056,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_layout(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_update_keyboard_geometry(
     ): Short
     fun uniffi_lekhani_android_checksum_method_asraudioprocessor_has_detected_speech(
     ): Short
@@ -1073,6 +1109,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout() != 51391.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_spatial_log_prob() != 28517.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_user_words() != 7879.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1103,7 +1142,19 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_load_user_learned() != 48683.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_penalize_commit() != 59771.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_predict_next_words() != 42580.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key() != 59149.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key_with_touch() != 57392.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_rank_spatial_keys() != 49411.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_reset() != 35329.toShort()) {
@@ -1122,6 +1173,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field() != 3588.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_update_keyboard_geometry() != 40694.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_asraudioprocessor_has_detected_speech() != 45770.toShort()) {
@@ -1548,6 +1602,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `getLayout`(): LekhaniLayoutType
     
     /**
+     * Retrieve spatial log-probability for a given key label at touch coordinate (x, y).
+     */
+    fun `getSpatialLogProb`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float): kotlin.Float
+    
+    /**
      * Get all user-learned and custom words.
      */
     fun `getUserWords`(): List<kotlin.String>
@@ -1605,6 +1664,17 @@ public interface AndroidLekhaniSessionInterface {
     fun `loadUserLearned`(`path`: kotlin.String): kotlin.Boolean
     
     /**
+     * Explicitly penalize a reverted commit or mistaken auto-correction
+     */
+    fun `penalizeCommit`(`revertedWord`: kotlin.String)
+    
+    /**
+     * Asynchronous next-word prediction helper for background coroutine dispatch.
+     * Reads surrounding context without blocking UI typing loop.
+     */
+    fun `predictNextWords`(`maxResults`: kotlin.UInt): List<kotlin.String>
+    
+    /**
      * Process a typed character or key token.
      *
      * # Performance contract
@@ -1613,6 +1683,18 @@ public interface AndroidLekhaniSessionInterface {
      * All buffers are pre-allocated in `new()`.
      */
     fun `processKey`(`key`: kotlin.String): TypingResult
+    
+    /**
+     * Process a typed character or key token with physical touch coordinates (x, y).
+     * Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
+     * on key boundaries.
+     */
+    fun `processKeyWithTouch`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float): TypingResult
+    
+    /**
+     * Rank candidate keys by descending spatial probability at touch coordinate (x, y).
+     */
+    fun `rankSpatialKeys`(`touchX`: kotlin.Float, `touchY`: kotlin.Float, `topK`: kotlin.UInt): List<SpatialKeyCandidate>
     
     /**
      * Reset and clear all internal composing state.
@@ -1651,6 +1733,12 @@ public interface AndroidLekhaniSessionInterface {
      * - Freezes dictionary learning and clipboard capture.
      */
     fun `setPrivateField`(`isPrivate`: kotlin.Boolean)
+    
+    /**
+     * Update keyboard geometry for spatial touch error correction.
+     * Called from Android when onSizeChanged() or layout switch occurs.
+     */
+    fun `updateKeyboardGeometry`(`configs`: List<KeyGeometryConfig>)
     
     companion object
 }
@@ -1855,6 +1943,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Retrieve spatial log-probability for a given key label at touch coordinate (x, y).
+     */override fun `getSpatialLogProb`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float): kotlin.Float {
+            return FfiConverterFloat.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_spatial_log_prob(
+        it, FfiConverterString.lower(`key`),FfiConverterFloat.lower(`touchX`),FfiConverterFloat.lower(`touchY`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Get all user-learned and custom words.
      */
     @Throws(LekhaniException::class)override fun `getUserWords`(): List<kotlin.String> {
@@ -2018,6 +2121,37 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Explicitly penalize a reverted commit or mistaken auto-correction
+     */
+    @Throws(LekhaniException::class)override fun `penalizeCommit`(`revertedWord`: kotlin.String)
+        = 
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_penalize_commit(
+        it, FfiConverterString.lower(`revertedWord`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Asynchronous next-word prediction helper for background coroutine dispatch.
+     * Reads surrounding context without blocking UI typing loop.
+     */override fun `predictNextWords`(`maxResults`: kotlin.UInt): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_predict_next_words(
+        it, FfiConverterUInt.lower(`maxResults`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Process a typed character or key token.
      *
      * # Performance contract
@@ -2031,6 +2165,39 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_process_key(
         it, FfiConverterString.lower(`key`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Process a typed character or key token with physical touch coordinates (x, y).
+     * Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
+     * on key boundaries.
+     */
+    @Throws(LekhaniException::class)override fun `processKeyWithTouch`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float): TypingResult {
+            return FfiConverterTypeTypingResult.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_process_key_with_touch(
+        it, FfiConverterString.lower(`key`),FfiConverterFloat.lower(`touchX`),FfiConverterFloat.lower(`touchY`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Rank candidate keys by descending spatial probability at touch coordinate (x, y).
+     */override fun `rankSpatialKeys`(`touchX`: kotlin.Float, `touchY`: kotlin.Float, `topK`: kotlin.UInt): List<SpatialKeyCandidate> {
+            return FfiConverterSequenceTypeSpatialKeyCandidate.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_rank_spatial_keys(
+        it, FfiConverterFloat.lower(`touchX`),FfiConverterFloat.lower(`touchY`),FfiConverterUInt.lower(`topK`),_status)
 }
     }
     )
@@ -2128,6 +2295,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_private_field(
         it, FfiConverterBoolean.lower(`isPrivate`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Update keyboard geometry for spatial touch error correction.
+     * Called from Android when onSizeChanged() or layout switch occurs.
+     */override fun `updateKeyboardGeometry`(`configs`: List<KeyGeometryConfig>)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_update_keyboard_geometry(
+        it, FfiConverterSequenceTypeKeyGeometryConfig.lower(`configs`),_status)
 }
     }
     
@@ -2562,6 +2744,92 @@ public object FfiConverterTypeAudioAnalysisResult: FfiConverterRustBuffer<AudioA
 
 
 /**
+ * Input geometry configuration exported via UniFFI
+ */
+data class KeyGeometryConfig (
+    var `label`: kotlin.String, 
+    var `centerX`: kotlin.Float, 
+    var `centerY`: kotlin.Float, 
+    var `width`: kotlin.Float, 
+    var `height`: kotlin.Float
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeKeyGeometryConfig: FfiConverterRustBuffer<KeyGeometryConfig> {
+    override fun read(buf: ByteBuffer): KeyGeometryConfig {
+        return KeyGeometryConfig(
+            FfiConverterString.read(buf),
+            FfiConverterFloat.read(buf),
+            FfiConverterFloat.read(buf),
+            FfiConverterFloat.read(buf),
+            FfiConverterFloat.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: KeyGeometryConfig) = (
+            FfiConverterString.allocationSize(value.`label`) +
+            FfiConverterFloat.allocationSize(value.`centerX`) +
+            FfiConverterFloat.allocationSize(value.`centerY`) +
+            FfiConverterFloat.allocationSize(value.`width`) +
+            FfiConverterFloat.allocationSize(value.`height`)
+    )
+
+    override fun write(value: KeyGeometryConfig, buf: ByteBuffer) {
+            FfiConverterString.write(value.`label`, buf)
+            FfiConverterFloat.write(value.`centerX`, buf)
+            FfiConverterFloat.write(value.`centerY`, buf)
+            FfiConverterFloat.write(value.`width`, buf)
+            FfiConverterFloat.write(value.`height`, buf)
+    }
+}
+
+
+
+/**
+ * Candidate key alternative ranked by spatial probability
+ */
+data class SpatialKeyCandidate (
+    var `key`: kotlin.String, 
+    var `logProb`: kotlin.Float, 
+    var `distanceSquared`: kotlin.Float
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeSpatialKeyCandidate: FfiConverterRustBuffer<SpatialKeyCandidate> {
+    override fun read(buf: ByteBuffer): SpatialKeyCandidate {
+        return SpatialKeyCandidate(
+            FfiConverterString.read(buf),
+            FfiConverterFloat.read(buf),
+            FfiConverterFloat.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: SpatialKeyCandidate) = (
+            FfiConverterString.allocationSize(value.`key`) +
+            FfiConverterFloat.allocationSize(value.`logProb`) +
+            FfiConverterFloat.allocationSize(value.`distanceSquared`)
+    )
+
+    override fun write(value: SpatialKeyCandidate, buf: ByteBuffer) {
+            FfiConverterString.write(value.`key`, buf)
+            FfiConverterFloat.write(value.`logProb`, buf)
+            FfiConverterFloat.write(value.`distanceSquared`, buf)
+    }
+}
+
+
+
+/**
  * Result returned to Android InputConnection after processing a key event.
  */
 data class TypingResult (
@@ -2872,6 +3140,62 @@ public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.Str
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterString.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeKeyGeometryConfig: FfiConverterRustBuffer<List<KeyGeometryConfig>> {
+    override fun read(buf: ByteBuffer): List<KeyGeometryConfig> {
+        val len = buf.getInt()
+        return List<KeyGeometryConfig>(len) {
+            FfiConverterTypeKeyGeometryConfig.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<KeyGeometryConfig>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeKeyGeometryConfig.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<KeyGeometryConfig>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeKeyGeometryConfig.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeSpatialKeyCandidate: FfiConverterRustBuffer<List<SpatialKeyCandidate>> {
+    override fun read(buf: ByteBuffer): List<SpatialKeyCandidate> {
+        val len = buf.getInt()
+        return List<SpatialKeyCandidate>(len) {
+            FfiConverterTypeSpatialKeyCandidate.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<SpatialKeyCandidate>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeSpatialKeyCandidate.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<SpatialKeyCandidate>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeSpatialKeyCandidate.write(it, buf)
         }
     }
 }

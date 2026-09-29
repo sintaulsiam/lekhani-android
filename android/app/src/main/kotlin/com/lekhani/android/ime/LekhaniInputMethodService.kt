@@ -177,6 +177,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var previousLayoutBeforePassword: LekhaniLayoutType? = null
     private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
     private var lastMeasuredKeyboardHeightPx: Int = 0
+    private var lastTouchCoordinates: Pair<Float, Float>? = null
 
     private var isNumericMode: Boolean = false
     private var isMoreSymbolsMode: Boolean = false
@@ -550,6 +551,16 @@ class LekhaniInputMethodService : InputMethodService() {
             v.keyListener = object : KeyboardCanvasView.KeyListener {
                 override fun onKey(key: Key, action: KeyAction) {
                     handleKeyAction(key, action)
+                }
+
+                override fun onKeyWithTouch(key: Key, action: KeyAction, touchX: Float, touchY: Float) {
+                    if (action is KeyAction.Character) {
+                        lastTouchCoordinates = Pair(touchX, touchY)
+                    }
+                }
+
+                override fun onGeometryChanged(geometries: List<com.lekhani.android.ffi.KeyGeometryConfig>) {
+                    session.updateKeyboardGeometry(geometries)
                 }
 
                 override fun onSpaceSwipe(direction: Int) {
@@ -1494,8 +1505,14 @@ class LekhaniInputMethodService : InputMethodService() {
             serviceScope.launch(Dispatchers.IO) { ensureEnglishDictionaryLoaded() }
         }
 
+        val touch = lastTouchCoordinates
+        lastTouchCoordinates = null
         val result = try {
-            session.processKey(keyToken)
+            if (touch != null) {
+                session.processKeyWithTouch(keyToken, touch.first, touch.second)
+            } else {
+                session.processKey(keyToken)
+            }
         } catch (e: LekhaniException) {
             Log.e(TAG, "processKey error for '$keyToken': $e")
             return
@@ -2185,6 +2202,21 @@ class LekhaniInputMethodService : InputMethodService() {
             }
             withContext(Dispatchers.Default) {
                 session.setContext(contextText)
+                // Asynchronous background next-word prediction: keep UI thread 120 FPS
+                if (preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && contextText.isNotBlank()) {
+                    val nextWords = try {
+                        session.predictNextWords(5u)
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                    if (nextWords.isNotEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            if (preeditShadow.isEmpty() && rawInputBuffer.isEmpty()) {
+                                publishCandidates(nextWords)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
