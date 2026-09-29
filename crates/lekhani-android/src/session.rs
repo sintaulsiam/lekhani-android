@@ -7,6 +7,8 @@ use crate::probaho::{get_conjunct_suggestions, nfc_normalize, promote_kar_if_nee
 
 static CORE_DB: OnceLock<PhoneticDatabase> = OnceLock::new();
 static CUSTOM_DICT_DIR: OnceLock<String> = OnceLock::new();
+static CONTEXT_SCORER: OnceLock<lekhani_ai::ContextScorer> = OnceLock::new();
+static NEXT_WORD_PREDICTOR: OnceLock<lekhani_ai::NextWordPredictor> = OnceLock::new();
 
 /// Sets a custom dictionary directory dynamically from Android application context.
 #[uniffi::export]
@@ -42,6 +44,43 @@ pub fn get_core_database() -> &'static PhoneticDatabase {
             }
         }
         db
+    })
+}
+
+pub fn get_context_scorer() -> &'static lekhani_ai::ContextScorer {
+    CONTEXT_SCORER.get_or_init(|| {
+        let mut lm = lekhani_ai::LanguageModel::new();
+        if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
+            let path = std::path::Path::new(custom_dir).join("bengali_lm.bin");
+            if path.is_file() && lm.load_binary_file(&path).is_ok() {
+                return lekhani_ai::ContextScorer::with_language_model(lm);
+            }
+        }
+        let candidate_dirs = [
+            std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries"),
+            std::path::Path::new("/data/data/com.lekhani.android.debug/files/dictionaries"),
+            std::path::Path::new("/data/user/0/com.lekhani.android/files/dictionaries"),
+            std::path::Path::new("/data/user/0/com.lekhani.android.debug/files/dictionaries"),
+            std::path::Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),
+            std::path::Path::new("/data/user_de/0/com.lekhani.android.debug/files/dictionaries"),
+            std::path::Path::new("./data/dictionaries"),
+            std::path::Path::new("../data/dictionaries"),
+            std::path::Path::new("../../data/dictionaries"),
+        ];
+        for dir in candidate_dirs {
+            let path = dir.join("bengali_lm.bin");
+            if path.is_file() && lm.load_binary_file(&path).is_ok() {
+                break;
+            }
+        }
+        lekhani_ai::ContextScorer::with_language_model(lm)
+    })
+}
+
+pub fn get_next_word_predictor() -> &'static lekhani_ai::NextWordPredictor {
+    NEXT_WORD_PREDICTOR.get_or_init(|| {
+        let scorer = get_context_scorer();
+        lekhani_ai::NextWordPredictor::with_language_model(scorer.lm().clone())
     })
 }
 
@@ -102,7 +141,7 @@ fn get_bengali_next_words(context: &str) -> Vec<String> {
     }
 
     // 2. Idioms and Statistical N-gram predictions
-    let predictor = lekhani_ai::NextWordPredictor::new();
+    let predictor = get_next_word_predictor();
     let predictions = predictor.predict_next(&words, 5);
     for pred in predictions {
         if !results.contains(&pred) {
@@ -266,7 +305,7 @@ impl AndroidLekhaniSession {
                 }
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                    let scorer = lekhani_ai::ContextScorer::new();
+                    let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
 
@@ -284,7 +323,7 @@ impl AndroidLekhaniSession {
                 let (preedit, mut candidates) = crate::avro::transliterate_avro(&state.composing_buffer);
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                    let scorer = lekhani_ai::ContextScorer::new();
+                    let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
                 let len = preedit.graphemes(true).count() as u32;
@@ -403,7 +442,7 @@ impl AndroidLekhaniSession {
 
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                    let scorer = lekhani_ai::ContextScorer::new();
+                    let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
 
@@ -445,7 +484,7 @@ impl AndroidLekhaniSession {
                 }
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                    let scorer = lekhani_ai::ContextScorer::new();
+                    let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
                 let len = state.composing_buffer.graphemes(true).count() as u32;
@@ -485,7 +524,7 @@ impl AndroidLekhaniSession {
                 let (_preedit, mut candidates) = crate::avro::transliterate_avro(&raw_token);
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                    let scorer = lekhani_ai::ContextScorer::new();
+                    let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
 
@@ -579,7 +618,7 @@ impl AndroidLekhaniSession {
 
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                    let scorer = lekhani_ai::ContextScorer::new();
+                    let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
 
