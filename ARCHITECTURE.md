@@ -80,7 +80,11 @@ Lekhani Android introduces a spatial touch model:
 ## 4. Cold-Boot & Memory Constraints
 
 - **Cold Boot Time**: Target **< 40 ms**. Achieved because the Avro grammar Trie is compiled into `.rodata` at build time (no runtime JSON parsing).
-- **RSS Budget**: Max **35 MB** heap usage under high memory pressure.
+- **Tiered Memory Budget**:
+  - **Idle / Background**: `< 30 MB` Private Dirty RAM.
+  - **Active Typing**: `< 55 MB` Private Dirty RAM (< 80 MB Total RSS with clean zero-copy `mmap` pages) for 4-gram LM, bilingual tries, and spatial touch matrices.
+  - **Voice ASR Active**: `< 95 MB` Ephemeral Peak (streaming offline acoustic weights, auto-freed after 30s idle).
+  - Low-RAM devices (`isLowRamDevice`) fall back to compact pruned profiles (< 35 MB).
 - **Battery Impact**: Zero background CPU wake-locks. When the keyboard is dismissed, all threads sleep.
 
 ---

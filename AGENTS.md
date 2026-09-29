@@ -17,7 +17,11 @@ Any proposed change that violates these principles will be rejected immediately:
    - Keyboard canvas must render at a sustained **120 FPS** (frame budget: < 8.3 ms).
    - Zero runtime memory allocations (`malloc` / object instantiation) inside the hot path: `onDraw()`, `onTouchEvent()`, or `process_key()`.
    - Cold boot time to first interactive frame must stay **under 40 ms**.
-   - Resident Set Size (RSS) memory footprint must stay **under 35 MB** under peak typing load.
+   - **Tiered Memory Budget (Android LMK Resilient)**:
+     - **Idle / Background**: **< 30 MB** Private Dirty RAM.
+     - **Active Typing**: **< 55 MB** Private Dirty RAM (< 80 MB Total RSS including clean zero-copy `mmap` pages) for rich 4-gram LM, bilingual tries, and spatial touch matrices.
+     - **Voice ASR Active**: **< 95 MB** Ephemeral Peak (offline streaming acoustic weights, auto-freed after 30s idle).
+     - **Device Adaptive**: Low-RAM devices (`isLowRamDevice`) fall back to compact pruned profiles (< 35 MB).
 3. **Canonical Unicode & Script Integrity**:
    - Text committed to Android `InputConnection` must always be canonical Unicode (NFC).
    - Never corrupt Bengali grapheme clusters, conjuncts (`ক্ষ`, `জ্ঞ`, etc.), or modifier diacritics.

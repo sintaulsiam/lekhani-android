@@ -81,7 +81,7 @@ Lekhani is partitioned into three specialized repositories:
 
 ### Phase C: Phase 12 Completion & Store Launch (Android)
 - [ ] **Latency & Resource Profiling**:
-  - Measure against AGENTS.md §1 budgets: `< 3 ms` touch-to-screen latency, `< 40 ms` cold boot, and `< 35 MB` peak RSS.
+  - Measure against AGENTS.md §1 budgets: `< 3 ms` touch-to-screen latency, `< 40 ms` cold boot, and tiered memory budget (`< 55 MB` active typing private dirty, `< 95 MB` ASR ephemeral peak).
 - [ ] **Automated Integration Tests**:
   - Run instrumented test matrix across Android API levels (24 to 34+).
 - [ ] **F-Droid Recipe**:
