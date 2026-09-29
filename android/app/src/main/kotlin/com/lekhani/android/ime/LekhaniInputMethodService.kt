@@ -253,6 +253,14 @@ class LekhaniInputMethodService : InputMethodService() {
         // Unpack bundled offline dictionaries and layouts to application storage
         try {
             LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
+            val dictDir = File(filesDir, "dictionaries")
+            if (dictDir.exists()) {
+                try {
+                    com.lekhani.android.ffi.setDictionaryDirectory(dictDir.absolutePath)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to set custom dictionary dir: ${e.message}")
+                }
+            }
             ensureEnglishDictionaryLoaded()
         } catch (e: Exception) {
             Log.e(TAG, "Error installing offline assets: ${e.message}")
@@ -2227,13 +2235,18 @@ class LekhaniInputMethodService : InputMethodService() {
                     ""
                 }
             }
+            val effectiveContext = if (contextText.isNotBlank()) contextText else cachedSurroundingContext
             if (contextText.isNotEmpty()) {
                 cachedSurroundingContext = contextText
             }
             withContext(Dispatchers.Default) {
-                session.setContext(contextText)
+                // Only overwrite session context if IPC returned genuine text;
+                // never erase valid shadow context accumulated from committed words.
+                if (contextText.isNotEmpty()) {
+                    session.setContext(contextText)
+                }
                 // Asynchronous background next-word prediction: keep UI thread 120 FPS
-                if (preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && contextText.isNotBlank()) {
+                if (preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && effectiveContext.isNotBlank()) {
                     val nextWords = try {
                         session.predictNextWords(5u)
                     } catch (_: Exception) {

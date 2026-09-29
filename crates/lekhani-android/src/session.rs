@@ -1356,6 +1356,39 @@ mod tests {
         assert_eq!(res_shirt.candidates.first().map(|s| s.as_str()), Some("পরা"));
         let commit_shirt = session.handle_space().unwrap();
         assert_eq!(commit_shirt.commit_text, Some("পরা ".into()));
+
+        // 3. Continuous typing without manual set_context: "boi" -> [space] -> "pora"
+        let session2 = AndroidLekhaniSession::new();
+        session2.set_layout(LekhaniLayoutType::Avro);
+        session2.process_key("b".into()).unwrap();
+        session2.process_key("o".into()).unwrap();
+        session2.process_key("i".into()).unwrap();
+        let sp = session2.handle_space().unwrap();
+        assert_eq!(sp.commit_text, Some("বই ".into()));
+        session2.process_key("p".into()).unwrap();
+        session2.process_key("o".into()).unwrap();
+        session2.process_key("r".into()).unwrap();
+        let res_cont = session2.process_key("a".into()).unwrap();
+        println!("Continuous boi -> pora: preedit={}, candidates={:?}", res_cont.preedit, res_cont.candidates);
+        assert_eq!(res_cont.preedit, "পড়া");
+
+        // 4. Continuous typing: "shirt" -> [space] -> "pora"
+        let session3 = AndroidLekhaniSession::new();
+        session3.set_layout(LekhaniLayoutType::Avro);
+        session3.process_key("s".into()).unwrap();
+        session3.process_key("h".into()).unwrap();
+        session3.process_key("i".into()).unwrap();
+        session3.process_key("r".into()).unwrap();
+        session3.process_key("t".into()).unwrap();
+        let sp3 = session3.handle_space().unwrap();
+        println!("shirt handle_space: commit_text={:?}", sp3.commit_text);
+        assert_eq!(sp3.commit_text, Some("শার্ট ".into()));
+        session3.process_key("p".into()).unwrap();
+        session3.process_key("o".into()).unwrap();
+        session3.process_key("r".into()).unwrap();
+        let res_shirt_pora = session3.process_key("a".into()).unwrap();
+        println!("Continuous shirt -> pora: preedit={}, candidates={:?}", res_shirt_pora.preedit, res_shirt_pora.candidates);
+        assert_eq!(res_shirt_pora.preedit, "পরা");
     }
 
     #[test]
