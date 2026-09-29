@@ -81,6 +81,14 @@
   - Conversational next-word bigram predictive pairs.
   - Unit tests in `english.rs` and `session.rs` passing cleanly.
 - [x] Unit test suite (`HomophoneAnnotatorTest.kt`) covering pair detection, reverse mappings, and primary selection.
+- [x] **Dual-Speed Hybrid AI Architecture (v2.1 Supercharged Intelligence)**:
+  - **Bivariate Gaussian Spatial Touch Correction** (`spatial.rs`): Precomputed inverse covariance matrices and log-determinants in `onSizeChanged` providing fat-finger boundary correction with zero allocations.
+  - **Sentence-Boundary Context Reset**: Context truncation on punctuation (`।`, `?`, `!`, `\n`) preventing stale cross-sentence n-gram contamination.
+  - **Zero-Allocation Hot-Vocab Personal Overlay**: 4096-slot FNV-1a direct hash table with Ebbinghaus exponential recency decay ($\lambda = 0.05$, $3\times$ boost in 24h).
+  - **Revert-on-Backspace Signal**: Instant mistake penalty on backspace within 1500ms of spacebar commit.
+  - **Asynchronous Micro-Neural Predictor Worker**: Background coroutine dispatch (`predictNextWords`) on Spacebar and typing pauses, preserving 120 FPS UI frame budget.
+  - **Zero-Allocation Beam Search Arena**: Parent-pointer node arena eliminating inner-loop heap allocations during transliteration decoding.
+
 
 ---
 
