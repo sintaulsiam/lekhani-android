@@ -10,12 +10,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -130,8 +133,12 @@ fun EmojiPickerView(
     val textColor = Color(theme.labelColor)
     val borderColor = Color(theme.keyBorderColor)
 
+    val tabScrollState = rememberScrollState()
+    var currentCategoryIdx by remember { mutableIntStateOf(0) }
+    var pendingScrollCategory by remember { mutableStateOf<Int?>(null) }
+
     // Precalculate category indices for continuous jump scrolling (without headers)
-    val categoryScrollOffsets = remember {
+    val categoryScrollOffsets = remember(EmojiData.categories) {
         val offsets = mutableListOf<Int>()
         var runningCount = 0
         EmojiData.categories.forEach { cat ->
@@ -141,11 +148,49 @@ fun EmojiPickerView(
         offsets
     }
 
-    val activeCategoryIndex by remember {
-        derivedStateOf {
+    // When user manually scrolls the emoji grid, update currentCategoryIdx
+    LaunchedEffect(gridState.firstVisibleItemIndex, gridState.isScrollInProgress) {
+        if (gridState.isScrollInProgress) {
             val firstVisible = gridState.firstVisibleItemIndex
             val index = categoryScrollOffsets.indexOfLast { it <= firstVisible }
-            if (index >= 0) index else 0
+            if (index >= 0 && index < EmojiData.categories.size) {
+                currentCategoryIdx = index
+            }
+        }
+    }
+
+    // Auto-scroll the top tab bar to keep the active category in view
+    LaunchedEffect(currentCategoryIdx, selectedTabIdx) {
+        if (selectedTabIdx == 1) {
+            val density = view.resources.displayMetrics.density
+            val approxTabWidthPx = (46f * density).toInt()
+            val targetScroll = (currentCategoryIdx * approxTabWidthPx) - (view.width / 3).coerceAtLeast(0)
+            tabScrollState.animateScrollTo(targetScroll.coerceAtLeast(0))
+        }
+    }
+
+    // Handle jump to category (including switching from Recents / Kaomoji / Symbols)
+    val onCategoryClick = { catIndex: Int ->
+        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        currentCategoryIdx = catIndex
+        if (selectedTabIdx != 1) {
+            pendingScrollCategory = catIndex
+            selectedTabIdx = 1
+        } else {
+            val targetOffset = categoryScrollOffsets.getOrElse(catIndex) { 0 }
+            coroutineScope.launch {
+                gridState.scrollToItem(targetOffset)
+            }
+        }
+    }
+
+    // When switching from another tab into emojis, execute the pending category scroll once grid is mounted
+    LaunchedEffect(selectedTabIdx, pendingScrollCategory) {
+        if (selectedTabIdx == 1 && pendingScrollCategory != null) {
+            val targetCat = pendingScrollCategory!!
+            pendingScrollCategory = null
+            val targetOffset = categoryScrollOffsets.getOrElse(targetCat) { 0 }
+            gridState.scrollToItem(targetOffset)
         }
     }
 
@@ -160,12 +205,12 @@ fun EmojiPickerView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(34.dp)
+                .height(38.dp)
                 .background(tabBarBg)
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 6.dp, vertical = 2.dp),
+                .horizontalScroll(tabScrollState)
+                .padding(horizontal = 4.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             // Tab 0: Recents (Schedule clock icon)
             TabItem(
@@ -187,17 +232,10 @@ fun EmojiPickerView(
 
             // Tab 1..N: Standard Categories with Theme-Aware Vector Icons
             EmojiData.categories.forEachIndexed { index, cat ->
-                val isCatSelected = (selectedTabIdx == 1 && activeCategoryIndex == index)
+                val isCatSelected = (selectedTabIdx == 1 && currentCategoryIdx == index)
                 TabItem(
                     isSelected = isCatSelected,
-                    onClick = {
-                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        selectedTabIdx = 1
-                        val targetOffset = categoryScrollOffsets.getOrElse(index) { 0 }
-                        coroutineScope.launch {
-                            gridState.scrollToItem(targetOffset)
-                        }
-                    },
+                    onClick = { onCategoryClick(index) },
                     desc = cat.title,
                     activePill = activeTabPill,
                 ) {
@@ -286,7 +324,7 @@ fun EmojiPickerView(
                     LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Adaptive(minSize = 40.dp),
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
+                        contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 260.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         EmojiData.categories.forEach { cat ->
@@ -571,10 +609,15 @@ private fun TabItem(
 ) {
     Box(
         modifier = Modifier
-            .height(28.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .fillMaxHeight()
+            .defaultMinSize(minWidth = 38.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(if (isSelected) activePill else Color.Transparent)
-            .clickable { onClick() }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
             .padding(horizontal = 9.dp, vertical = 4.dp)
             .semantics { contentDescription = desc },
         contentAlignment = Alignment.Center,
