@@ -176,6 +176,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var isEnglishDictLoaded: Boolean = false
     private var previousLayoutBeforePassword: LekhaniLayoutType? = null
     private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var layoutPrefListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
     private var lastMeasuredKeyboardHeightPx: Int = 0
     private var lastTouchCoordinates: Pair<Float, Float>? = null
 
@@ -287,6 +288,19 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         clipboardListener = listener
         sysClipboard?.addPrimaryClipChangedListener(listener)
+
+        // Listen for layout changes from Settings (e.g. LayoutFlowScreen card tap)
+        val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
+            if (key == PREF_LAYOUT) {
+                val newName = sp.getString(key, null)
+                val newLayout = newName?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
+                if (newLayout != null && session.getLayout() != newLayout) {
+                    switchLayout(newLayout)
+                }
+            }
+        }
+        layoutPrefListener = prefListener
+        devicePrefs.registerOnSharedPreferenceChangeListener(prefListener)
     }
 
     /**
@@ -316,6 +330,10 @@ class LekhaniInputMethodService : InputMethodService() {
             val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
             sysClipboard?.removePrimaryClipChangedListener(listener)
             clipboardListener = null
+        }
+        layoutPrefListener?.let { listener ->
+            devicePrefs.unregisterOnSharedPreferenceChangeListener(listener)
+            layoutPrefListener = null
         }
         // Persist learned data asynchronously while scope is still active; the scope
         // cancellation below will wait for the child coroutine to finish before tearing down.
@@ -1529,7 +1547,13 @@ class LekhaniInputMethodService : InputMethodService() {
             } finally {
                 ic.endBatchEdit()
             }
-            clearCandidates()
+            // Publish next-word candidates immediately if the engine returned them,
+            // so the strip cross-fades instead of collapsing then re-expanding (jitter fix).
+            if (result.candidates.isNotEmpty()) {
+                publishCandidates(result.candidates)
+            } else {
+                clearCandidates()
+            }
         } ?: run {
             setComposingTextSafe(ic, result.preedit)
             publishCandidates(result.candidates)
@@ -1546,14 +1570,9 @@ class LekhaniInputMethodService : InputMethodService() {
         val ic = currentInputConnection ?: return
         ensureCursorInComposingRegion(ic)
 
-        // 0. Revert-on-Backspace: If we have an active undo from a recent space/autocorrect,
-        // revert the committed word back to verbatim raw input.
-        if (!session.isComposing() && activeUndoInfo != null) {
-            val undo = activeUndoInfo!!
-            onUndoCommit(undo)
-            return
-        }
-
+        // Backspace does NOT revert a committed word — that is a destructive UX surprise,
+        // especially in Avro where the "original" text is raw Roman (e.g. "ami" → "আমি ").
+        // Undo is only available via the explicit Undo chip shown in the candidate strip.
         clearUndo()
 
         // 1. If text is selected in the target app, delete the selection immediately.
@@ -1947,15 +1966,20 @@ class LekhaniInputMethodService : InputMethodService() {
             scheduleUndoExpiry()
         }
         val filtered = raw.filter { !blacklist.isBlacklisted(it) }
-        _candidateState.value = if (filtered.isEmpty()) {
-            if (undo != null) {
-                CandidateStripState.Undo(undo)
-            } else {
-                CandidateStripState.Empty
-            }
+        val newState = if (filtered.isEmpty()) {
+            if (undo != null) CandidateStripState.Undo(undo) else CandidateStripState.Empty
         } else {
             CandidateStripState.Candidates(HomophoneAnnotator.annotate(filtered), undoInfo = undo)
         }
+        // Skip redundant emission: if the candidate texts haven't changed, don't trigger
+        // a Compose recomposition — this is the primary cause of the per-keystroke jitter.
+        val cur = _candidateState.value
+        if (newState is CandidateStripState.Candidates && cur is CandidateStripState.Candidates
+            && newState.items.map { it.text } == cur.items.map { it.text }
+            && newState.undoInfo == cur.undoInfo) {
+            return
+        }
+        _candidateState.value = newState
         updateCandidatesVisibility()
     }
 

@@ -261,6 +261,27 @@ fun LekhaniSettingsScreen(
             )
         }
 
+        // Live synchronization: updates active layout when user swipes spacebar in IME
+        DisposableEffect(showLayoutFlowScreen) {
+            val listener = SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
+                if (key == LayoutRegistry.PREF_ACTIVE_LAYOUT) {
+                    val name = sp.getString(key, null)
+                    val updated = try {
+                        if (name != null) LekhaniLayoutType.valueOf(name) else LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
+                    } catch (_: Exception) {
+                        LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
+                    }
+                    if (flowActiveLayout != updated) {
+                        flowActiveLayout = updated
+                    }
+                }
+            }
+            prefs.registerOnSharedPreferenceChangeListener(listener)
+            onDispose {
+                prefs.unregisterOnSharedPreferenceChangeListener(listener)
+            }
+        }
+
         LayoutFlowScreen(
             enabledLayouts = flowEnabledLayouts,
             activeLayout = flowActiveLayout,

@@ -158,7 +158,14 @@ fun CandidateStripView(
         AnimatedContent(
             targetState = displayMode,
             transitionSpec = {
-                fadeIn(animationSpec = tween(90)) togetherWith fadeOut(animationSpec = tween(90))
+                // Only animate when actually switching between major modes (toolbar ⇔ candidates).
+                // When updating candidates list within the same mode (1→1), use a fast cross-fade
+                // so the strip never visually collapses between keystrokes.
+                if (initialState == 1 && targetState == 1) {
+                    fadeIn(animationSpec = tween(40)) togetherWith fadeOut(animationSpec = tween(40))
+                } else {
+                    fadeIn(animationSpec = tween(80)) togetherWith fadeOut(animationSpec = tween(80))
+                }
             },
             label = "CandidateStripModeTransition"
         ) { mode ->
@@ -496,7 +503,10 @@ private fun StripContent(
     theme: KeyboardTheme,
 ) {
     val scrollState = rememberScrollState()
-    LaunchedEffect(items) {
+    // Only reset scroll when the PRIMARY candidate changes (new word being typed),
+    // not on every keystroke that updates secondary candidates — avoids scroll jitter.
+    val primaryKey = items.firstOrNull()?.text
+    LaunchedEffect(primaryKey) {
         scrollState.scrollTo(0)
     }
 

@@ -168,6 +168,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation("sh.calvin.reorderable:reorderable:2.4.0")
 
     // UniFFI JNA runtime — required by the generated Kotlin bindings to load
     // liblekhani_android.so from the jniLibs directory.

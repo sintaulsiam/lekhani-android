@@ -11,12 +11,15 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,8 +31,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,10 +39,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -49,10 +52,10 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,10 +64,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -74,7 +77,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,6 +86,8 @@ import androidx.compose.ui.unit.sp
 import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.model.LayoutRegistry
 import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Per-layout gradient palette + hint character
@@ -107,12 +112,14 @@ private fun layoutCardStyle(type: LekhaniLayoutType): LayoutCardStyle = when (ty
 // LayoutFlowScreen
 // ─────────────────────────────────────────────────────────────────────────────
 /**
- * Layout Flow screen — Swipe Rail redesign.
+ * Layout Flow screen — Modern gesture-native layout manager.
  *
- * A single horizontal rail of layout chips represents the spacebar swipe order.
- * Center chip = Home (opens first). Tap any chip to make it Home.
- * Long-press a chip for reorder (move left / move right) via a context menu.
- * No carousel. No redundant list. One mental model.
+ * - Live synchronized with the active IME layout.
+ * - Drag-and-drop reordering with tactile haptic feedback.
+ * - Clean credit-card styled chips with top-right watermark and zero text collision.
+ * - Uniform height and crisp alignment across all cards.
+ * - Zero redundant text strips or walls of tutorial text.
+ * - Overflow menu for help and reset actions.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,25 +135,18 @@ fun LayoutFlowScreen(
 ) {
     BackHandler { onBack() }
 
-    val haptic         = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptic          = LocalHapticFeedback.current
     var showResetDialog by rememberSaveable { mutableStateOf(false) }
-    var showHelp        by rememberSaveable { mutableStateOf(false) }
+    var showHelp         by rememberSaveable { mutableStateOf(false) }
+    var showOverflow     by remember { mutableStateOf(false) }
 
-    val activeIndex = remember(activeLayout, enabledLayouts) {
-        enabledLayouts.indexOf(activeLayout).coerceAtLeast(0)
-    }
+    val activeName = if (isEnglish)
+        LayoutRegistry.getEnglishName(activeLayout)
+    else
+        LayoutRegistry.getBengaliName(activeLayout)
 
-    // Helper: swap two positions in the layout list
-    fun moveLayout(from: Int, to: Int) {
-        if (from in enabledLayouts.indices && to in enabledLayouts.indices && from != to) {
-            val list = enabledLayouts.toMutableList()
-            list.add(to, list.removeAt(from))
-            onLayoutsReordered(list)
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        }
-    }
+    val activeStyle = layoutCardStyle(activeLayout)
 
-    // ─────────────────────────────────────────────────────────────────────────
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -165,14 +165,52 @@ fun LayoutFlowScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showHelp = !showHelp }) {
+                    IconButton(onClick = { showOverflow = true }) {
                         Icon(
-                            Icons.AutoMirrored.Filled.HelpOutline,
-                            contentDescription = if (isEnglish) "Help" else "সাহায্য",
-                            tint = if (showHelp)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            Icons.Filled.MoreVert,
+                            contentDescription = if (isEnglish) "More" else "আরও",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showOverflow,
+                        onDismissRequest = { showOverflow = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(if (isEnglish) "How it works" else "কীভাবে কাজ করে")
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.HelpOutline,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
+                            onClick = {
+                                showHelp = !showHelp
+                                showOverflow = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = if (isEnglish) "Reset layout order" else "ক্রম রিসেট করুন",
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Filled.RestartAlt,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            onClick = {
+                                showResetDialog = true
+                                showOverflow = false
+                            },
                         )
                     }
                 },
@@ -190,8 +228,7 @@ fun LayoutFlowScreen(
                 .padding(innerPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-
-            // ── Inline help card ──────────────────────────────────────────────
+            // ── Inline help card (expandable) ─────────────────────────────────
             AnimatedVisibility(
                 visible = showHelp,
                 enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
@@ -206,202 +243,181 @@ fun LayoutFlowScreen(
                     modifier   = Modifier.weight(1f),
                 )
             } else {
+                Spacer(Modifier.height(4.dp))
 
-                // ── Hero: active layout display ───────────────────────────────
-                val activeName = if (isEnglish)
-                    LayoutRegistry.getEnglishName(activeLayout)
-                else
-                    LayoutRegistry.getBengaliName(activeLayout)
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                // ── Hero: Active layout status banner ─────────────────────────
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    border = BorderStroke(1.dp, activeStyle.gradientStart.copy(alpha = 0.35f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
                 ) {
-                    // "Default Layout" badge
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = if (isEnglish) "Default Layout" else "ডিফল্ট লেআউট",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 0.04.sp,
-                            ),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        // Leading dot
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(activeStyle.gradientStart),
                         )
+
+                        // Name + subtitle (fill remaining space, push pill to right)
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 10.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                AnimatedContent(
+                                    targetState = activeName,
+                                    transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(150)) },
+                                    label = "activeHeroName",
+                                ) { name ->
+                                    Text(
+                                        text = name,
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = activeStyle.gradientStart.copy(alpha = 0.22f),
+                                ) {
+                                    Text(
+                                        text = activeStyle.typeLabel,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 8.5.sp,
+                                            letterSpacing = 0.5.sp,
+                                        ),
+                                        color = Color.White.copy(alpha = 0.9f),
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                    )
+                                }
+                            }
+                            Text(
+                                text = if (isEnglish) "Active · swipe spacebar to switch" else "চালু · স্পেসবারে সোয়াইপ করে পরিবর্তন করুন",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+
+                        // ACTIVE pill — fixed width, never clips
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                            modifier = Modifier.padding(start = 8.dp),
+                        ) {
+                            Text(
+                                text = if (isEnglish) "ACTIVE" else "চালু",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp,
+                                    letterSpacing = 0.5.sp,
+                                ),
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                maxLines = 1,
+                            )
+                        }
                     }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    // Animated layout name
-                    AnimatedContent(
-                        targetState = activeName,
-                        transitionSpec = {
-                            fadeIn(tween(200)) togetherWith fadeOut(tween(150))
-                        },
-                        label = "activeName",
-                    ) { name ->
-                        Text(
-                            text = name,
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-
-                    Spacer(Modifier.height(4.dp))
-
-                    Text(
-                        text = if (isEnglish)
-                            "Opens first when you tap a text field"
-                        else
-                            "টেক্সট ফিল্ডে ট্যাপ করলে এটি প্রথমে খুলবে",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
                 }
 
-                HorizontalDivider(
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
+                Spacer(Modifier.height(12.dp))
 
-                Spacer(Modifier.height(20.dp))
-
-                // ── Section header ────────────────────────────────────────────
+                // ── Section header with vector drag icon ──────────────────────
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        text = if (isEnglish) "Spacebar Swipe Order" else "স্পেসবার সোয়াইপ ক্রম",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold,
-                        ),
+                        text = if (isEnglish) "Swipe Sequence" else "সোয়াইপ ক্রম",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
-                    Text(
-                        text = if (isEnglish) "long-press to reorder" else "চেপে ধরুন সাজাতে",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                    )
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                // ── Direction labels ──────────────────────────────────────────
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            Icons.Filled.DragIndicator,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                         )
                         Text(
-                            text = if (isEnglish) "Swipe Left: Prev" else "বামে সোয়াইপ: পূর্ববর্তী",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = if (isEnglish) "Next: Swipe Right" else "পরবর্তী: ডানে সোয়াইপ",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Icon(
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
+                            text = if (isEnglish) "Hold & drag to reorder" else "চেপে ধরে সাজান",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                         )
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(6.dp))
 
-                // ── Swipe Rail ────────────────────────────────────────────────
+                // ── Swipe Rail with Drag-and-Drop & Live Active Sync ──────────
                 SwipeRail(
                     layouts      = enabledLayouts,
-                    activeIndex  = activeIndex,
+                    activeLayout = activeLayout,
                     isEnglish    = isEnglish,
                     onSetDefault = { type ->
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onActiveLayoutChanged(type)
                     },
-                    onMoveLeft   = { idx -> moveLayout(idx, idx - 1) },
-                    onMoveRight  = { idx -> moveLayout(idx, idx + 1) },
+                    onReordered  = onLayoutsReordered,
                 )
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(20.dp))
 
-                // ── Live Typing & Gesture Sandbox ─────────────────────────────
+                // ── "Try it here" Sandbox Card ────────────────────────────────
                 var sandboxText by remember { mutableStateOf("") }
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = androidx.compose.material3.CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f),
+                    ),
+                    border = BorderStroke(
+                        width = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
                     ),
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                text = if (isEnglish) "Live Typing Sandbox" else "লাইভ টাইপিং পরীক্ষা",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                            ) {
-                                Text(
-                                    text = if (isEnglish) "Active: $activeName" else "চালু: $activeName",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                )
-                            }
-                        }
+                        Text(
+                            text = if (isEnglish) "Try it here" else "এখানে পরীক্ষা করুন",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
 
-                        androidx.compose.material3.OutlinedTextField(
+                        OutlinedTextField(
                             value = sandboxText,
                             onValueChange = { sandboxText = it },
                             placeholder = {
                                 Text(
-                                    text = if (isEnglish) "Tap here & swipe spacebar to test..." else "এখানে ট্যাপ করে স্পেসবার সোয়াইপ করুন...",
+                                    text = if (isEnglish)
+                                        "Tap here & swipe spacebar to test..."
+                                    else
+                                        "এখানে ট্যাপ করে স্পেসবার সোয়াইপ করুন...",
                                     fontSize = 13.sp,
                                 )
                             },
@@ -418,39 +434,31 @@ fun LayoutFlowScreen(
                                         )
                                     }
                                 }
-                            }
+                            },
                         )
 
-                        Text(
-                            text = if (isEnglish)
-                                "💡 Swipe thumb across the spacebar while typing to seamlessly switch between your selected layouts."
-                            else
-                                "💡 টাইপ করার সময় স্পেসবারে সোয়াইপ করলেই পরপর আপনার পছন্দের লেআউটগুলো বদলাবে।",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                        )
+                        // ── Minimalist gesture indicator caption with vector icon ─
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.padding(top = 2.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.SwapHoriz,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = if (isEnglish)
+                                    "Swipe spacebar left or right to switch layouts"
+                                else
+                                    "লেআউট পরিবর্তন করতে স্পেসবারে বামে বা ডানে সোয়াইপ করুন",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            )
+                        }
                     }
-                }
-
-                Spacer(Modifier.weight(1f))
-
-                // ── Reset text link ───────────────────────────────────────────
-                TextButton(
-                    onClick = { showResetDialog = true },
-                    modifier = Modifier.padding(bottom = 12.dp),
-                ) {
-                    Icon(
-                        Icons.Filled.RestartAlt,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = if (isEnglish) "Reset to defaults" else "ডিফল্টে ফিরুন",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                    )
                 }
             }
         }
@@ -496,157 +504,109 @@ fun LayoutFlowScreen(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SwipeRail — horizontal scrollable chip row
+// SwipeRail — Drag-and-drop horizontal reorderable rail
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun SwipeRail(
     layouts: List<LekhaniLayoutType>,
-    activeIndex: Int,
+    activeLayout: LekhaniLayoutType,
     isEnglish: Boolean,
     onSetDefault: (LekhaniLayoutType) -> Unit,
-    onMoveLeft: (Int) -> Unit,
-    onMoveRight: (Int) -> Unit,
+    onReordered: (List<LekhaniLayoutType>) -> Unit,
 ) {
-    val listState   = rememberLazyListState()
-    val scope       = rememberCoroutineScope()
+    var localLayouts by remember(layouts) { mutableStateOf(layouts) }
+    val listState = rememberLazyListState()
+    val scope     = rememberCoroutineScope()
+    val haptic    = LocalHapticFeedback.current
 
-    // Scroll rail so the home chip is visible when activeIndex changes
-    LaunchedEffect(activeIndex) {
-        if (activeIndex in layouts.indices) {
-            scope.launch { listState.animateScrollToItem(activeIndex) }
+    val currentLocalLayouts by rememberUpdatedState(localLayouts)
+    val currentOnReordered  by rememberUpdatedState(onReordered)
+
+    // Smooth scroll to active item whenever it changes (e.g. via spacebar swipe)
+    LaunchedEffect(activeLayout) {
+        val targetIdx = localLayouts.indexOf(activeLayout)
+        if (targetIdx in localLayouts.indices) {
+            scope.launch { listState.animateScrollToItem(targetIdx) }
         }
     }
 
+    val reorderState = rememberReorderableLazyListState(
+        lazyListState = listState,
+        onMove = { from, to ->
+            localLayouts = localLayouts.toMutableList().apply {
+                add(to.index, removeAt(from.index))
+            }
+        },
+    )
+
     LazyRow(
-        state            = listState,
-        contentPadding   = PaddingValues(horizontal = 20.dp),
+        state                 = listState,
+        contentPadding        = PaddingValues(start = 20.dp, end = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier         = Modifier.fillMaxWidth(),
+        modifier              = Modifier.fillMaxWidth(),
     ) {
-        itemsIndexed(layouts, key = { _, type -> type }) { index, type ->
-            val isHome = (index == activeIndex)
-            var showMenu by remember { mutableStateOf(false) }
+        itemsIndexed(localLayouts, key = { _, type -> type }) { _, type ->
+            val isActive = (type == activeLayout)
 
-            val chipWidth by animateDpAsState(
-                targetValue  = if (isHome) 124.dp else 112.dp,
-                animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                label        = "chipWidth_$index",
-            )
-            val chipHeight by animateDpAsState(
-                targetValue  = if (isHome) 86.dp else 78.dp,
-                animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                label        = "chipHeight_$index",
-            )
-            val chipAlpha by animateFloatAsState(
-                targetValue  = if (isHome) 1f else 0.75f,
-                animationSpec = tween(220),
-                label        = "chipAlpha_$index",
-            )
-            val chipScale by animateFloatAsState(
-                targetValue  = if (isHome) 1f else 0.95f,
-                animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                label        = "chipScale_$index",
-            )
-
-            Box(modifier = Modifier.wrapContentSize()) {
-                LayoutChip(
-                    type      = type,
-                    isHome    = isHome,
-                    isEnglish = isEnglish,
-                    width     = chipWidth,
-                    height    = chipHeight,
-                    alpha     = chipAlpha,
-                    scale     = chipScale,
-                    onTap     = { if (!isHome) onSetDefault(type) },
-                    onLongPress = { showMenu = true },
+            ReorderableItem(reorderState, key = type) { isDragging ->
+                val elevation by animateDpAsState(
+                    targetValue = if (isDragging) 10.dp else 0.dp,
+                    label       = "elevation_$type",
+                )
+                val scale by animateFloatAsState(
+                    targetValue   = if (isDragging) 1.06f else if (isActive) 1.02f else 1f,
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                    label         = "scale_$type",
+                )
+                val chipWidth by animateDpAsState(
+                    targetValue   = if (isActive) 116.dp else 104.dp,
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                    label         = "chipWidth_$type",
                 )
 
-                // Context menu: reorder actions
-                DropdownMenu(
-                    expanded         = showMenu,
-                    onDismissRequest = { showMenu = false },
-                ) {
-                    if (index > 0) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = if (isEnglish) "← Move Left" else "← বামে সরান",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onMoveLeft(index)
-                            },
-                        )
-                    }
-                    if (index < layouts.lastIndex) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = if (isEnglish) "Move Right →" else "ডানে সরান →",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onMoveRight(index)
-                            },
-                        )
-                    }
-                    if (!isHome) {
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = if (isEnglish) "Set as Default" else "ডিফল্ট করুন",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                            },
-                            onClick = {
-                                showMenu = false
-                                onSetDefault(type)
-                            },
-                        )
-                    }
-                }
+                LayoutChip(
+                    type         = type,
+                    isActive     = isActive,
+                    isEnglish    = isEnglish,
+                    width        = chipWidth,
+                    height       = 76.dp, // Pinned uniform height across all cards
+                    elevation    = elevation,
+                    scale        = scale,
+                    onTap        = {
+                        if (!isActive) onSetDefault(type)
+                    },
+                    dragModifier = Modifier.longPressDraggableHandle(
+                        onDragStarted = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        onDragStopped = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            currentOnReordered(currentLocalLayouts)
+                        },
+                    ),
+                )
             }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LayoutChip — single chip in the rail
+// LayoutChip — Modern card with top-right watermark & top-left active badge
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun LayoutChip(
     type: LekhaniLayoutType,
-    isHome: Boolean,
+    isActive: Boolean,
     isEnglish: Boolean,
     width: androidx.compose.ui.unit.Dp,
     height: androidx.compose.ui.unit.Dp,
-    alpha: Float,
+    elevation: androidx.compose.ui.unit.Dp,
     scale: Float,
     onTap: () -> Unit,
-    onLongPress: () -> Unit,
+    dragModifier: Modifier,
 ) {
     val style = layoutCardStyle(type)
 
-    // Shorten long names to fit chip width
     val shortName = when (type) {
         LekhaniLayoutType.PROBAHO  -> if (isEnglish) "Probaho" else "প্রবাহ"
         LekhaniLayoutType.AVRO     -> if (isEnglish) "Avro" else "অভ্র"
@@ -656,199 +616,124 @@ private fun LayoutChip(
         LekhaniLayoutType.ENGLISH  -> if (isEnglish) "English" else "ইংরেজি"
     }
 
-    val subtitle = when (type) {
-        LekhaniLayoutType.PROBAHO  -> if (isEnglish) "Flow" else "প্রবাহ"
-        LekhaniLayoutType.AVRO     -> if (isEnglish) "Phonetic" else "ধ্বনিভিত্তিক"
-        LekhaniLayoutType.NATIONAL -> if (isEnglish) "BBS Fixed" else "জাতীয় মান"
-        LekhaniLayoutType.PROBHAT  -> if (isEnglish) "Fixed" else "প্রভাত ফিক্সড"
-        LekhaniLayoutType.GBOARD   -> if (isEnglish) "Standard" else "জিবোর্ড"
-        LekhaniLayoutType.ENGLISH  -> if (isEnglish) "QWERTY" else "ইংরেজি"
-    }
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+    Box(
+        modifier = Modifier
+            .size(width = width, height = height)
+            .graphicsLayer {
+                this.scaleX = scale
+                this.scaleY = scale
+                this.shadowElevation = elevation.toPx()
+                this.shape = RoundedCornerShape(14.dp)
+                this.clip = true
+            }
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(style.gradientStart, style.gradientEnd),
+                ),
+            )
+            .then(
+                if (isActive) Modifier.border(
+                    width = 2.dp,
+                    color = Color.White.copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(14.dp),
+                ) else Modifier.border(
+                    width = 0.5.dp,
+                    color = Color.White.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(14.dp),
+                )
+            )
+            .then(dragModifier)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onTap,
+            )
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        Box(
+        // ── Top Row: ACTIVE pill on left, Watermark script on right ───────────
+        Row(
             modifier = Modifier
-                .size(width = width, height = height)
-                .graphicsLayer {
-                    this.alpha  = alpha
-                    this.scaleX = scale
-                    this.scaleY = scale
-                }
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Brush.verticalGradient(
-                        listOf(style.gradientStart, style.gradientEnd),
-                    ),
-                )
-                .then(
-                    if (isHome) Modifier.border(
-                        width = 2.dp,
-                        color = Color.White.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(16.dp)
-                    ) else Modifier
-                )
-                .pointerInput(type) {
-                    detectTapGestures(
-                        onTap       = { onTap() },
-                        onLongPress = { onLongPress() },
-                    )
-                }
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .fillMaxWidth()
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Top Row: Type Pill on Left, Default Star or Hint on Right
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (isActive) {
                 Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = Color.Black.copy(alpha = 0.32f),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color.White.copy(alpha = 0.22f),
                 ) {
-                    Text(
-                        text     = style.typeLabel,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        color    = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                    )
-                }
-
-                if (isHome) {
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = Color.White.copy(alpha = 0.28f),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp)
+                                .clip(CircleShape)
+                                .background(Color.White),
+                        )
                         Text(
-                            text     = if (isEnglish) "★ DEFAULT" else "★ ডিফল্ট",
+                            text = if (isEnglish) "ACTIVE" else "চালু",
                             fontSize = 7.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color    = Color.White,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.4.sp,
+                            color = Color.White,
                         )
                     }
-                } else {
-                    Text(
-                        text     = style.hintText,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color    = Color.White.copy(alpha = 0.6f),
-                    )
                 }
+            } else {
+                Spacer(Modifier.size(1.dp))
             }
 
-            // Bottom Section: Name and Subtitle
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomStart)
-            ) {
-                Text(
-                    text       = shortName,
-                    style      = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize   = 14.5.sp
-                    ),
-                    color      = Color.White,
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text       = subtitle,
-                    style      = MaterialTheme.typography.labelSmall.copy(
-                        fontSize   = 10.sp,
-                        fontWeight = FontWeight.Normal
-                    ),
-                    color      = Color.White.copy(alpha = 0.78f),
-                    maxLines   = 1,
-                    overflow   = TextOverflow.Ellipsis,
-                )
-            }
+            // Watermark in top-right: zero collision with bottom-left text
+            Text(
+                text = style.hintText,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.24f),
+            )
         }
-    }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SummaryStrip — compact horizontal sequence badge row
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun SummaryStrip(
-    layouts: List<LekhaniLayoutType>,
-    activeIndex: Int,
-    isEnglish: Boolean,
-) {
-    if (layouts.size < 2) return
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        layouts.forEachIndexed { index, type ->
-            val isHome  = (index == activeIndex)
-            val offset  = index - activeIndex
-            val style   = layoutCardStyle(type)
-            val label   = when (type) {
-                LekhaniLayoutType.PROBAHO  -> if (isEnglish) "Probaho" else "প্রবাহ"
-                LekhaniLayoutType.AVRO     -> if (isEnglish) "Avro" else "অভ্র"
-                LekhaniLayoutType.NATIONAL -> if (isEnglish) "National" else "জাতীয়"
-                LekhaniLayoutType.PROBHAT  -> if (isEnglish) "Probhat" else "প্রভাত"
-                LekhaniLayoutType.GBOARD   -> if (isEnglish) "Gboard" else "জিবোর্ড"
-                LekhaniLayoutType.ENGLISH  -> if (isEnglish) "English" else "ইংরেজি"
-            }
-            val chipText = when {
-                isHome        -> "● $label"
-                offset < 0   -> "← $label"
-                else          -> "$label →"
-            }
-
-            Surface(
-                shape  = RoundedCornerShape(20.dp),
-                color  = if (isHome)
-                    style.gradientStart.copy(alpha = 0.20f)
-                else
-                    Color.Transparent,
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = if (isHome)
-                        style.gradientStart.copy(alpha = 0.55f)
-                    else
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+        // ── Bottom Section: Name and Type ─────────────────────────────────────
+        Column(
+            modifier = Modifier.align(Alignment.BottomStart),
+        ) {
+            Text(
+                text = shortName,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
                 ),
-            ) {
-                Text(
-                    text  = chipText,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = if (isHome) FontWeight.Bold else FontWeight.Normal,
-                    ),
-                    color = if (isHome)
-                        style.gradientStart
-                    else
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-            }
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = style.typeLabel,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 8.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.4.sp,
+                ),
+                color = Color.White.copy(alpha = 0.75f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HelpCard — inline expandable help (replaces static AlertDialog)
+// HelpCard — inline expandable guide
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun HelpCard(isEnglish: Boolean) {
     Surface(
-        shape  = RoundedCornerShape(0.dp),
-        color  = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        shape = RoundedCornerShape(0.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -856,43 +741,37 @@ private fun HelpCard(isEnglish: Boolean) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             HelpRow(
-                icon = "◉",
-                text = if (isEnglish)
-                    "Tap any chip in the rail to make it your default layout"
-                else
-                    "রেলে যেকোনো চিপে ট্যাপ করে ডিফল্ট লেআউট বেছে নিন",
-            )
-            HelpRow(
-                icon = "⇄",
+                icon = Icons.Filled.SwapHoriz,
                 text = if (isEnglish)
                     "Swipe the spacebar left or right to cycle through layouts while typing"
                 else
                     "টাইপ করার সময় স্পেসবার বামে বা ডানে সোয়াইপ করে লেআউট পরিবর্তন করুন",
             )
             HelpRow(
-                icon = "⋮",
+                icon = Icons.Filled.DragIndicator,
                 text = if (isEnglish)
-                    "Long-press a chip to move it left or right in the swipe order"
+                    "Long-press and drag a card to change the spacebar sequence"
                 else
-                    "চিপ দীর্ঘক্ষণ চেপে ধরলে বামে বা ডানে সরানোর বিকল্প পাবেন",
+                    "সোয়াইপের ক্রম বদলাতে যেকোনো কার্ড চেপে ধরে ডানে বা বামে টানুন",
             )
         }
     }
 }
 
 @Composable
-private fun HelpRow(icon: String, text: String) {
+private fun HelpRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(
-            text  = icon,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.primary,
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text  = text,
+            text = text,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -909,27 +788,28 @@ private fun EmptyLayoutsState(isEnglish: Boolean, modifier: Modifier = Modifier)
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
-            text  = "⌨",
-            fontSize = 48.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f),
+        Icon(
+            imageVector = Icons.Filled.Keyboard,
+            contentDescription = null,
+            modifier = Modifier.size(56.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.40f),
         )
         Spacer(Modifier.height(14.dp))
         Text(
-            text  = if (isEnglish) "No layouts enabled" else "কোনো লেআউট সক্রিয় নেই",
+            text = if (isEnglish) "No layouts enabled" else "কোনো লেআউট সক্রিয় নেই",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(6.dp))
         Text(
-            text  = if (isEnglish)
+            text = if (isEnglish)
                 "Go to Settings → Enabled Layouts to add some."
             else
                 "সেটিংস → সক্রিয় লেআউট থেকে লেআউট যোগ করুন।",
-            style       = MaterialTheme.typography.bodySmall,
-            color       = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-            textAlign   = TextAlign.Center,
-            modifier    = Modifier.padding(horizontal = 36.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 36.dp),
         )
     }
 }
