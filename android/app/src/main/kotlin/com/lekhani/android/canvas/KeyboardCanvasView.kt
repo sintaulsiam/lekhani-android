@@ -739,6 +739,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
         isShifted = shifted
         isGboardKarsActive = false
         gboardActiveConsonant = ""
+        pressedKeyIndex = -1
+        pressedPointerId = -1
+        isAlternatePopupActive = false
         accessibilityHelper.invalidateRoot()
         if (width > 0 && height > 0) {
             requestLayout()
@@ -810,10 +813,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyMarginV = marginVDp * density
         keyCornerRadius = 7.5f * density
         homeRowAccentHeight = 2.5f * density
-        swipeThresholdPx = 36f * density
+        swipeThresholdPx = 64f * density
         spaceSlideThresholdPx = 16f * density
         spaceSlideStepPx = 16f * density
-        backspaceSwipeStepPx = 28f * density
+        backspaceSwipeStepPx = 54f * density
 
         glideStrokePaint.strokeWidth = 4.5f * density
         glideGlowPaint.strokeWidth = 11f * density
@@ -1811,7 +1814,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                             removeCallbacks(backspaceRepeatRunnable)
                             isBackspaceSwiping = true
                             val words = ((-dx - swipeThresholdPx) / backspaceSwipeStepPx).toInt() + 1
-                            val clamped = words.coerceIn(1, 20)
+                            val clamped = words.coerceIn(1, 10)
                             if (clamped != backspaceDeletedWordCount) {
                                 backspaceDeletedWordCount = clamped
                                 keyListener?.onSwipeDeletePreview(backspaceDeletedWordCount)
@@ -1821,7 +1824,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                                 invalidate()
                             }
                             return true
-                        } else if (isBackspaceSwiping && dx > -swipeThresholdPx * 0.4f) {
+                        } else if (isBackspaceSwiping && dx > -24f * resources.displayMetrics.density) {
+                            // Sliding thumb back towards the Backspace key completely cancels deletion
                             isBackspaceSwiping = false
                             backspaceDeletedWordCount = 0
                             keyListener?.onSwipeDeletePreview(0)
@@ -1839,12 +1843,16 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         if (dy < -swipeThresholdPx && absDy > absDx * 1.3f) {
                             // Upward swipe on spacebar opens Cursor/Text Editor immediately
                             isSpaceSwiping = true
+                            pressedKeyIndex = -1
+                            pressedPointerId = -1
                             removeCallbacks(longPressRunnable)
                             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             keyListener?.onSpaceSwipeUp()
                             return true
                         } else if (absDx > swipeThresholdPx && absDx > absDy * 1.3f) {
                             isSpaceSwiping = true
+                            pressedKeyIndex = -1
+                            pressedPointerId = -1
                             removeCallbacks(longPressRunnable)
                             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             // Spacebar swipe direction matches visual order (Left to Right):
@@ -1955,6 +1963,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     committedFloatingOffsetX = floatingOffsetX
                     committedFloatingOffsetY = floatingOffsetY
                     computeKeyBounds()
+                    invalidate()
+                    return true
+                }
+
+                if (isSpaceSwiping) {
+                    isSpaceSwiping = false
+                    pressedKeyIndex = -1
+                    pressedPointerId = -1
                     invalidate()
                     return true
                 }

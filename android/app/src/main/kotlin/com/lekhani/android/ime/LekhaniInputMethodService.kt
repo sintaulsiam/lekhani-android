@@ -2115,48 +2115,72 @@ class LekhaniInputMethodService : InputMethodService() {
     private fun handleSwipeDelete(wordCount: Int) {
         if (wordCount <= 0) return
         var remainingWords = wordCount
+        val deletedBuffer = StringBuilder()
 
-        // 1. If currently composing Bengali in session, discard composition first
-        if (preeditShadow.isNotEmpty()) {
-            session.reset()
-            preeditShadow = ""
-            currentInputConnection?.setComposingText("", 0)
-            clearCandidates()
-            remainingWords--
-        }
-
-        // 2. Delete remaining words from committed text.
-        // Use the cached surrounding context to avoid a synchronous Binder IPC
-        // (getTextBeforeCursor) on the main thread which can block 5–50 ms.
-        if (remainingWords > 0) {
-            val ic = currentInputConnection ?: return
-            val before = cachedSurroundingContext.ifEmpty {
-                // Fallback: read synchronously only if cache is empty (first swipe-delete ever)
-                ic.getTextBeforeCursor(512, 0)?.toString() ?: ""
+        val ic = currentInputConnection ?: return
+        ic.beginBatchEdit()
+        try {
+            // 1. If currently composing Bengali in session, discard composition first
+            if (preeditShadow.isNotEmpty()) {
+                val preeditDeleted = preeditShadow
+                session.reset()
+                preeditShadow = ""
+                ic.setComposingText("", 0)
+                clearCandidates()
+                deletedBuffer.append(preeditDeleted)
+                remainingWords--
             }
-            if (before.isNotEmpty()) {
-                var charsToDelete = 0
-                var wordsFound = 0
-                var inWord = false
-                for (i in before.length - 1 downTo 0) {
-                    val ch = before[i]
-                    val isSpace = ch.isWhitespace()
-                    if (!isSpace) {
-                        inWord = true
-                    } else if (inWord) {
-                        wordsFound++
-                        inWord = false
-                        if (wordsFound >= remainingWords) {
-                            break
+
+            // 2. Delete remaining words from committed text.
+            // Use the cached surrounding context to avoid a synchronous Binder IPC
+            // (getTextBeforeCursor) on the main thread which can block 5–50 ms.
+            if (remainingWords > 0) {
+                val before = cachedSurroundingContext.ifEmpty {
+                    // Fallback: read synchronously only if cache is empty (first swipe-delete ever)
+                    ic.getTextBeforeCursor(512, 0)?.toString() ?: ""
+                }
+                if (before.isNotEmpty()) {
+                    var charsToDelete = 0
+                    var wordsFound = 0
+                    var inWord = false
+                    for (i in before.length - 1 downTo 0) {
+                        val ch = before[i]
+                        val isSpace = ch.isWhitespace()
+                        if (!isSpace) {
+                            inWord = true
+                        } else if (inWord) {
+                            wordsFound++
+                            inWord = false
+                            if (wordsFound >= remainingWords) {
+                                break
+                            }
                         }
+                        charsToDelete++
                     }
-                    charsToDelete++
-                }
-                if (charsToDelete > 0) {
-                    ic.deleteSurroundingText(charsToDelete, 0)
+                    if (charsToDelete > 0) {
+                        val committedDeleted = before.takeLast(charsToDelete)
+                        if (deletedBuffer.isNotEmpty()) {
+                            deletedBuffer.insert(0, committedDeleted)
+                        } else {
+                            deletedBuffer.append(committedDeleted)
+                        }
+                        ic.deleteSurroundingText(charsToDelete, 0)
+                    }
                 }
             }
+        } finally {
+            ic.endBatchEdit()
         }
+
+        val deletedStr = deletedBuffer.toString()
+        if (deletedStr.isNotEmpty()) {
+            val undo = UndoInfo(originalText = deletedStr, committedText = "")
+            activeUndoInfo = undo
+            scheduleUndoExpiry()
+            _candidateState.value = CandidateStripState.Undo(undo)
+            updateCandidatesVisibility()
+        }
+
         refreshSurroundingContext()
     }
 
