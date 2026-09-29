@@ -33,6 +33,10 @@ sealed class KeyAction {
     data object SwitchEmoji : KeyAction()
     /** Switch to local clipboard history sheet */
     data object SwitchClipboard : KeyAction()
+    /** Move cursor left in active input connection */
+    data object CursorLeft : KeyAction()
+    /** Insert Tab character / event */
+    data object Tab : KeyAction()
 }
 
 /**

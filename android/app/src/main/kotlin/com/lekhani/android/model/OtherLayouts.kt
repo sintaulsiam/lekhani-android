@@ -251,7 +251,7 @@ object ProbhatLayout {
                 Ch("জ", "ঝ", homeRow = true), Ch("ক", "খ", homeRow = true),
                 Ch("ল", "ং", homeRow = true),
             ),
-            // Row 3 (Shift, 8 letters + Hasanta + Backspace = 10 keys)
+            // Row 3 (Shift, 8 letters + Ri-kar + Hasanta + Backspace = 11 keys)
             listOf(
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
@@ -261,6 +261,7 @@ object ProbhatLayout {
                 Ch("য়", "য"), Ch("শ", "ঢ়"), Ch("চ", "ছ"),
                 Ch("আ", "ঋ"), Ch("ব", "ভ"), Ch("ন", "ণ"),
                 Ch("ম", "ঙ"),
+                Ch("ৃ", "<", desc = "Ri-kar, shifted less-than"),
                 Ch("্", "ঁ", desc = "Hasanta virama, shifted Chandra Bindu"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
@@ -271,15 +272,14 @@ object ProbhatLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "😊", hintLabel = "😊",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
-                longPressAction = KeyAction.SwitchEmoji,
+                label = "?123", shiftedLabel = "?123",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 widthWeight = 1.4f, contentDesc = "Numbers",
             ),
             Key(
-                label = "🌐", shiftedLabel = "🌐",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
-                widthWeight = 1.0f, contentDesc = "Switch layout",
+                label = "😊", shiftedLabel = "😊",
+                action = KeyAction.SwitchEmoji, shiftedAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.0f, contentDesc = "Emoji",
             ),
             Key(
                 label = ",", shiftedLabel = ";",
@@ -288,7 +288,7 @@ object ProbhatLayout {
                 widthWeight = 1.0f, contentDesc = "Comma",
             ),
             Key(
-                label = "স্পেস • প্রভাত", shiftedLabel = "স্পেস • প্রভাত",
+                label = "◀   প্রভাত   ▶", shiftedLabel = "◀   প্রভাত   ▶",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
                 widthWeight = 4.2f, contentDesc = "Space",
             ),
@@ -297,6 +297,7 @@ object ProbhatLayout {
                 action = KeyAction.Character("।"),
                 shiftedAction = KeyAction.Character("?"),
                 longPressAction = KeyAction.Character("॥"),
+                widthWeight = 1.0f,
                 contentDesc = "Dari, shifted question, hint Double Dari",
             ),
             Key(

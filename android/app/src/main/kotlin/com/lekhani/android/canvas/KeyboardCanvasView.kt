@@ -1372,7 +1372,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 key.action == KeyAction.SwitchNumeric || key.action == KeyAction.SwitchMoreSymbols ||
                 key.action == KeyAction.SwitchAlpha || key.action == KeyAction.ToggleBengaliDigits ||
                 key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
-                key.action == KeyAction.SwitchEmoji || key.action == KeyAction.SwitchClipboard -> keyShiftBgPaint
+                key.action == KeyAction.SwitchEmoji || key.action == KeyAction.SwitchClipboard ||
+                key.action == KeyAction.CursorLeft || key.action == KeyAction.Tab -> keyShiftBgPaint
                 key.action == KeyAction.Space -> keySpaceBgPaint
                 else -> keyBgPaint
             }
@@ -1596,7 +1597,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         key.action == KeyAction.Space || key.action == KeyAction.SwitchNumeric ||
         key.action == KeyAction.SwitchMoreSymbols || key.action == KeyAction.SwitchAlpha ||
         key.action == KeyAction.ToggleBengaliDigits ||
-        key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter
+        key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
+        key.action == KeyAction.CursorLeft || key.action == KeyAction.Tab
 
     // ══════════════════════════════════════════════════════════════════════════
     // Touch handling — ZERO allocations permitted here

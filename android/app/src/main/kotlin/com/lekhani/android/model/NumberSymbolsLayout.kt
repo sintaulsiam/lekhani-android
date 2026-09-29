@@ -5,13 +5,13 @@ package com.lekhani.android.model
  * ══════════════════════════════════════════════════════════════════════════════
  * Provides dedicated Number & Symbol layers across all typing modes:
  * - [numericLayout]: Primary digits (1..0) with Bengali digits hint, common punctuation, currency
- * - [bengaliNumericLayout]: Native Bengali numerals (১..০) with English digits hint
+ * - [bengaliNumericLayout]: Native Bengali numerals (১..০) with English digits hint (State 2)
  * - [moreSymbolsLayout]: Extended mathematical operators, brackets, currency symbols (৳, €, ¥, £, ₹),
- *   copyright/trademark signs, and typographic glyphs.
+ *   copyright/trademark signs, tab, cursor nav, and typographic glyphs (State 3).
  */
 object NumberSymbolsLayout {
 
-    /** Primary Number & Common Symbols layer (accessible via ?123 key) */
+    /** Primary Number & Common Symbols layer (accessible via ?123 key in English mode) */
     val numericLayout: KeyboardLayout = KeyboardLayout(
         name = "Numbers & Symbols",
         rows = listOf(
@@ -28,18 +28,10 @@ object NumberSymbolsLayout {
                 Ch("9", shifted = "৯", hint = "৯"),
                 Ch("0", shifted = "০", hint = "০"),
             ),
-            // Row 2: Standard and Bengali currency / math symbols
+            // Row 2: Standard currency / math symbols
             listOf(
-                Ch("@", shifted = "~", hint = "~"),
-                Ch("#", shifted = "|", hint = "|"),
-                Ch("৳", shifted = "$", hint = "$"),
-                Ch("%", shifted = "^", hint = "^"),
-                Ch("&", shifted = "*", hint = "*"),
-                Ch("-", shifted = "_", hint = "_"),
-                Ch("+", shifted = "=", hint = "="),
-                Ch("(", shifted = "{", hint = "{"),
-                Ch(")", shifted = "}", hint = "}"),
-                Ch("/", shifted = "\\", hint = "\\"),
+                Ch("@"), Ch("#"), Ch("$"), Ch("%"), Ch("&"),
+                Ch("*"), Ch("-"), Ch("+"), Ch("("), Ch(")"),
             ),
             // Row 3: More symbols toggle, punctuations, and backspace
             listOf(
@@ -48,7 +40,7 @@ object NumberSymbolsLayout {
                     action = KeyAction.SwitchMoreSymbols, shiftedAction = KeyAction.SwitchMoreSymbols,
                     widthWeight = 1.32f, contentDesc = "More symbols",
                 ),
-                Ch("*"), Ch("\""), Ch("'"), Ch(":"), Ch(";"), Ch("!"), Ch("?"),
+                Ch("!"), Ch("\""), Ch("'"), Ch(":"), Ch(";"), Ch("/"), Ch("?"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
@@ -75,12 +67,11 @@ object NumberSymbolsLayout {
             Key(
                 label = "Space", shiftedLabel = "Space",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 3.2f, contentDesc = "Space",
+                widthWeight = 4.2f, contentDesc = "Space",
             ),
             Key(
-                label = ".", shiftedLabel = "।", hintLabel = "।",
-                action = KeyAction.Character("."), shiftedAction = KeyAction.Character("।"),
-                longPressAction = KeyAction.Character("।"),
+                label = ".", shiftedLabel = ".",
+                action = KeyAction.Character("."), shiftedAction = KeyAction.Character("."),
                 widthWeight = 1.0f, contentDesc = "Period",
             ),
             Key(
@@ -102,16 +93,8 @@ object NumberSymbolsLayout {
             ),
             // Row 2: Standard currency & math symbols ($ instead of ৳)
             listOf(
-                Ch("@", shifted = "~", hint = "~"),
-                Ch("#", shifted = "|", hint = "|"),
-                Ch("$", shifted = "€", hint = "€"),
-                Ch("%", shifted = "^", hint = "^"),
-                Ch("&", shifted = "*", hint = "*"),
-                Ch("-", shifted = "_", hint = "_"),
-                Ch("+", shifted = "=", hint = "="),
-                Ch("(", shifted = "{", hint = "{"),
-                Ch(")", shifted = "}", hint = "}"),
-                Ch("/", shifted = "\\", hint = "\\"),
+                Ch("@"), Ch("#"), Ch("$"), Ch("%"), Ch("&"),
+                Ch("*"), Ch("-"), Ch("+"), Ch("("), Ch(")"),
             ),
             // Row 3: More symbols toggle, punctuations, and backspace
             listOf(
@@ -120,7 +103,7 @@ object NumberSymbolsLayout {
                     action = KeyAction.SwitchMoreSymbols, shiftedAction = KeyAction.SwitchMoreSymbols,
                     widthWeight = 1.32f, contentDesc = "More symbols",
                 ),
-                Ch("*"), Ch("\""), Ch("'"), Ch(":"), Ch(";"), Ch("!"), Ch("?"),
+                Ch("!"), Ch("\""), Ch("'"), Ch(":"), Ch(";"), Ch("/"), Ch("?"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
@@ -135,11 +118,6 @@ object NumberSymbolsLayout {
                 widthWeight = 1.4f, contentDesc = "Alphabet",
             ),
             Key(
-                label = "🌐", shiftedLabel = "🌐",
-                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
-                widthWeight = 1.0f, contentDesc = "Switch layout",
-            ),
-            Key(
                 label = ",", shiftedLabel = ",",
                 action = KeyAction.Character(","), shiftedAction = KeyAction.Character(","),
                 widthWeight = 1.0f, contentDesc = "Comma",
@@ -147,7 +125,7 @@ object NumberSymbolsLayout {
             Key(
                 label = "Space", shiftedLabel = "Space",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 3.2f, contentDesc = "Space",
+                widthWeight = 4.2f, contentDesc = "Space",
             ),
             Key(
                 label = ".", shiftedLabel = ".",
@@ -162,7 +140,7 @@ object NumberSymbolsLayout {
         ),
     )
 
-    /** Native Bengali Numerals (১..০) layout */
+    /** Native Bengali Numerals (১..০) layout — State 2 */
     val bengaliNumericLayout: KeyboardLayout = KeyboardLayout(
         name = "Bengali Numbers",
         rows = listOf(
@@ -179,89 +157,19 @@ object NumberSymbolsLayout {
                 Ch("৯", shifted = "9", hint = "9"),
                 Ch("০", shifted = "0", hint = "0"),
             ),
+            // Row 2: Standard and Bengali currency / math symbols
             listOf(
-                Ch("@", shifted = "~", hint = "~"),
-                Ch("#", shifted = "|", hint = "|"),
-                Ch("৳", shifted = "$", hint = "$"),
-                Ch("%", shifted = "^", hint = "^"),
-                Ch("&", shifted = "*", hint = "*"),
-                Ch("-", shifted = "_", hint = "_"),
-                Ch("+", shifted = "=", hint = "="),
-                Ch("(", shifted = "{", hint = "{"),
-                Ch(")", shifted = "}", hint = "}"),
-                Ch("/", shifted = "\\", hint = "\\"),
+                Ch("@"), Ch("#"), Ch("৳"), Ch("%"), Ch("&"),
+                Ch("*"), Ch("-"), Ch("+"), Ch("("), Ch(")"),
             ),
+            // Row 3: More symbols toggle, punctuations, and backspace
             listOf(
                 Key(
                     label = "=\\<", shiftedLabel = "=\\<",
                     action = KeyAction.SwitchMoreSymbols, shiftedAction = KeyAction.SwitchMoreSymbols,
                     widthWeight = 1.32f, contentDesc = "More symbols",
                 ),
-                Ch("*"), Ch("\""), Ch("'"), Ch(":"), Ch(";"), Ch("!"), Ch("?"),
-                Key(
-                    label = "⌫", shiftedLabel = "⌫",
-                    action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                    widthWeight = 1.32f, contentDesc = "Backspace",
-                ),
-            ),
-        ),
-        spacebarRow = listOf(
-            Key(
-                label = "বাংলা", shiftedLabel = "বাংলা",
-                action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
-                widthWeight = 1.4f, contentDesc = "Alphabet",
-            ),
-            Key(
-                label = "123", shiftedLabel = "123",
-                action = KeyAction.ToggleBengaliDigits, shiftedAction = KeyAction.ToggleBengaliDigits,
-                widthWeight = 1.0f, contentDesc = "English digits",
-            ),
-            Key(
-                label = ",", shiftedLabel = ",",
-                action = KeyAction.Character(","), shiftedAction = KeyAction.Character(","),
-                widthWeight = 1.0f, contentDesc = "Comma",
-            ),
-            Key(
-                label = "স্পেস", shiftedLabel = "স্পেস",
-                action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 3.2f, contentDesc = "Space",
-            ),
-            Key(
-                label = "।", shiftedLabel = ".", hintLabel = ".",
-                action = KeyAction.Character("।"), shiftedAction = KeyAction.Character("."),
-                longPressAction = KeyAction.Character("॥"),
-                widthWeight = 1.0f, contentDesc = "Dari, long-press Double Dari",
-            ),
-            Key(
-                label = "↵", shiftedLabel = "↵",
-                action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 1.4f, contentDesc = "Enter",
-            ),
-        ),
-    )
-
-    /** Secondary / Extended Symbols layer (accessible via =\\< key) */
-    val moreSymbolsLayout: KeyboardLayout = KeyboardLayout(
-        name = "More Symbols",
-        rows = listOf(
-            listOf(
-                Ch("~"), Ch("`"), Ch("|"), Ch("^"), Ch("\\"),
-                Ch("{"), Ch("}"), Ch("["), Ch("]"), Ch("°", shifted = "½", hint = "½"),
-            ),
-            listOf(
-                Ch("_", shifted = "¼", hint = "¼"), Ch("=", shifted = "¾", hint = "¾"), Ch("৳", shifted = "৲", hint = "৲"), Ch("€"), Ch("¥"),
-                Ch("£"), Ch("₹"), Ch("©"), Ch("®"), Ch("™"),
-            ),
-            listOf(
-                Key(
-                    label = "?123", shiftedLabel = "?123",
-                    action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
-                    widthWeight = 1.32f, contentDesc = "Numbers and symbols",
-                ),
-                Ch("<"), Ch(">"), Ch("•", shifted = "…", hint = "…"),
-                Ch("“", shifted = "”", hint = "”"),
-                Ch("॥", shifted = "।", hint = "।"),
-                Ch("÷"), Ch("×"),
+                Ch("!"), Ch("\""), Ch("'"), Ch(":"), Ch(";"), Ch("/"), Ch("?"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
@@ -276,24 +184,89 @@ object NumberSymbolsLayout {
                 widthWeight = 1.4f, contentDesc = "Alphabet",
             ),
             Key(
-                label = "?123", shiftedLabel = "?123",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
-                widthWeight = 1.0f, contentDesc = "Numbers",
+                label = ",", shiftedLabel = ",",
+                action = KeyAction.Character(","), shiftedAction = KeyAction.Character(","),
+                widthWeight = 1.0f, contentDesc = "Comma",
             ),
             Key(
-                label = "!", shiftedLabel = "!",
-                action = KeyAction.Character("!"), shiftedAction = KeyAction.Character("!"),
-                widthWeight = 1.0f, contentDesc = "Exclamation",
-            ),
-            Key(
-                label = "Space", shiftedLabel = "Space",
+                label = "স্পেস", shiftedLabel = "স্পেস",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 3.2f, contentDesc = "Space",
+                widthWeight = 4.2f, contentDesc = "Space",
             ),
             Key(
-                label = "?", shiftedLabel = "?",
-                action = KeyAction.Character("?"), shiftedAction = KeyAction.Character("?"),
-                widthWeight = 1.0f, contentDesc = "Question",
+                label = ".", shiftedLabel = "।", hintLabel = "।",
+                action = KeyAction.Character("."), shiftedAction = KeyAction.Character("।"),
+                longPressAction = KeyAction.Character("।"),
+                widthWeight = 1.0f, contentDesc = "Period",
+            ),
+            Key(
+                label = "↵", shiftedLabel = "↵",
+                action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
+                widthWeight = 1.4f, contentDesc = "Enter",
+            ),
+        ),
+    )
+
+    /** Secondary / Extended Symbols layer (accessible via =\\< key) — State 3 */
+    val moreSymbolsLayout: KeyboardLayout = KeyboardLayout(
+        name = "More Symbols",
+        rows = listOf(
+            // Row 1: Tilde, grave, pipe, Rupee mark, square root, pi, div, mult, curly brackets
+            listOf(
+                Ch("~"), Ch("`"), Ch("|"), Ch("৲"), Ch("√"),
+                Ch("π"), Ch("÷"), Ch("×"), Ch("{"), Ch("}"),
+            ),
+            // Row 2: Tab, Pound, Dollar, Euro, caret, degree, underscore, equals, square brackets
+            listOf(
+                Key(
+                    label = "⇥", shiftedLabel = "⇥",
+                    action = KeyAction.Tab, shiftedAction = KeyAction.Tab,
+                    widthWeight = 1.0f, contentDesc = "Tab",
+                ),
+                Ch("£"), Ch("$"), Ch("€"), Ch("^"),
+                Ch("°"), Ch("_"), Ch("="), Ch("["), Ch("]"),
+            ),
+            // Row 3: Back to numeric, cursor left, registered, copyright, trademark, backslash, angle brackets, backspace
+            listOf(
+                Key(
+                    label = "?123", shiftedLabel = "?123",
+                    action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
+                    widthWeight = 1.32f, contentDesc = "Numbers and symbols",
+                ),
+                Key(
+                    label = "◀", shiftedLabel = "◀",
+                    action = KeyAction.CursorLeft, shiftedAction = KeyAction.CursorLeft,
+                    widthWeight = 1.0f, contentDesc = "Cursor left",
+                ),
+                Ch("®"), Ch("©"), Ch("™"),
+                Ch("\\"), Ch("<"), Ch(">"),
+                Key(
+                    label = "⌫", shiftedLabel = "⌫",
+                    action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                    widthWeight = 1.32f, contentDesc = "Backspace",
+                ),
+            ),
+        ),
+        spacebarRow = listOf(
+            Key(
+                label = "ABC", shiftedLabel = "ABC",
+                action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
+                widthWeight = 1.4f, contentDesc = "Alphabet",
+            ),
+            Key(
+                label = ",", shiftedLabel = ",",
+                action = KeyAction.Character(","), shiftedAction = KeyAction.Character(","),
+                widthWeight = 1.0f, contentDesc = "Comma",
+            ),
+            Key(
+                label = "স্পেস", shiftedLabel = "স্পেস",
+                action = KeyAction.Space, shiftedAction = KeyAction.Space,
+                widthWeight = 4.2f, contentDesc = "Space",
+            ),
+            Key(
+                label = ".", shiftedLabel = ".",
+                action = KeyAction.Character("."), shiftedAction = KeyAction.Character("."),
+                widthWeight = 1.0f, contentDesc = "Period",
             ),
             Key(
                 label = "↵", shiftedLabel = "↵",

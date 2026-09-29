@@ -769,6 +769,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     setInputViewMode(InputViewMode.CLIPBOARD)
                     return
                 }
+                KeyAction.CursorLeft, KeyAction.Tab -> return
             }
         }
 
@@ -806,6 +807,8 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyAction.VoiceTyping  -> startVoiceTyping()
             KeyAction.SwitchEmoji  -> setInputViewMode(InputViewMode.EMOJI)
             KeyAction.SwitchClipboard -> setInputViewMode(InputViewMode.CLIPBOARD)
+            KeyAction.CursorLeft -> sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+            KeyAction.Tab -> sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
         }
     }
 
@@ -1108,6 +1111,7 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         keyboardView?.setLayout(layout, currentLayoutType, shifted = false)
         keyboardView?.setGboardKarsActive(false)
+        updateCandidatesVisibility()
     }
 
     private fun restoreAlphaKeyboard() {
@@ -1116,6 +1120,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val currentLayoutType = session.getLayout()
         keyboardView?.setLayout(LayoutRegistry.get(currentLayoutType), currentLayoutType, shifted = false)
         keyboardView?.setGboardKarsActive(false)
+        updateCandidatesVisibility()
     }
 
     private fun sendEditorNavKey(keyCode: Int, isShift: Boolean) {
@@ -1154,7 +1159,8 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun updateCandidatesVisibility() {
-        val show = currentMode == InputViewMode.KEYBOARD ||
+        val isSymbols = isNumericMode || isMoreSymbolsMode
+        val show = (currentMode == InputViewMode.KEYBOARD && !isSymbols) ||
                    currentMode == InputViewMode.EMOJI_SEARCH ||
                    currentMode == InputViewMode.TOOLS_MENU
         candidateStripComposeView?.visibility = if (show) View.VISIBLE else View.GONE
