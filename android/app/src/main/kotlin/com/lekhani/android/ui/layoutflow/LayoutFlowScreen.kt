@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -39,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Keyboard
@@ -541,7 +543,7 @@ private fun SwipeRail(
 
     LazyRow(
         state                 = listState,
-        contentPadding        = PaddingValues(start = 20.dp, end = 20.dp),
+        contentPadding        = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier              = Modifier.fillMaxWidth(),
     ) {
@@ -651,53 +653,35 @@ private fun LayoutChip(
             )
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        // ── Top Row: ACTIVE pill on left, Watermark script on right ───────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (isActive) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color.White.copy(alpha = 0.22f),
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(4.dp)
-                                .clip(CircleShape)
-                                .background(Color.White),
-                        )
-                        Text(
-                            text = if (isEnglish) "ACTIVE" else "চালু",
-                            fontSize = 7.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.4.sp,
-                            color = Color.White,
-                        )
-                    }
-                }
-            } else {
-                Spacer(Modifier.size(1.dp))
+        // Option A: Top-left frosted checkmark circle for active layout
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.92f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = if (isEnglish) "Active" else "সক্রিয়",
+                    tint = style.gradientEnd,
+                    modifier = Modifier.size(13.dp),
+                )
             }
-
-            // Watermark in top-right: zero collision with bottom-left text
-            Text(
-                text = style.hintText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White.copy(alpha = 0.24f),
-            )
         }
 
-        // ── Bottom Section: Name and Type ─────────────────────────────────────
+        // Watermark script text on top-right: 100% visible and collision-free
+        Text(
+            text = style.hintText,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White.copy(alpha = 0.28f),
+            modifier = Modifier.align(Alignment.TopEnd),
+        )
+
+        // Bottom Section: Name and Type
         Column(
             modifier = Modifier.align(Alignment.BottomStart),
         ) {

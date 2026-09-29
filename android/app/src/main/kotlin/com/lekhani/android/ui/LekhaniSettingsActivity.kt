@@ -964,7 +964,7 @@ private fun LayoutsTabContent(
                                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                                         ) {
                                             Text(
-                                                text = if (isEnglish) "Home" else "হোম",
+                                                text = if (isEnglish) "Active" else "সক্রিয়",
                                                 style = MaterialTheme.typography.labelSmall.copy(
                                                     color = MaterialTheme.colorScheme.primary,
                                                     fontWeight = FontWeight.Bold
