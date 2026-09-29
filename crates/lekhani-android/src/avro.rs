@@ -144,6 +144,25 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
         }
     }
 
+    // 3. QWERTY adjacency auto-correction for fat-finger typos
+    if candidates.len() < 4 && lower.len() >= 3 {
+        let chars: Vec<char> = lower.chars().collect();
+        for (i, &ch) in chars.iter().enumerate() {
+            for &adj in crate::english::get_qwerty_adjacent_keys(ch) {
+                let mut sub = chars.clone();
+                sub[i] = adj;
+                let cand_key: String = sub.into_iter().collect();
+                if let Some(&words) = get_common_words().get(cand_key.as_str()) {
+                    for &w in words {
+                        if !candidates.contains(&w.to_string()) {
+                            candidates.push(w.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     (primary, candidates)
 }
 
@@ -186,5 +205,16 @@ mod tests {
 
         let (res, _) = transliterate_avro("bristi");
         assert_eq!(res, "বৃষ্টি");
+    }
+
+    #[test]
+    fn test_qwerty_proximity_typo_correction() {
+        // 's' is next to 'a' on QWERTY -> "smi" typo suggests "আমি"
+        let (_, cands_smi) = transliterate_avro("smi");
+        assert!(cands_smi.contains(&"আমি".to_string()));
+
+        // 'i' is next to 'o' on QWERTY -> "bhali" typo suggests "ভালো"
+        let (_, cands_bhali) = transliterate_avro("bhali");
+        assert!(cands_bhali.contains(&"ভালো".to_string()));
     }
 }
