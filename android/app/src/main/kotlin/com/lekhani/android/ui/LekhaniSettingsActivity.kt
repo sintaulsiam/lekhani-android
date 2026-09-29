@@ -180,8 +180,14 @@ class LekhaniSettingsActivity : ComponentActivity() {
                             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
                         },
                         onOpenImePicker = {
-                            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-                            imm?.showInputMethodPicker()
+                            window.decorView.post {
+                                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                                try {
+                                    imm?.showInputMethodPicker()
+                                } catch (_: Exception) {
+                                    startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                                }
+                            }
                         }
                     )
                 }
@@ -764,6 +770,7 @@ private fun LayoutsTabContent(
                             )
                             Text(
                                 text = if (isDefault) (if (isEnglish) "Active as default" else "ডিফল্ট হিসেবে সক্রিয়")
+                                       else if (!isEnabled) (if (isEnglish) "Enable Step 1 first" else "প্রথমে ধাপ ১ চালু করুন")
                                        else (if (isEnglish) "Tap to select Lekhani" else "ডিফল্ট কীবোর্ড হিসেবে বেছে নিন"),
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -772,7 +779,13 @@ private fun LayoutsTabContent(
                         }
                         if (!isDefault) {
                             FilledTonalButton(
-                                onClick = onOpenImePicker,
+                                onClick = {
+                                    if (isEnabled) {
+                                        onOpenImePicker()
+                                    } else {
+                                        onOpenImeSettings()
+                                    }
+                                },
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                             ) {
@@ -780,6 +793,30 @@ private fun LayoutsTabContent(
                             }
                         } else {
                             Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        }
+                    }
+
+                    if (!isEnabled && Build.VERSION.SDK_INT >= 33) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("ℹ️", fontSize = 11.sp)
+                                Text(
+                                    text = if (isEnglish)
+                                        "If Lekhani is grayed out in settings, go to App Info ➔ tap ⋮ (top-right) ➔ 'Allow restricted settings'."
+                                    else
+                                        "লেখনী ধূসর থাকলে, অ্যাপ ইনফো ➔ ⋮ (উপরে ডানে) ➔ 'Allow restricted settings' চালু করুন।",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

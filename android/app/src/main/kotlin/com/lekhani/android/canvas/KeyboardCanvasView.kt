@@ -1163,7 +1163,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         // Notify session of updated key geometries for spatial Gaussian touch correction
         val configs = resolvedKeys.mapNotNull { rk ->
-            val label = rk.key.primaryLabel
+            val label = rk.key.label
             if (label.isNotEmpty()) {
                 com.lekhani.android.ffi.KeyGeometryConfig(
                     label = label,
@@ -1845,10 +1845,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
                             isSpaceSwiping = true
                             removeCallbacks(longPressRunnable)
                             performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            // Spacebar swipe direction matches visual order (Left to Right):
+                            // • Swipe Right (dx > 0): Advance to NEXT layout (index + 1)
+                            // • Swipe Left (dx < 0): Retreat to PREVIOUS layout (index - 1)
                             if (dx > 0) {
-                                keyListener?.onSpaceSwipe(1) // Next layout
+                                keyListener?.onSpaceSwipe(1)  // Next layout (forward)
                             } else {
-                                keyListener?.onSpaceSwipe(-1) // Previous layout
+                                keyListener?.onSpaceSwipe(-1) // Previous layout (backward)
                             }
                             return true
                         }

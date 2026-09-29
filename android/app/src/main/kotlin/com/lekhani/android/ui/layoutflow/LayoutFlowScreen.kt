@@ -15,6 +15,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,8 +40,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -305,39 +309,39 @@ fun LayoutFlowScreen(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
                         )
                         Text(
-                            text = if (isEnglish) "swipe left" else "বামে সোয়াইপ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            text = if (isEnglish) "Swipe Left: Prev" else "বামে সোয়াইপ: পূর্ববর্তী",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
-                            text = if (isEnglish) "swipe right" else "ডানে সোয়াইপ",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            text = if (isEnglish) "Next: Swipe Right" else "পরবর্তী: ডানে সোয়াইপ",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
                         )
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
 
                 // ── Swipe Rail ────────────────────────────────────────────────
                 SwipeRail(
@@ -352,14 +356,81 @@ fun LayoutFlowScreen(
                     onMoveRight  = { idx -> moveLayout(idx, idx + 1) },
                 )
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // ── Summary strip ─────────────────────────────────────────────
-                SummaryStrip(
-                    layouts     = enabledLayouts,
-                    activeIndex = activeIndex,
-                    isEnglish   = isEnglish,
-                )
+                // ── Live Typing & Gesture Sandbox ─────────────────────────────
+                var sandboxText by remember { mutableStateOf("") }
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    ),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = if (isEnglish) "Live Typing Sandbox" else "লাইভ টাইপিং পরীক্ষা",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                            ) {
+                                Text(
+                                    text = if (isEnglish) "Active: $activeName" else "চালু: $activeName",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                )
+                            }
+                        }
+
+                        androidx.compose.material3.OutlinedTextField(
+                            value = sandboxText,
+                            onValueChange = { sandboxText = it },
+                            placeholder = {
+                                Text(
+                                    text = if (isEnglish) "Tap here & swipe spacebar to test..." else "এখানে ট্যাপ করে স্পেসবার সোয়াইপ করুন...",
+                                    fontSize = 13.sp,
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            trailingIcon = {
+                                if (sandboxText.isNotEmpty()) {
+                                    IconButton(onClick = { sandboxText = "" }) {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = "Clear",
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        )
+
+                        Text(
+                            text = if (isEnglish)
+                                "💡 Swipe thumb across the spacebar while typing to seamlessly switch between your selected layouts."
+                            else
+                                "💡 টাইপ করার সময় স্পেসবারে সোয়াইপ করলেই পরপর আপনার পছন্দের লেআউটগুলো বদলাবে।",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        )
+                    }
+                }
 
                 Spacer(Modifier.weight(1f))
 
@@ -457,22 +528,22 @@ private fun SwipeRail(
             var showMenu by remember { mutableStateOf(false) }
 
             val chipWidth by animateDpAsState(
-                targetValue  = if (isHome) 108.dp else 96.dp,
+                targetValue  = if (isHome) 124.dp else 112.dp,
                 animationSpec = spring(stiffness = Spring.StiffnessMedium),
                 label        = "chipWidth_$index",
             )
             val chipHeight by animateDpAsState(
-                targetValue  = if (isHome) 70.dp else 62.dp,
+                targetValue  = if (isHome) 86.dp else 78.dp,
                 animationSpec = spring(stiffness = Spring.StiffnessMedium),
                 label        = "chipHeight_$index",
             )
             val chipAlpha by animateFloatAsState(
-                targetValue  = if (isHome) 1f else 0.72f,
+                targetValue  = if (isHome) 1f else 0.75f,
                 animationSpec = tween(220),
                 label        = "chipAlpha_$index",
             )
             val chipScale by animateFloatAsState(
-                targetValue  = if (isHome) 1f else 0.94f,
+                targetValue  = if (isHome) 1f else 0.95f,
                 animationSpec = spring(stiffness = Spring.StiffnessMedium),
                 label        = "chipScale_$index",
             )
@@ -574,8 +645,6 @@ private fun LayoutChip(
     onLongPress: () -> Unit,
 ) {
     val style = layoutCardStyle(type)
-    val name  = if (isEnglish) LayoutRegistry.getEnglishName(type)
-                else LayoutRegistry.getBengaliName(type)
 
     // Shorten long names to fit chip width
     val shortName = when (type) {
@@ -587,35 +656,19 @@ private fun LayoutChip(
         LekhaniLayoutType.ENGLISH  -> if (isEnglish) "English" else "ইংরেজি"
     }
 
+    val subtitle = when (type) {
+        LekhaniLayoutType.PROBAHO  -> if (isEnglish) "Flow" else "প্রবাহ"
+        LekhaniLayoutType.AVRO     -> if (isEnglish) "Phonetic" else "ধ্বনিভিত্তিক"
+        LekhaniLayoutType.NATIONAL -> if (isEnglish) "BBS Fixed" else "জাতীয় মান"
+        LekhaniLayoutType.PROBHAT  -> if (isEnglish) "Fixed" else "প্রভাত ফিক্সড"
+        LekhaniLayoutType.GBOARD   -> if (isEnglish) "Standard" else "জিবোর্ড"
+        LekhaniLayoutType.ENGLISH  -> if (isEnglish) "QWERTY" else "ইংরেজি"
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        // "★ Default" badge — only on home chip
-        AnimatedVisibility(
-            visible = isHome,
-            enter   = fadeIn(tween(250)) + androidx.compose.animation.scaleIn(
-                initialScale = 0.7f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-            ),
-            exit    = fadeOut(tween(180)),
-        ) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.primaryContainer,
-            ) {
-                Text(
-                    text  = if (isEnglish) "★ Default" else "★ ডিফল্ট",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.02.sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                )
-            }
-        }
-
-        // Chip body
         Box(
             modifier = Modifier
                 .size(width = width, height = height)
@@ -630,11 +683,11 @@ private fun LayoutChip(
                         listOf(style.gradientStart, style.gradientEnd),
                     ),
                 )
-                // White border ring only on home chip
                 .then(
-                    if (isHome) Modifier.then(
-                        Modifier
-                            .clip(RoundedCornerShape(16.dp))
+                    if (isHome) Modifier.border(
+                        width = 2.dp,
+                        color = Color.White.copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(16.dp)
                     ) else Modifier
                 )
                 .pointerInput(type) {
@@ -642,57 +695,80 @@ private fun LayoutChip(
                         onTap       = { onTap() },
                         onLongPress = { onLongPress() },
                     )
-                },
-            contentAlignment = Alignment.Center,
+                }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
         ) {
-            // Hint character watermark
-            Text(
-                text     = style.hintText,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black,
-                color    = Color.White.copy(alpha = 0.22f),
-                modifier = Modifier.align(Alignment.Center),
-            )
-
-            // Type badge — top left corner
-            Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = Color.Black.copy(alpha = 0.25f),
+            // Top Row: Type Pill on Left, Default Star or Hint on Right
+            Row(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(6.dp),
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text     = style.typeLabel,
-                    fontSize = 7.sp,
-                    fontWeight = FontWeight.Bold,
-                    color    = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                )
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color.Black.copy(alpha = 0.32f),
+                ) {
+                    Text(
+                        text     = style.typeLabel,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color    = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                    )
+                }
+
+                if (isHome) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = Color.White.copy(alpha = 0.28f),
+                    ) {
+                        Text(
+                            text     = if (isEnglish) "★ DEFAULT" else "★ ডিফল্ট",
+                            fontSize = 7.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color    = Color.White,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        )
+                    }
+                } else {
+                    Text(
+                        text     = style.hintText,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color    = Color.White.copy(alpha = 0.6f),
+                    )
+                }
             }
 
-            // Layout name — bottom
-            Text(
-                text       = shortName,
-                style      = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = if (isHome) FontWeight.Bold else FontWeight.SemiBold,
-                ),
-                color      = Color.White,
-                maxLines   = 1,
-                overflow   = TextOverflow.Ellipsis,
-                modifier   = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 8.dp, start = 4.dp, end = 4.dp),
-            )
-        }
-
-        // Hint text below chip (only when not home to save space)
-        if (!isHome) {
-            Text(
-                text  = style.hintText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-            )
+            // Bottom Section: Name and Subtitle
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomStart)
+            ) {
+                Text(
+                    text       = shortName,
+                    style      = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize   = 14.5.sp
+                    ),
+                    color      = Color.White,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text       = subtitle,
+                    style      = MaterialTheme.typography.labelSmall.copy(
+                        fontSize   = 10.sp,
+                        fontWeight = FontWeight.Normal
+                    ),
+                    color      = Color.White.copy(alpha = 0.78f),
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
