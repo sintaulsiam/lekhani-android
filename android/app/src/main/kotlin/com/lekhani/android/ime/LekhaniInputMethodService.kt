@@ -171,13 +171,14 @@ class LekhaniInputMethodService : InputMethodService() {
     private var toolsMenuView: ComposeView? = null
     private var quickLayoutPickerComposeView: ComposeView? = null
     private val _showQuickLayoutPickerFlow = MutableStateFlow(false)
-    private val _paletteHeightDp = MutableStateFlow(260.dp)
+    private val _paletteHeightDp = MutableStateFlow(304.dp)
     private var isCurrentFieldPrivate: Boolean = false
     private var isEnglishDictLoaded: Boolean = false
     private var previousLayoutBeforePassword: LekhaniLayoutType? = null
     private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
     private var layoutPrefListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
     private var lastMeasuredKeyboardHeightPx: Int = 0
+    private var lastMeasuredStripHeightPx: Int = 0
     private var lastTouchCoordinates: Pair<Float, Float>? = null
 
     private var isNumericMode: Boolean = false
@@ -542,6 +543,11 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
             }
         }
+        candidateStrip.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (candidateStrip.height > 0) {
+                lastMeasuredStripHeightPx = candidateStrip.height
+            }
+        }
         candidateStripComposeView = candidateStrip
         candidateStrip.visibility = View.VISIBLE
         rootLayout.addView(
@@ -863,11 +869,19 @@ class LekhaniInputMethodService : InputMethodService() {
         val container = modesContainer ?: return
         val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
 
-        val kbHeightDp = if (lastMeasuredKeyboardHeightPx > 0) {
-            (lastMeasuredKeyboardHeightPx / resources.displayMetrics.density).dp
+        val stripHeightPx = if (lastMeasuredStripHeightPx > 0) {
+            lastMeasuredStripHeightPx
+        } else if ((candidateStripComposeView?.height ?: 0) > 0) {
+            candidateStripComposeView!!.height
         } else {
-            260.dp
+            (44 * resources.displayMetrics.density).toInt()
         }
+        val totalKeyboardHeightPx = if (lastMeasuredKeyboardHeightPx > 0) {
+            lastMeasuredKeyboardHeightPx + stripHeightPx
+        } else {
+            (304 * resources.displayMetrics.density).toInt()
+        }
+        val kbHeightDp = (totalKeyboardHeightPx / resources.displayMetrics.density).dp
         _paletteHeightDp.value = kbHeightDp
 
         when (mode) {

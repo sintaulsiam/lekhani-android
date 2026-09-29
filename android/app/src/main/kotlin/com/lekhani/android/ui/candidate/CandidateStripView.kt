@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -585,29 +586,39 @@ private fun ToolbarContent(
 
         Spacer(modifier = Modifier.width(4.dp))
 
-        // Horizontally scrollable list of active tools (Settings is first!)
-        Row(
+        // Dynamically distributed active tools with equal spacing & touch targets
+        BoxWithConstraints(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .horizontalScroll(scrollState),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            for (tool in tools) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onToolClick?.invoke(tool) }
-                        .padding(horizontal = 11.dp, vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = tool.iconVector,
-                        contentDescription = if (isEnglish) tool.titleEnglish else tool.titleBengali,
-                        modifier = Modifier.size(20.dp),
-                        tint = Color(theme.labelColor).copy(alpha = 0.85f)
-                    )
+            val totalWidth = maxWidth
+            val toolCount = tools.size
+            val itemWidth = if (toolCount > 0) totalWidth / toolCount else 48.dp
+            val needsScroll = itemWidth < 42.dp
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (needsScroll) Modifier.horizontalScroll(scrollState) else Modifier),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (needsScroll) Arrangement.spacedBy(4.dp) else Arrangement.SpaceEvenly,
+            ) {
+                for (tool in tools) {
+                    Box(
+                        modifier = (if (needsScroll) Modifier.width(44.dp) else Modifier.weight(1f))
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onToolClick?.invoke(tool) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = tool.iconVector,
+                            contentDescription = if (isEnglish) tool.titleEnglish else tool.titleBengali,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color(theme.labelColor).copy(alpha = 0.85f)
+                        )
+                    }
                 }
             }
         }

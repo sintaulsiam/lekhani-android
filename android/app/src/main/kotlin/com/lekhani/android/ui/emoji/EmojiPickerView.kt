@@ -109,7 +109,7 @@ fun EmojiPickerView(
     onSpace: () -> Unit = {},
     isEnglish: Boolean = false,
     theme: KeyboardTheme = ThemeRegistry.THEME_FLOW_TEAL,
-    paletteHeight: Dp = 260.dp,
+    paletteHeight: Dp = 304.dp,
     modifier: Modifier = Modifier,
 ) {
     val view = LocalView.current
