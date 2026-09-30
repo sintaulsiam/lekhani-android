@@ -89,6 +89,8 @@ fun PreferencesTabContent(
     var bottomRowKeyMode by remember { mutableStateOf(prefs.bottomRowKeyMode) }
     var swipeToDelete by remember { mutableStateOf(prefs.swipeToDeleteEnabled) }
     var glideTyping by remember { mutableStateOf(prefs.glideTypingEnabled) }
+    var doubleSpaceDari by remember { mutableStateOf(prefs.doubleSpaceDariEnabled) }
+    var codeShield by remember { mutableStateOf(prefs.codeShieldEnabled) }
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
 
@@ -449,6 +451,58 @@ fun PreferencesTabContent(
                         onCheckedChange = {
                             keyGlowRipple = it
                             prefs.keyGlowRippleEnabled = it
+                        }
+                    )
+                }
+
+                // Double-space Dāṛi Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Double-space for Dāṛi / Period" else "ডাবল স্পেসে দাঁড়ি / পিরিয়ড",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Double-tap space to insert Bengali '। ' or English '. '" else "টানা দুইবার স্পেস চাপলে বাংলা '। ' বা ইংরেজি '. ' বসবে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = doubleSpaceDari,
+                        onCheckedChange = {
+                            doubleSpaceDari = it
+                            prefs.doubleSpaceDariEnabled = it
+                        }
+                    )
+                }
+
+                // Code & Token Shield Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Code & Token Shield" else "কোড ও টোকেন শিল্ড",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Prevent transliteration on @mentions, #tags, URLs, and code identifiers in Avro" else "অভ্র মোডে ভ্যারিয়েবল, লিংক বা টোকেন বাংলা রূপান্তর ছাড়াই হুবহু রাখবে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = codeShield,
+                        onCheckedChange = {
+                            codeShield = it
+                            prefs.codeShieldEnabled = it
                         }
                     )
                 }

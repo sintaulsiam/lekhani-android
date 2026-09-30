@@ -120,4 +120,10 @@ class FormFactorAndGesturesTest {
     fun testDedicatedNumberRowPreference() {
         assertEquals("pref_show_dedicated_number_row", KeyboardPreferences.KEY_SHOW_DEDICATED_NUMBER_ROW)
     }
+
+    @Test
+    fun testCodeShieldAndDoubleSpaceDariPreferences() {
+        assertEquals("code_shield_enabled", KeyboardPreferences.KEY_CODE_SHIELD_ENABLED)
+        assertEquals("double_space_dari_enabled", KeyboardPreferences.KEY_DOUBLE_SPACE_DARI_ENABLED)
+    }
 }

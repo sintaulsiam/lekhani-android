@@ -1758,7 +1758,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // 0. Double-tap space shortcut: insert Bengali Dāṛi ("। ") or English period (". ")
         val now = android.os.SystemClock.uptimeMillis()
-        if (!session.isComposing() && (now - lastSpaceTapTime <= 450)) {
+        if (keyboardPrefs.doubleSpaceDariEnabled && !session.isComposing() && (now - lastSpaceTapTime <= 450)) {
             val textBefore = try { ic.getTextBeforeCursor(6, 0)?.toString() } catch (_: Exception) { null }
             if (textBefore != null && textBefore.endsWith(" ") && textBefore.length >= 2) {
                 val prevChar = textBefore[textBefore.length - 2]
@@ -2087,7 +2087,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // 1. Code & Token Shield: If typing code/URL/mention in Avro, offer verbatim token
         val rawInput = rawInputBuffer.toString()
-        if (session.getLayout() == LekhaniLayoutType.AVRO && SmartAssistant.isCodeToken(rawInput)) {
+        if (keyboardPrefs.codeShieldEnabled && session.getLayout() == LekhaniLayoutType.AVRO && SmartAssistant.isCodeToken(rawInput)) {
             if (!filtered.contains(rawInput)) {
                 filtered.add(0, rawInput)
             }

@@ -165,6 +165,14 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_GLIDE_TYPING_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_GLIDE_TYPING_ENABLED, value).apply()
 
+    var codeShieldEnabled: Boolean
+        get() = prefs.getBoolean(KEY_CODE_SHIELD_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_CODE_SHIELD_ENABLED, value).apply()
+
+    var doubleSpaceDariEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DOUBLE_SPACE_DARI_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_DOUBLE_SPACE_DARI_ENABLED, value).apply()
+
     // ── Clipboard Settings ────────────────────────────────────────────────────
     var clipboardRetentionMinutes: Int
         get() = prefs.getInt(KEY_CLIPBOARD_RETENTION_MINUTES, 60)
@@ -279,6 +287,8 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SWIPE_TO_DELETE = "swipe_to_delete"
         const val KEY_KEY_GLOW_RIPPLE = "key_glow_ripple"
         const val KEY_GLIDE_TYPING_ENABLED = "glide_typing_enabled"
+        const val KEY_CODE_SHIELD_ENABLED = "code_shield_enabled"
+        const val KEY_DOUBLE_SPACE_DARI_ENABLED = "double_space_dari_enabled"
         const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
 
         const val KEY_HAPTIC_ENABLED = "haptic_enabled"
