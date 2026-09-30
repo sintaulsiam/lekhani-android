@@ -66,10 +66,12 @@ object HomophoneAnnotator {
      */
     fun annotate(candidates: List<String>, primaryIdx: Int = 0): List<CandidateItem> {
         return candidates.mapIndexed { i, text ->
+            val emoji = com.lekhani.android.data.emoji.EmojiData.isEmoji(text)
             CandidateItem(
                 text = text,
-                isPrimary = i == primaryIdx,
-                homophones = pairs[text],
+                isPrimary = i == primaryIdx && !emoji,
+                homophones = if (emoji) null else pairs[text],
+                isEmoji = emoji,
             )
         }
     }

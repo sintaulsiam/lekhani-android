@@ -17,6 +17,7 @@ data class CandidateItem(
     val isPrimary: Boolean = false,
     val homophones: String? = null,
     val isBlacklisted: Boolean = false,
+    val isEmoji: Boolean = false,
 )
 
 /**
@@ -57,5 +58,14 @@ sealed class CandidateStripState {
      * Single Undo chip mode (shown when no next-word candidates exist, but a substitution occurred).
      */
     data class Undo(val undoInfo: UndoInfo) : CandidateStripState()
+
+    /**
+     * Smart Clipboard Quick-Paste chip (OTP, URL, Email, Phone, Recent snippet).
+     */
+    data class QuickChip(
+        val label: String,
+        val icon: String,
+        val pasteText: String,
+    ) : CandidateStripState()
 }
 

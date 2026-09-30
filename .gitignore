@@ -19,6 +19,7 @@ captures/
 .externalNativeBuild/
 .cxx/
 *.so                # Compiled native libs — always built from source, never committed.
+gradle-daemon-jvm.properties
 
 # ─── Android Studio / IntelliJ IDEA ───────────────────────────────────────────
 .idea/

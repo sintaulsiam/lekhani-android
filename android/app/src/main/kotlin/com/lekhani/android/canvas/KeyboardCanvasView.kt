@@ -1166,10 +1166,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         // Notify session of updated key geometries for spatial Gaussian touch correction
         val configs = resolvedKeys.mapNotNull { rk ->
-            val label = rk.key.label
-            if (label.isNotEmpty()) {
+            val charToken = (rk.key.action as? KeyAction.Character)?.token ?: rk.key.label
+            if (charToken.isNotEmpty()) {
                 com.lekhani.android.ffi.KeyGeometryConfig(
-                    label = label,
+                    label = charToken,
                     centerX = rk.bounds.centerX(),
                     centerY = rk.bounds.centerY(),
                     width = rk.bounds.width(),

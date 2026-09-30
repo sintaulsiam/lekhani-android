@@ -173,6 +173,7 @@ fun CandidateStripView(
             state is CandidateStripState.EmojiSearch -> 0
             hasItems && !showToolbarOverride && !isToolsMenuOpen -> 1
             state is CandidateStripState.Undo && !isToolsMenuOpen -> 3
+            state is CandidateStripState.QuickChip && !isToolsMenuOpen && !showToolbarOverride -> 4
             else -> 2
         }
 
@@ -271,6 +272,37 @@ fun CandidateStripView(
                                 theme = theme,
                                 isEnglish = isEnglish,
                                 isToolsMenuOpen = isToolsMenuOpen,
+                            )
+                        }
+                    }
+                }
+                4 -> {
+                    val quickState = state as? CandidateStripState.QuickChip
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(StripHeight)
+                                .clip(CircleShape)
+                                .clickable { showToolbarOverride = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = if (isEnglish) "Show Toolbar" else "টুলবার প্রদর্শন",
+                                tint = Color(theme.labelColor).copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        if (quickState != null) {
+                            Spacer(Modifier.width(6.dp))
+                            QuickChipPill(
+                                chip = quickState,
+                                onClick = { onCandidateClick(quickState.pasteText) },
+                                theme = theme,
                             )
                         }
                     }
@@ -724,7 +756,7 @@ private fun CandidatePill(
                     onLongClick()
                 },
             )
-            .padding(horizontal = if (item.isPrimary) 16.dp else 13.dp),
+            .padding(horizontal = if (item.isEmoji) 10.dp else if (item.isPrimary) 16.dp else 13.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -734,13 +766,13 @@ private fun CandidatePill(
         ) {
             Text(
                 text = item.text,
-                fontSize = 15.sp,
+                fontSize = if (item.isEmoji) 18.sp else 15.sp,
                 fontWeight = if (item.isPrimary) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (item.isPrimary) primaryText else normalText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
-                    lineHeight = 18.sp,
+                    lineHeight = if (item.isEmoji) 20.sp else 18.sp,
                     platformStyle = PlatformTextStyle(
                         includeFontPadding = false
                     ),
@@ -755,6 +787,47 @@ private fun CandidatePill(
                 Spacer(Modifier.width(4.dp))
                 HomophoneBadge(alternate = item.homophones, theme = theme)
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickChipPill(
+    chip: CandidateStripState.QuickChip,
+    onClick: () -> Unit,
+    theme: KeyboardTheme,
+) {
+    val accentColor = Color(theme.accentColor)
+    val keyBg = Color(theme.keyNormalColor)
+    val labelColor = Color(theme.labelColor)
+
+    Box(
+        modifier = Modifier
+            .height(34.dp)
+            .clip(RoundedCornerShape(17.dp))
+            .background(keyBg)
+            .border(1.dp, accentColor.copy(alpha = 0.5f), RoundedCornerShape(17.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = chip.icon,
+                fontSize = 15.sp,
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = chip.label,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = labelColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

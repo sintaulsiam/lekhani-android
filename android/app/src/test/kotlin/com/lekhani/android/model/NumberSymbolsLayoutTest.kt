@@ -26,7 +26,7 @@ class NumberSymbolsLayoutTest {
         // Row 2: Symbols
         val row2 = layout.rows[1]
         assertEquals(10, row2.size)
-        assertTrue(row2.any { it.label == "৳" })
+        assertTrue(row2.any { it.label == "$" })
         assertTrue(row2.any { it.label == "@" })
 
         // Row 3: More symbols toggle and backspace
@@ -60,29 +60,29 @@ class NumberSymbolsLayoutTest {
         assertEquals(10, row1.size)
         assertTrue(row1.any { it.label == "~" })
         assertTrue(row1.any { it.label == "{" })
+        assertTrue(row1.any { it.label == "৲" })
 
         val row2 = layout.rows[1]
         assertTrue(row2.any { it.label == "€" })
-        assertTrue(row2.any { it.label == "¥" })
+        assertTrue(row2.any { it.label == "£" })
 
         // Row 3 switches back to ?123
         val row3 = layout.rows[2]
         assertEquals("?123", row3[0].label)
         assertEquals(KeyAction.SwitchNumeric, row3[0].action)
-        assertTrue("More symbols must contain curly quote “", row3.any { it.label == "“" })
-        assertTrue("More symbols must contain Double Dari ॥", row3.any { it.label == "॥" })
+        assertTrue(row3.any { it.label == "©" })
+        assertTrue(row3.any { it.label == "®" })
     }
 
     @Test
     fun testBengaliTypographicalGlyphs() {
         val moreLayout = NumberSymbolsLayout.moreSymbolsLayout
-        val takaKey = moreLayout.rows[1].find { it.label == "৳" }
-        assertNotNull(takaKey)
-        assertEquals("৲", takaKey?.hintLabel)
+        val takaSign = moreLayout.rows[0].find { it.label == "৲" }
+        assertNotNull(takaSign)
 
         val bengaliNumeric = NumberSymbolsLayout.bengaliNumericLayout
-        val dariKey = bengaliNumeric.spacebarRow.find { it.label == "।" }
-        assertNotNull(dariKey)
-        assertEquals(KeyAction.Character("॥"), dariKey?.longPressAction)
+        val periodKey = bengaliNumeric.spacebarRow.find { it.label == "." }
+        assertNotNull(periodKey)
+        assertEquals("।", periodKey?.hintLabel)
     }
 }

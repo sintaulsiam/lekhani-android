@@ -36,6 +36,7 @@ import com.lekhani.android.data.dictionary.LekhaniAssetInstaller
 import com.lekhani.android.data.emoji.EmojiData
 import com.lekhani.android.data.emoji.EmojiRecentsManager
 import com.lekhani.android.data.settings.KeyboardPreferences
+import com.lekhani.android.data.smart.SmartAssistant
 import com.lekhani.android.feedback.LekhaniFeedbackManager
 import com.lekhani.android.ffi.AndroidLekhaniSession
 import com.lekhani.android.ffi.LekhaniLayoutType
@@ -187,6 +188,9 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private val recentsManager: EmojiRecentsManager by lazy { EmojiRecentsManager(this) }
     private val clipboardStore: LekhaniClipboardStore by lazy { LekhaniClipboardStore(this) }
+    private var lastCopiedText: String? = null
+    private var lastCopiedTime: Long = 0L
+    private var isQuickChipDismissed: Boolean = false
 
     // ── WebView / Chromium composing shadow buffer ─────────────────────────────
 
@@ -325,12 +329,37 @@ class LekhaniInputMethodService : InputMethodService() {
                     val item = clip.getItemAt(0)
                     val text = item?.text?.toString() ?: item?.coerceToText(this@LekhaniInputMethodService)?.toString()
                     if (!text.isNullOrBlank()) {
+                        if (text != lastCopiedText) {
+                            lastCopiedText = text
+                            lastCopiedTime = System.currentTimeMillis()
+                            isQuickChipDismissed = false
+                        }
                         clipboardStore.addClip(text)
                     }
                 }
             }
         }.onFailure { e ->
             Log.w(TAG, "Failed to sync system primary clip: ${e.message}")
+        }
+    }
+
+    private fun checkAndShowQuickChip() {
+        if (isCurrentFieldPrivate || isQuickChipDismissed) return
+        if (session.isComposing() || preeditShadow.isNotEmpty()) return
+
+        val text = lastCopiedText ?: return
+        val ageMs = System.currentTimeMillis() - lastCopiedTime
+        if (ageMs in 0..120_000) {
+            val isEng = session.getLayout() == LekhaniLayoutType.ENGLISH
+            val chipInfo = SmartAssistant.inspectClipboard(text, isEng)
+            if (chipInfo != null) {
+                _candidateState.value = CandidateStripState.QuickChip(
+                    label = chipInfo.label,
+                    icon = chipInfo.icon,
+                    pasteText = chipInfo.fullText,
+                )
+                updateCandidatesVisibility()
+            }
         }
     }
 
@@ -399,6 +428,7 @@ class LekhaniInputMethodService : InputMethodService() {
         feedbackManager.updateCache()
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
         updateCandidatesVisibility()
+        checkAndShowQuickChip()
     }
 
     override fun onUpdateSelection(
@@ -1539,6 +1569,7 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     fun onKey(keyToken: String) {
         clearUndo()
+        isQuickChipDismissed = true
         val ic = currentInputConnection ?: return
         ensureCursorInComposingRegion(ic)
 
@@ -1570,14 +1601,35 @@ class LekhaniInputMethodService : InputMethodService() {
         updateGboardDynamicRow(keyToken)
 
         result.commitText?.let { text ->
+            val isPunctuation = text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',')
+            val finalText = if (isPunctuation) {
+                if (text == ",") {
+                    val before = try { ic.getTextBeforeCursor(1, 0)?.toString() } catch (_: Exception) { null }
+                    if (before != null && before.isNotEmpty() && before[0].isDigit()) {
+                        text
+                    } else {
+                        "$text "
+                    }
+                } else {
+                    "$text "
+                }
+            } else {
+                text
+            }
+
             ic.beginBatchEdit()
             try {
-                ic.commitText(text, 1)
+                ic.commitText(finalText, 1)
                 preeditShadow = ""
                 rawInputBuffer.clear()
             } finally {
                 ic.endBatchEdit()
             }
+
+            if (session.getLayout() == LekhaniLayoutType.ENGLISH && text.length == 1 && text[0] in listOf('.', '?', '!')) {
+                keyboardView?.setShifted(true)
+            }
+
             // Publish next-word candidates immediately if the engine returned them,
             // so the strip cross-fades instead of collapsing then re-expanding (jitter fix).
             if (result.candidates.isNotEmpty()) {
@@ -1600,6 +1652,7 @@ class LekhaniInputMethodService : InputMethodService() {
     fun onBackspace() {
         val ic = currentInputConnection ?: return
         ensureCursorInComposingRegion(ic)
+        isQuickChipDismissed = true
 
         // Backspace does NOT revert a committed word — that is a destructive UX surprise,
         // especially in Avro where the "original" text is raw Roman (e.g. "ami" → "আমি ").
@@ -1700,14 +1753,15 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     fun onSpace() {
         keyboardView?.setGboardKarsActive(false)
+        isQuickChipDismissed = true
         val ic = currentInputConnection ?: return
 
         // 0. Double-tap space shortcut: insert Bengali Dāṛi ("। ") or English period (". ")
         val now = android.os.SystemClock.uptimeMillis()
         if (!session.isComposing() && (now - lastSpaceTapTime <= 450)) {
-            val textBefore = try { ic.getTextBeforeCursor(2, 0)?.toString() } catch (_: Exception) { null }
-            if (textBefore != null && textBefore.endsWith(" ") && textBefore.length == 2) {
-                val prevChar = textBefore[0]
+            val textBefore = try { ic.getTextBeforeCursor(6, 0)?.toString() } catch (_: Exception) { null }
+            if (textBefore != null && textBefore.endsWith(" ") && textBefore.length >= 2) {
+                val prevChar = textBefore[textBefore.length - 2]
                 val isPunctuation = prevChar in listOf('।', '॥', '.', '?', '!', ',', ';', ':', '\n', ' ')
                 if (!isPunctuation) {
                     val punctuation = if (session.getLayout() == LekhaniLayoutType.ENGLISH) ". " else "। "
@@ -1721,6 +1775,9 @@ class LekhaniInputMethodService : InputMethodService() {
                     lastSpaceTapTime = 0L
                     clearUndo()
                     refreshSurroundingContext()
+                    if (session.getLayout() == LekhaniLayoutType.ENGLISH) {
+                        keyboardView?.setShifted(true)
+                    }
                     return
                 }
             }
@@ -1830,8 +1887,38 @@ class LekhaniInputMethodService : InputMethodService() {
 
         val ic = currentInputConnection ?: return
 
+        // 1. QuickChip quick-paste selection
+        if (_candidateState.value is CandidateStripState.QuickChip) {
+            ic.commitText(candidate, 1)
+            isQuickChipDismissed = true
+            clearCandidates()
+            refreshSurroundingContext()
+            return
+        }
+
+        // 2. Inline contextual emoji selection
+        if (EmojiData.isEmoji(candidate)) {
+            ic.beginBatchEdit()
+            try {
+                if (session.isComposing()) {
+                    session.reset()
+                }
+                ic.commitText("$candidate ", 1)
+                preeditShadow = ""
+            } finally {
+                ic.endBatchEdit()
+            }
+            recentsManager.addRecent(candidate)
+            clearCandidates()
+            refreshSurroundingContext()
+            return
+        }
+
+        // 3. Math evaluation prefix stripping ("= 750" → "750")
+        val actualCandidate = if (candidate.startsWith("= ")) candidate.substring(2) else candidate
+
         val result = try {
-            session.selectCandidate(candidate)
+            session.selectCandidate(actualCandidate)
         } catch (e: LekhaniException) {
             Log.e(TAG, "selectCandidate error: $e")
             return
@@ -1987,7 +2074,8 @@ class LekhaniInputMethodService : InputMethodService() {
 
     /**
      * Publishes candidate list to the Compose candidate strip.
-     * Filters out user-blacklisted words and applies homophone disambiguation badges.
+     * Filters out user-blacklisted words, injects smart code tokens, math answers,
+     * dynamic date/time, and inline contextual emojis.
      */
     private fun publishCandidates(raw: List<String>, undo: UndoInfo? = null) {
         if (currentMode == InputViewMode.EMOJI_SEARCH) return
@@ -1995,7 +2083,46 @@ class LekhaniInputMethodService : InputMethodService() {
             activeUndoInfo = undo
             scheduleUndoExpiry()
         }
-        val filtered = raw.filter { !blacklist.isBlacklisted(it) }
+        val filtered = raw.filter { !blacklist.isBlacklisted(it) }.toMutableList()
+
+        // 1. Code & Token Shield: If typing code/URL/mention in Avro, offer verbatim token
+        val rawInput = rawInputBuffer.toString()
+        if (session.getLayout() == LekhaniLayoutType.AVRO && SmartAssistant.isCodeToken(rawInput)) {
+            if (!filtered.contains(rawInput)) {
+                filtered.add(0, rawInput)
+            }
+        }
+
+        // 2. Smart Math Evaluation: e.g. "500+250=" -> "= 750"
+        val mathAnswer = SmartAssistant.evaluateMath(rawInput)
+        if (mathAnswer != null && !filtered.contains("= $mathAnswer") && !filtered.contains(mathAnswer)) {
+            filtered.add(0, "= $mathAnswer")
+        }
+
+        // 3. Dynamic Date & Time Suggestions
+        val isEng = session.getLayout() == LekhaniLayoutType.ENGLISH
+        val topCandidate = filtered.firstOrNull() ?: ""
+        if (SmartAssistant.isDateQuery(rawInput) || SmartAssistant.isDateQuery(topCandidate)) {
+            val dateStr = SmartAssistant.getFormattedDate(!isEng)
+            if (!filtered.contains(dateStr)) filtered.add(dateStr)
+        }
+        if (SmartAssistant.isTimeQuery(rawInput) || SmartAssistant.isTimeQuery(topCandidate)) {
+            val timeStr = SmartAssistant.getFormattedTime(!isEng)
+            if (!filtered.contains(timeStr)) filtered.add(timeStr)
+        }
+
+        // 4. Inline Contextual Emojis: Gboard-style trailing suggestions
+        val contextualEmojis = mutableListOf<String>()
+        contextualEmojis.addAll(EmojiData.findContextualEmojis(rawInput, 2))
+        if (topCandidate.isNotEmpty() && contextualEmojis.size < 2) {
+            contextualEmojis.addAll(EmojiData.findContextualEmojis(topCandidate, 2 - contextualEmojis.size))
+        }
+        for (emoji in contextualEmojis.distinct()) {
+            if (!filtered.contains(emoji)) {
+                filtered.add(emoji)
+            }
+        }
+
         val newState = if (filtered.isEmpty()) {
             if (undo != null) CandidateStripState.Undo(undo) else CandidateStripState.Empty
         } else {
@@ -2020,6 +2147,7 @@ class LekhaniInputMethodService : InputMethodService() {
         if (currentMode == InputViewMode.EMOJI_SEARCH) return
         _candidateState.value = CandidateStripState.Empty
         updateCandidatesVisibility()
+        checkAndShowQuickChip()
     }
 
     private fun handleToolbarToolClick(tool: KeyboardPreferences.ToolbarTool) {

@@ -1158,6 +1158,19 @@ object EmojiData {
         "party" to listOf("উৎসব", "পার্টি", "party"),
         "shanto" to listOf("শান্ত", "peace"),
         "shanti" to listOf("শান্তি", "peace"),
+        "dhonnobad" to listOf("ধন্যবাদ", "thank", "prayer"),
+        "shuvo" to listOf("শুভ", "celebrate", "party", "star"),
+        "salaam" to listOf("সালাম", "prayer", "handshake"),
+        "salam" to listOf("সালাম", "prayer", "handshake"),
+        "bhai" to listOf("ভাই", "handshake", "friend"),
+        "bondhu" to listOf("বন্ধু", "friend", "handshake"),
+        "taka" to listOf("টাকা", "money", "cash"),
+        "bhalo" to listOf("ভালো", "thumbs up", "smile"),
+        "valo" to listOf("ভালো", "thumbs up", "smile"),
+        "kharap" to listOf("খারাপ", "thumbs down", "disappointed"),
+        "thik" to listOf("ঠিক", "check", "thumbs up"),
+        "shukhi" to listOf("খুশি", "happy"),
+        "sukhi" to listOf("খুশি", "happy"),
         "ghum" to listOf("ঘুম", "sleep"),
         "klanto" to listOf("ক্লান্ত", "tired"),
         "choshma" to listOf("চশমা", "sunglasses", "glasses"),
@@ -1167,6 +1180,84 @@ object EmojiData {
         "cricket" to listOf("ক্রিকেট", "cricket"),
         "football" to listOf("ফুটবল", "football", "soccer"),
     )
+
+    private val allEmojiCharSet: Set<String> by lazy {
+        allEmojis.map { it.emoji }.toHashSet()
+    }
+
+    /** Precomputed inverted index mapping search keywords directly to emoji glyphs */
+    private val invertedIndex: Map<String, List<String>> by lazy {
+        val map = HashMap<String, MutableList<String>>()
+        for (item in allEmojis) {
+            val glyph = item.emoji
+            for (kw in item.keywords) {
+                val token = kw.trim().lowercase()
+                if (token.isNotEmpty()) {
+                    val list = map.getOrPut(token) { ArrayList(2) }
+                    if (!list.contains(glyph)) list.add(glyph)
+                }
+            }
+            val nameTokens = item.name.lowercase().split(" ", "_", "-")
+            for (nt in nameTokens) {
+                if (nt.length >= 3) {
+                    val list = map.getOrPut(nt) { ArrayList(2) }
+                    if (!list.contains(glyph)) list.add(glyph)
+                }
+            }
+        }
+        for ((phonetic, synonyms) in PHONETIC_SYNONYMS) {
+            val pToken = phonetic.trim().lowercase()
+            val list = map.getOrPut(pToken) { ArrayList(2) }
+            for (syn in synonyms) {
+                val matched = map[syn.trim().lowercase()]
+                if (matched != null) {
+                    for (em in matched) {
+                        if (!list.contains(em)) list.add(em)
+                    }
+                }
+            }
+        }
+        map
+    }
+
+    /** Check if a given string is a recognized emoji glyph */
+    fun isEmoji(str: String): Boolean {
+        if (str.isEmpty()) return false
+        if (allEmojiCharSet.contains(str)) return true
+        val cp = str.codePointAt(0)
+        return (cp in 0x1F300..0x1FAFF) || (cp in 0x2600..0x27BF) || (cp in 0x1F600..0x1F64F)
+    }
+
+    /**
+     * Fast sub-microsecond O(1) keyword lookup for inline candidate strip emojis.
+     */
+    fun findContextualEmojis(wordOrToken: String, maxCount: Int = 2): List<String> {
+        val q = wordOrToken.trim().lowercase()
+        if (q.length < 2) return emptyList()
+
+        val direct = invertedIndex[q]
+        if (!direct.isNullOrEmpty()) {
+            return direct.take(maxCount)
+        }
+
+        val syns = PHONETIC_SYNONYMS[q]
+        if (syns != null) {
+            val results = mutableListOf<String>()
+            for (syn in syns) {
+                invertedIndex[syn.lowercase()]?.let { matched ->
+                    for (em in matched) {
+                        if (!results.contains(em)) {
+                            results.add(em)
+                            if (results.size >= maxCount) return results
+                        }
+                    }
+                }
+            }
+            if (results.isNotEmpty()) return results
+        }
+
+        return emptyList()
+    }
 
     /**
      * Searches emojis across Bengali, English, and phonetic Avro/Banglish transliterations
