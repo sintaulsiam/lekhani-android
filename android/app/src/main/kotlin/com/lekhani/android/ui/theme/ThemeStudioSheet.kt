@@ -1,11 +1,22 @@
 package com.lekhani.android.ui.theme
 
 import android.net.Uri
+import android.os.Build
+import android.view.HapticFeedbackConstants
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,19 +29,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,29 +71,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.settings.KeyboardPreferences
-import com.lekhani.android.theme.KeyboardTheme
-import com.lekhani.android.theme.ThemeRegistry
-
-import androidx.compose.material.icons.filled.BrightnessAuto
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.foundation.BorderStroke
 import com.lekhani.android.theme.CustomThemeManager
+import com.lekhani.android.theme.KeyboardTheme
+import com.lekhani.android.theme.ThemeCategory
+import com.lekhani.android.theme.ThemeRegistry
 
 /**
  * ThemeStudioSheet
  * ══════════════════════════════════════════════════════════════════════════════
  * Material 3 Expressive theme customization studio.
- * Supports built-in themes, Material You dynamic wallpaper color matching,
- * independent app appearance mode, and custom background wallpaper with opacity adjustment.
+ * Supports independent app appearance modes, rich categorized keyboard themes
+ * (Neon & Cyber, Aesthetic & Pastel, 120 FPS RGB Chroma Dynamic, Classic),
+ * live interactive sandbox keyboard previews, and custom wallpaper backgrounds.
  */
 @Composable
 fun ThemeStudioSheet(
@@ -83,6 +98,7 @@ fun ThemeStudioSheet(
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val customThemeManager = remember { CustomThemeManager.get(context) }
     var customThemes by remember { mutableStateOf(customThemeManager.getAllCustomThemes()) }
     var themeToEdit by remember { mutableStateOf<KeyboardTheme?>(null) }
@@ -90,6 +106,7 @@ fun ThemeStudioSheet(
 
     var selectedThemeId by remember { mutableStateOf(prefs.themeId) }
     var selectedAppThemeMode by remember { mutableStateOf(prefs.appThemeMode) }
+    var selectedCategory by remember { mutableStateOf(ThemeCategory.ALL) }
     var wallpaperUri by remember { mutableStateOf(prefs.customWallpaperUri) }
     var wallpaperOpacity by remember { mutableFloatStateOf(prefs.wallpaperOpacity) }
 
@@ -100,6 +117,28 @@ fun ThemeStudioSheet(
             val uriStr = uri.toString()
             wallpaperUri = uriStr
             prefs.customWallpaperUri = uriStr
+        }
+    }
+
+    val allPresetThemes = remember(context) {
+        ThemeRegistry.PRESET_THEMES + listOf(ThemeRegistry.createMaterialYouTheme(context))
+    }
+
+    val activePreviewTheme = remember(selectedThemeId, customThemes, allPresetThemes) {
+        customThemes.firstOrNull { it.id == selectedThemeId }
+            ?: allPresetThemes.firstOrNull { it.id == selectedThemeId }
+            ?: ThemeRegistry.resolveTheme(context, selectedThemeId)
+    }
+
+    val filteredThemes = remember(selectedCategory, customThemes, allPresetThemes) {
+        when (selectedCategory) {
+            ThemeCategory.ALL -> customThemes + allPresetThemes
+            ThemeCategory.CUSTOM -> customThemes
+            else -> {
+                val presetsInCat = allPresetThemes.filter { it.category == selectedCategory }
+                val customsInCat = customThemes.filter { it.category == selectedCategory }
+                customsInCat + presetsInCat
+            }
         }
     }
 
@@ -132,23 +171,24 @@ fun ThemeStudioSheet(
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = if (isEnglish) "Customize keyboard colors and background wallpaper" else "কীবোর্ডের ভিজ্যুয়াল লুক এবং ওয়ালপেপার পরিবর্তন করুন",
+                        text = if (isEnglish) "Customize keyboard colors, RGB chroma, and wallpaper"
+                               else "কীবোর্ডের নিওন, আরজিবি, কালার ও ওয়ালপেপার পরিবর্তন করুন",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Section 0: App Appearance
+                // ── Section 0: Independent App Appearance ─────────────────────
                 item {
                     Text(
-                        text = if (isEnglish) "App Appearance" else "অ্যাপের থিম মোড",
+                        text = if (isEnglish) "App Appearance (Independent)" else "অ্যাপের থিম মোড (স্বতন্ত্র)",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -157,18 +197,21 @@ fun ThemeStudioSheet(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val modes = listOf(
-                            Triple(KeyboardPreferences.AppThemeMode.SYSTEM, Icons.Default.BrightnessAuto, if (isEnglish) "System" else "সিস্টেম"),
-                            Triple(KeyboardPreferences.AppThemeMode.LIGHT, Icons.Default.LightMode, if (isEnglish) "Light" else "লাইট"),
-                            Triple(KeyboardPreferences.AppThemeMode.DARK, Icons.Default.DarkMode, if (isEnglish) "Dark" else "ডার্ক"),
-                            Triple(KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD, Icons.Default.Keyboard, if (isEnglish) "Keyboard" else "অনুরূপ")
-                        )
+                        val modes = buildList {
+                            add(Triple(KeyboardPreferences.AppThemeMode.SYSTEM, Icons.Default.BrightnessAuto, if (isEnglish) "System" else "সিস্টেম"))
+                            add(Triple(KeyboardPreferences.AppThemeMode.LIGHT, Icons.Default.LightMode, if (isEnglish) "Light" else "লাইট"))
+                            add(Triple(KeyboardPreferences.AppThemeMode.DARK, Icons.Default.DarkMode, if (isEnglish) "Dark" else "ডার্ক"))
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                add(Triple(KeyboardPreferences.AppThemeMode.DYNAMIC, Icons.Default.AutoAwesome, if (isEnglish) "Dynamic" else "ডাইনামিক"))
+                            }
+                        }
                         modes.forEach { (mode, icon, title) ->
                             val isSelected = selectedAppThemeMode == mode
                             Card(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clickable {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                         selectedAppThemeMode = mode
                                         prefs.appThemeMode = mode
                                         onAppThemeModeChanged?.invoke(mode)
@@ -207,14 +250,10 @@ fun ThemeStudioSheet(
                     }
                 }
 
-                // ── Live Interactive Keyboard Preview ─────────────────────────
+                // ── Section 1: Live Interactive Keyboard Preview ──────────────
                 item {
-                    val activePreviewTheme = remember(selectedThemeId, customThemes) {
-                        customThemes.firstOrNull { it.id == selectedThemeId }
-                            ?: ThemeRegistry.resolveTheme(context, selectedThemeId)
-                    }
                     Text(
-                        text = if (isEnglish) "Live Theme Preview" else "লাইভ থিম প্রিভিউ",
+                        text = if (isEnglish) "Live Interactive Preview" else "লাইভ ইন্টারেক্টিভ প্রিভিউ",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -222,39 +261,81 @@ fun ThemeStudioSheet(
                     LiveKeyboardMiniPreview(theme = activePreviewTheme, isEnglish = isEnglish)
                 }
 
-                // Section 1: Custom Themes
+                // ── Section 2: Category Filter Chips ──────────────────────────
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isEnglish) "Custom Themes" else "কাস্টম থিমসমূহ",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        OutlinedButton(
-                            onClick = {
-                                val baseTheme = ThemeRegistry.resolveTheme(context, selectedThemeId)
-                                themeToEdit = baseTheme.copy(
-                                    id = "custom_${System.currentTimeMillis()}",
-                                    nameBengali = "আমার থিম",
-                                    nameEnglish = "My Custom Theme",
-                                    isCustom = true
-                                )
-                                showEditorDialog = true
-                            },
-                            shape = RoundedCornerShape(8.dp)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "Create" else "নতুন থিম")
+                            Text(
+                                text = if (isEnglish) "Theme Collections" else "থিম কালেকশনসমূহ",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    val baseTheme = activePreviewTheme
+                                    themeToEdit = baseTheme.copy(
+                                        id = "custom_${System.currentTimeMillis()}",
+                                        nameBengali = "আমার থিম",
+                                        nameEnglish = "My Custom Theme",
+                                        isCustom = true,
+                                        category = ThemeCategory.CUSTOM
+                                    )
+                                    showEditorDialog = true
+                                },
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (isEnglish) "Create" else "নতুন থিম")
+                            }
+                        }
+
+                        // Filter chips horizontal row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val categories = listOf(
+                                ThemeCategory.ALL,
+                                ThemeCategory.NEON,
+                                ThemeCategory.AESTHETIC,
+                                ThemeCategory.RGB_CHROMA,
+                                ThemeCategory.CLASSIC,
+                                ThemeCategory.CONTRAST_NATURE,
+                                ThemeCategory.CUSTOM,
+                            )
+                            categories.forEach { cat ->
+                                val isSelected = selectedCategory == cat
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        selectedCategory = cat
+                                    },
+                                    label = {
+                                        val title = if (isEnglish) cat.titleEnglish else cat.titleBengali
+                                        Text("${cat.iconEmoji} $title")
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    ),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                            }
                         }
                     }
                 }
 
-                if (customThemes.isEmpty()) {
+                // ── Section 3: Filtered Theme Cards List ──────────────────────
+
+                if (filteredThemes.isEmpty()) {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -264,8 +345,8 @@ fun ThemeStudioSheet(
                             )
                         ) {
                             Text(
-                                text = if (isEnglish) "No custom themes created yet. Tap '+ Create' or duplicate any preset below!"
-                                       else "কোনো কাস্টম থিম নেই। '+ নতুন থিম' চাপুন বা নিচের যেকোনো প্রিসেট ডুপ্লিকেট করে এডিট করুন!",
+                                text = if (isEnglish) "No themes in this collection yet. Tap '+ Create' to craft your own!"
+                                       else "এই কালেকশনে কোনো থিম পাওয়া যায়নি। '+ নতুন থিম' দিয়ে তৈরি করুন!",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(14.dp)
@@ -273,88 +354,55 @@ fun ThemeStudioSheet(
                         }
                     }
                 } else {
-                    items(customThemes.size) { idx ->
-                        val customTheme = customThemes[idx]
-                        val isSelected = selectedThemeId == customTheme.id
+                    items(filteredThemes.size) { idx ->
+                        val theme = filteredThemes[idx]
+                        val isSelected = selectedThemeId == theme.id
+
                         ThemePreviewCard(
-                            theme = customTheme,
+                            theme = theme,
                             isSelected = isSelected,
                             isEnglish = isEnglish,
                             onSelect = {
-                                selectedThemeId = customTheme.id
-                                prefs.themeId = customTheme.id
-                                onThemeChanged?.invoke(customTheme.id)
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                selectedThemeId = theme.id
+                                prefs.themeId = theme.id
+                                onThemeChanged?.invoke(theme.id)
                             },
-                            onEdit = {
-                                themeToEdit = customTheme
-                                showEditorDialog = true
-                            },
+                            onEdit = if (theme.isCustom) {
+                                {
+                                    themeToEdit = theme
+                                    showEditorDialog = true
+                                }
+                            } else null,
                             onDuplicate = {
                                 val dup = customThemeManager.duplicateTheme(
-                                    customTheme,
-                                    if (isEnglish) "${customTheme.nameEnglish} (Copy)" else "${customTheme.nameBengali} (কপি)"
+                                    theme,
+                                    if (isEnglish) "${theme.nameEnglish} (Copy)" else "${theme.nameBengali} (কপি)"
                                 )
                                 customThemes = customThemeManager.getAllCustomThemes()
                                 selectedThemeId = dup.id
                                 prefs.themeId = dup.id
                                 onThemeChanged?.invoke(dup.id)
                             },
-                            onDelete = {
-                                customThemeManager.deleteCustomTheme(customTheme.id)
-                                customThemes = customThemeManager.getAllCustomThemes()
-                                if (selectedThemeId == customTheme.id) {
-                                    val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
-                                    selectedThemeId = fallback
-                                    prefs.themeId = fallback
-                                    onThemeChanged?.invoke(fallback)
+                            onDelete = if (theme.isCustom) {
+                                {
+                                    customThemeManager.deleteCustomTheme(theme.id)
+                                    customThemes = customThemeManager.getAllCustomThemes()
+                                    if (selectedThemeId == theme.id) {
+                                        val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
+                                        selectedThemeId = fallback
+                                        prefs.themeId = fallback
+                                        onThemeChanged?.invoke(fallback)
+                                    }
                                 }
-                            }
+                            } else null
                         )
                     }
                 }
 
-                // Section 2: Preset Themes
+                // ── Section 4: Wallpaper Background ──────────────────────────
                 item {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = if (isEnglish) "Keyboard Color Palettes & Presets" else "কীবোর্ড কালার প্যালেট ও প্রিসেট",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                val allThemes = ThemeRegistry.PRESET_THEMES + listOf(
-                    ThemeRegistry.createMaterialYouTheme(context)
-                )
-
-                items(allThemes.size) { idx ->
-                    val theme = allThemes[idx]
-                    val isSelected = selectedThemeId == theme.id
-
-                    ThemePreviewCard(
-                        theme = theme,
-                        isSelected = isSelected,
-                        isEnglish = isEnglish,
-                        onSelect = {
-                            selectedThemeId = theme.id
-                            prefs.themeId = theme.id
-                            onThemeChanged?.invoke(theme.id)
-                        },
-                        onDuplicate = {
-                            val dup = customThemeManager.duplicateTheme(
-                                theme,
-                                if (isEnglish) "${theme.nameEnglish} (Custom)" else "${theme.nameBengali} (কাস্টম)"
-                            )
-                            customThemes = customThemeManager.getAllCustomThemes()
-                            themeToEdit = dup
-                            showEditorDialog = true
-                        }
-                    )
-                }
-
-                // Section 2: Wallpaper Background
-                item {
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = if (isEnglish) "Custom Wallpaper Background" else "কাস্টম ওয়ালপেপার ব্যাকগ্রাউন্ড",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -386,7 +434,7 @@ fun ThemeStudioSheet(
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
                                         text = if (wallpaperUri.isNotBlank()) {
-                                            if (isEnglish) "Wallpaper Applied" else "ওয়ালপেপার যুক্ত হয়েছে"
+                                            if (isEnglish) "Wallpaper Active" else "ওয়ালপেপার যুক্ত হয়েছে"
                                         } else {
                                             if (isEnglish) "No Wallpaper" else "কোনো ওয়ালপেপার নেই"
                                         },
@@ -399,7 +447,7 @@ fun ThemeStudioSheet(
                                         onClick = { photoPickerLauncher.launch("image/*") },
                                         shape = RoundedCornerShape(10.dp)
                                     ) {
-                                        Text(if (isEnglish) "Choose Image" else "ছবি নির্বাচন করুন")
+                                        Text(if (isEnglish) "Choose Image" else "ছবি নির্বাচন")
                                     }
 
                                     if (wallpaperUri.isNotBlank()) {
@@ -481,6 +529,9 @@ fun ThemeStudioSheet(
     }
 }
 
+/**
+ * Modern Theme Card with circular color swatches, category badges, and active state.
+ */
 @Composable
 private fun ThemePreviewCard(
     theme: KeyboardTheme,
@@ -497,7 +548,7 @@ private fun ThemePreviewCard(
             .clip(RoundedCornerShape(16.dp))
             .border(
                 width = if (isSelected) 2.5.dp else 1.dp,
-                color = if (isSelected) Color(theme.accentColor) else MaterialTheme.colorScheme.outlineVariant,
+                color = if (isSelected) Color(theme.accentColor) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onSelect),
@@ -507,69 +558,50 @@ private fun ThemePreviewCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color(theme.labelColor)
-                )
-                Text(
-                    text = if (isEnglish) theme.nameBengali else theme.nameEnglish,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(theme.labelDimColor)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Mini Key Swatches
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color(theme.labelColor)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .size(36.dp, 32.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(theme.keyNormalColor))
-                            .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center
+                            .background(Color(theme.accentColor).copy(alpha = 0.18f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Text("ক", color = Color(theme.labelColor), fontSize = 13.sp)
+                        Text(
+                            text = "${theme.category.iconEmoji} ${if (isEnglish) theme.category.titleEnglish else theme.category.titleBengali}",
+                            fontSize = 10.sp,
+                            color = Color(theme.accentColor),
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
+                }
 
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp, 32.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(theme.keyShiftColor))
-                            .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("⇧", color = Color(theme.labelDimColor), fontSize = 12.sp)
-                    }
+                Spacer(modifier = Modifier.height(10.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp, 32.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(theme.keyHasantaColor))
-                            .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("্", color = Color(theme.accentColor), fontSize = 13.sp)
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp, 32.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(theme.keySpaceColor))
-                            .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(if (isEnglish) "Space" else "স্পেস", color = Color(theme.labelDimColor), fontSize = 11.sp)
-                    }
+                // Circular Color Swatches (Key Normal, Shift/Function, Accent, Border)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ColorSwatchCircle(Color(theme.keyNormalColor), "Key")
+                    ColorSwatchCircle(Color(theme.keyShiftColor), "Shift")
+                    ColorSwatchCircle(Color(theme.accentColor), "Accent")
+                    ColorSwatchCircle(Color(theme.keyBorderColor), "Border")
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (theme.isRgbChroma) "🌈 120 FPS Chroma" else if (theme.isDark) "Dark" else "Light",
+                        fontSize = 11.sp,
+                        color = Color(theme.labelDimColor)
+                    )
                 }
             }
 
@@ -627,49 +659,158 @@ private fun ThemePreviewCard(
 }
 
 @Composable
+private fun ColorSwatchCircle(color: Color, desc: String) {
+    Box(
+        modifier = Modifier
+            .size(18.dp)
+            .clip(CircleShape)
+            .background(color)
+            .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
+    )
+}
+
+/**
+ * Interactive Live Keyboard Preview sandbox featuring:
+ * - Candidate suggestion strip
+ * - Real-time animated rainbow border / accents for RGB Chroma themes
+ * - Interactive test typing bar with haptic response
+ */
+@Composable
 private fun LiveKeyboardMiniPreview(
     theme: KeyboardTheme,
     isEnglish: Boolean = false
 ) {
+    val view = LocalView.current
+    var testInput by remember { mutableStateOf("") }
+
+    // Dynamic RGB Rainbow animation for chroma themes
+    val animatedBorderColor = if (theme.isRgbChroma) {
+        val infiniteTransition = rememberInfiniteTransition(label = "ChromaFlow")
+        val hue by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 3600, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "HueAnim"
+        )
+        val hsv = remember(hue) {
+            val arr = FloatArray(3)
+            arr[0] = hue
+            arr[1] = 0.85f
+            arr[2] = 1.0f
+            Color(android.graphics.Color.HSVToColor(arr))
+        }
+        hsv
+    } else {
+        Color(theme.keyBorderColor)
+    }
+
+    val liveAccentColor = if (theme.isRgbChroma) animatedBorderColor else Color(theme.accentColor)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundColor)),
-        border = BorderStroke(1.5.dp, Color(theme.accentColor).copy(alpha = 0.6f))
+        border = BorderStroke(1.5.dp, liveAccentColor.copy(alpha = 0.7f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Header: Theme Name Badge
+            // Header: Theme Name + Badges
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = Color(theme.labelColor)
-                )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(theme.accentColor).copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (theme.isDark) "OLED / Dark" else "Light / Crisp",
-                        fontSize = 10.sp,
-                        color = Color(theme.accentColor),
-                        fontWeight = FontWeight.Medium
+                        text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color(theme.labelColor)
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(liveAccentColor.copy(alpha = 0.2f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${theme.category.iconEmoji} ${if (isEnglish) theme.category.titleEnglish else theme.category.titleBengali}",
+                            fontSize = 10.sp,
+                            color = liveAccentColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                if (testInput.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(theme.keyNormalColor))
+                            .clickable { testInput = "" }
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("Clear", fontSize = 10.sp, color = Color(theme.labelDimColor))
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            // Interactive Text Test Strip
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(30.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(theme.keyShiftColor))
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = if (testInput.isNotBlank()) testInput else (if (isEnglish) "Tap keys below to test typing..." else "নিচে কি চেপে টাইপিং টেস্ট করুন..."),
+                    color = if (testInput.isNotBlank()) Color(theme.labelColor) else Color(theme.labelDimColor),
+                    fontSize = 12.sp,
+                    maxLines = 1
+                )
+            }
+
+            // Suggestions / Candidate Strip Preview
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val suggestions = listOf("বাংলা", "লেখনী", "বাংলাদেশ", "প্রবাহ")
+                suggestions.forEachIndexed { idx, word ->
+                    val isHighCandidate = idx == 0
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isHighCandidate) liveAccentColor else Color(theme.keyNormalColor))
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                testInput += if (testInput.isEmpty()) word else " $word"
+                            }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = word,
+                            fontSize = 11.sp,
+                            fontWeight = if (isHighCandidate) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isHighCandidate) (if (theme.isDark) Color.Black else Color.White) else Color(theme.labelColor)
+                        )
+                    }
+                }
+            }
 
             // Row 1: Vowels / Consonants
             Row(
@@ -683,7 +824,11 @@ private fun LiveKeyboardMiniPreview(
                             .height(30.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(Color(theme.keyNormalColor))
-                            .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                            .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                testInput += ch
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(ch, color = Color(theme.labelColor), fontSize = 12.sp)
@@ -703,7 +848,11 @@ private fun LiveKeyboardMiniPreview(
                             .height(30.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(Color(theme.keyNormalColor))
-                            .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                            .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                testInput += ch
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(ch, color = Color(theme.labelColor), fontSize = 12.sp)
@@ -722,7 +871,7 @@ private fun LiveKeyboardMiniPreview(
                         .height(30.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(theme.keyShiftColor))
-                        .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                        .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("⇧", color = Color(theme.labelDimColor), fontSize = 12.sp)
@@ -733,10 +882,14 @@ private fun LiveKeyboardMiniPreview(
                         .height(30.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(theme.keyHasantaColor))
-                        .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                        .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            testInput += "্"
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("্", color = Color(theme.accentColor), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("্", color = liveAccentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
                 Box(
                     modifier = Modifier
@@ -744,7 +897,11 @@ private fun LiveKeyboardMiniPreview(
                         .height(30.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(theme.keySpaceColor))
-                        .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                        .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            testInput += " "
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -758,15 +915,19 @@ private fun LiveKeyboardMiniPreview(
                         .weight(1.4f)
                         .height(30.dp)
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(theme.accentColor))
-                        .border(1.dp, Color(theme.keyBorderColor), RoundedCornerShape(6.dp)),
+                        .background(liveAccentColor)
+                        .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                        .clickable {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            if (testInput.isNotEmpty()) testInput = testInput.dropLast(1)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "↵",
-                        color = if (theme.isDark) Color.Black else Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Backspace,
+                        contentDescription = "Backspace",
+                        tint = if (theme.isDark) Color.Black else Color.White,
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }

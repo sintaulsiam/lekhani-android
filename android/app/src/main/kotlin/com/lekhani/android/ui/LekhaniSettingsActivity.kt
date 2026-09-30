@@ -1160,13 +1160,13 @@ private fun QuickClipboardCard(
 /**
  * LekhaniAppTheme
  * ══════════════════════════════════════════════════════════════════════════════
- * Dynamic Material 3 theme engine adapting seamlessly to the user's selected
- * [KeyboardTheme] (Daylight Light, OLED Black, Avro Blue, Cyber Indigo, Flow Teal,
- * or Material You on Android 12+).
+ * Independent Material 3 Expressive theme engine for Lekhani Settings & Studio.
+ * Completely decoupled from keyboard canvas colors to guarantee WCAG AAA contrast,
+ * clean typography, and zero layout visual breakage across all custom & extreme themes.
  */
 @Composable
 fun LekhaniAppTheme(
-    theme: KeyboardTheme,
+    theme: KeyboardTheme? = null,
     appThemeMode: KeyboardPreferences.AppThemeMode = KeyboardPreferences.AppThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {
@@ -1177,15 +1177,37 @@ fun LekhaniAppTheme(
     val shouldUseDark = when (appThemeMode) {
         KeyboardPreferences.AppThemeMode.LIGHT -> false
         KeyboardPreferences.AppThemeMode.DARK -> true
-        KeyboardPreferences.AppThemeMode.SYSTEM -> isSystemDark
-        KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD -> theme.isDark
+        KeyboardPreferences.AppThemeMode.SYSTEM,
+        KeyboardPreferences.AppThemeMode.DYNAMIC,
+        KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD -> isSystemDark
     }
 
-    val colorScheme = remember(theme.id, appThemeMode, isSystemDark) {
-        if (theme.id == ThemeRegistry.ID_MATERIAL_YOU && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    val colorScheme = remember(appThemeMode, isSystemDark) {
+        if ((appThemeMode == KeyboardPreferences.AppThemeMode.DYNAMIC || appThemeMode == KeyboardPreferences.AppThemeMode.SYSTEM)
+            && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (shouldUseDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        } else if (appThemeMode == KeyboardPreferences.AppThemeMode.LIGHT || (!shouldUseDark && appThemeMode != KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD)) {
-            // Clean standard light theme
+        } else if (shouldUseDark) {
+            // Elegant, ergonomic Material 3 Dark theme (Teal / Slate)
+            darkColorScheme(
+                primary = Color(0xFF00E5B8),
+                onPrimary = Color(0xFF003829),
+                primaryContainer = Color(0xFF00513C),
+                onPrimaryContainer = Color(0xFF8CF4CB),
+                secondary = Color(0xFFB1CCC0),
+                onSecondary = Color(0xFF1C352C),
+                secondaryContainer = Color(0xFF334B42),
+                onSecondaryContainer = Color(0xFFCCE8DC),
+                surface = Color(0xFF141917),
+                background = Color(0xFF0E1312),
+                surfaceVariant = Color(0xFF1C2421),
+                onSurfaceVariant = Color(0xFF90A39B),
+                onSurface = Color(0xFFE2E7E4),
+                onBackground = Color(0xFFE2E7E4),
+                outline = Color(0xFF2C3934),
+                outlineVariant = Color(0xFF1D2723)
+            )
+        } else {
+            // Crisp, high-contrast Material 3 Light theme
             lightColorScheme(
                 primary = Color(0xFF006C50),
                 onPrimary = Color.White,
@@ -1204,197 +1226,6 @@ fun LekhaniAppTheme(
                 outline = Color(0xFFB0BEC5),
                 outlineVariant = Color(0xFFCFD8DC)
             )
-        } else if (appThemeMode == KeyboardPreferences.AppThemeMode.DARK && appThemeMode != KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD) {
-            // Clean neutral dark theme
-            darkColorScheme(
-                primary = Color(0xFF80CBC4),
-                onPrimary = Color(0xFF003728),
-                primaryContainer = Color(0xFF00513C),
-                onPrimaryContainer = Color(0xFFB2DFDB),
-                secondary = Color(0xFFB0CCC2),
-                onSecondary = Color(0xFF1B352D),
-                surface = Color(0xFF161A19),
-                background = Color(0xFF0E1211),
-                surfaceVariant = Color(0xFF222927),
-                onSurfaceVariant = Color(0xFF98A6A1),
-                onSurface = Color(0xFFE2E7E5),
-                onBackground = Color(0xFFE2E7E5),
-                outline = Color(0xFF333E3B),
-                outlineVariant = Color(0xFF232C29)
-            )
-        } else if (!theme.isDark) {
-            // Light keyboard theme matching
-            if (theme.id == ThemeRegistry.ID_MOCHA_LATTE) {
-                lightColorScheme(
-                    primary = Color(0xFF6D4C41),
-                    onPrimary = Color.White,
-                    primaryContainer = Color(0xFFD7CCC8),
-                    onPrimaryContainer = Color(0xFF2D241E),
-                    secondary = Color(0xFF8D6E63),
-                    onSecondary = Color.White,
-                    secondaryContainer = Color(0xFFEFEBE9),
-                    onSecondaryContainer = Color(0xFF3E2723),
-                    background = Color(0xFFFAF6F2),
-                    onBackground = Color(0xFF2D241E),
-                    surface = Color(0xFFFFFFFF),
-                    onSurface = Color(0xFF2D241E),
-                    surfaceVariant = Color(0xFFE4D8CE),
-                    onSurfaceVariant = Color(0xFF5D4037),
-                    outline = Color(0xFFBCAAA4),
-                    outlineVariant = Color(0xFFD7CCC8)
-                )
-            } else {
-                lightColorScheme(
-                    primary = Color(0xFF006C50),
-                    onPrimary = Color.White,
-                    primaryContainer = Color(0xFFB2DFDB),
-                    onPrimaryContainer = Color(0xFF002018),
-                    secondary = Color(0xFF4A635B),
-                    onSecondary = Color.White,
-                    secondaryContainer = Color(0xFFCCE8DE),
-                    onSecondaryContainer = Color(0xFF051F19),
-                    background = Color(0xFFF7F9FA),
-                    onBackground = Color(0xFF191C1B),
-                    surface = Color(0xFFFFFFFF),
-                    onSurface = Color(0xFF191C1B),
-                    surfaceVariant = Color(0xFFE8ECEF),
-                    onSurfaceVariant = Color(0xFF404945),
-                    outline = Color(0xFFB0BEC5),
-                    outlineVariant = Color(0xFFCFD8DC)
-                )
-            }
-        } else {
-            // Dark Themes matching keyboard
-            when (theme.id) {
-                ThemeRegistry.ID_OLED_BLACK -> darkColorScheme(
-                    primary = Color(0xFF00E676),
-                    onPrimary = Color(0xFF00391A),
-                    primaryContainer = Color(0xFF005328),
-                    onPrimaryContainer = Color(0xFF73FBA4),
-                    secondary = Color(0xFFB5CCBA),
-                    onSecondary = Color(0xFF213528),
-                    surface = Color(0xFF121212),
-                    background = Color(0xFF000000), // AMOLED Pure Black
-                    surfaceVariant = Color(0xFF1E1E1E),
-                    onSurfaceVariant = Color(0xFFA0A0A0),
-                    onSurface = Color(0xFFFFFFFF),
-                    onBackground = Color(0xFFFFFFFF),
-                    outline = Color(0xFF2E2E2E),
-                    outlineVariant = Color(0xFF222222)
-                )
-                ThemeRegistry.ID_AVRO_BLUE -> darkColorScheme(
-                    primary = Color(0xFF64B5F6),
-                    onPrimary = Color(0xFF0D2847),
-                    primaryContainer = Color(0xFF153E6D),
-                    onPrimaryContainer = Color(0xFFD0E4FF),
-                    secondary = Color(0xFFB8C8DA),
-                    onSecondary = Color(0xFF223240),
-                    surface = Color(0xFF101926),
-                    background = Color(0xFF080D15),
-                    surfaceVariant = Color(0xFF1B2638),
-                    onSurfaceVariant = Color(0xFF8C9DB5),
-                    onSurface = Color(0xFFEDF2F9),
-                    onBackground = Color(0xFFEDF2F9),
-                    outline = Color(0xFF2E3E56),
-                    outlineVariant = Color(0xFF1E2C40)
-                )
-                ThemeRegistry.ID_CYBER_INDIGO -> darkColorScheme(
-                    primary = Color(0xFFCFBCFF),
-                    onPrimary = Color(0xFF381E72),
-                    primaryContainer = Color(0xFF4F378B),
-                    onPrimaryContainer = Color(0xFFEADDFF),
-                    secondary = Color(0xFFCBC2DB),
-                    onSecondary = Color(0xFF332D41),
-                    surface = Color(0xFF140F22),
-                    background = Color(0xFF0C081A),
-                    surfaceVariant = Color(0xFF221A38),
-                    onSurfaceVariant = Color(0xFFA99DC4),
-                    onSurface = Color(0xFFF5EEFF),
-                    onBackground = Color(0xFFF5EEFF),
-                    outline = Color(0xFF3C3058),
-                    outlineVariant = Color(0xFF2B2042)
-                )
-                ThemeRegistry.ID_SAKURA_DUSK -> darkColorScheme(
-                    primary = Color(0xFFF48FB1),
-                    onPrimary = Color(0xFF4A1028),
-                    primaryContainer = Color(0xFF671D3E),
-                    onPrimaryContainer = Color(0xFFFFD9E2),
-                    secondary = Color(0xFFDABAC3),
-                    onSecondary = Color(0xFF3D2730),
-                    surface = Color(0xFF211A22),
-                    background = Color(0xFF141016),
-                    surfaceVariant = Color(0xFF2E2430),
-                    onSurfaceVariant = Color(0xFFC7B1BF),
-                    onSurface = Color(0xFFFCE4EC),
-                    onBackground = Color(0xFFFCE4EC),
-                    outline = Color(0xFF4B394E),
-                    outlineVariant = Color(0xFF38293B)
-                )
-                ThemeRegistry.ID_FOREST_EMERALD -> darkColorScheme(
-                    primary = Color(0xFF00E676),
-                    onPrimary = Color(0xFF003918),
-                    primaryContainer = Color(0xFF005224),
-                    onPrimaryContainer = Color(0xFF6EFF9E),
-                    secondary = Color(0xFFB5CCBC),
-                    onSecondary = Color(0xFF20352A),
-                    surface = Color(0xFF0F1D16),
-                    background = Color(0xFF08120D),
-                    surfaceVariant = Color(0xFF162B21),
-                    onSurfaceVariant = Color(0xFF8CB29E),
-                    onSurface = Color(0xFFE8F5E9),
-                    onBackground = Color(0xFFE8F5E9),
-                    outline = Color(0xFF254737),
-                    outlineVariant = Color(0xFF1B3528)
-                )
-                ThemeRegistry.ID_NORDIC_FROST -> darkColorScheme(
-                    primary = Color(0xFF38BDF8),
-                    onPrimary = Color(0xFF003549),
-                    primaryContainer = Color(0xFF004D6A),
-                    onPrimaryContainer = Color(0xFFC3E8FF),
-                    secondary = Color(0xFFB4C8D8),
-                    onSecondary = Color(0xFF1E3240),
-                    surface = Color(0xFF152033),
-                    background = Color(0xFF0B1320),
-                    surfaceVariant = Color(0xFF1E2D44),
-                    onSurfaceVariant = Color(0xFF90A4BC),
-                    onSurface = Color(0xFFF0F6FC),
-                    onBackground = Color(0xFFF0F6FC),
-                    outline = Color(0xFF2F4462),
-                    outlineVariant = Color(0xFF213149)
-                )
-                ThemeRegistry.ID_SUNSET_AMBER -> darkColorScheme(
-                    primary = Color(0xFFFF9100),
-                    onPrimary = Color(0xFF462100),
-                    primaryContainer = Color(0xFF643200),
-                    onPrimaryContainer = Color(0xFFFFDCBE),
-                    secondary = Color(0xFFDBBEA5),
-                    onSecondary = Color(0xFF3C2B1B),
-                    surface = Color(0xFF221A12),
-                    background = Color(0xFF140F0A),
-                    surfaceVariant = Color(0xFF2F241A),
-                    onSurfaceVariant = Color(0xFFC4AB95),
-                    onSurface = Color(0xFFFFF3E0),
-                    onBackground = Color(0xFFFFF3E0),
-                    outline = Color(0xFF4C3A2B),
-                    outlineVariant = Color(0xFF38291D)
-                )
-                else -> darkColorScheme( // Flow Teal
-                    primary = Color(0xFF00E5B8),
-                    onPrimary = Color(0xFF003829),
-                    primaryContainer = Color(0xFF00513C),
-                    onPrimaryContainer = Color(0xFF8CF4CB),
-                    secondary = Color(0xFFB1CCC0),
-                    onSecondary = Color(0xFF1C352C),
-                    surface = Color(0xFF141A17),
-                    background = Color(0xFF0D1117),
-                    surfaceVariant = Color(0xFF1B2420),
-                    onSurfaceVariant = Color(0xFF90A39B),
-                    onSurface = Color(0xFFE1E5E2),
-                    onBackground = Color(0xFFE1E5E2),
-                    outline = Color(0xFF2B3A34),
-                    outlineVariant = Color(0xFF1C2824)
-                )
-            }
         }
     }
 

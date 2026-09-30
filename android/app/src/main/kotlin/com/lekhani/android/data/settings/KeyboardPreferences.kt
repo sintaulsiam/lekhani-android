@@ -250,6 +250,7 @@ class KeyboardPreferences private constructor(context: Context) {
         SYSTEM("সিস্টেম ডিফল্ট", "Follow System"),
         LIGHT("লাইট থিম", "Always Light"),
         DARK("ডার্ক থিম", "Always Dark"),
+        DYNAMIC("মেটেরিয়াল ইউ", "Material You Dynamic"),
         MATCH_KEYBOARD("কীবোর্ডের অনুরূপ", "Match Keyboard"),
     }
 

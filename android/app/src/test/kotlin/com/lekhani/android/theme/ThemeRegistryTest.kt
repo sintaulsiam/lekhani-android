@@ -12,12 +12,13 @@ class ThemeRegistryTest {
     fun testPresetThemesIntegrity() {
         val presets = ThemeRegistry.PRESET_THEMES
         assertTrue(presets.isNotEmpty())
-        assertEquals(11, presets.size)
+        assertEquals(22, presets.size)
 
         val flowTeal = presets.find { it.id == ThemeRegistry.ID_FLOW_TEAL }
         assertNotNull(flowTeal)
         assertEquals("Flow Teal", flowTeal!!.nameEnglish)
         assertTrue(flowTeal.isDark)
+        assertEquals(ThemeCategory.CLASSIC, flowTeal.category)
 
         val oledBlack = presets.find { it.id == ThemeRegistry.ID_OLED_BLACK }
         assertNotNull(oledBlack)
@@ -54,6 +55,15 @@ class ThemeRegistryTest {
         val mocha = presets.find { it.id == ThemeRegistry.ID_MOCHA_LATTE }
         assertNotNull(mocha)
         assertTrue(!mocha!!.isDark)
+
+        val cyberpunk = presets.find { it.id == ThemeRegistry.ID_CYBERPUNK_NEON }
+        assertNotNull(cyberpunk)
+        assertEquals(ThemeCategory.NEON, cyberpunk!!.category)
+
+        val rgbFlow = presets.find { it.id == ThemeRegistry.ID_RGB_CHROMA_FLOW }
+        assertNotNull(rgbFlow)
+        assertTrue(rgbFlow!!.isRgbChroma)
+        assertEquals(ThemeCategory.RGB_CHROMA, rgbFlow.category)
     }
 
     @Test
@@ -72,7 +82,9 @@ class ThemeRegistryTest {
             id = "custom_test_123",
             nameBengali = "পরীক্ষামূলক থিম",
             nameEnglish = "Experimental Teal",
-            isCustom = true
+            isCustom = true,
+            isRgbChroma = true,
+            category = ThemeCategory.RGB_CHROMA
         )
         val json = original.toJson()
         val restored = KeyboardTheme.fromJson(json)
@@ -85,6 +97,8 @@ class ThemeRegistryTest {
         assertEquals(original.accentColor, restored.accentColor)
         assertEquals(original.isDark, restored.isDark)
         assertTrue(restored.isCustom)
+        assertTrue(restored.isRgbChroma)
+        assertEquals(ThemeCategory.RGB_CHROMA, restored.category)
     }
 
     @Test

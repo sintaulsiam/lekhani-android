@@ -312,6 +312,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
         color = KEY_BORDER_COLOR
     }
 
+    // Pre-allocated array for zero-allocation dynamic 120 FPS RGB Chroma calculation
+    private val rgbHsv = FloatArray(3)
+
     // Key labels
     private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = LABEL_COLOR
@@ -1330,6 +1333,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         val now = SystemClock.uptimeMillis()
+        if (activeTheme.isRgbChroma) {
+            val hue = ((now % 3600L).toFloat() / 3600f) * 360f
+            rgbHsv[0] = hue
+            rgbHsv[1] = 0.85f
+            rgbHsv[2] = 1.0f
+            val chromaColor = Color.HSVToColor(rgbHsv)
+            keyBorderPaint.color = chromaColor
+            homeRowAccentPaint.color = chromaColor
+            keyGlowPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(chromaColor, 0x80)
+            spaceSlideThumbPaint.color = chromaColor
+            postInvalidateOnAnimation()
+        }
         // Use the cached density — never call resources.displayMetrics in onDraw (120 FPS hot path)
         val density = cachedDensity
 
