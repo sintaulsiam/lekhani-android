@@ -1373,6 +1373,7 @@ impl AndroidLekhaniSession {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn test_session_lifecycle_and_smart_kar() {
@@ -1485,6 +1486,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_avro_phonetic_typing() {
         let session = AndroidLekhaniSession::new();
         session.set_layout(LekhaniLayoutType::Avro);
@@ -1504,6 +1506,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_avro_homophone_context_disambiguation() {
         let session = AndroidLekhaniSession::new();
         session.set_layout(LekhaniLayoutType::Avro);
@@ -1574,6 +1577,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_dictionary_management_session() {
         let session = AndroidLekhaniSession::new();
         session.add_user_word("টেস্টওয়ার্ড".into()).unwrap();
@@ -1675,6 +1679,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_continuous_learning_and_persistence() {
         let session = AndroidLekhaniSession::new();
         session.set_layout(LekhaniLayoutType::Avro);
@@ -1732,6 +1737,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_private_field_freezes_learning() {
         let session = AndroidLekhaniSession::new();
         session.set_layout(LekhaniLayoutType::Avro);

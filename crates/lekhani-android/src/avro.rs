@@ -244,8 +244,10 @@ fn append_prefix_matches(primary: &str, candidates: &mut Vec<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_lekhani_parser_avro() {
         let (res, cands) = transliterate_avro("ami");
         assert_eq!(res, "আমি");
@@ -262,6 +264,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_rules_transliteration() {
         let (res, _) = transliterate_avro("dhaka");
         assert_eq!(res, "ঢাকা");
@@ -274,6 +277,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_conjuncts() {
         let (res, _) = transliterate_avro("shikkhok");
         assert_eq!(res, "শিক্ষক");
@@ -283,6 +287,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_qwerty_proximity_typo_correction() {
         // 's' is next to 'a' on QWERTY -> "smi" typo suggests "আমি"
         let (_, cands_smi) = transliterate_avro("smi");
@@ -294,6 +299,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_user_reported_avro_words() {
         let (boi, _) = transliterate_avro("boi");
         assert_eq!(boi, "বই");
@@ -317,6 +323,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_avro_complex_and_common_fidelity() {
         // 1. Chandra Bindu normalization
         let (cad, _) = transliterate_avro("c^ad");
