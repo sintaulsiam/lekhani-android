@@ -47,10 +47,10 @@
   - Conjunct-aware grapheme cluster backspace delegated to Rust engine (Phase 1).
   - Automatic Unicode NFC canonicalization on every commit (Phase 1).
 - [x] **Core Layout Implementations**:
-  - **Lekhani প্রবাহ (Flow)**: `ProbahLayout.kt` — full 3-row + spacebar row per LAYOUT_PROBAHO.md spec with high-frequency `হ` (~3.6%) on unshifted Row 3, long-press hints (`গ` on `ম`, `ঘ` on `ল`), relocated `ৌ` (<0.05%) to Shift of `ো`, and direct punctuation (`?` on `,` and `।`).
-  - **Avro Phonetic**: `AvroPhoneticLayout` — QWERTY grid, transliteration in Rust engine.
+  - **Lekhani প্রবাহ (Flow)**: `ProbahLayout.kt` — full 3-row + spacebar row per LAYOUT_PROBAHO.md spec with high-frequency `হ` (~3.6%) on unshifted Row 3, long-press hints (`গ` on `ম`, `ঘ` on `ল`), relocated `ৌ` (<0.05%) to Shift of `ো`, direct punctuation (`?` on `,` and `।`), smart mid-word Kar auto-promotion for natural diphthong composition (`খাই`, `সেই`, `পাউরুটি`, `এই`), corrected shifted vowel pairing (`ী` $\leftrightarrow$ `ঈ`, `ূ` $\leftrightarrow$ `ঊ`), and discoverable `ZWJ`/`ZWNJ` hints.
+  - **Avro Phonetic**: `AvroPhoneticLayout` — QWERTY grid, transliteration in Rust engine, verbatim raw English candidate preview for instant bilingual word insertion and phonetic spelling verification.
   - **Fixed National (জাতীয়)**: `NationalLayout.kt` — BBS standard with Shift layers and Khanda Ta (`ৎ`).
-  - **Fixed Probhat (प्रभात)**: `ProbhatLayout.kt` — 10-key standard with dedicated Hasanta (`্`) and Chandra Bindu (`ঁ`).
+  - **Fixed Probhat (प्रभात)**: `ProbhatLayout.kt` — 10-key standard with dedicated Hasanta (`্`), Chandra Bindu (`ঁ`), and `ঞ` mapped on `ঐ` with shifted corner hint and long-press action.
   - **Gboard Style Bengali**: `GboardBengaliLayout.kt` — normalized 10-9-10 grid with `প` and `ফ`.
   - **English (QWERTY)**: `EnglishQwertyLayout.kt` — bilingual alphanumeric typing layer.
   - **LayoutRegistry**: maps `LekhaniLayoutType` → `KeyboardLayout`; `cycleLayout()` in IME.
