@@ -106,7 +106,7 @@ fun AboutPrivacyTab(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             ) {
                 Text(
-                    text = "v0.1.0 • 100% Offline • Zero Telemetry",
+                    text = "v${com.lekhani.android.BuildConfig.VERSION_NAME} • 100% Offline • Zero Telemetry",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
