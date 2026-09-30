@@ -158,6 +158,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SWIPE_TO_DELETE, true)
         set(value) = prefs.edit().putBoolean(KEY_SWIPE_TO_DELETE, value).apply()
 
+    var swipeDeleteHighlightInApp: Boolean
+        get() = prefs.getBoolean(KEY_SWIPE_DELETE_HIGHLIGHT_IN_APP, true)
+        set(value) = prefs.edit().putBoolean(KEY_SWIPE_DELETE_HIGHLIGHT_IN_APP, value).apply()
+
     var keyGlowRippleEnabled: Boolean
         get() = prefs.getBoolean(KEY_KEY_GLOW_RIPPLE, true)
         set(value) = prefs.edit().putBoolean(KEY_KEY_GLOW_RIPPLE, value).apply()
@@ -295,6 +299,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SPACEBAR_SWIPE_MODE = "spacebar_swipe_mode"
         const val KEY_BOTTOM_ROW_KEY_MODE = "bottom_row_key_mode"
         const val KEY_SWIPE_TO_DELETE = "swipe_to_delete"
+        const val KEY_SWIPE_DELETE_HIGHLIGHT_IN_APP = "swipe_delete_highlight_in_app"
         const val KEY_KEY_GLOW_RIPPLE = "key_glow_ripple"
         const val KEY_GLIDE_TYPING_ENABLED = "glide_typing_enabled"
         const val KEY_CODE_SHIELD_ENABLED = "code_shield_enabled"

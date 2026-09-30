@@ -440,6 +440,37 @@ fun PreferencesTabContent(
                     )
                 }
 
+                if (swipeToDelete) {
+                    var highlightInApp by remember { mutableStateOf(prefs.swipeDeleteHighlightInApp) }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, top = 2.dp, bottom = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEnglish) "Highlight deleted text in app" else "অ্যাপে মুছে ফেলা লেখা নির্বাচন প্রদর্শন",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (isEnglish) "Select text in the active text field while swiping" else "সোয়াইপ করার সময় লেখার ফিল্ডে সরাসরি সিলেকশন প্রদর্শন",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = highlightInApp,
+                            onCheckedChange = {
+                                highlightInApp = it
+                                prefs.swipeDeleteHighlightInApp = it
+                            }
+                        )
+                    }
+                }
+
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 2.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)

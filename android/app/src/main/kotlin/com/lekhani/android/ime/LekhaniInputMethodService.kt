@@ -204,6 +204,8 @@ class LekhaniInputMethodService : InputMethodService() {
     private var preeditShadow: String = ""
     private var currentSelStart: Int = -1
     private var currentSelEnd: Int = -1
+    private var isSwipeDeleteActive: Boolean = false
+    private var swipeDeleteAnchorCursor: Int = -1
 
     // Raw keystroke buffer and undo action state
     private val rawInputBuffer = StringBuilder()
@@ -474,6 +476,10 @@ class LekhaniInputMethodService : InputMethodService() {
         // Contextual Text Selection Toolbar shown whenever text is highlighted
         val hasSelection = (newSelStart != newSelEnd && newSelStart >= 0 && newSelEnd >= 0)
         if (hasSelection) {
+            // Guard: Do not clobber active SwipeDeletePreview
+            if (_candidateState.value is CandidateStripState.SwipeDeletePreview) {
+                return
+            }
             val ic = currentInputConnection
             _candidateState.value = CandidateStripState.Selection(
                 onCut = { ic?.performContextMenuAction(android.R.id.cut) },
@@ -2324,15 +2330,41 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun handleSwipeDeletePreview(wordCount: Int) {
+        val ic = currentInputConnection
         if (wordCount <= 0) {
+            if (isSwipeDeleteActive) {
+                if (swipeDeleteAnchorCursor >= 0 && keyboardPrefs.swipeDeleteHighlightInApp) {
+                    ic?.setSelection(swipeDeleteAnchorCursor, swipeDeleteAnchorCursor)
+                }
+                isSwipeDeleteActive = false
+                swipeDeleteAnchorCursor = -1
+            }
             updateCandidatesVisibility()
             return
         }
+
+        if (!isSwipeDeleteActive) {
+            isSwipeDeleteActive = true
+            swipeDeleteAnchorCursor = if (currentSelEnd >= 0) currentSelEnd else -1
+        }
+
         val previewText = computeSwipeDeletePreviewText(wordCount)
         if (previewText.isEmpty()) {
+            if (swipeDeleteAnchorCursor >= 0 && keyboardPrefs.swipeDeleteHighlightInApp) {
+                ic?.setSelection(swipeDeleteAnchorCursor, swipeDeleteAnchorCursor)
+            }
+            isSwipeDeleteActive = false
+            swipeDeleteAnchorCursor = -1
             updateCandidatesVisibility()
             return
         }
+
+        // Highlight real text in target application
+        if (keyboardPrefs.swipeDeleteHighlightInApp && swipeDeleteAnchorCursor >= 0) {
+            val selStart = maxOf(0, swipeDeleteAnchorCursor - previewText.length)
+            ic?.setSelection(selStart, swipeDeleteAnchorCursor)
+        }
+
         _candidateState.value = CandidateStripState.SwipeDeletePreview(
             previewText = previewText,
             wordCount = wordCount,
@@ -2341,6 +2373,11 @@ class LekhaniInputMethodService : InputMethodService() {
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                 cm?.setPrimaryClip(android.content.ClipData.newPlainText("Lekhani", previewText))
                 keyboardView?.let { feedbackManager.onKeyFeedback(it) }
+                if (swipeDeleteAnchorCursor >= 0 && keyboardPrefs.swipeDeleteHighlightInApp) {
+                    ic?.setSelection(swipeDeleteAnchorCursor, swipeDeleteAnchorCursor)
+                }
+                isSwipeDeleteActive = false
+                swipeDeleteAnchorCursor = -1
                 keyboardView?.cancelSwipeDelete()
                 updateCandidatesVisibility()
             },
@@ -2401,6 +2438,10 @@ class LekhaniInputMethodService : InputMethodService() {
         val deletedBuffer = StringBuilder()
 
         val ic = currentInputConnection ?: return
+        val wasHighlightingInApp = isSwipeDeleteActive && keyboardPrefs.swipeDeleteHighlightInApp && swipeDeleteAnchorCursor >= 0
+        isSwipeDeleteActive = false
+        swipeDeleteAnchorCursor = -1
+
         ic.beginBatchEdit()
         try {
             // 1. If currently composing Bengali in session, discard composition first
@@ -2414,9 +2455,17 @@ class LekhaniInputMethodService : InputMethodService() {
                 remainingWords--
             }
 
-            // 2. Delete remaining words from committed text.
-            // Use the cached surrounding context to avoid a synchronous Binder IPC
-            // (getTextBeforeCursor) on the main thread which can block 5–50 ms.
+            // 2. If real text was highlighted in app, commitText("", 1) atomically deletes the selection
+            if (wasHighlightingInApp) {
+                val selectedText = ic.getSelectedText(0)?.toString()
+                if (!selectedText.isNullOrEmpty()) {
+                    deletedBuffer.append(selectedText)
+                    ic.commitText("", 1)
+                    remainingWords = 0
+                }
+            }
+
+            // 3. Fallback / remaining words deletion via deleteSurroundingText
             if (remainingWords > 0) {
                 val before = cachedSurroundingContext.ifEmpty {
                     // Fallback: read synchronously only if cache is empty (first swipe-delete ever)

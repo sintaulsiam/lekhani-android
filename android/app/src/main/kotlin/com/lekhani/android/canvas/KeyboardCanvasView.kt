@@ -811,10 +811,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyMarginV = marginVDp * density
         keyCornerRadius = 7.5f * density
         homeRowAccentHeight = 2.5f * density
-        swipeThresholdPx = 64f * density
+        swipeThresholdPx = 28f * density
         spaceSlideThresholdPx = 16f * density
         spaceSlideStepPx = 16f * density
-        backspaceSwipeStepPx = 54f * density
+        backspaceSwipeStepPx = 28f * density
 
         glideStrokePaint.strokeWidth = 4.5f * density
         glideGlowPaint.strokeWidth = 11f * density
@@ -1785,11 +1785,26 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     // Swipe-to-delete gesture on Backspace
                     if (key.action == KeyAction.Backspace && swipeToDeleteEnabled) {
                         val dx = curX - backspaceSwipeStartX
+                        val dy = curY - backspaceSwipeStartY
+
+                        // Downward swipe cancellation
+                        if (dy > 32f * resources.displayMetrics.density) {
+                            if (isBackspaceSwiping) {
+                                isBackspaceSwiping = false
+                                backspaceDeletedWordCount = 0
+                                keyListener?.onSwipeDeletePreview(0)
+                                feedbackManager?.onTickFeedback(this)
+                                    ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                invalidate()
+                            }
+                            return true
+                        }
+
                         if (dx < -swipeThresholdPx) {
                             removeCallbacks(backspaceRepeatRunnable)
                             isBackspaceSwiping = true
                             val words = ((-dx - swipeThresholdPx) / backspaceSwipeStepPx).toInt() + 1
-                            val clamped = words.coerceIn(1, 10)
+                            val clamped = words.coerceIn(1, 15)
                             if (clamped != backspaceDeletedWordCount) {
                                 backspaceDeletedWordCount = clamped
                                 keyListener?.onSwipeDeletePreview(backspaceDeletedWordCount)
@@ -1799,14 +1814,24 @@ class KeyboardCanvasView @JvmOverloads constructor(
                                 invalidate()
                             }
                             return true
-                        } else if (isBackspaceSwiping && (dx > -24f * resources.displayMetrics.density || (curY - backspaceSwipeStartY) > 32f * resources.displayMetrics.density)) {
-                            // Sliding thumb back towards the Backspace key or downward completely cancels deletion
-                            isBackspaceSwiping = false
-                            backspaceDeletedWordCount = 0
-                            keyListener?.onSwipeDeletePreview(0)
-                            feedbackManager?.onTickFeedback(this)
-                                ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            invalidate()
+                        } else if (isBackspaceSwiping) {
+                            // User dragged back right towards Backspace key
+                            if (dx > -16f * resources.displayMetrics.density) {
+                                isBackspaceSwiping = false
+                                backspaceDeletedWordCount = 0
+                                keyListener?.onSwipeDeletePreview(0)
+                                feedbackManager?.onTickFeedback(this)
+                                    ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                invalidate()
+                            } else {
+                                if (backspaceDeletedWordCount != 0) {
+                                    backspaceDeletedWordCount = 0
+                                    keyListener?.onSwipeDeletePreview(0)
+                                    feedbackManager?.onTickFeedback(this)
+                                        ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                    invalidate()
+                                }
+                            }
                             return true
                         }
                     }
