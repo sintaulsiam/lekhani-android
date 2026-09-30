@@ -3,7 +3,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use lekhani_core::phonetic::PhoneticDatabase;
 use crate::error::LekhaniError;
 use crate::layout::LekhaniLayoutType;
-use crate::probaho::{get_conjunct_suggestions, nfc_normalize, promote_kar_if_needed};
+use crate::probaho::{get_conjunct_suggestions, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
 
 static CORE_DB: OnceLock<PhoneticDatabase> = OnceLock::new();
 static CUSTOM_DICT_DIR: OnceLock<String> = OnceLock::new();
@@ -393,7 +393,8 @@ impl AndroidLekhaniSession {
         match state.layout {
             LekhaniLayoutType::Probaho => {
                 let is_start = state.composing_buffer.is_empty();
-                let promoted = promote_kar_if_needed(&key, is_start);
+                let last_is_vowel = state.composing_buffer.chars().last().map_or(false, is_bengali_vowel);
+                let promoted = promote_kar_if_needed(&key, is_start || last_is_vowel);
                 state.composing_buffer.push_str(&promoted);
 
                 let mut candidates = Vec::new();
@@ -1724,6 +1725,37 @@ mod tests {
         let preds = session.predict_next_words(3);
         assert!(!preds.is_empty(), "English context 'how are' should produce next words");
         assert!(preds.contains(&"you".to_string()));
+    }
+
+    #[test]
+    fn test_probaho_vowel_promotion() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+
+        // Word-start promotion: 'ি' -> 'ই'
+        let res = session.process_key("ি".into()).unwrap();
+        assert_eq!(res.preedit, "ই");
+
+        // Mid-word diphthong: 'খা' + 'ি' -> 'খাই'
+        session.reset();
+        session.process_key("খ".into()).unwrap();
+        session.process_key("া".into()).unwrap();
+        let res = session.process_key("ি".into()).unwrap();
+        assert_eq!(res.preedit, "খাই");
+
+        // Mid-word diphthong: 'সে' + 'ি' -> 'সেই'
+        session.reset();
+        session.process_key("স".into()).unwrap();
+        session.process_key("ে".into()).unwrap();
+        let res = session.process_key("ি".into()).unwrap();
+        assert_eq!(res.preedit, "সেই");
+
+        // Mid-word diphthong: 'পা' + 'ু' -> 'পাউ'
+        session.reset();
+        session.process_key("প".into()).unwrap();
+        session.process_key("া".into()).unwrap();
+        let res = session.process_key("ু".into()).unwrap();
+        assert_eq!(res.preedit, "পাউ");
     }
 }
 

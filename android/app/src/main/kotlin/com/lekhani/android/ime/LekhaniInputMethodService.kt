@@ -2162,11 +2162,17 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         val filtered = raw.filter { !blacklist.isBlacklisted(it) }.toMutableList()
 
-        // 1. Code & Token Shield: If typing code/URL/mention in Avro, offer verbatim token
+        // 1. Avro Verbatim Token & Code Shield:
+        // Offer raw English input so users can verify phonetic spelling and commit English directly
         val rawInput = rawInputBuffer.toString()
-        if (keyboardPrefs.codeShieldEnabled && session.getLayout() == LekhaniLayoutType.AVRO && SmartAssistant.isCodeToken(rawInput)) {
-            if (!filtered.contains(rawInput)) {
-                filtered.add(0, rawInput)
+        if (session.getLayout() == LekhaniLayoutType.AVRO && rawInput.isNotBlank()) {
+            if (keyboardPrefs.codeShieldEnabled && SmartAssistant.isCodeToken(rawInput)) {
+                if (!filtered.contains(rawInput)) {
+                    filtered.add(0, rawInput)
+                }
+            } else if (!filtered.contains(rawInput)) {
+                val insertPos = if (filtered.isEmpty()) 0 else if (filtered.size == 1) 1 else 2
+                filtered.add(insertPos, rawInput)
             }
         }
 

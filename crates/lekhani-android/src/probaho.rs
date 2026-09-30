@@ -28,10 +28,21 @@ pub fn nfc_normalize(text: &str) -> String {
 }
 
 
-/// When a vowel modifier (Kar) is typed at the beginning of a word or after whitespace/punctuation,
+/// Returns true if the character is a Bengali vowel (independent or dependent Kar).
+#[inline]
+pub fn is_bengali_vowel(c: char) -> bool {
+    matches!(c,
+        '\u{0985}'..='\u{0994}' // Independent vowels: অ, আ, ই, ঈ, উ, ঊ, ঋ, ঌ, এ, ঐ, ও, ঔ
+        | '\u{09BE}'..='\u{09CC}' // Dependent vowel signs (Kars): া, ি, ী, ু, ূ, ৃ, ৄ, ে, ৈ, ো, ৌ
+        | '\u{09E0}'..='\u{09E1}' // ৠ, ৡ
+    )
+}
+
+/// When a vowel modifier (Kar) is typed at the beginning of a word, after whitespace/punctuation,
+/// or immediately following another vowel (forming diphthongs like খাই, সেই, পাউরুটি),
 /// it promotes to the corresponding independent vowel.
-pub fn promote_kar_if_needed(kar: &str, is_word_start: bool) -> String {
-    if !is_word_start {
+pub fn promote_kar_if_needed(kar: &str, should_promote: bool) -> String {
+    if !should_promote {
         return kar.to_string();
     }
 
@@ -73,6 +84,31 @@ mod tests {
         assert_eq!(promote_kar_if_needed("ে", true), "এ");
         assert_eq!(promote_kar_if_needed("া", false), "া");
         assert_eq!(promote_kar_if_needed("ৃ", false), "ৃ");
+    }
+
+    #[test]
+    fn test_is_bengali_vowel() {
+        // Independent vowels
+        assert!(is_bengali_vowel('অ'));
+        assert!(is_bengali_vowel('আ'));
+        assert!(is_bengali_vowel('ই'));
+        assert!(is_bengali_vowel('এ'));
+        assert!(is_bengali_vowel('ও'));
+
+        // Dependent vowel signs (Kars)
+        assert!(is_bengali_vowel('া'));
+        assert!(is_bengali_vowel('ি'));
+        assert!(is_bengali_vowel('ী'));
+        assert!(is_bengali_vowel('ু'));
+        assert!(is_bengali_vowel('ে'));
+        assert!(is_bengali_vowel('ো'));
+
+        // Consonants and non-vowels
+        assert!(!is_bengali_vowel('ক'));
+        assert!(!is_bengali_vowel('খ'));
+        assert!(!is_bengali_vowel('্'));
+        assert!(!is_bengali_vowel('ৎ'));
+        assert!(!is_bengali_vowel(' '));
     }
 
     #[test]
