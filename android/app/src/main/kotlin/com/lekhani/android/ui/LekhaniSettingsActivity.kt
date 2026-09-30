@@ -194,6 +194,13 @@ class LekhaniSettingsActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Proactively request garbage collection when Settings closes to release
+        // Jetpack Compose UI trees, Material 3 font caches, and image pickers.
+        System.gc()
+    }
 }
 
 @Composable

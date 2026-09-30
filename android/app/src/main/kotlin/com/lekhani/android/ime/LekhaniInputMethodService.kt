@@ -448,7 +448,16 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onWindowHidden() {
         super.onWindowHidden()
-        // Aggressively drop UI-level caches and Compose composition state when keyboard is hidden.
+        // 1. Immediately terminate hardware microphone recording and speech streams.
+        // Leaving an active AudioRecord stream while the IME window is hidden causes
+        // Android 11+ background privacy monitors and OEM battery keepers to kill the process.
+        audioManager.cancelStreaming()
+
+        // 2. Drop transient auxiliary engine sessions and candidate strip arrays.
+        emojiSearchSession = null
+        _candidateState.value = CandidateStripState.Empty
+
+        // 3. Proactively request garbage collection to release transient UI / View composition trees.
         // This dramatically reduces our background RSS, preventing Android LMK from killing us while the phone is idle.
         System.gc()
     }
@@ -459,6 +468,8 @@ class LekhaniInputMethodService : InputMethodService() {
             // High memory pressure and IME is backgrounded.
             // Drop heavy Kotlin/View objects and trigger GC.
             audioManager.cancelStreaming()
+            emojiSearchSession = null
+            _candidateState.value = CandidateStripState.Empty
             System.gc()
         }
     }

@@ -123,6 +123,17 @@ fun PreferencesTabContent(
 
     val userWordsCount = remember { dictManager.getUserWords().size }
 
+    val powerManager = remember { context.getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager }
+    var isIgnoringBattery by remember {
+        mutableStateOf(
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+            } else {
+                true
+            }
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -1132,6 +1143,49 @@ fun PreferencesTabContent(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(if (isEnglish) "About" else "সম্পর্কে")
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Background Reliability" else "ব্যাকগ্রাউন্ড অ্যাক্টিভিটি সুরক্ষা",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isIgnoringBattery) {
+                                if (isEnglish) "Unrestricted (Safe from OEM task killers)" else "অব্যাহতি প্রাপ্ত (কখনই ব্যাকগ্রাউন্ড থেকে বন্ধ হবে না)"
+                            } else {
+                                if (isEnglish) "Optimized (May sleep on Xiaomi/Samsung)" else "অপ্টিমাইজড (কিছু ফোনে ব্যাকগ্রাউন্ডে বন্ধ হতে পারে)"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isIgnoringBattery) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                    }
+                    if (!isIgnoringBattery && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                        OutlinedButton(
+                            onClick = {
+                                try {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                        data = android.net.Uri.parse("package:${context.packageName}")
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    try {
+                                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                    } catch (_: Exception) {}
+                                }
+                            },
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(if (isEnglish) "Protect" else "অনুমতি দিন")
+                        }
                     }
                 }
             }
