@@ -252,62 +252,97 @@ fun ThemeStudioSheet(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // ── Section 0: Independent App Appearance ─────────────────────
+                // ── Section 0: App Appearance ─────────────────────────────────
                 item {
-                    Text(
-                        text = if (isEnglish) "App Appearance (Independent)" else "অ্যাপের থিম মোড (স্বতন্ত্র)",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val modes = buildList {
-                            add(Triple(KeyboardPreferences.AppThemeMode.SYSTEM, Icons.Default.BrightnessAuto, if (isEnglish) "System" else "সিস্টেম"))
-                            add(Triple(KeyboardPreferences.AppThemeMode.LIGHT, Icons.Default.LightMode, if (isEnglish) "Light" else "লাইট"))
-                            add(Triple(KeyboardPreferences.AppThemeMode.DARK, Icons.Default.DarkMode, if (isEnglish) "Dark" else "ডার্ক"))
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                add(Triple(KeyboardPreferences.AppThemeMode.DYNAMIC, Icons.Default.AutoAwesome, if (isEnglish) "Dynamic" else "ডাইনামিক"))
-                            }
-                            add(Triple(KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD, Icons.Filled.Palette, if (isEnglish) "Match Kbd" else "কীবোর্ড ম্যাচ"))
+                        Text(
+                            text = if (isEnglish) "App Appearance" else "অ্যাপ অ্যাপিয়ারেন্স",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        val activeLabel = when (selectedAppThemeMode) {
+                            KeyboardPreferences.AppThemeMode.SYSTEM -> if (isEnglish) "System Default" else "সিস্টেম ডিফল্ট"
+                            KeyboardPreferences.AppThemeMode.LIGHT -> if (isEnglish) "Light Mode" else "লাইট মোড"
+                            KeyboardPreferences.AppThemeMode.DARK -> if (isEnglish) "Dark Mode" else "ডার্ক মোড"
+                            KeyboardPreferences.AppThemeMode.DYNAMIC -> if (isEnglish) "Dynamic Material You" else "ডাইনামিক কালার"
+                            KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD -> if (isEnglish) "Match Keyboard" else "কীবোর্ড সিঙ্ক"
                         }
-                        modes.forEach { (mode, icon, title) ->
-                            val isSelected = selectedAppThemeMode == mode
-                            Card(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable {
-                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                        selectedAppThemeMode = mode
-                                        prefs.appThemeMode = mode
-                                        onAppThemeModeChanged?.invoke(mode)
-                                    },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                ),
-                                border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null
-                            ) {
-                                Column(
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = activeLabel,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(5.dp)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val modes = buildList {
+                                add(Triple(KeyboardPreferences.AppThemeMode.SYSTEM, Icons.Default.BrightnessAuto, if (isEnglish) "System" else "সিস্টেম"))
+                                add(Triple(KeyboardPreferences.AppThemeMode.LIGHT, Icons.Default.LightMode, if (isEnglish) "Light" else "লাইট"))
+                                add(Triple(KeyboardPreferences.AppThemeMode.DARK, Icons.Default.DarkMode, if (isEnglish) "Dark" else "ডার্ক"))
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                    add(Triple(KeyboardPreferences.AppThemeMode.DYNAMIC, Icons.Default.AutoAwesome, if (isEnglish) "Dynamic" else "ডাইনামিক"))
+                                }
+                                add(Triple(KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD, Icons.Filled.Palette, if (isEnglish) "Match Kbd" else "কীবোর্ড ম্যাচ"))
+                            }
+                            modes.forEach { (mode, icon, title) ->
+                                val isSelected = selectedAppThemeMode == mode
+                                val animBg by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    label = "pill_bg"
+                                )
+                                val animBorderColor by animateColorAsState(
+                                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
+                                    label = "pill_border"
+                                )
+                                Row(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 10.dp, horizontal = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(animBg)
+                                        .border(BorderStroke(1.dp, animBorderColor), RoundedCornerShape(10.dp))
+                                        .clickable {
+                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                            selectedAppThemeMode = mode
+                                            prefs.appThemeMode = mode
+                                            onAppThemeModeChanged?.invoke(mode)
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Icon(
                                         imageVector = icon,
                                         contentDescription = title,
-                                        modifier = Modifier.size(20.dp),
+                                        modifier = Modifier.size(16.dp),
                                         tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = title,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            fontSize = 11.sp
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                         ),
                                         color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1
@@ -322,8 +357,8 @@ fun ThemeStudioSheet(
                 item {
                     Text(
                         text = if (isEnglish) "Live Interactive Preview" else "লাইভ ইন্টারেক্টিভ প্রিভিউ",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     LiveKeyboardMiniPreview(theme = activePreviewTheme, isEnglish = isEnglish)
@@ -339,8 +374,8 @@ fun ThemeStudioSheet(
                         ) {
                             Text(
                                 text = if (isEnglish) "Theme Collections" else "থিম কালেকশনসমূহ",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.primary
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             OutlinedButton(
                                 onClick = {
@@ -481,8 +516,8 @@ fun ThemeStudioSheet(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = if (isEnglish) "Custom Wallpaper Background" else "কাস্টম ওয়ালপেপার ব্যাকগ্রাউন্ড",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
 

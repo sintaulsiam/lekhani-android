@@ -1192,39 +1192,39 @@ fun LekhaniAppTheme(
                 darkColorScheme(
                     primary = primaryColor,
                     onPrimary = onPrimaryColor,
-                    primaryContainer = primaryColor.copy(alpha = 0.22f),
-                    onPrimaryContainer = if (isAccentLight) primaryColor else Color(0xFF8CF4CB),
+                    primaryContainer = primaryColor.copy(alpha = 0.20f),
+                    onPrimaryContainer = if (isAccentLight) primaryColor else Color(0xFFF1F5F9),
                     secondary = Color(theme.keyShiftColor),
                     onSecondary = Color(theme.labelColor),
                     secondaryContainer = Color(theme.keyNormalColor),
                     onSecondaryContainer = Color(theme.labelColor),
-                    surface = Color(0xFF141917),
-                    onSurface = Color(0xFFE2E7E4),
-                    background = Color(0xFF0E1312),
-                    onBackground = Color(0xFFE2E7E4),
-                    surfaceVariant = Color(0xFF1A221F),
-                    onSurfaceVariant = Color(0xFF90A39B),
-                    outline = Color(theme.keyBorderColor).copy(alpha = 0.6f),
-                    outlineVariant = Color(0xFF26322E)
+                    background = Color(0xFF090B0E),
+                    onBackground = Color(0xFFF1F5F9),
+                    surface = Color(0xFF111418),
+                    onSurface = Color(0xFFF1F5F9),
+                    surfaceVariant = Color(0xFF181C22),
+                    onSurfaceVariant = Color(0xFF94A3B8),
+                    outline = Color(theme.keyBorderColor).copy(alpha = 0.5f),
+                    outlineVariant = Color(0xFF262D38)
                 )
             } else {
                 lightColorScheme(
                     primary = primaryColor,
                     onPrimary = onPrimaryColor,
-                    primaryContainer = primaryColor.copy(alpha = 0.18f),
+                    primaryContainer = primaryColor.copy(alpha = 0.16f),
                     onPrimaryContainer = Color(0xFF002820),
                     secondary = Color(0xFF4A635B),
                     onSecondary = Color.White,
                     secondaryContainer = Color(0xFFD6EAE2),
                     onSecondaryContainer = Color(0xFF051F19),
                     surface = Color(0xFFFFFFFF),
-                    onSurface = Color(0xFF191C1B),
-                    background = Color(0xFFF7F9FA),
-                    onBackground = Color(0xFF191C1B),
-                    surfaceVariant = Color(0xFFE8ECEF),
-                    onSurfaceVariant = Color(0xFF404945),
-                    outline = Color(0xFFB0BEC5),
-                    outlineVariant = Color(0xFFCFD8DC)
+                    onSurface = Color(0xFF0F172A),
+                    background = Color(0xFFF8FAFC),
+                    onBackground = Color(0xFF0F172A),
+                    surfaceVariant = Color(0xFFF1F5F9),
+                    onSurfaceVariant = Color(0xFF475569),
+                    outline = Color(0xFFCBD5E1),
+                    outlineVariant = Color(0xFFE2E8F0)
                 )
             }
         } else if (appThemeMode == KeyboardPreferences.AppThemeMode.DYNAMIC
@@ -1232,44 +1232,46 @@ fun LekhaniAppTheme(
             // Android 12+ wallpaper dynamic Material You colors
             if (shouldUseDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         } else if (shouldUseDark) {
-            // Lekhani Signature Brand Dark Theme (Teal / Slate)
+            // Ultra-Aesthetic Modern Obsidian & Slate Dark Theme
             darkColorScheme(
-                primary = Color(0xFF00E5B8),
-                onPrimary = Color(0xFF003829),
-                primaryContainer = Color(0xFF00513C),
-                onPrimaryContainer = Color(0xFF8CF4CB),
-                secondary = Color(0xFFB1CCC0),
-                onSecondary = Color(0xFF1C352C),
-                secondaryContainer = Color(0xFF334B42),
-                onSecondaryContainer = Color(0xFFCCE8DC),
-                surface = Color(0xFF141917),
-                background = Color(0xFF0E1312),
-                surfaceVariant = Color(0xFF1C2421),
-                onSurfaceVariant = Color(0xFF90A39B),
-                onSurface = Color(0xFFE2E7E4),
-                onBackground = Color(0xFFE2E7E4),
-                outline = Color(0xFF2C3934),
-                outlineVariant = Color(0xFF1D2723)
+                primary = Color(0xFF00F0B5),
+                onPrimary = Color(0xFF002A1F),
+                primaryContainer = Color(0xFF0F362A),
+                onPrimaryContainer = Color(0xFF65FFD2),
+                secondary = Color(0xFF38BDF8),
+                onSecondary = Color(0xFF002235),
+                secondaryContainer = Color(0xFF152A38),
+                onSecondaryContainer = Color(0xFF7DD3FC),
+                tertiary = Color(0xFFA78BFA),
+                onTertiary = Color(0xFF27134A),
+                background = Color(0xFF090B0E),
+                onBackground = Color(0xFFF1F5F9),
+                surface = Color(0xFF111418),
+                onSurface = Color(0xFFF1F5F9),
+                surfaceVariant = Color(0xFF181C22),
+                onSurfaceVariant = Color(0xFF94A3B8),
+                outline = Color(0xFF262D38),
+                outlineVariant = Color(0xFF1B2028)
             )
         } else {
-            // Lekhani Signature Brand Light Theme (Deep Emerald / Porcelain)
+            // Crisp, High-Contrast Modern Porcelain & Emerald Light Theme
             lightColorScheme(
-                primary = Color(0xFF006C50),
+                primary = Color(0xFF006D52),
                 onPrimary = Color.White,
-                primaryContainer = Color(0xFFB2DFDB),
-                onPrimaryContainer = Color(0xFF002018),
-                secondary = Color(0xFF4A635B),
+                primaryContainer = Color(0xFFD1FAE5),
+                onPrimaryContainer = Color(0xFF00281C),
+                secondary = Color(0xFF0284C7),
                 onSecondary = Color.White,
-                secondaryContainer = Color(0xFFCCE8DE),
-                onSecondaryContainer = Color(0xFF051F19),
-                background = Color(0xFFF7F9FA),
-                onBackground = Color(0xFF191C1B),
+                secondaryContainer = Color(0xFFE0F2FE),
+                onSecondaryContainer = Color(0xFF034466),
+                background = Color(0xFFF8FAFC),
+                onBackground = Color(0xFF0F172A),
                 surface = Color(0xFFFFFFFF),
-                onSurface = Color(0xFF191C1B),
-                surfaceVariant = Color(0xFFE8ECEF),
-                onSurfaceVariant = Color(0xFF404945),
-                outline = Color(0xFFB0BEC5),
-                outlineVariant = Color(0xFFCFD8DC)
+                onSurface = Color(0xFF0F172A),
+                surfaceVariant = Color(0xFFF1F5F9),
+                onSurfaceVariant = Color(0xFF475569),
+                outline = Color(0xFFCBD5E1),
+                outlineVariant = Color(0xFFE2E8F0)
             )
         }
     }
