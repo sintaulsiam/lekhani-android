@@ -137,19 +137,19 @@ fun EmojiPickerView(
     val tabScrollState = rememberScrollState()
     var pendingScrollCategory by remember { mutableStateOf<Int?>(null) }
 
-    // Precalculate category indices for continuous jump scrolling (without headers)
+    // Precalculate category indices for continuous jump scrolling (including section headers)
     val categoryScrollOffsets = remember(EmojiData.categories) {
         val offsets = mutableListOf<Int>()
         var runningCount = 0
         EmojiData.categories.forEach { cat ->
             offsets.add(runningCount)
-            runningCount += cat.items.size
+            runningCount += 1 + cat.items.size // 1 for the category header, plus items
         }
         offsets
     }
 
-    val totalEmojiCount = remember(EmojiData.categories) {
-        EmojiData.categories.sumOf { it.items.size }
+    val totalItemCount = remember(EmojiData.categories) {
+        EmojiData.categories.sumOf { 1 + it.items.size }
     }
 
     // Active category index: updated immediately on tab click, or updated when user scrolls manually
@@ -166,9 +166,9 @@ fun EmojiPickerView(
         }
     }
 
-    // Sync active category with visible category when user scrolls manually
-    LaunchedEffect(visibleCategoryIdx, isProgrammaticScroll) {
-        if (!isProgrammaticScroll) {
+    // Sync active category with visible category ONLY during manual user gestures (swiping/flinging)
+    LaunchedEffect(visibleCategoryIdx, gridState.isScrollInProgress, isProgrammaticScroll) {
+        if (!isProgrammaticScroll && gridState.isScrollInProgress) {
             activeCategoryIdx = visibleCategoryIdx
         }
     }
@@ -193,8 +193,8 @@ fun EmojiPickerView(
         } else {
             val targetOffset = categoryScrollOffsets.getOrElse(catIndex) { 0 }
             scrollJob?.cancel()
+            isProgrammaticScroll = true
             scrollJob = coroutineScope.launch {
-                isProgrammaticScroll = true
                 try {
                     val currentOffset = gridState.firstVisibleItemIndex
                     val diff = targetOffset - currentOffset
@@ -203,12 +203,13 @@ fun EmojiPickerView(
                         val preJumpOffset = if (diff > 0) {
                             (targetOffset - 16).coerceAtLeast(0)
                         } else {
-                            (targetOffset + 16).coerceAtMost((totalEmojiCount - 1).coerceAtLeast(0))
+                            (targetOffset + 16).coerceAtMost((totalItemCount - 1).coerceAtLeast(0))
                         }
                         gridState.scrollToItem(preJumpOffset)
                     }
                     gridState.animateScrollToItem(targetOffset)
                 } finally {
+                    activeCategoryIdx = catIndex
                     isProgrammaticScroll = false
                 }
             }
@@ -304,6 +305,26 @@ fun EmojiPickerView(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         EmojiData.categories.forEach { cat ->
+                            item(
+                                span = { GridItemSpan(maxLineSpan) },
+                                key = "hdr_${cat.id}",
+                                contentType = "header"
+                            ) {
+                                val title = if (isEnglish) {
+                                    cat.title.substringAfter("(").removeSuffix(")")
+                                } else {
+                                    cat.title.substringBefore(" (")
+                                }
+                                Text(
+                                    text = title,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = activeTabPill,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
+                                )
+                            }
                             items(
                                 items = cat.items,
                                 key = { "${cat.id}_${it.emoji}" },
