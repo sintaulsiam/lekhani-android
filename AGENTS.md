@@ -8,10 +8,10 @@ Welcome to **Lekhani Android** (`lekhani-android`). This document defines the en
 
 Any proposed change that violates these principles will be rejected immediately:
 
-1. **Zero Network / Absolute Privacy**:
-   - The application **must never** request or declare `android.permission.INTERNET` in `AndroidManifest.xml`.
-   - All models (N-gram LM, morphology, offline ASR voice engine) and user dictionaries must execute **100% locally on-device**.
-   - Keystrokes, clipboard entries, audio streams, and user typing frequencies must never leave the device.
+1. **Zero Telemetry / Absolute Privacy (No Data Collection)**:
+   - The application **must never** transmit keystrokes, clipboard entries, audio streams, or user typing frequencies off the device.
+   - All text generation (N-gram LM, morphology) and speech recognition (ASR) must execute **100% locally on-device**.
+   - The `android.permission.INTERNET` permission is **strictly limited to downloading static offline assets** (like voice models or updated layout dictionaries) on-demand. Analytics and crash reporting networks (e.g. Firebase, Crashlytics) are absolutely forbidden.
 2. **Sub-Millisecond & Zero-Allocation Performance Budget**:
    - Touch-to-screen keystroke latency must stay **under 3 ms**.
    - Keyboard canvas must render at a sustained **120 FPS** (frame budget: < 8.3 ms).

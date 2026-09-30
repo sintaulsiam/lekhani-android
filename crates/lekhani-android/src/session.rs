@@ -256,7 +256,7 @@ fn get_bengali_next_words(context: &str) -> Vec<String> {
 
     // 2. Statistical N-gram predictions
     let predictor = get_next_word_predictor();
-    let predictions = predictor.predict_next(&words, 5);
+    let predictions = predictor.predict_next(words, 5);
     for pred in predictions {
         if !ngram_results.contains(&pred) {
             ngram_results.push(pred);
@@ -523,7 +523,7 @@ impl AndroidLekhaniSession {
         match state.layout {
             LekhaniLayoutType::Probaho => {
                 let is_start = state.composing_buffer.is_empty();
-                let last_is_vowel = state.composing_buffer.chars().last().map_or(false, is_bengali_vowel);
+                let last_is_vowel = state.composing_buffer.chars().last().is_some_and(is_bengali_vowel);
                 let promoted = promote_kar_if_needed(&key, is_start || last_is_vowel);
                 state.composing_buffer.push_str(&promoted);
 
@@ -563,7 +563,7 @@ impl AndroidLekhaniSession {
                     let count = get_context_words(&state.surrounding_context, &mut words_buf);
                     let words = &words_buf[..count];
                     let scorer = get_context_scorer();
-                    scorer.rank_candidates_in_place(&words, &mut candidates);
+                    scorer.rank_candidates_in_place(words, &mut candidates);
                 }
 
                 let len = state.composing_buffer.graphemes(true).count() as u32;
@@ -587,7 +587,7 @@ impl AndroidLekhaniSession {
                 let (mut preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, words);
                 if count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
-                    scorer.rank_candidates_in_place(&words, &mut candidates);
+                    scorer.rank_candidates_in_place(words, &mut candidates);
                     if let Some(top) = candidates.first() {
                         preedit = top.clone();
                     }
@@ -816,7 +816,7 @@ impl AndroidLekhaniSession {
                 let (_preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw_token, words);
                 if count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
-                    scorer.rank_candidates_in_place(&words, &mut candidates);
+                    scorer.rank_candidates_in_place(words, &mut candidates);
                 }
 
                 if candidates.is_empty() {
@@ -1126,7 +1126,7 @@ impl AndroidLekhaniSession {
                 // input into the Avro composing buffer.
                 let new_len = state.composing_buffer
                     .grapheme_indices(true)
-                    .last()
+                    .next_back()
                     .map(|(i, _)| i)
                     .unwrap_or(0);
                 state.composing_buffer.truncate(new_len);

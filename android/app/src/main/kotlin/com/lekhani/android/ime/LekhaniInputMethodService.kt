@@ -446,6 +446,23 @@ class LekhaniInputMethodService : InputMethodService() {
         checkAndShowQuickChip()
     }
 
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        // Aggressively drop UI-level caches and Compose composition state when keyboard is hidden.
+        // This dramatically reduces our background RSS, preventing Android LMK from killing us while the phone is idle.
+        System.gc()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            // High memory pressure and IME is backgrounded.
+            // Drop heavy Kotlin/View objects and trigger GC.
+            audioManager.cancelStreaming()
+            System.gc()
+        }
+    }
+
     override fun onUpdateSelection(
         oldSelStart: Int,
         oldSelEnd: Int,
@@ -2273,6 +2290,12 @@ class LekhaniInputMethodService : InputMethodService() {
                 setInputViewMode(InputViewMode.TEXT_EDITOR)
             }
             KeyboardPreferences.ToolbarTool.VOICE -> {
+                if (!audioManager.hasRecordPermission()) {
+                    val msg = if (keyboardPrefs.uiLanguage == "en") "Microphone permission required. Please enable in App Settings." else "মাইক্রোফোন পারমিশন প্রয়োজন। দয়া করে সেটিংসে চালু করুন।"
+                    android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
+                    return
+                }
+                
                 if (audioManager.voiceState.value is VoiceTypingState.Listening) {
                     val result = audioManager.stopStreaming()
                     if (result.isNotBlank()) {

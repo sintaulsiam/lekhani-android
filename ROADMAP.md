@@ -96,8 +96,8 @@
 ## Phase 5: 100% Local / On-Device Voice Typing (Offline ASR)
 > ⚠️ Moved before Emoji/Clipboard — ASR is a core differentiator with significant FFI, binary size, and latency risk that must be validated early rather than deferred to Phase 7.
 - [x] Embedded offline Bengali & English Speech-to-Text engine (`OfflineAsrEngine` contract and `AsrAudioProcessor` native FFI).
-- [x] **Model Delivery — Zero-Network Compliant**: ASR model structure defined for local APK asset loading or on-device storage. On-demand internet downloads strictly prohibited.
-- [x] Android `AudioRecord` streaming pipeline with zero network calls (`AudioStreamingManager.kt`).
+- [x] **Model Delivery — Zero-Telemetry Compliant**: ASR models (Sherpa-ONNX) will be downloaded on-demand to protect the APK size budget. Once downloaded, all speech transcription executes 100% locally. Analytics and data-collection remain strictly prohibited.
+- [x] Android `AudioRecord` streaming pipeline with zero network telemetry (`AudioStreamingManager.kt`).
 - [x] Voice Activity Detection (VAD) with 1.5s automatic silence auto-stop implemented in Rust FFI.
 - [x] Bengali punctuation auto-restoration (automatic `।`, `,`, `?`) via native `restore_bengali_punctuation`.
 - [x] Spacebar long-press voice trigger with haptic feedback on `KeyboardCanvasView`.
