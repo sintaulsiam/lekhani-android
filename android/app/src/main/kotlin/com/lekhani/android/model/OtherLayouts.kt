@@ -65,7 +65,7 @@ object EnglishQwertyLayout {
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
-                label = ",", shiftedLabel = ";", hintLabel = "😊",
+                label = ",", shiftedLabel = ";", hintLabel = ";",
                 action = KeyAction.Character(","),
                 shiftedAction = KeyAction.Character(";"),
                 longPressAction = KeyAction.SwitchEmoji,
@@ -189,10 +189,10 @@ object NationalLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "😊", hintLabel = "😊",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
+                label = "?123", shiftedLabel = "?123",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 longPressAction = KeyAction.SwitchEmoji,
-                widthWeight = 1.4f, contentDesc = "Numbers",
+                widthWeight = 1.4f, contentDesc = "Numbers, long press for emoji",
             ),
             Key(
                 label = "🌐", shiftedLabel = "🌐",
@@ -419,10 +419,10 @@ object GboardBengaliLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?১২৩", shiftedLabel = "😊", hintLabel = "😊",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
+                label = "?১২৩", shiftedLabel = "?১২৩",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 longPressAction = KeyAction.SwitchEmoji,
-                widthWeight = 1.4f, contentDesc = "Numbers",
+                widthWeight = 1.4f, contentDesc = "Numbers, long press for emoji",
             ),
             Key(
                 label = "🌐", shiftedLabel = "🌐",

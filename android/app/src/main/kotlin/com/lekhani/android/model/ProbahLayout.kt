@@ -71,11 +71,11 @@ object ProbahLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "😊", hintLabel = "😊",
-                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchEmoji,
+                label = "?123", shiftedLabel = "?123",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 longPressAction = KeyAction.SwitchEmoji,
                 widthWeight = 1.4f,
-                contentDesc = "Numbers and symbols, shifted emoji picker",
+                contentDesc = "Numbers and symbols, long press for emoji",
             ),
             Key(
                 label = "🌐", shiftedLabel = "🌐",

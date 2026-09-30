@@ -1477,6 +1477,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         }
                     }
                 }
+                KeyAction.SwitchEmoji -> {
+                    val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
+                    drawVectorSmiley(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                }
                 KeyAction.Space -> {
                     if (spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH && enabledLayoutsCount > 1 && !isSpaceCursorMoving) {
                         canvas.drawText("‹   $labelText   ›", cx, cy, labelPaintSmall)
