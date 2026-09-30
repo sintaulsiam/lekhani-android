@@ -134,7 +134,6 @@ fun EmojiPickerView(
     val borderColor = Color(theme.keyBorderColor)
 
     val tabScrollState = rememberScrollState()
-    var currentCategoryIdx by remember { mutableIntStateOf(0) }
     var pendingScrollCategory by remember { mutableStateOf<Int?>(null) }
 
     // Precalculate category indices for continuous jump scrolling (without headers)
@@ -148,20 +147,19 @@ fun EmojiPickerView(
         offsets
     }
 
-    // When user manually scrolls the emoji grid, update currentCategoryIdx
-    LaunchedEffect(gridState.firstVisibleItemIndex, gridState.isScrollInProgress) {
-        if (gridState.isScrollInProgress) {
+    // Decoupled category index calculation: only notifies observers when category boundary is crossed
+    val currentCategoryIdx by remember {
+        derivedStateOf {
             val firstVisible = gridState.firstVisibleItemIndex
             val index = categoryScrollOffsets.indexOfLast { it <= firstVisible }
-            if (index >= 0 && index < EmojiData.categories.size) {
-                currentCategoryIdx = index
-            }
+            if (index >= 0 && index < EmojiData.categories.size) index else 0
         }
     }
 
-    // Auto-scroll the top tab bar to keep the active category in view
-    LaunchedEffect(currentCategoryIdx, selectedTabIdx) {
-        if (selectedTabIdx == 1) {
+    // Auto-scroll the top tab bar to keep the active category in view,
+    // but ONLY when the user is not actively flinging the grid to prevent animation collisions
+    LaunchedEffect(currentCategoryIdx, selectedTabIdx, gridState.isScrollInProgress) {
+        if (selectedTabIdx == 1 && !gridState.isScrollInProgress) {
             val density = view.resources.displayMetrics.density
             val approxTabWidthPx = (46f * density).toInt()
             val targetScroll = (currentCategoryIdx * approxTabWidthPx) - (view.width / 3).coerceAtLeast(0)
@@ -170,9 +168,8 @@ fun EmojiPickerView(
     }
 
     // Handle jump to category (including switching from Recents / Kaomoji / Symbols)
-    val onCategoryClick = { catIndex: Int ->
+    val onCategoryClick: (Int) -> Unit = { catIndex ->
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-        currentCategoryIdx = catIndex
         if (selectedTabIdx != 1) {
             pendingScrollCategory = catIndex
             selectedTabIdx = 1
@@ -201,87 +198,21 @@ fun EmojiPickerView(
             .background(pickerBg)
             .semantics { contentDescription = if (isEnglish) "Emoji and symbol palette" else "ইমোজি এবং প্রতীক প্যালেট" },
     ) {
-        // ── Top: Category Tab Bar ───────────────────────────────────────────
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(38.dp)
-                .background(tabBarBg)
-                .horizontalScroll(tabScrollState)
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            // Tab 0: Recents (Schedule clock icon)
-            TabItem(
-                isSelected = selectedTabIdx == 0,
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    selectedTabIdx = 0
-                },
-                desc = if (isEnglish) "Recent Emojis" else "সাম্প্রতিক ইমোজি",
-                activePill = activeTabPill,
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Schedule,
-                    contentDescription = null,
-                    tint = if (selectedTabIdx == 0) Color.Black else inactiveTabText,
-                    modifier = Modifier.size(17.dp)
-                )
-            }
-
-            // Tab 1..N: Standard Categories with Theme-Aware Vector Icons
-            EmojiData.categories.forEachIndexed { index, cat ->
-                val isCatSelected = (selectedTabIdx == 1 && currentCategoryIdx == index)
-                TabItem(
-                    isSelected = isCatSelected,
-                    onClick = { onCategoryClick(index) },
-                    desc = cat.title,
-                    activePill = activeTabPill,
-                ) {
-                    CategoryTabIcon(
-                        categoryId = cat.id,
-                        tint = if (isCatSelected) Color.Black else inactiveTabText,
-                    )
-                }
-            }
-
-            // Kaomoji Tab
-            TabItem(
-                isSelected = selectedTabIdx == 2,
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    selectedTabIdx = 2
-                },
-                desc = if (isEnglish) "Kaomoji Emoticons" else "কাওমোজি ইমোটিকন",
-                activePill = activeTabPill,
-            ) {
-                Text(
-                    text = "(^_^)",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (selectedTabIdx == 2) Color.Black else inactiveTabText,
-                )
-            }
-
-            // Symbols Tab
-            TabItem(
-                isSelected = selectedTabIdx == 3,
-                onClick = {
-                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    selectedTabIdx = 3
-                },
-                desc = if (isEnglish) "Symbols & Math" else "বাংলা ও গণিত প্রতীক",
-                activePill = activeTabPill,
-            ) {
-                Text(
-                    text = "৳",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (selectedTabIdx == 3) Color.Black else inactiveTabText,
-                )
-            }
-        }
+        // ── Top: Category Tab Bar (Isolated in sub-composable to avoid root recompositions) ──
+        CategoryTabBar(
+            selectedTabIdx = selectedTabIdx,
+            currentCategoryIdx = currentCategoryIdx,
+            tabScrollState = tabScrollState,
+            tabBarBg = tabBarBg,
+            activeTabPill = activeTabPill,
+            inactiveTabText = inactiveTabText,
+            isEnglish = isEnglish,
+            onTabSelect = { tabIdx ->
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                selectedTabIdx = tabIdx
+            },
+            onCategoryClick = onCategoryClick,
+        )
 
         // ── Main Content Grid Area (Clean, Uninterrupted, High Density) ─────
         Box(
@@ -306,9 +237,14 @@ fun EmojiPickerView(
                             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                             modifier = Modifier.fillMaxSize(),
                         ) {
-                            items(recents) { emoji ->
+                            items(
+                                items = recents,
+                                key = { it },
+                                contentType = { "recent" }
+                            ) { emoji ->
                                 EmojiCell(
                                     emoji = emoji,
+                                    hasSkinTones = false,
                                     onSelect = {
                                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                         onEmojiSelected(emoji)
@@ -324,11 +260,15 @@ fun EmojiPickerView(
                     LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Adaptive(minSize = 40.dp),
-                        contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 260.dp),
+                        contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 12.dp),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         EmojiData.categories.forEach { cat ->
-                            items(cat.items) { item ->
+                            items(
+                                items = cat.items,
+                                key = { "${cat.id}_${it.emoji}" },
+                                contentType = { "emoji" }
+                            ) { item ->
                                 val displayEmoji = if (defaultSkinToneIndex in 0 until item.skinTones.size) {
                                     item.skinTones[defaultSkinToneIndex]
                                 } else {
@@ -336,6 +276,7 @@ fun EmojiPickerView(
                                 }
                                 EmojiCell(
                                     emoji = displayEmoji,
+                                    hasSkinTones = item.skinTones.isNotEmpty(),
                                     onSelect = {
                                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                         recentsManager.addRecent(displayEmoji)
@@ -360,7 +301,7 @@ fun EmojiPickerView(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         KaomojiData.categories.forEach { cat ->
-                            item(span = { GridItemSpan(maxLineSpan) }) {
+                            item(span = { GridItemSpan(maxLineSpan) }, key = "hdr_kao_${cat.name}", contentType = "header") {
                                 Text(
                                     text = cat.name,
                                     fontSize = 12.sp,
@@ -369,7 +310,11 @@ fun EmojiPickerView(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
-                            items(cat.items) { kaomoji ->
+                            items(
+                                items = cat.items,
+                                key = { "${cat.name}_$it" },
+                                contentType = { "kaomoji" }
+                            ) { kaomoji ->
                                 Box(
                                     modifier = Modifier
                                         .padding(4.dp)
@@ -401,7 +346,7 @@ fun EmojiPickerView(
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         SymbolData.categories.forEach { cat ->
-                            item(span = { GridItemSpan(maxLineSpan) }) {
+                            item(span = { GridItemSpan(maxLineSpan) }, key = "hdr_sym_${cat.name}", contentType = "header") {
                                 Text(
                                     text = cat.name,
                                     fontSize = 12.sp,
@@ -410,7 +355,11 @@ fun EmojiPickerView(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
-                            items(cat.items) { symbol ->
+                            items(
+                                items = cat.items,
+                                key = { "${cat.name}_$it" },
+                                contentType = { "symbol" }
+                            ) { symbol ->
                                 Box(
                                     modifier = Modifier
                                         .padding(4.dp)
@@ -626,25 +575,132 @@ private fun TabItem(
     }
 }
 
+@Composable
+private fun CategoryTabBar(
+    selectedTabIdx: Int,
+    currentCategoryIdx: Int,
+    tabScrollState: androidx.compose.foundation.ScrollState,
+    tabBarBg: Color,
+    activeTabPill: Color,
+    inactiveTabText: Color,
+    isEnglish: Boolean,
+    onTabSelect: (Int) -> Unit,
+    onCategoryClick: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(38.dp)
+            .background(tabBarBg)
+            .horizontalScroll(tabScrollState)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        // Tab 0: Recents (Schedule clock icon)
+        TabItem(
+            isSelected = selectedTabIdx == 0,
+            onClick = { onTabSelect(0) },
+            desc = if (isEnglish) "Recent Emojis" else "সাম্প্রতিক ইমোজি",
+            activePill = activeTabPill,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Schedule,
+                contentDescription = null,
+                tint = if (selectedTabIdx == 0) Color.Black else inactiveTabText,
+                modifier = Modifier.size(17.dp)
+            )
+        }
+
+        // Tab 1..N: Standard Categories with Theme-Aware Vector Icons
+        EmojiData.categories.forEachIndexed { index, cat ->
+            val isCatSelected = (selectedTabIdx == 1 && currentCategoryIdx == index)
+            TabItem(
+                isSelected = isCatSelected,
+                onClick = { onCategoryClick(index) },
+                desc = cat.title,
+                activePill = activeTabPill,
+            ) {
+                CategoryTabIcon(
+                    categoryId = cat.id,
+                    tint = if (isCatSelected) Color.Black else inactiveTabText,
+                )
+            }
+        }
+
+        // Kaomoji Tab
+        TabItem(
+            isSelected = selectedTabIdx == 2,
+            onClick = { onTabSelect(2) },
+            desc = if (isEnglish) "Kaomoji Emoticons" else "কাওমোজি ইমোটিকন",
+            activePill = activeTabPill,
+        ) {
+            Text(
+                text = "(^_^)",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (selectedTabIdx == 2) Color.Black else inactiveTabText,
+            )
+        }
+
+        // Symbols Tab
+        TabItem(
+            isSelected = selectedTabIdx == 3,
+            onClick = { onTabSelect(3) },
+            desc = if (isEnglish) "Symbols & Math" else "বাংলা ও গণিত প্রতীক",
+            activePill = activeTabPill,
+        ) {
+            Text(
+                text = "৳",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (selectedTabIdx == 3) Color.Black else inactiveTabText,
+            )
+        }
+    }
+}
+
+private val EmojiTextStyle = TextStyle(
+    fontSize = 21.sp,
+    textAlign = TextAlign.Center,
+    platformStyle = PlatformTextStyle(includeFontPadding = false)
+)
+
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun EmojiCell(
     emoji: String,
+    hasSkinTones: Boolean = false,
     onSelect: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: () -> Unit = {},
 ) {
-    Box(
-        modifier = Modifier
+    val cellModifier = if (hasSkinTones) {
+        Modifier
             .size(40.dp)
             .clip(RoundedCornerShape(8.dp))
             .combinedClickable(
                 onClick = onSelect,
                 onLongClick = onLongClick,
             )
-            .semantics { contentDescription = emoji },
+    } else {
+        Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onSelect,
+            )
+    }
+
+    Box(
+        modifier = cellModifier.semantics { contentDescription = emoji },
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = emoji, fontSize = 21.sp, textAlign = TextAlign.Center)
+        Text(
+            text = emoji,
+            style = EmojiTextStyle,
+        )
     }
 }
 

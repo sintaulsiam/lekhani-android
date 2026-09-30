@@ -1259,9 +1259,31 @@ object EmojiData {
         return emptyList()
     }
 
+    /** Default popular emojis used as instant fallback when search query and recents are empty */
+    val defaultPopularEmojis: List<String> by lazy {
+        allEmojis.take(30).map { it.emoji }
+    }
+
+    private class SearchableEmoji(
+        val item: EmojiItem,
+        val nameLower: String,
+        val kwLowers: List<String>
+    )
+
+    private val searchableEmojis: List<SearchableEmoji> by lazy {
+        allEmojis.map {
+            SearchableEmoji(
+                item = it,
+                nameLower = it.name.lowercase(),
+                kwLowers = it.keywords.map { kw -> kw.lowercase() }
+            )
+        }
+    }
+
     /**
      * Searches emojis across Bengali, English, and phonetic Avro/Banglish transliterations
      * with relevance-based scoring (exact keyword matches prioritized).
+     * Zero-allocation scoring against pre-computed search metadata.
      */
     fun search(query: String): List<EmojiItem> {
         val q = query.trim().lowercase()
@@ -1270,11 +1292,11 @@ object EmojiData {
         val expandedSynonyms = PHONETIC_SYNONYMS[q] ?: emptyList()
         val allSearchTokens = (listOf(q) + expandedSynonyms).distinct()
 
-        return allEmojis
-            .mapNotNull { item ->
+        return searchableEmojis
+            .mapNotNull { se ->
                 var score = 0
-                val nameLower = item.name.lowercase()
-                val kwLowers = item.keywords.map { it.lowercase() }
+                val nameLower = se.nameLower
+                val kwLowers = se.kwLowers
 
                 for (token in allSearchTokens) {
                     val isPrimaryToken = (token == q)
@@ -1299,7 +1321,7 @@ object EmojiData {
                     }
                 }
 
-                if (score > 0) item to score else null
+                if (score > 0) se.item to score else null
             }
             .sortedByDescending { it.second }
             .map { it.first }

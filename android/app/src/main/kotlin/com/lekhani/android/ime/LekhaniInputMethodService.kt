@@ -682,6 +682,41 @@ class LekhaniInputMethodService : InputMethodService() {
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
         )
+
+        // Pre-warm EmojiPickerView in background to eliminate first-tap cold inflation hitch
+        val prewarmedEmojiPicker = ComposeView(this).apply {
+            attachLifecycleOwner(this)
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            visibility = View.GONE
+            setContent {
+                val theme by _themeFlow.collectAsState()
+                val heightDp by _paletteHeightDp.collectAsState()
+                EmojiPickerView(
+                    recentsManager = recentsManager,
+                    theme = theme,
+                    isEnglish = (keyboardPrefs.uiLanguage == "en"),
+                    paletteHeight = heightDp,
+                    onEmojiSelected = { emoji ->
+                        emojiPickerView?.let { feedbackManager.onKeyFeedback(it) }
+                        currentInputConnection?.commitText(emoji, 1)
+                    },
+                    onBackspace = { onBackspace() },
+                    onSpace = { onSpace() },
+                    onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                    onSearchClick = { query ->
+                        setInputViewMode(InputViewMode.EMOJI_SEARCH, query)
+                    },
+                )
+            }
+        }
+        emojiPickerView = prewarmedEmojiPicker
+        container.addView(
+            prewarmedEmojiPicker,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
         rootLayout.clipChildren = false
         rootLayout.clipToPadding = false
         rootLayout.addView(
@@ -1232,7 +1267,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val q2 = emojiSearchRawQuery.trim()
         val results = if (q1.isBlank() && q2.isBlank()) {
             val recents = recentsManager.getRecents()
-            if (recents.isNotEmpty()) recents else EmojiData.categories.flatMap { it.items }.map { it.emoji }.take(25)
+            if (recents.isNotEmpty()) recents else EmojiData.defaultPopularEmojis
         } else {
             val res1 = if (q1.isNotBlank()) EmojiData.search(q1) else emptyList()
             val res2 = if (q2.isNotBlank() && q2.lowercase() != q1.lowercase()) EmojiData.search(q2) else emptyList()
