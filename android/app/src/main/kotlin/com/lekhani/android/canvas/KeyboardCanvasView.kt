@@ -196,6 +196,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // Backspace swipe to delete state
     private var isBackspaceSwiping: Boolean = false
     private var backspaceSwipeStartX: Float = 0f
+    private var backspaceSwipeStartY: Float = 0f
     private var backspaceDeletedWordCount: Int = 0
     private var backspaceSwipeStepPx: Float = 0f
     private val backspaceBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -706,6 +707,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     invalidate()
                 }
             }
+        }
+    }
+
+    /**
+     * Disarms and cancels any active swipe-to-delete gesture (e.g. when user taps Copy in the preview strip).
+     */
+    fun cancelSwipeDelete() {
+        if (isBackspaceSwiping) {
+            isBackspaceSwiping = false
+            backspaceDeletedWordCount = 0
+            removeCallbacks(backspaceRepeatRunnable)
+            invalidate()
         }
     }
 
@@ -1660,6 +1673,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         postDelayed(longPressRunnable, longPressDelayMs)
                     } else if (key.action == KeyAction.Backspace) {
                         backspaceSwipeStartX = px
+                        backspaceSwipeStartY = py
                         backspaceRepeatCount = 0
                         postDelayed(backspaceRepeatRunnable, 350L)
                     }
@@ -1777,11 +1791,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
                                 invalidate()
                             }
                             return true
-                        } else if (isBackspaceSwiping && dx > -24f * resources.displayMetrics.density) {
-                            // Sliding thumb back towards the Backspace key completely cancels deletion
+                        } else if (isBackspaceSwiping && (dx > -24f * resources.displayMetrics.density || (curY - backspaceSwipeStartY) > 32f * resources.displayMetrics.density)) {
+                            // Sliding thumb back towards the Backspace key or downward completely cancels deletion
                             isBackspaceSwiping = false
                             backspaceDeletedWordCount = 0
                             keyListener?.onSwipeDeletePreview(0)
+                            feedbackManager?.onTickFeedback(this)
+                                ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             invalidate()
                             return true
                         }

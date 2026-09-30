@@ -67,5 +67,38 @@ sealed class CandidateStripState {
         val icon: String,
         val pasteText: String,
     ) : CandidateStripState()
+
+    /**
+     * Mid-gesture live preview bar while dragging from Backspace.
+     * Supports single-finger preview as well as two-thumb multi-touch copy/cut.
+     */
+    data class SwipeDeletePreview(
+        val previewText: String,
+        val wordCount: Int,
+        val granularity: DeleteGranularity = DeleteGranularity.WORD,
+        val onCopy: () -> Unit = {},
+        val onCut: () -> Unit = {},
+    ) : CandidateStripState()
+
+    /**
+     * Contextual text selection toolbar shown whenever text is highlighted in the active app.
+     */
+    data class Selection(
+        val selectedText: String = "",
+        val onCut: () -> Unit,
+        val onCopy: () -> Unit,
+        val onPaste: () -> Unit,
+        val onSelectAll: () -> Unit,
+        val onDelete: () -> Unit,
+    ) : CandidateStripState()
+}
+
+/**
+ * Granularity level for swipe deletion.
+ */
+enum class DeleteGranularity {
+    CHAR,
+    WORD,
+    SENTENCE
 }
 

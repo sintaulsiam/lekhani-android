@@ -53,11 +53,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.material3.Text
 import com.lekhani.android.ui.theme.iconVector
 import androidx.compose.runtime.Composable
@@ -171,6 +179,8 @@ fun CandidateStripView(
     ) {
         val displayMode = when {
             state is CandidateStripState.EmojiSearch -> 0
+            state is CandidateStripState.SwipeDeletePreview -> 5
+            state is CandidateStripState.Selection -> 6
             hasItems && !showToolbarOverride && !isToolsMenuOpen -> 1
             state is CandidateStripState.Undo && !isToolsMenuOpen -> 3
             state is CandidateStripState.QuickChip && !isToolsMenuOpen && !showToolbarOverride -> 4
@@ -307,6 +317,26 @@ fun CandidateStripView(
                         }
                     }
                 }
+                5 -> {
+                    val swipeState = state as? CandidateStripState.SwipeDeletePreview
+                    if (swipeState != null) {
+                        SwipeDeletePreviewStrip(
+                            state = swipeState,
+                            theme = theme,
+                            isEnglish = isEnglish,
+                        )
+                    }
+                }
+                6 -> {
+                    val selState = state as? CandidateStripState.Selection
+                    if (selState != null) {
+                        CandidateSelectionStrip(
+                            state = selState,
+                            theme = theme,
+                            isEnglish = isEnglish,
+                        )
+                    }
+                }
                 else -> {
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -316,35 +346,35 @@ fun CandidateStripView(
                             // Collapse toolbar button back to candidates
                             Box(
                                 modifier = Modifier
-                                .size(StripHeight)
-                                .clip(CircleShape)
-                                .clickable { showToolbarOverride = false },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = if (isEnglish) "Show Candidates" else "পরামর্শ প্রদর্শন",
-                                tint = Color(theme.accentColor),
-                                modifier = Modifier.size(18.dp)
+                                    .size(StripHeight)
+                                    .clip(CircleShape)
+                                    .clickable { showToolbarOverride = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = if (isEnglish) "Show Candidates" else "পরামর্শ প্রদর্শন",
+                                    tint = Color(theme.accentColor),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Box(modifier = Modifier.weight(1f)) {
+                            ToolbarContent(
+                                tools = activeTools,
+                                onToolClick = onToolClick,
+                                onOpenToolsMenu = onOpenToolsMenu,
+                                theme = theme,
+                                isEnglish = isEnglish,
+                                isToolsMenuOpen = isToolsMenuOpen,
                             )
                         }
-                    }
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        ToolbarContent(
-                            tools = activeTools,
-                            onToolClick = onToolClick,
-                            onOpenToolsMenu = onOpenToolsMenu,
-                            theme = theme,
-                            isEnglish = isEnglish,
-                            isToolsMenuOpen = isToolsMenuOpen,
-                        )
                     }
                 }
             }
         }
     }
-}
 }
 
 
@@ -895,6 +925,211 @@ private fun UndoChip(
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/**
+ * Mid-gesture preview strip for swipe-to-delete.
+ * Displays live strikethrough text preview and two-thumb multi-touch action chips (Copy / Cut).
+ */
+@Composable
+private fun SwipeDeletePreviewStrip(
+    state: CandidateStripState.SwipeDeletePreview,
+    theme: KeyboardTheme,
+    isEnglish: Boolean,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(StripHeight)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        // Multi-touch two-thumb action chips for second hand
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Surface(
+                onClick = state.onCopy,
+                shape = RoundedCornerShape(12.dp),
+                color = Color(theme.keyNormalColor),
+                border = BorderStroke(1.dp, Color(theme.accentColor).copy(alpha = 0.35f)),
+                modifier = Modifier.height(30.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ContentCopy,
+                        contentDescription = if (isEnglish) "Copy" else "কপি",
+                        tint = Color(theme.accentColor),
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = if (isEnglish) "Copy" else "কপি",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(theme.labelColor),
+                    )
+                }
+            }
+
+            Surface(
+                onClick = state.onCut,
+                shape = RoundedCornerShape(12.dp),
+                color = Color(theme.keyNormalColor),
+                border = BorderStroke(1.dp, Color(0xFFFF5252).copy(alpha = 0.35f)),
+                modifier = Modifier.height(30.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ContentCut,
+                        contentDescription = if (isEnglish) "Cut" else "কাট",
+                        tint = Color(0xFFFF5252),
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = if (isEnglish) "Cut" else "কাট",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(theme.labelColor),
+                    )
+                }
+            }
+        }
+
+        // Live preview of text with strikethrough and count badge
+        Row(
+            modifier = Modifier.weight(1f).padding(start = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Text(
+                text = state.previewText,
+                style = TextStyle(
+                    textDecoration = TextDecoration.LineThrough,
+                    color = Color(0xFFFF5252),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Surface(
+                shape = CircleShape,
+                color = Color(0x33FF5252),
+                modifier = Modifier.size(22.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "-${state.wordCount}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFF5252),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Contextual Selection Action Bar shown whenever text is highlighted.
+ */
+@Composable
+private fun CandidateSelectionStrip(
+    state: CandidateStripState.Selection,
+    theme: KeyboardTheme,
+    isEnglish: Boolean,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(StripHeight)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        SelectionActionButton(
+            icon = Icons.Filled.ContentCut,
+            label = if (isEnglish) "Cut" else "কাট",
+            theme = theme,
+            onClick = state.onCut,
+        )
+        SelectionActionButton(
+            icon = Icons.Filled.ContentCopy,
+            label = if (isEnglish) "Copy" else "কপি",
+            theme = theme,
+            onClick = state.onCopy,
+        )
+        SelectionActionButton(
+            icon = Icons.Filled.ContentPaste,
+            label = if (isEnglish) "Paste" else "পেস্ট",
+            theme = theme,
+            onClick = state.onPaste,
+        )
+        SelectionActionButton(
+            icon = Icons.Filled.SelectAll,
+            label = if (isEnglish) "Select All" else "সব নির্বাচন",
+            theme = theme,
+            onClick = state.onSelectAll,
+        )
+        SelectionActionButton(
+            icon = Icons.Filled.Delete,
+            label = if (isEnglish) "Delete" else "মুছুন",
+            theme = theme,
+            isDestructive = true,
+            onClick = state.onDelete,
+        )
+    }
+}
+
+@Composable
+private fun SelectionActionButton(
+    icon: ImageVector,
+    label: String,
+    theme: KeyboardTheme,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isDestructive: Boolean = false,
+) {
+    val activeColor = if (isDestructive) Color(0xFFFF5252) else Color(theme.accentColor)
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = Color(theme.keyNormalColor),
+        border = BorderStroke(1.dp, activeColor.copy(alpha = 0.25f)),
+        modifier = modifier
+            .height(32.dp)
+            .padding(horizontal = 2.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = activeColor,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(theme.labelColor),
             )
         }
     }

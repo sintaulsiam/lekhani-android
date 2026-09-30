@@ -49,6 +49,7 @@ import com.lekhani.android.ui.LekhaniSettingsActivity
 import com.lekhani.android.ui.candidate.CandidateBlacklist
 import com.lekhani.android.ui.candidate.CandidateStripState
 import com.lekhani.android.ui.candidate.CandidateStripView
+import com.lekhani.android.ui.candidate.DeleteGranularity
 import com.lekhani.android.ui.candidate.HomophoneAnnotator
 import com.lekhani.android.ui.candidate.UndoInfo
 import com.lekhani.android.ui.clipboard.ClipboardSheetView
@@ -111,7 +112,7 @@ class LekhaniInputMethodService : InputMethodService() {
      * dictionary indexing). Uses SupervisorJob so individual task failures
      * don't cancel the whole scope.
      */
-    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     // ── Synthetic Lifecycle for Jetpack Compose views ────────────────────────
     private val imeLifecycleOwner = ImeLifecycleOwner()
@@ -378,9 +379,11 @@ class LekhaniInputMethodService : InputMethodService() {
             devicePrefs.unregisterOnSharedPreferenceChangeListener(listener)
             layoutPrefListener = null
         }
-        // Persist learned data asynchronously while scope is still active; the scope
-        // cancellation below will wait for the child coroutine to finish before tearing down.
-        persistUserLearnedAsync()
+        // Launch persist on a separate IO scope so it finishes even as service tears down
+        val file = File(filesDir, "user_learned.bin")
+        CoroutineScope(Dispatchers.IO).launch {
+            persistUserLearnedInternal(file)
+        }
         imeLifecycleOwner.onDestroy()
         audioManager.cancelStreaming()
         feedbackManager.release()
@@ -463,6 +466,28 @@ class LekhaniInputMethodService : InputMethodService() {
                 clearCandidates()
                 clearUndo()
             }
+        }
+
+        // Contextual Text Selection Toolbar shown whenever text is highlighted
+        val hasSelection = (newSelStart != newSelEnd && newSelStart >= 0 && newSelEnd >= 0)
+        if (hasSelection) {
+            val ic = currentInputConnection
+            _candidateState.value = CandidateStripState.Selection(
+                onCut = { ic?.performContextMenuAction(android.R.id.cut) },
+                onCopy = { ic?.performContextMenuAction(android.R.id.copy) },
+                onPaste = { ic?.performContextMenuAction(android.R.id.paste) },
+                onSelectAll = {
+                    if (ic?.performContextMenuAction(android.R.id.selectAll) != true) {
+                        sendEditorKeyWithMeta(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON)
+                    }
+                },
+                onDelete = {
+                    ic?.commitText("", 0)
+                }
+            )
+            candidateStripComposeView?.visibility = View.VISIBLE
+        } else if (_candidateState.value is CandidateStripState.Selection) {
+            updateCandidatesVisibility()
         }
     }
 
@@ -659,7 +684,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
 
                 override fun onSwipeDeletePreview(wordCount: Int) {
-                    // Preview feedback handled in canvas badge and haptics
+                    handleSwipeDeletePreview(wordCount)
                 }
 
                 override fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor) {
@@ -959,7 +984,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 emojiSearchRawQuery = initialQuery
                 // Reset the previous session before overwriting to avoid leaking the Rust
                 // Mutex-guarded state machine allocation at the FFI boundary.
-                emojiSearchSession?.reset()
+                val oldSession = emojiSearchSession
+                oldSession?.reset()
+                emojiSearchSession = null
                 emojiSearchSession = AndroidLekhaniSession().apply {
                     setLayout(session.getLayout())
                 }
@@ -2057,14 +2084,18 @@ class LekhaniInputMethodService : InputMethodService() {
     fun persistUserLearnedAsync() {
         val file = File(filesDir, "user_learned.bin")
         serviceScope.launch(Dispatchers.IO) {
-            try {
-                if (session.isUserLearnedDirty()) {
-                    session.saveUserLearned(file.absolutePath)
-                    Log.i(TAG, "User learned data successfully persisted to ${file.absolutePath}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to persist user learned data: ${e.message}")
+            persistUserLearnedInternal(file)
+        }
+    }
+
+    private fun persistUserLearnedInternal(file: File) {
+        try {
+            if (session.isUserLearnedDirty()) {
+                session.saveUserLearned(file.absolutePath)
+                Log.i(TAG, "User learned data successfully persisted to ${file.absolutePath}")
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to persist user learned data: ${e.message}")
         }
     }
 
@@ -2084,7 +2115,9 @@ class LekhaniInputMethodService : InputMethodService() {
         undoDismissJob?.cancel()
         undoDismissJob = serviceScope.launch {
             kotlinx.coroutines.delay(3500)
-            clearUndo()
+            withContext(Dispatchers.Main) {
+                clearUndo()
+            }
         }
     }
 
@@ -2274,6 +2307,78 @@ class LekhaniInputMethodService : InputMethodService() {
                 ic.sendKeyEvent(curRightUp)
             }
         }
+    }
+
+    private fun handleSwipeDeletePreview(wordCount: Int) {
+        if (wordCount <= 0) {
+            updateCandidatesVisibility()
+            return
+        }
+        val previewText = computeSwipeDeletePreviewText(wordCount)
+        if (previewText.isEmpty()) {
+            updateCandidatesVisibility()
+            return
+        }
+        _candidateState.value = CandidateStripState.SwipeDeletePreview(
+            previewText = previewText,
+            wordCount = wordCount,
+            granularity = DeleteGranularity.WORD,
+            onCopy = {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                cm?.setPrimaryClip(android.content.ClipData.newPlainText("Lekhani", previewText))
+                keyboardView?.let { feedbackManager.onKeyFeedback(it) }
+                keyboardView?.cancelSwipeDelete()
+                updateCandidatesVisibility()
+            },
+            onCut = {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                cm?.setPrimaryClip(android.content.ClipData.newPlainText("Lekhani", previewText))
+                keyboardView?.let { feedbackManager.onKeyFeedback(it) }
+                keyboardView?.cancelSwipeDelete()
+                handleSwipeDelete(wordCount)
+            }
+        )
+        candidateStripComposeView?.visibility = View.VISIBLE
+    }
+
+    private fun computeSwipeDeletePreviewText(wordCount: Int): String {
+        if (wordCount <= 0) return ""
+        var remainingWords = wordCount
+        val buffer = StringBuilder()
+        if (preeditShadow.isNotEmpty()) {
+            buffer.append(preeditShadow)
+            remainingWords--
+        }
+        if (remainingWords > 0) {
+            val before = cachedSurroundingContext.ifEmpty {
+                currentInputConnection?.getTextBeforeCursor(512, 0)?.toString() ?: ""
+            }
+            if (before.isNotEmpty()) {
+                var charsToDelete = 0
+                var wordsFound = 0
+                var inWord = false
+                for (i in before.length - 1 downTo 0) {
+                    val ch = before[i]
+                    if (!ch.isWhitespace()) {
+                        inWord = true
+                    } else if (inWord) {
+                        wordsFound++
+                        inWord = false
+                        if (wordsFound >= remainingWords) break
+                    }
+                    charsToDelete++
+                }
+                if (charsToDelete > 0) {
+                    val committed = before.takeLast(charsToDelete)
+                    if (buffer.isNotEmpty()) {
+                        buffer.insert(0, committed)
+                    } else {
+                        buffer.append(committed)
+                    }
+                }
+            }
+        }
+        return buffer.toString()
     }
 
     private fun handleSwipeDelete(wordCount: Int) {
