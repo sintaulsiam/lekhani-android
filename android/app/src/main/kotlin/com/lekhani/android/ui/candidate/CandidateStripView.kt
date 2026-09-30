@@ -776,21 +776,30 @@ private fun CandidatePill(
     val secondaryBg = Color(theme.keyNormalColor)
     val normalText = Color(theme.labelColor)
 
+    val pillBorder = if (item.isVerbatimPreview) {
+        BorderStroke(1.dp, Color(theme.labelColor).copy(alpha = 0.28f))
+    } else null
+
     Box(
         modifier = Modifier
             .semantics { contentDescription = semanticDesc }
             .alpha(pillAlpha)
             .height(34.dp)
             .clip(RoundedCornerShape(17.dp))
+            .then(
+                if (pillBorder != null) Modifier.border(pillBorder, RoundedCornerShape(17.dp)) else Modifier
+            )
             .background(if (item.isPrimary) primaryBg else secondaryBg)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = {
-                    isFlashingBlacklist = true
-                    onLongClick()
+                    if (!item.isVerbatimPreview) {
+                        isFlashingBlacklist = true
+                        onLongClick()
+                    }
                 },
             )
-            .padding(horizontal = if (item.isEmoji) 10.dp else if (item.isPrimary) 16.dp else 13.dp),
+            .padding(horizontal = if (item.isEmoji) 10.dp else if (item.isPrimary) 16.dp else if (item.isVerbatimPreview) 12.dp else 13.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -798,11 +807,12 @@ private fun CandidatePill(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
+            val displayText = if (item.isVerbatimPreview) "\"${item.text}\"" else item.text
             Text(
-                text = item.text,
-                fontSize = if (item.isEmoji) 18.sp else 15.sp,
+                text = displayText,
+                fontSize = if (item.isEmoji) 18.sp else if (item.isVerbatimPreview) 14.sp else 15.sp,
                 fontWeight = if (item.isPrimary) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (item.isPrimary) primaryText else normalText,
+                color = if (item.isPrimary) primaryText else if (item.isVerbatimPreview) normalText.copy(alpha = 0.88f) else normalText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(

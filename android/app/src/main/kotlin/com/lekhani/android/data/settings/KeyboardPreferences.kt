@@ -186,6 +186,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_LEARN_WORDS_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_LEARN_WORDS_ENABLED, value).apply()
 
+    var avroShowEnglishPreview: Boolean
+        get() = prefs.getBoolean(KEY_AVRO_SHOW_ENGLISH_PREVIEW, true)
+        set(value) = prefs.edit().putBoolean(KEY_AVRO_SHOW_ENGLISH_PREVIEW, value).apply()
+
     // ── Clipboard Settings ────────────────────────────────────────────────────
     var clipboardRetentionMinutes: Int
         get() = prefs.getInt(KEY_CLIPBOARD_RETENTION_MINUTES, 60)
@@ -303,6 +307,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_KEY_GLOW_RIPPLE = "key_glow_ripple"
         const val KEY_GLIDE_TYPING_ENABLED = "glide_typing_enabled"
         const val KEY_CODE_SHIELD_ENABLED = "code_shield_enabled"
+        const val KEY_AVRO_SHOW_ENGLISH_PREVIEW = "avro_show_english_preview"
         const val KEY_DOUBLE_SPACE_DARI_ENABLED = "double_space_dari_enabled"
         const val KEY_SPACEBAR_AUTOCOMPLETE_ENABLED = "spacebar_autocomplete_enabled"
         const val KEY_AUTO_LEARN_WORDS_ENABLED = "auto_learn_words_enabled"

@@ -2188,11 +2188,15 @@ class LekhaniInputMethodService : InputMethodService() {
         // Offer raw English input in first place (index 0) so users can verify phonetic spelling and commit English directly
         val rawInput = rawInputBuffer.toString()
         var primaryIndex = 0
+        var verbatimIndex = -1
         if (session.getLayout() == LekhaniLayoutType.AVRO && rawInput.isNotBlank()) {
-            filtered.remove(rawInput)
-            filtered.add(0, rawInput)
-            val isCode = keyboardPrefs.codeShieldEnabled && SmartAssistant.isCodeToken(rawInput)
-            primaryIndex = if (isCode || filtered.size <= 1) 0 else 1
+            if (keyboardPrefs.avroShowEnglishPreview) {
+                filtered.remove(rawInput)
+                filtered.add(0, rawInput)
+                val isCode = keyboardPrefs.codeShieldEnabled && SmartAssistant.isCodeToken(rawInput)
+                primaryIndex = if (isCode || filtered.size <= 1) 0 else 1
+                verbatimIndex = 0
+            }
         }
 
         // 2. Smart Math Evaluation: e.g. "500+250=" -> "= 750"
@@ -2230,7 +2234,7 @@ class LekhaniInputMethodService : InputMethodService() {
             if (undo != null) CandidateStripState.Undo(undo) else CandidateStripState.Empty
         } else {
             CandidateStripState.Candidates(
-                HomophoneAnnotator.annotate(filtered, primaryIdx = primaryIndex),
+                HomophoneAnnotator.annotate(filtered, primaryIdx = primaryIndex, verbatimIdx = verbatimIndex),
                 undoInfo = undo
             )
         }

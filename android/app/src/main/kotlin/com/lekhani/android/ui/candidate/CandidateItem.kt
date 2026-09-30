@@ -18,6 +18,7 @@ data class CandidateItem(
     val homophones: String? = null,
     val isBlacklisted: Boolean = false,
     val isEmoji: Boolean = false,
+    val isVerbatimPreview: Boolean = false,
 )
 
 /**

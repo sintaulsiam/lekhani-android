@@ -94,6 +94,7 @@ fun PreferencesTabContent(
     var autoLearnWords by remember { mutableStateOf(prefs.autoLearnWordsEnabled) }
     var doubleSpaceDari by remember { mutableStateOf(prefs.doubleSpaceDariEnabled) }
     var codeShield by remember { mutableStateOf(prefs.codeShieldEnabled) }
+    var avroShowEnglishPreview by remember { mutableStateOf(prefs.avroShowEnglishPreview) }
     var showDedicatedNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
@@ -321,6 +322,34 @@ fun PreferencesTabContent(
                         onCheckedChange = {
                             codeShield = it
                             prefs.codeShieldEnabled = it
+                        }
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                // Avro Verbatim English Preview Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = if (isEnglish) "Avro English Preview" else "অভ্র ইংরেজি প্রিভিউ",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Show quoted verbatim English input at the start of suggestion bar" else "সাজেশন বারের শুরুতে উদ্ধৃতিচিহ্নযুক্ত টাইপকৃত ইংরেজি প্রিভিউ প্রদর্শন করবে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = avroShowEnglishPreview,
+                        onCheckedChange = {
+                            avroShowEnglishPreview = it
+                            prefs.avroShowEnglishPreview = it
                         }
                     )
                 }

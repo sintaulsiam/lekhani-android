@@ -64,14 +64,20 @@ object HomophoneAnnotator {
      * @param primaryIdx  Index of the primary candidate (usually 0).
      * @return            List of [CandidateItem]s with homophones set where known.
      */
-    fun annotate(candidates: List<String>, primaryIdx: Int = 0): List<CandidateItem> {
+    fun annotate(
+        candidates: List<String>,
+        primaryIdx: Int = 0,
+        verbatimIdx: Int = -1,
+    ): List<CandidateItem> {
         return candidates.mapIndexed { i, text ->
             val emoji = com.lekhani.android.data.emoji.EmojiData.isEmoji(text)
+            val isVerbatim = (i == verbatimIdx && !emoji)
             CandidateItem(
                 text = text,
                 isPrimary = i == primaryIdx && !emoji,
-                homophones = if (emoji) null else pairs[text],
+                homophones = if (emoji || isVerbatim) null else pairs[text],
                 isEmoji = emoji,
+                isVerbatimPreview = isVerbatim,
             )
         }
     }

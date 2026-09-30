@@ -68,4 +68,20 @@ class HomophoneAnnotatorTest {
         assertEquals("করি", result[4].homophones)
         assertEquals("করে", result[5].homophones)
     }
+
+    @Test
+    fun `verbatim candidate is correctly flagged as preview`() {
+        val candidates = listOf("ami", "আমি", "আমী")
+        val result = HomophoneAnnotator.annotate(candidates, primaryIdx = 1, verbatimIdx = 0)
+
+        assertTrue(result[0].isVerbatimPreview)
+        assertFalse(result[0].isPrimary)
+        assertNull(result[0].homophones)
+
+        assertFalse(result[1].isVerbatimPreview)
+        assertTrue(result[1].isPrimary)
+
+        assertFalse(result[2].isVerbatimPreview)
+        assertFalse(result[2].isPrimary)
+    }
 }
