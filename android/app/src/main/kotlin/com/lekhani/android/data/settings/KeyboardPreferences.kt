@@ -173,6 +173,14 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_DOUBLE_SPACE_DARI_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_DOUBLE_SPACE_DARI_ENABLED, value).apply()
 
+    var spacebarAutocompleteEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SPACEBAR_AUTOCOMPLETE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_SPACEBAR_AUTOCOMPLETE_ENABLED, value).apply()
+
+    var autoLearnWordsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_LEARN_WORDS_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_LEARN_WORDS_ENABLED, value).apply()
+
     // ── Clipboard Settings ────────────────────────────────────────────────────
     var clipboardRetentionMinutes: Int
         get() = prefs.getInt(KEY_CLIPBOARD_RETENTION_MINUTES, 60)
@@ -289,6 +297,8 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_GLIDE_TYPING_ENABLED = "glide_typing_enabled"
         const val KEY_CODE_SHIELD_ENABLED = "code_shield_enabled"
         const val KEY_DOUBLE_SPACE_DARI_ENABLED = "double_space_dari_enabled"
+        const val KEY_SPACEBAR_AUTOCOMPLETE_ENABLED = "spacebar_autocomplete_enabled"
+        const val KEY_AUTO_LEARN_WORDS_ENABLED = "auto_learn_words_enabled"
         const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
 
         const val KEY_HAPTIC_ENABLED = "haptic_enabled"

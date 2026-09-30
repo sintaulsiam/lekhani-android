@@ -116,6 +116,8 @@ struct SessionState {
     /// Whether the session is currently in a secure/incognito field.
     /// When true: no learning, no clipboard capture, auto English layout.
     is_private_field: bool,
+    /// Whether autonomous learning of words from typing is enabled.
+    auto_learn_enabled: bool,
     /// Last committed word, optional preceding word, and the Instant it was committed.
     /// Used for rapid backspace mistake penalty (<1500 ms).
     last_commit_info: Option<(Option<String>, String, std::time::Instant)>,
@@ -196,6 +198,7 @@ impl AndroidLekhaniSession {
                 composing_buffer: String::with_capacity(64),
                 surrounding_context: String::with_capacity(256),
                 is_private_field: false,
+                auto_learn_enabled: true,
                 last_commit_info: None,
                 spatial_model: crate::spatial::SpatialTouchModel::new(),
             }),
@@ -245,6 +248,21 @@ impl AndroidLekhaniSession {
             .lock()
             .map(|s| s.is_private_field)
             .unwrap_or(false)
+    }
+
+    /// Enable or disable autonomous dictionary learning from user typing.
+    pub fn set_auto_learn_enabled(&self, enabled: bool) {
+        if let Ok(mut state) = self.state.lock() {
+            state.auto_learn_enabled = enabled;
+        }
+    }
+
+    /// Returns whether autonomous dictionary learning is enabled.
+    pub fn is_auto_learn_enabled(&self) -> bool {
+        self.state
+            .lock()
+            .map(|s| s.auto_learn_enabled)
+            .unwrap_or(true)
     }
 
     // ── Surrounding text context ─────────────────────────────────────────────
@@ -864,6 +882,79 @@ impl AndroidLekhaniSession {
         db.learner.read().map(|l| l.dirty).unwrap_or(false)
     }
 
+    /// Retrieve the count of auto-learned words from typing stream.
+    pub fn get_learned_words_count(&self) -> Result<u32, LekhaniError> {
+        let db = get_core_database();
+        let learner = db
+            .learner
+            .read()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        Ok(learner.get_learned_words_count() as u32)
+    }
+
+    /// Clear background auto-learned words while preserving explicit user custom words.
+    pub fn clear_learned_history(&self) -> Result<bool, LekhaniError> {
+        let db = get_core_database();
+        let mut learner = db
+            .learner
+            .write()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        learner.clear_learned_history();
+        Ok(true)
+    }
+
+    /// Add a custom user autocorrect / shortcut rule.
+    pub fn add_autocorrect_rule(&self, trigger: String, replacement: String) -> Result<bool, LekhaniError> {
+        let clean_trig = trigger.trim();
+        let clean_repl = replacement.trim();
+        if clean_trig.is_empty() || clean_repl.is_empty() {
+            return Ok(false);
+        }
+        let db = get_core_database();
+        db.insert_user_autocorrect(clean_trig.to_string(), clean_repl.to_string());
+        Ok(true)
+    }
+
+    /// Delete a custom user autocorrect rule.
+    pub fn delete_autocorrect_rule(&self, trigger: String) -> Result<bool, LekhaniError> {
+        let clean_trig = trigger.trim();
+        let db = get_core_database();
+        Ok(db.remove_user_autocorrect(clean_trig).is_some())
+    }
+
+    /// Clear all custom user autocorrect rules.
+    pub fn clear_autocorrect_rules(&self) -> Result<bool, LekhaniError> {
+        let db = get_core_database();
+        db.clear_user_autocorrect();
+        Ok(true)
+    }
+
+    /// Retrieve all custom user autocorrect rules as a key-value map.
+    pub fn get_autocorrect_rules(&self) -> Result<std::collections::HashMap<String, String>, LekhaniError> {
+        let db = get_core_database();
+        let map = db.get_user_autocorrect_map();
+        Ok(map.into_iter().collect())
+    }
+
+    /// Save custom user autocorrect rules to JSON file.
+    pub fn save_user_autocorrect(&self, path: String) -> Result<bool, LekhaniError> {
+        let db = get_core_database();
+        db.save_user_autocorrect(path)
+            .map(|_| true)
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))
+    }
+
+    /// Load custom user autocorrect rules from JSON file.
+    pub fn load_user_autocorrect(&self, path: String) -> Result<bool, LekhaniError> {
+        let path_ref = std::path::Path::new(&path);
+        if !path_ref.exists() {
+            return Ok(false);
+        }
+        let db = get_core_database();
+        db.load_user_autocorrect(path_ref);
+        Ok(true)
+    }
+
     // ── Backspace ────────────────────────────────────────────────────────────
 
     /// Handle Backspace keypress.
@@ -993,7 +1084,18 @@ impl AndroidLekhaniSession {
                 let chosen = candidates.first().map(|s| s.as_str()).unwrap_or(&raw);
                 nfc_normalize(chosen)
             } else {
-                nfc_normalize(&raw)
+                let db = get_core_database();
+                let lower = raw.to_lowercase();
+                let autocompleted = if let Ok(uac) = db.user_autocorrect.read() {
+                    uac.get(&raw).cloned().or_else(|| uac.get(&lower).cloned())
+                } else {
+                    None
+                };
+                if let Some(repl) = autocompleted {
+                    nfc_normalize(&repl)
+                } else {
+                    nfc_normalize(&raw)
+                }
             };
             let word = normalized.clone();
             normalized.push(' ');
@@ -1004,7 +1106,7 @@ impl AndroidLekhaniSession {
                 .last()
                 .map(|s| s.to_string());
 
-            if !state.is_private_field {
+            if !state.is_private_field && state.auto_learn_enabled {
                 let db = get_core_database();
                 if let Ok(mut learner) = db.learner.write() {
                     learner.observe_and_learn(&word, &db.trie);
@@ -1083,7 +1185,7 @@ impl AndroidLekhaniSession {
             .last()
             .map(|s| s.to_string());
 
-        if !state.is_private_field {
+        if !state.is_private_field && state.auto_learn_enabled {
             let db = get_core_database();
             if let Ok(mut learner) = db.learner.write() {
                 if !typed_buffer.is_empty() {

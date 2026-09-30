@@ -170,7 +170,11 @@
 ## Phase 9: Dictionary Management & User Data Freedom
 - [x] **One-Click Migration**: Import user dictionaries from Ridmik Keyboard and desktop Avro.
 - [x] **Offline Backup & Export**: Export personal learned words to human-readable JSON.
-- [x] **Personal Word Editor**: View, search, add, or delete learned words in Settings.
+- [x] **Personal Word Editor**: View, search, add, or delete custom words in Settings.
+- [x] **Garbage Word Elimination & Quality Gate**: Frequency threshold raised to 3 occurrences; stem morpheme peeling eliminated to prevent broken roots; distinct separation between explicit custom words and dynamic typing cache.
+- [x] **User Auto-Correct Rules & Shortcuts**: Explicit trigger-to-replacement shortcuts (e.g. `omw` ➔ `On my way!`, `কিবর্ড` ➔ `কীবোর্ড`) executed on Space across English/fixed layouts and prioritized in Avro.
+- [x] **Multi-Tab Dictionary Management Studio**: Material 3 secondary tabs for Custom Words, Shortcut Rules, and Typing Memory history reset.
+- [x] **Optional Spacebar Autocomplete & Prefix Completion**: Spacebar autocomplete toggle for instant candidate committing; full Avro prefix trie search for seamless long-word expansion.
 - [x] 100% offline local encryption: Personal vocabulary never leaves device storage.
 
 ---

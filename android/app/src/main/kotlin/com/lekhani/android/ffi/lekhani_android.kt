@@ -788,6 +788,26 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -813,18 +833,30 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_lekhani_android_fn_constructor_androidlekhanisession_new(uniffi_out_err: UniffiRustCallStatus, 
     ): Pointer
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_add_autocorrect_rule(`ptr`: Pointer,`trigger`: RustBuffer.ByValue,`replacement`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_add_user_word(`ptr`: Pointer,`word`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_clear_autocorrect_rules(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_clear_learned_history(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_clear_user_dictionary(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_decode_glide(`ptr`: Pointer,`keys`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_delete_autocorrect_rule(`ptr`: Pointer,`trigger`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_delete_user_word(`ptr`: Pointer,`word`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_export_dictionary_json(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_autocorrect_rules(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_layout(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_learned_words_count(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Int
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_spatial_log_prob(`ptr`: Pointer,`key`: RustBuffer.ByValue,`touchX`: Float,`touchY`: Float,uniffi_out_err: UniffiRustCallStatus, 
     ): Float
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_user_words(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -837,6 +869,8 @@ internal interface UniffiLib : Library {
     ): Int
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_import_raw_words(`ptr`: Pointer,`words`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_auto_learn_enabled(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_composing(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_private_field(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -844,6 +878,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_user_learned_dirty(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_load_english_dictionary(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_load_user_autocorrect(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_load_user_learned(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
@@ -859,10 +895,14 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_reset(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_save_user_autocorrect(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_save_user_learned(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_select_candidate(`ptr`: Pointer,`candidate`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_auto_learn_enabled(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_context(`ptr`: Pointer,`context`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_layout(`ptr`: Pointer,`layout`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -1001,17 +1041,29 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_lekhani_android_checksum_func_set_dictionary_directory(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_add_autocorrect_rule(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_autocorrect_rules(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_learned_history(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_user_dictionary(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_decode_glide(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_autocorrect_rule(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_user_word(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_autocorrect_rules(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_learned_words_count(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_spatial_log_prob(
     ): Short
@@ -1025,6 +1077,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_raw_words(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_auto_learn_enabled(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_composing(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_private_field(
@@ -1032,6 +1086,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_user_learned_dirty(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_load_english_dictionary(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_load_user_autocorrect(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_load_user_learned(
     ): Short
@@ -1047,9 +1103,13 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_reset(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_save_user_autocorrect(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_save_user_learned(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_select_candidate(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_auto_learn_enabled(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_context(
     ): Short
@@ -1091,7 +1151,16 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_func_set_dictionary_directory() != 78.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_add_autocorrect_rule() != 17446.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word() != 58732.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_autocorrect_rules() != 53080.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_learned_history() != 61300.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_user_dictionary() != 24410.toShort()) {
@@ -1100,13 +1169,22 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_decode_glide() != 15021.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_autocorrect_rule() != 19287.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_user_word() != 53550.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json() != 62876.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_autocorrect_rules() != 32480.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout() != 51391.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_learned_words_count() != 57943.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_spatial_log_prob() != 28517.toShort()) {
@@ -1127,6 +1205,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_import_raw_words() != 4384.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_auto_learn_enabled() != 12179.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_composing() != 7700.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1137,6 +1218,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_load_english_dictionary() != 2072.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_load_user_autocorrect() != 55842.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_load_user_learned() != 48683.toShort()) {
@@ -1160,10 +1244,16 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_reset() != 35329.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_save_user_autocorrect() != 32455.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_save_user_learned() != 45344.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_select_candidate() != 6428.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_auto_learn_enabled() != 12005.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_context() != 4383.toShort()) {
@@ -1570,9 +1660,24 @@ private class JavaLangRefCleanable(
 public interface AndroidLekhaniSessionInterface {
     
     /**
+     * Add a custom user autocorrect / shortcut rule.
+     */
+    fun `addAutocorrectRule`(`trigger`: kotlin.String, `replacement`: kotlin.String): kotlin.Boolean
+    
+    /**
      * Add a custom word to the user dictionary with high initial priority.
      */
     fun `addUserWord`(`word`: kotlin.String): kotlin.Boolean
+    
+    /**
+     * Clear all custom user autocorrect rules.
+     */
+    fun `clearAutocorrectRules`(): kotlin.Boolean
+    
+    /**
+     * Clear background auto-learned words while preserving explicit user custom words.
+     */
+    fun `clearLearnedHistory`(): kotlin.Boolean
     
     /**
      * Clear all user-learned vocabulary and associations.
@@ -1587,6 +1692,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `decodeGlide`(`keys`: List<kotlin.String>): TypingResult
     
     /**
+     * Delete a custom user autocorrect rule.
+     */
+    fun `deleteAutocorrectRule`(`trigger`: kotlin.String): kotlin.Boolean
+    
+    /**
      * Delete a word from the user dictionary and memory.
      */
     fun `deleteUserWord`(`word`: kotlin.String): kotlin.Boolean
@@ -1597,9 +1707,19 @@ public interface AndroidLekhaniSessionInterface {
     fun `exportDictionaryJson`(): kotlin.String
     
     /**
+     * Retrieve all custom user autocorrect rules as a key-value map.
+     */
+    fun `getAutocorrectRules`(): Map<kotlin.String, kotlin.String>
+    
+    /**
      * Return the currently active layout.
      */
     fun `getLayout`(): LekhaniLayoutType
+    
+    /**
+     * Retrieve the count of auto-learned words from typing stream.
+     */
+    fun `getLearnedWordsCount`(): kotlin.UInt
     
     /**
      * Retrieve spatial log-probability for a given key label at touch coordinate (x, y).
@@ -1639,6 +1759,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `importRawWords`(`words`: List<kotlin.String>): kotlin.UInt
     
     /**
+     * Returns whether autonomous dictionary learning is enabled.
+     */
+    fun `isAutoLearnEnabled`(): kotlin.Boolean
+    
+    /**
      * Returns whether the keyboard is currently composing a word.
      */
     fun `isComposing`(): kotlin.Boolean
@@ -1657,6 +1782,11 @@ public interface AndroidLekhaniSessionInterface {
      * Explicitly loads an English dictionary from an external file path.
      */
     fun `loadEnglishDictionary`(`path`: kotlin.String): kotlin.Boolean
+    
+    /**
+     * Load custom user autocorrect rules from JSON file.
+     */
+    fun `loadUserAutocorrect`(`path`: kotlin.String): kotlin.Boolean
     
     /**
      * Load user-learned vocabulary, candidate memory, and bigrams from disk.
@@ -1703,6 +1833,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `reset`()
     
     /**
+     * Save custom user autocorrect rules to JSON file.
+     */
+    fun `saveUserAutocorrect`(`path`: kotlin.String): kotlin.Boolean
+    
+    /**
      * Persist user-learned vocabulary, candidate memory, and bigrams to disk.
      */
     fun `saveUserLearned`(`path`: kotlin.String): kotlin.Boolean
@@ -1712,6 +1847,11 @@ public interface AndroidLekhaniSessionInterface {
      * The candidate is NFC-normalized before commitment.
      */
     fun `selectCandidate`(`candidate`: kotlin.String): TypingResult
+    
+    /**
+     * Enable or disable autonomous dictionary learning from user typing.
+     */
+    fun `setAutoLearnEnabled`(`enabled`: kotlin.Boolean)
     
     /**
      * Provide the text before the cursor (from `getTextBeforeCursor(256, 0)`)
@@ -1846,6 +1986,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Add a custom user autocorrect / shortcut rule.
+     */
+    @Throws(LekhaniException::class)override fun `addAutocorrectRule`(`trigger`: kotlin.String, `replacement`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_add_autocorrect_rule(
+        it, FfiConverterString.lower(`trigger`),FfiConverterString.lower(`replacement`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Add a custom word to the user dictionary with high initial priority.
      */
     @Throws(LekhaniException::class)override fun `addUserWord`(`word`: kotlin.String): kotlin.Boolean {
@@ -1854,6 +2010,38 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_add_user_word(
         it, FfiConverterString.lower(`word`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Clear all custom user autocorrect rules.
+     */
+    @Throws(LekhaniException::class)override fun `clearAutocorrectRules`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_clear_autocorrect_rules(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Clear background auto-learned words while preserving explicit user custom words.
+     */
+    @Throws(LekhaniException::class)override fun `clearLearnedHistory`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_clear_learned_history(
+        it, _status)
 }
     }
     )
@@ -1896,6 +2084,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Delete a custom user autocorrect rule.
+     */
+    @Throws(LekhaniException::class)override fun `deleteAutocorrectRule`(`trigger`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_delete_autocorrect_rule(
+        it, FfiConverterString.lower(`trigger`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Delete a word from the user dictionary and memory.
      */
     @Throws(LekhaniException::class)override fun `deleteUserWord`(`word`: kotlin.String): kotlin.Boolean {
@@ -1928,12 +2132,44 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Retrieve all custom user autocorrect rules as a key-value map.
+     */
+    @Throws(LekhaniException::class)override fun `getAutocorrectRules`(): Map<kotlin.String, kotlin.String> {
+            return FfiConverterMapStringString.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_autocorrect_rules(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Return the currently active layout.
      */override fun `getLayout`(): LekhaniLayoutType {
             return FfiConverterTypeLekhaniLayoutType.lift(
     callWithPointer {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_layout(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Retrieve the count of auto-learned words from typing stream.
+     */
+    @Throws(LekhaniException::class)override fun `getLearnedWordsCount`(): kotlin.UInt {
+            return FfiConverterUInt.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_learned_words_count(
         it, _status)
 }
     }
@@ -2045,6 +2281,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Returns whether autonomous dictionary learning is enabled.
+     */override fun `isAutoLearnEnabled`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_is_auto_learn_enabled(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Returns whether the keyboard is currently composing a word.
      */override fun `isComposing`(): kotlin.Boolean {
             return FfiConverterBoolean.lift(
@@ -2096,6 +2347,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     callWithPointer {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_load_english_dictionary(
+        it, FfiConverterString.lower(`path`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Load custom user autocorrect rules from JSON file.
+     */
+    @Throws(LekhaniException::class)override fun `loadUserAutocorrect`(`path`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_load_user_autocorrect(
         it, FfiConverterString.lower(`path`),_status)
 }
     }
@@ -2221,6 +2488,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Save custom user autocorrect rules to JSON file.
+     */
+    @Throws(LekhaniException::class)override fun `saveUserAutocorrect`(`path`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_save_user_autocorrect(
+        it, FfiConverterString.lower(`path`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Persist user-learned vocabulary, candidate memory, and bigrams to disk.
      */
     @Throws(LekhaniException::class)override fun `saveUserLearned`(`path`: kotlin.String): kotlin.Boolean {
@@ -2250,6 +2533,20 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     }
     )
     }
+    
+
+    
+    /**
+     * Enable or disable autonomous dictionary learning from user typing.
+     */override fun `setAutoLearnEnabled`(`enabled`: kotlin.Boolean)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_auto_learn_enabled(
+        it, FfiConverterBoolean.lower(`enabled`),_status)
+}
+    }
+    
     
 
     
@@ -3196,6 +3493,45 @@ public object FfiConverterSequenceTypeSpatialKeyCandidate: FfiConverterRustBuffe
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeSpatialKeyCandidate.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterMapStringString: FfiConverterRustBuffer<Map<kotlin.String, kotlin.String>> {
+    override fun read(buf: ByteBuffer): Map<kotlin.String, kotlin.String> {
+        val len = buf.getInt()
+        return buildMap<kotlin.String, kotlin.String>(len) {
+            repeat(len) {
+                val k = FfiConverterString.read(buf)
+                val v = FfiConverterString.read(buf)
+                this[k] = v
+            }
+        }
+    }
+
+    override fun allocationSize(value: Map<kotlin.String, kotlin.String>): ULong {
+        val spaceForMapSize = 4UL
+        val spaceForChildren = value.map { (k, v) ->
+            FfiConverterString.allocationSize(k) +
+            FfiConverterString.allocationSize(v)
+        }.sum()
+        return spaceForMapSize + spaceForChildren
+    }
+
+    override fun write(value: Map<kotlin.String, kotlin.String>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        // The parens on `(k, v)` here ensure we're calling the right method,
+        // which is important for compatibility with older android devices.
+        // Ref https://blog.danlew.net/2017/03/16/kotlin-puzzler-whose-line-is-it-anyways/
+        value.forEach { (k, v) ->
+            FfiConverterString.write(k, buf)
+            FfiConverterString.write(v, buf)
         }
     }
 }

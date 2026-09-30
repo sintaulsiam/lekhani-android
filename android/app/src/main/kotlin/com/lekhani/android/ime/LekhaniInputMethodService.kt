@@ -271,7 +271,7 @@ class LekhaniInputMethodService : InputMethodService() {
             Log.e(TAG, "Error installing offline assets: ${e.message}")
         }
 
-        // Load user-learned vocabulary & bigrams from private storage
+        // Load user-learned vocabulary & bigrams and custom autocorrect from private storage
         serviceScope.launch(Dispatchers.IO) {
             try {
                 val f = File(filesDir, "user_learned.bin")
@@ -279,8 +279,13 @@ class LekhaniInputMethodService : InputMethodService() {
                     val ok = session.loadUserLearned(f.absolutePath)
                     Log.i(TAG, "User learned dictionary loaded ($ok): ${f.absolutePath}")
                 }
+                val acFile = File(filesDir, "user_autocorrect.json")
+                if (acFile.exists()) {
+                    val ok = session.loadUserAutocorrect(acFile.absolutePath)
+                    Log.i(TAG, "User autocorrect rules loaded ($ok): ${acFile.absolutePath}")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error loading user learned dictionary: ${e.message}")
+                Log.e(TAG, "Error loading user learned dictionary or autocorrect: ${e.message}")
             }
         }
 
@@ -427,6 +432,7 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.enabledLayoutsCount = getEnabledLayouts().size
         feedbackManager.updateCache()
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
+        session.setAutoLearnEnabled(keyboardPrefs.autoLearnWordsEnabled)
         updateCandidatesVisibility()
         checkAndShowQuickChip()
     }
@@ -1783,6 +1789,18 @@ class LekhaniInputMethodService : InputMethodService() {
             }
         }
         lastSpaceTapTime = now
+
+        // 0a. Spacebar Autocomplete:
+        // If enabled and composing, autocomplete to the top suggestion on candidate strip
+        if (keyboardPrefs.spacebarAutocompleteEnabled && session.isComposing()) {
+            val candState = _candidateState.value as? CandidateStripState.Candidates
+            val topCandidate = candState?.items?.firstOrNull { it.isPrimary }?.text
+                ?: candState?.items?.firstOrNull()?.text
+            if (!topCandidate.isNullOrBlank() && !topCandidate.startsWith("=")) {
+                onCandidateSelected(topCandidate)
+                return
+            }
+        }
 
         clearUndo()
         ensureCursorInComposingRegion(ic)

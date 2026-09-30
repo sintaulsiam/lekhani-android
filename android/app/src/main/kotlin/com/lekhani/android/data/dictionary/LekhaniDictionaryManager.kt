@@ -208,4 +208,103 @@ class LekhaniDictionaryManager(
             false
         }
     }
+
+    /**
+     * Retrieve count of background auto-learned words from typing stream.
+     */
+    fun getLearnedWordsCount(): Int {
+        return try {
+            session.getLearnedWordsCount().toInt()
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error fetching learned words count: $e")
+            0
+        }
+    }
+
+    /**
+     * Clear background auto-learned words while keeping explicit user words intact.
+     */
+    fun clearLearnedHistory(): Boolean {
+        return try {
+            session.clearLearnedHistory()
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error clearing learned history: $e")
+            false
+        }
+    }
+
+    /**
+     * Retrieve all custom user autocorrect / shortcut rules.
+     */
+    fun getAutocorrectRules(): Map<String, String> {
+        return try {
+            session.getAutocorrectRules()
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error fetching autocorrect rules: $e")
+            emptyMap()
+        }
+    }
+
+    /**
+     * Add a custom user autocorrect / shortcut rule.
+     */
+    fun addAutocorrectRule(trigger: String, replacement: String): Boolean {
+        val cleanTrig = trigger.trim()
+        val cleanRepl = replacement.trim()
+        if (cleanTrig.isEmpty() || cleanRepl.isEmpty()) return false
+        return try {
+            session.addAutocorrectRule(cleanTrig, cleanRepl)
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error adding autocorrect rule: $e")
+            false
+        }
+    }
+
+    /**
+     * Delete a custom user autocorrect / shortcut rule.
+     */
+    fun deleteAutocorrectRule(trigger: String): Boolean {
+        return try {
+            session.deleteAutocorrectRule(trigger.trim())
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error deleting autocorrect rule: $e")
+            false
+        }
+    }
+
+    /**
+     * Clear all custom user autocorrect rules.
+     */
+    fun clearAutocorrectRules(): Boolean {
+        return try {
+            session.clearAutocorrectRules()
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error clearing autocorrect rules: $e")
+            false
+        }
+    }
+
+    /**
+     * Save custom user autocorrect rules to JSON file.
+     */
+    fun saveAutocorrect(path: String): Boolean {
+        return try {
+            session.saveUserAutocorrect(path)
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error saving autocorrect rules to $path: $e")
+            false
+        }
+    }
+
+    /**
+     * Load custom user autocorrect rules from JSON file.
+     */
+    fun loadAutocorrect(path: String): Boolean {
+        return try {
+            session.loadUserAutocorrect(path)
+        } catch (e: LekhaniException) {
+            Log.e(TAG, "Error loading autocorrect rules from $path: $e")
+            false
+        }
+    }
 }

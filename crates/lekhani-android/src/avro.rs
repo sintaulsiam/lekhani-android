@@ -118,8 +118,23 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
 
     let lower = input.to_lowercase();
 
-    // 0. User candidate override memory (personal learned overrides)
+    // -1. User-defined explicit autocorrect / shortcut rules
     let db = crate::session::get_core_database();
+    if let Ok(uac) = db.user_autocorrect.read() {
+        if let Some(replacement) = uac.get(input).or_else(|| uac.get(&lower)) {
+            let primary = replacement.clone();
+            let mut candidates = vec![primary.clone()];
+            let parser = get_avro_parser();
+            let def = parser.convert(input);
+            if def != primary {
+                candidates.push(def);
+            }
+            append_prefix_matches(&primary, &mut candidates);
+            return (primary, candidates);
+        }
+    }
+
+    // 0. User candidate override memory (personal learned overrides)
     if let Ok(learner) = db.learner.read() {
         if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
             let primary = user_choice.clone();
@@ -129,6 +144,7 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
             if def != primary {
                 candidates.push(def);
             }
+            append_prefix_matches(&primary, &mut candidates);
             return (primary, candidates);
         }
     }
@@ -145,18 +161,21 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
         if !candidates.iter().any(|c| c == en_loan) {
             candidates.push(en_loan.to_string());
         }
+        append_prefix_matches(&primary, &mut candidates);
         return (primary, candidates);
     }
 
-    // 2. Exact common word match
+    // 2. Exact common word match with prefix autocomplete expansion
     if let Some(&words) = get_common_words().get(input) {
         let primary = words[0].to_string();
-        let candidates = words.iter().map(|&s| s.to_string()).collect();
+        let mut candidates: Vec<String> = words.iter().map(|&s| s.to_string()).collect();
+        append_prefix_matches(&primary, &mut candidates);
         return (primary, candidates);
     }
     if let Some(&words) = get_common_words().get(lower.as_str()) {
         let primary = words[0].to_string();
-        let candidates = words.iter().map(|&s| s.to_string()).collect();
+        let mut candidates: Vec<String> = words.iter().map(|&s| s.to_string()).collect();
+        append_prefix_matches(&primary, &mut candidates);
         return (primary, candidates);
     }
 
@@ -212,20 +231,35 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
     }
 
     // 5. Core database PrefixTrie lookup to expand matching vocabulary
-    if candidates.len() < 6 {
-        let db = crate::session::get_core_database();
-        let prefix_matches = db.trie.find_prefix_entries(&primary, 4);
-        for (w, _) in prefix_matches {
+    append_prefix_matches(&primary, &mut candidates);
+
+    (primary, candidates)
+}
+
+fn append_prefix_matches(primary: &str, candidates: &mut Vec<String>) {
+    if primary.chars().count() < 2 {
+        return;
+    }
+    let db = crate::session::get_core_database();
+    let prefix_matches = db.trie.find_prefix_entries(primary, 4);
+    for (w, _) in prefix_matches {
+        if candidates.len() >= 8 {
+            break;
+        }
+        if !candidates.iter().any(|c| c == w) {
+            candidates.push(w.to_string());
+        }
+    }
+    if let Ok(learner) = db.learner.read() {
+        for w in &learner.custom_user_words {
             if candidates.len() >= 8 {
                 break;
             }
-            if !candidates.iter().any(|c| c == w) {
-                candidates.push(w.to_string());
+            if w.starts_with(primary) && !candidates.contains(w) {
+                candidates.push(w.clone());
             }
         }
     }
-
-    (primary, candidates)
 }
 
 #[cfg(test)]
