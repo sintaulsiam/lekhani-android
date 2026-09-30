@@ -500,6 +500,7 @@ dependencies = [
 name = "lekhani-neural"
 version = "1.1.0"
 dependencies = [
+ "bincode",
  "hashbrown",
  "lekhani-ai",
  "memmap2",

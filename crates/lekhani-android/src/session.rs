@@ -113,11 +113,16 @@ pub fn get_neural_predictor() -> &'static lekhani_neural::NeuralContextPredictor
         } else {
             BpeVocabulary::from_tokens(word_list)
         });
-        let model = Arc::new(MicroGruModel::new(vocab.len(), 32, 32));
+        let mut model = Arc::new(MicroGruModel::new(vocab.len(), 32, 32));
         // Attempt to load trained weights (graceful no-op if absent — model falls back
         // to a zero-initialized uniform distribution, which still provides valid output)
         if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
-            let _p = std::path::Path::new(custom_dir).join("bengali_gru.bin");
+            let p = std::path::Path::new(custom_dir).join("bengali_gru.bin");
+            if p.exists() {
+                if let Ok(loaded) = MicroGruModel::load_binary(&p) {
+                    model = Arc::new(loaded);
+                }
+            }
         }
         NeuralContextPredictor::new(model, vocab)
     })
@@ -740,7 +745,7 @@ impl AndroidLekhaniSession {
                         }
                     }
                 }
-                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+                if candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
                     let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
@@ -834,61 +839,37 @@ impl AndroidLekhaniSession {
             }
             _ => {
                 // Bengali fixed layouts (Probaho, Probhat, National, Gboard)
-                // Uses BeamSearchDecoder from lekhani-ai for superior glide word recovery,
-                // replacing the naive start-key+end-key heuristic.
-                let sugg_mutex = get_phonetic_suggestion();
-                let beam_candidates: Vec<String> = {
-                    let sugg = match sugg_mutex.lock() {
-                        Ok(g) => g,
-                        Err(p) => p.into_inner(),
-                    };
-                    // Build per-key candidate lists from the trie for each visited key
-                    let db = get_core_database();
-                    let per_key: Vec<Vec<String>> = keys.iter().map(|k| {
-                        db.trie.find_prefix_entries(k, 6)
-                            .into_iter()
-                            .map(|(w, _)| w.to_string())
-                            .take(6)
-                            .collect()
-                    }).collect();
-                    sugg.ai_decoder.decode(&per_key)
-                };
-
-                // Fallback: previous trie heuristic if beam returned nothing
-                let mut candidates = if !beam_candidates.is_empty() {
-                    beam_candidates
-                } else {
-                    let start_key = &keys[0];
-                    let end_key = keys.last().unwrap();
-                    let db = get_core_database();
-                    let entries = db.trie.find_prefix_entries(start_key, 250);
-                    let mut scored: Vec<(String, i64)> = Vec::new();
-                    for (word, freq) in entries {
-                        if !word.ends_with(end_key.as_str()) { continue; }
-                        let word_graphemes: Vec<&str> = word.graphemes(true).collect();
-                        let mut key_idx = 0;
-                        let mut matched = true;
-                        let mut prev = "";
-                        for g in word_graphemes {
-                            if g == prev { continue; }
-                            prev = g;
-                            let mut found = false;
-                            while key_idx < keys.len() {
-                                if keys[key_idx] == g { key_idx += 1; found = true; break; }
-                                key_idx += 1;
-                            }
-                            if !found { matched = false; break; }
+                // Use grapheme sequence matching heuristic to recover single glide words
+                let start_key = &keys[0];
+                let end_key = keys.last().unwrap();
+                let db = get_core_database();
+                let entries = db.trie.find_prefix_entries(start_key, 250);
+                let mut scored: Vec<(String, i64)> = Vec::new();
+                for (word, freq) in entries {
+                    if !word.ends_with(end_key.as_str()) { continue; }
+                    let word_graphemes: Vec<&str> = word.graphemes(true).collect();
+                    let mut key_idx = 0;
+                    let mut matched = true;
+                    let mut prev = "";
+                    for g in word_graphemes {
+                        if g == prev { continue; }
+                        prev = g;
+                        let mut found = false;
+                        while key_idx < keys.len() {
+                            if keys[key_idx] == g { key_idx += 1; found = true; break; }
+                            key_idx += 1;
                         }
-                        if matched {
-                            let len_diff = (word.len() as isize - keys.len() as isize).abs();
-                            scored.push((word.to_string(), freq as i64 - len_diff as i64 * 30));
-                        }
+                        if !found { matched = false; break; }
                     }
-                    scored.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
-                    scored.into_iter().take(5).map(|(w, _)| w).collect()
-                };
+                    if matched {
+                        let len_diff = (word.len() as isize - keys.len() as isize).abs();
+                        scored.push((word.to_string(), freq as i64 - len_diff as i64 * 30));
+                    }
+                }
+                scored.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
+                let mut candidates: Vec<String> = scored.into_iter().take(5).map(|(w, _)| w).collect();
 
-                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+                if candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
                     let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
