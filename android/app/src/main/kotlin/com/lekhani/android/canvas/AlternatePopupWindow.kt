@@ -128,6 +128,8 @@ internal class AlternatePopupWindow(context: Context) {
         }
     }
 
+    private val popupScreenLocation = IntArray(2)
+
     /**
      * Forward a MOVE event from [KeyboardCanvasView] to update the selection highlight.
      * [touchX] must be in view-local coordinates (event.x from onTouchEvent).
@@ -135,8 +137,9 @@ internal class AlternatePopupWindow(context: Context) {
      */
     fun onTouchMove(touchX: Float, touchY: Float, anchorViewX: Int): Boolean {
         if (!popup.isShowing) return false
-        // Convert view-local X to popup-local X
-        val popupX = touchX + anchorViewX - popup.contentView.x
+        val content = popup.contentView ?: return false
+        content.getLocationOnScreen(popupScreenLocation)
+        val popupX = touchX + anchorViewX - popupScreenLocation[0]
         return alternateView.updateSelection(popupX)
     }
 
