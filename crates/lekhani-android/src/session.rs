@@ -220,13 +220,25 @@ struct SessionState {
 }
 
 
+fn get_context_words<'a>(context: &'a str, buffer: &mut [&'a str; 16]) -> usize {
+    let mut count = 0;
+    for w in context.split_whitespace().rev().take(16) {
+        buffer[count] = w;
+        count += 1;
+    }
+    buffer[..count].reverse();
+    count
+}
+
 /// Helper to retrieve next-word predictions combining:
 /// 1. Personalized user bigrams from AutonomousLearner
 /// 2. Statistical N-gram predictions
 /// 3. Semantic GRU neural candidates blended in with alpha = 0.4
 ///    (N-gram dominant during typing, neural adds diversity after spaces)
 fn get_bengali_next_words(context: &str) -> Vec<String> {
-    let words: Vec<&str> = context.split_whitespace().collect();
+    let mut words_buf = [""; 16];
+    let count = get_context_words(context, &mut words_buf);
+    let words = &words_buf[..count];
     let last_word = words.last().copied();
 
     let mut ngram_results: Vec<String> = Vec::with_capacity(5);
@@ -547,9 +559,11 @@ impl AndroidLekhaniSession {
                     }
                 }
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
-                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let mut words_buf = [""; 16];
+                    let count = get_context_words(&state.surrounding_context, &mut words_buf);
+                    let words = &words_buf[..count];
                     let scorer = get_context_scorer();
-                    candidates = scorer.rank_candidates(&words, &candidates);
+                    scorer.rank_candidates_in_place(&words, &mut candidates);
                 }
 
                 let len = state.composing_buffer.graphemes(true).count() as u32;
@@ -563,15 +577,17 @@ impl AndroidLekhaniSession {
 
             LekhaniLayoutType::Avro => {
                 state.composing_buffer.push_str(&key);
-                let words: Vec<&str> = if !state.surrounding_context.is_empty() {
-                    state.surrounding_context.split_whitespace().collect()
+                let mut words_buf = [""; 16];
+                let count = if !state.surrounding_context.is_empty() {
+                    get_context_words(&state.surrounding_context, &mut words_buf)
                 } else {
-                    Vec::new()
+                    0
                 };
-                let (mut preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, &words);
-                if !words.is_empty() && candidates.len() > 1 {
+                let words = &words_buf[..count];
+                let (mut preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, words);
+                if count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
-                    candidates = scorer.rank_candidates(&words, &candidates);
+                    scorer.rank_candidates_in_place(&words, &mut candidates);
                     if let Some(top) = candidates.first() {
                         preedit = top.clone();
                     }
@@ -618,8 +634,10 @@ impl AndroidLekhaniSession {
                         state.surrounding_context.push_str(&committed);
                         committed.push_str(&key);
 
-                        let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                        let next_words = crate::english::get_english_next_words(&words, 5);
+                        let mut words_buf = [""; 16];
+                        let count = get_context_words(&state.surrounding_context, &mut words_buf);
+                        let words = &words_buf[..count];
+                        let next_words = crate::english::get_english_next_words(words, 5);
 
                         Ok(TypingResult {
                             preedit: String::new(),
@@ -691,9 +709,11 @@ impl AndroidLekhaniSession {
                 }
 
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
-                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let mut words_buf = [""; 16];
+                    let count = get_context_words(&state.surrounding_context, &mut words_buf);
+                    let words = &words_buf[..count];
                     let scorer = get_context_scorer();
-                    candidates = scorer.rank_candidates(&words, &candidates);
+                    scorer.rank_candidates_in_place(words, &mut candidates);
                 }
 
                 let len = state.composing_buffer.graphemes(true).count() as u32;
@@ -746,9 +766,11 @@ impl AndroidLekhaniSession {
                     }
                 }
                 if candidates.len() > 1 {
-                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                    let mut words_buf = [""; 16];
+                    let count = get_context_words(&state.surrounding_context, &mut words_buf);
+                    let words = &words_buf[..count];
                     let scorer = get_context_scorer();
-                    candidates = scorer.rank_candidates(&words, &candidates);
+                    scorer.rank_candidates_in_place(words, &mut candidates);
                 }
                 let len = state.composing_buffer.graphemes(true).count() as u32;
                 Ok(TypingResult {
@@ -784,15 +806,17 @@ impl AndroidLekhaniSession {
         match state.layout {
             LekhaniLayoutType::Avro => {
                 let raw_token = keys.join("");
-                let words: Vec<&str> = if !state.surrounding_context.is_empty() {
-                    state.surrounding_context.split_whitespace().collect()
+                let mut words_buf = [""; 16];
+                let count = if !state.surrounding_context.is_empty() {
+                    get_context_words(&state.surrounding_context, &mut words_buf)
                 } else {
-                    Vec::new()
+                    0
                 };
-                let (_preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw_token, &words);
-                if !words.is_empty() && candidates.len() > 1 {
+                let words = &words_buf[..count];
+                let (_preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw_token, words);
+                if count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
-                    candidates = scorer.rank_candidates(&words, &candidates);
+                    scorer.rank_candidates_in_place(&words, &mut candidates);
                 }
 
                 if candidates.is_empty() {

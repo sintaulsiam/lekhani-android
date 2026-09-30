@@ -15,7 +15,7 @@ Any proposed change that violates these principles will be rejected immediately:
 2. **Sub-Millisecond & Zero-Allocation Performance Budget**:
    - Touch-to-screen keystroke latency must stay **under 3 ms**.
    - Keyboard canvas must render at a sustained **120 FPS** (frame budget: < 8.3 ms).
-   - Zero runtime memory allocations (`malloc` / object instantiation) inside the hot path: `onDraw()`, `onTouchEvent()`, or `process_key()`.
+   - Zero runtime memory allocations (`malloc` / object instantiation) inside the hot path: `onDraw()`, `onTouchEvent()`, or `process_key()`. *(To achieve this, strictly use pre-allocated memory pools, scratchpad buffers, and stack-allocated arrays initialized during boot).*
    - Cold boot time to first interactive frame must stay **under 40 ms**.
    - **Tiered Memory Budget (Android LMK Resilient)**:
      - **Idle / Background**: **< 30 MB** Private Dirty RAM.
