@@ -684,26 +684,6 @@ private fun LayoutsTabContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ── Brand Header (With Unified Logo) ──────────────────────────────────
-        LekhaniBrandLogo(size = 64.dp, shapeCornerPercent = 25)
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            )
-            Text(
-                text = if (isEnglish) "Offline, private Bengali keyboard"
-                       else "সম্পূর্ণ অফলাইন ও নিরাপদ বাংলা কীবোর্ড",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            )
-        }
-
         // ── Status & Activation ─────────────────────────────────────────────────
         if (isEnabled && isDefault) {
             Surface(
@@ -795,7 +775,12 @@ private fun LayoutsTabContent(
                                 Text(if (isEnglish) "Enable" else "চালু করুন")
                             }
                         } else {
-                            Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
@@ -836,7 +821,12 @@ private fun LayoutsTabContent(
                                 Text(if (isEnglish) "Select" else "নির্বাচন")
                             }
                         } else {
-                            Text("✓", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
 
@@ -851,7 +841,12 @@ private fun LayoutsTabContent(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("ℹ️", fontSize = 11.sp)
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
                                 Text(
                                     text = if (isEnglish)
                                         "If Lekhani is grayed out in settings, go to App Info ➔ tap ⋮ (top-right) ➔ 'Allow restricted settings'."

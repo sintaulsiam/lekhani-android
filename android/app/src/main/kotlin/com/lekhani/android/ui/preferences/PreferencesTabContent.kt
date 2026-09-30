@@ -33,6 +33,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -93,13 +94,19 @@ fun PreferencesTabContent(
     var autoLearnWords by remember { mutableStateOf(prefs.autoLearnWordsEnabled) }
     var doubleSpaceDari by remember { mutableStateOf(prefs.doubleSpaceDariEnabled) }
     var codeShield by remember { mutableStateOf(prefs.codeShieldEnabled) }
+    var showDedicatedNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
+
+    var fontStyle by remember { mutableStateOf(prefs.fontStyle) }
+    var fontScale by remember { mutableFloatStateOf(prefs.fontScale) }
+    var clipboardRetention by remember { mutableIntStateOf(prefs.clipboardRetentionMinutes) }
 
     var hapticEnabled by remember { mutableStateOf(prefs.hapticEnabled) }
     var hapticDuration by remember { mutableFloatStateOf(prefs.hapticDurationMs.toFloat()) }
 
     var soundEnabled by remember { mutableStateOf(prefs.soundEnabled) }
+    var soundVolume by remember { mutableFloatStateOf(prefs.soundVolume) }
     var activeSoundPack by remember { mutableStateOf(prefs.soundPack) }
 
     val context = LocalContext.current
@@ -157,6 +164,37 @@ fun PreferencesTabContent(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                 )
 
+                // Dedicated Number Row Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Number row" else "নম্বর সারি",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Always show numbers 0–9 above keyboard" else "কীবোর্ডের উপরে সর্বদা ০-৯ সংখ্যার সারি দেখাবে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = showDedicatedNumberRow,
+                        onCheckedChange = {
+                            showDedicatedNumberRow = it
+                            prefs.showDedicatedNumberRow = it
+                        }
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
                 // Spacebar Autocomplete Toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -169,7 +207,7 @@ fun PreferencesTabContent(
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Pressing space auto-commits the highlighted word candidate" else "টাইপ করার সময় স্পেস চাপলে সাজেশনের প্রথম শব্দটি স্বয়ংক্রিয়ভাবে বসে যাবে",
+                            text = if (isEnglish) "Pressing space selects the top suggestion" else "স্পেস চাপলে সাজেশনের প্রথম শব্দটি স্বয়ংক্রিয়ভাবে বসে যাবে",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -191,11 +229,11 @@ fun PreferencesTabContent(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Auto-learn vocabulary" else "স্বয়ংক্রিয় শব্দভাণ্ডার শিক্ষা",
+                            text = if (isEnglish) "Remember typed words" else "ব্যবহৃত শব্দ মনে রাখা",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Learn repeated custom words into personal typing memory" else "ঘন ঘন ব্যবহৃত নতুন শব্দ নিজে থেকেই মেমোরিতে সংরক্ষণ করবে",
+                            text = if (isEnglish) "Remembers words you type often" else "ঘন ঘন ব্যবহৃত নতুন শব্দ স্বয়ংক্রিয়ভাবে মনে রাখবে",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -243,11 +281,11 @@ fun PreferencesTabContent(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Double-space for Dāṛi / Period" else "ডাবল স্পেসে দাঁড়ি / পিরিয়ড",
+                            text = if (isEnglish) "Full stop shortcut" else "দাঁড়ি বা পিরিয়ড শর্টকাট",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Double-tap space to insert Bengali '। ' or English '. '" else "টানা দুইবার স্পেস চাপলে বাংলা '। ' বা ইংরেজি '. ' বসবে",
+                            text = if (isEnglish) "Double-tap space inserts full stop (। or .)" else "স্পেস দুবার চাপলে দাঁড়ি বা ফুলস্টপ (। বা .) বসে যাবে",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -269,11 +307,11 @@ fun PreferencesTabContent(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Code & Token Shield" else "কোড ও টোকেন শিল্ড",
+                            text = if (isEnglish) "Code & Link Shield" else "কোড ও লিঙ্ক শিল্ড",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Prevent transliteration on @mentions, #tags, URLs, and code identifiers in Avro" else "অভ্র মোডে ভ্যারিয়েবল, লিংক বা টোকেন বাংলা রূপান্তর ছাড়াই হুবহু রাখবে",
+                            text = if (isEnglish) "Keeps links, hashtags, and code in English — no accidental Bengali conversion" else "লিঙ্ক, হ্যাশট্যাগ ও কোড ইংরেজিতে রাখবে — ভুলবশত বাংলায় রূপান্তর হবে না",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -486,9 +524,56 @@ fun PreferencesTabContent(
                     }
                 }
 
+                // Font Style & Typography
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = if (isEnglish) "Font Style" else "কী ফন্ট স্টাইল",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val fontOptions = listOf(
+                            KeyboardPreferences.FONT_SYSTEM to (if (isEnglish) "System" else "ডিফল্ট"),
+                            KeyboardPreferences.FONT_SANS_SERIF to "Sans",
+                            KeyboardPreferences.FONT_SERIF to "Serif",
+                            KeyboardPreferences.FONT_MONOSPACE to "Mono"
+                        )
+                        fontOptions.forEach { (key, label) ->
+                            FilterChip(
+                                selected = (fontStyle == key),
+                                onClick = {
+                                    fontStyle = key
+                                    prefs.fontStyle = key
+                                },
+                                label = { Text(label, fontSize = 11.5.sp) }
+                            )
+                        }
+                    }
+                }
+
+                // Font Scale
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = if (isEnglish) "Font Scale: ${(fontScale * 100).toInt()}%"
+                               else "ফন্টের আকার: ${(fontScale * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    )
+                    Slider(
+                        value = fontScale,
+                        onValueChange = {
+                            fontScale = it
+                            prefs.fontScale = it
+                        },
+                        valueRange = 0.8f..1.3f,
+                        steps = 9
+                    )
+                }
+
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 2.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
 
                 // Key Previews Toggle
@@ -575,9 +660,14 @@ fun PreferencesTabContent(
                 }
 
                 if (hapticEnabled) {
+                    val strengthLabel = when (hapticDuration.toInt()) {
+                        in 5..15  -> if (isEnglish) "Light"  else "হালকা"
+                        in 16..35 -> if (isEnglish) "Medium" else "মাঝারি"
+                        else      -> if (isEnglish) "Strong" else "জোরালো"
+                    }
                     Text(
-                        text = if (isEnglish) "Vibration strength: ${hapticDuration.toInt()} ms"
-                               else "ভাইব্রেশনের মাত্রা: ${hapticDuration.toInt()} ms",
+                        text = if (isEnglish) "Vibration strength: $strengthLabel (${hapticDuration.toInt()} ms)"
+                               else "ভাইব্রেশনের মাত্রা: $strengthLabel (${hapticDuration.toInt()} ms)",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                     )
                     Slider(
@@ -653,6 +743,25 @@ fun PreferencesTabContent(
                 }
 
                 if (soundEnabled) {
+                    Text(
+                        text = if (isEnglish) "Volume: ${(soundVolume * 100).toInt()}%"
+                               else "ভলিউম: ${(soundVolume * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    )
+                    Slider(
+                        value = soundVolume,
+                        onValueChange = {
+                            soundVolume = it
+                            prefs.soundVolume = it
+                        },
+                        onValueChangeFinished = {
+                            feedbackManager.updateCache()
+                            feedbackManager.onKeyFeedback(view)
+                        },
+                        valueRange = 0.05f..1.0f
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (isEnglish) "Sound profile" else "সাউন্ড প্রোফাইল",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
@@ -739,8 +848,8 @@ fun PreferencesTabContent(
                 )
 
                 FormFactorPrefOption(
-                    title = if (isEnglish) "Standard" else "ফুল স্ক্রিন",
-                    subtitle = if (isEnglish) "Standard full-width keyboard" else "ডিফল্ট পূর্ণ প্রস্থ কীবোর্ড",
+                    title = if (isEnglish) "Standard" else "সাধারণ (Standard)",
+                    subtitle = if (isEnglish) "Standard full-width keyboard" else "ডিফল্ট পূর্ণ প্রস্থ কীবোর্ড মোড",
                     icon = Icons.Filled.Smartphone,
                     selected = formFactor == KeyboardPreferences.FormFactor.STANDARD,
                     onSelect = {
@@ -849,6 +958,35 @@ fun PreferencesTabContent(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(if (isEnglish) "Customize" else "সাজান")
+                    }
+                }
+
+                // Clipboard history retention picker
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = if (isEnglish) "Keep clipboard history" else "ক্লিপবোর্ড সংরক্ষণ মেয়াদ",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val retentionOptions = listOf(
+                            60 to (if (isEnglish) "1 hour" else "১ ঘণ্টা"),
+                            1440 to (if (isEnglish) "1 day" else "১ দিন"),
+                            10080 to (if (isEnglish) "1 week" else "১ সপ্তাহ"),
+                            -1 to (if (isEnglish) "Forever" else "আজীবন")
+                        )
+                        retentionOptions.forEach { (mins, label) ->
+                            FilterChip(
+                                selected = (clipboardRetention == mins),
+                                onClick = {
+                                    clipboardRetention = mins
+                                    prefs.clipboardRetentionMinutes = mins
+                                },
+                                label = { Text(label, fontSize = 11.5.sp) }
+                            )
+                        }
                     }
                 }
 

@@ -42,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,6 +74,8 @@ fun AboutPrivacyTab(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     var showTechSpecs by remember { mutableStateOf(false) }
+    var devTapCount by remember { mutableIntStateOf(0) }
+    val isDevUnlocked = devTapCount >= 7
 
     Column(
         modifier = modifier
@@ -103,10 +106,14 @@ fun AboutPrivacyTab(
             Spacer(modifier = Modifier.height(6.dp))
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { devTapCount++ }
             ) {
                 Text(
-                    text = "v${com.lekhani.android.BuildConfig.VERSION_NAME} • 100% Offline • Zero Telemetry",
+                    text = "v${com.lekhani.android.BuildConfig.VERSION_NAME} • 100% Offline • Zero Telemetry" +
+                        if (devTapCount in 1..6) " (${7 - devTapCount})" else "",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
@@ -308,14 +315,15 @@ fun AboutPrivacyTab(
             }
         }
 
-        // ── 5. Technical Specifications (Collapsible Accordion) ────────────────
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
-            )
-        ) {
+        // ── 5. Technical Specifications (Developer Unlocked) ───────────────────
+        if (isDevUnlocked) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+                )
+            ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Row(
                     modifier = Modifier
@@ -369,6 +377,7 @@ fun AboutPrivacyTab(
                 }
             }
         }
+    }
 
         Spacer(modifier = Modifier.height(16.dp))
     }
