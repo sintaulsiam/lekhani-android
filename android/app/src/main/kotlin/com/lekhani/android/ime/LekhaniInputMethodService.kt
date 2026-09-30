@@ -2359,8 +2359,10 @@ class LekhaniInputMethodService : InputMethodService() {
         val themeIds = listOf(
             ThemeRegistry.ID_FLOW_TEAL,
             ThemeRegistry.ID_OLED_BLACK,
-            ThemeRegistry.ID_AVRO_BLUE,
-            ThemeRegistry.ID_CYBER_INDIGO,
+            ThemeRegistry.ID_RGB_CHROMA_FLOW,
+            ThemeRegistry.ID_AURORA_BOREALIS,
+            ThemeRegistry.ID_CYBERPUNK_NEON,
+            ThemeRegistry.ID_SAKURA_BLOSSOM,
             ThemeRegistry.ID_DAYLIGHT_LIGHT,
         )
         val curId = keyboardPrefs.themeId

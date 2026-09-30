@@ -1178,16 +1178,61 @@ fun LekhaniAppTheme(
         KeyboardPreferences.AppThemeMode.LIGHT -> false
         KeyboardPreferences.AppThemeMode.DARK -> true
         KeyboardPreferences.AppThemeMode.SYSTEM,
-        KeyboardPreferences.AppThemeMode.DYNAMIC,
-        KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD -> isSystemDark
+        KeyboardPreferences.AppThemeMode.DYNAMIC -> isSystemDark
+        KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD -> theme?.isDark ?: isSystemDark
     }
 
-    val colorScheme = remember(appThemeMode, isSystemDark) {
-        if ((appThemeMode == KeyboardPreferences.AppThemeMode.DYNAMIC || appThemeMode == KeyboardPreferences.AppThemeMode.SYSTEM)
+    val colorScheme = remember(appThemeMode, isSystemDark, theme, shouldUseDark) {
+        if (appThemeMode == KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD && theme != null) {
+            val primaryColor = Color(theme.accentColor)
+            val isAccentLight = androidx.core.graphics.ColorUtils.calculateLuminance(theme.accentColor) > 0.45
+            val onPrimaryColor = if (isAccentLight) Color(0xFF001F18) else Color.White
+
+            if (shouldUseDark) {
+                darkColorScheme(
+                    primary = primaryColor,
+                    onPrimary = onPrimaryColor,
+                    primaryContainer = primaryColor.copy(alpha = 0.22f),
+                    onPrimaryContainer = if (isAccentLight) primaryColor else Color(0xFF8CF4CB),
+                    secondary = Color(theme.keyShiftColor),
+                    onSecondary = Color(theme.labelColor),
+                    secondaryContainer = Color(theme.keyNormalColor),
+                    onSecondaryContainer = Color(theme.labelColor),
+                    surface = Color(0xFF141917),
+                    onSurface = Color(0xFFE2E7E4),
+                    background = Color(0xFF0E1312),
+                    onBackground = Color(0xFFE2E7E4),
+                    surfaceVariant = Color(0xFF1A221F),
+                    onSurfaceVariant = Color(0xFF90A39B),
+                    outline = Color(theme.keyBorderColor).copy(alpha = 0.6f),
+                    outlineVariant = Color(0xFF26322E)
+                )
+            } else {
+                lightColorScheme(
+                    primary = primaryColor,
+                    onPrimary = onPrimaryColor,
+                    primaryContainer = primaryColor.copy(alpha = 0.18f),
+                    onPrimaryContainer = Color(0xFF002820),
+                    secondary = Color(0xFF4A635B),
+                    onSecondary = Color.White,
+                    secondaryContainer = Color(0xFFD6EAE2),
+                    onSecondaryContainer = Color(0xFF051F19),
+                    surface = Color(0xFFFFFFFF),
+                    onSurface = Color(0xFF191C1B),
+                    background = Color(0xFFF7F9FA),
+                    onBackground = Color(0xFF191C1B),
+                    surfaceVariant = Color(0xFFE8ECEF),
+                    onSurfaceVariant = Color(0xFF404945),
+                    outline = Color(0xFFB0BEC5),
+                    outlineVariant = Color(0xFFCFD8DC)
+                )
+            }
+        } else if (appThemeMode == KeyboardPreferences.AppThemeMode.DYNAMIC
             && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+ wallpaper dynamic Material You colors
             if (shouldUseDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         } else if (shouldUseDark) {
-            // Elegant, ergonomic Material 3 Dark theme (Teal / Slate)
+            // Lekhani Signature Brand Dark Theme (Teal / Slate)
             darkColorScheme(
                 primary = Color(0xFF00E5B8),
                 onPrimary = Color(0xFF003829),
@@ -1207,7 +1252,7 @@ fun LekhaniAppTheme(
                 outlineVariant = Color(0xFF1D2723)
             )
         } else {
-            // Crisp, high-contrast Material 3 Light theme
+            // Lekhani Signature Brand Light Theme (Deep Emerald / Porcelain)
             lightColorScheme(
                 primary = Color(0xFF006C50),
                 onPrimary = Color.White,

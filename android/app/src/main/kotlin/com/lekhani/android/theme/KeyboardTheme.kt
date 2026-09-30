@@ -11,10 +11,10 @@ import android.os.Build
  */
 enum class ThemeCategory(val titleBengali: String, val titleEnglish: String, val iconEmoji: String = "") {
     ALL("সব থিম", "All Themes", "✦"),
+    CLASSIC("ক্লাসিক ও মডার্ন", "Classic & Modern", "🌟"),
+    RGB_CHROMA("আরজিবি ডাইনামিক", "RGB & Dynamic", "🌈"),
     NEON("নিওন ও সাইবার", "Neon & Cyber", "⚡"),
     AESTHETIC("এসথেটিক পেস্টেল", "Aesthetic & Pastel", "🎨"),
-    RGB_CHROMA("আরজিবি ডাইনামিক", "RGB & Dynamic", "🌈"),
-    CLASSIC("ক্লাসিক ও মডার্ন", "Classic & Modern", "🌟"),
     CONTRAST_NATURE("কনট্রাস্ট ও প্রকৃতি", "Contrast & Nature", "🌿"),
     CUSTOM("কাস্টম", "Custom", "🛠️");
 }
@@ -662,6 +662,13 @@ object ThemeRegistry {
         THEME_AVRO_BLUE,
         THEME_DAYLIGHT_LIGHT,
 
+        // RGB Chroma & Dynamic
+        THEME_RGB_CHROMA_FLOW,
+        THEME_AURORA_BOREALIS,
+        THEME_SUNSET_HORIZON,
+        THEME_COSMIC_NEBULA,
+        THEME_MATRIX_PULSE,
+
         // Neon & Cyber
         THEME_CYBERPUNK_NEON,
         THEME_MATRIX_GREEN,
@@ -677,13 +684,6 @@ object ThemeRegistry {
         THEME_PEACH_SORBET,
         THEME_NORDIC_FROST,
         THEME_MOCHA_LATTE,
-
-        // RGB Chroma & Dynamic
-        THEME_RGB_CHROMA_FLOW,
-        THEME_AURORA_BOREALIS,
-        THEME_SUNSET_HORIZON,
-        THEME_COSMIC_NEBULA,
-        THEME_MATRIX_PULSE,
 
         // Contrast & Nature
         THEME_HIGH_CONTRAST,

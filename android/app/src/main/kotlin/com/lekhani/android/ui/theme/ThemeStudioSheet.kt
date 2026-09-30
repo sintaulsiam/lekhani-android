@@ -271,6 +271,7 @@ fun ThemeStudioSheet(
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                 add(Triple(KeyboardPreferences.AppThemeMode.DYNAMIC, Icons.Default.AutoAwesome, if (isEnglish) "Dynamic" else "ডাইনামিক"))
                             }
+                            add(Triple(KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD, Icons.Filled.Palette, if (isEnglish) "Match Kbd" else "কীবোর্ড ম্যাচ"))
                         }
                         modes.forEach { (mode, icon, title) ->
                             val isSelected = selectedAppThemeMode == mode
@@ -370,10 +371,10 @@ fun ThemeStudioSheet(
                         ) {
                             val categories = listOf(
                                 ThemeCategory.ALL,
+                                ThemeCategory.CLASSIC,
+                                ThemeCategory.RGB_CHROMA,
                                 ThemeCategory.NEON,
                                 ThemeCategory.AESTHETIC,
-                                ThemeCategory.RGB_CHROMA,
-                                ThemeCategory.CLASSIC,
                                 ThemeCategory.CONTRAST_NATURE,
                                 ThemeCategory.CUSTOM,
                             )
