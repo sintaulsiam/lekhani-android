@@ -36,7 +36,7 @@ class CandidateBlacklist(context: Context) {
      */
     fun add(word: String) {
         if (cache.add(word)) {
-            prefs.edit { putStringSet(KEY_BLACKLIST, cache) }
+            prefs.edit { putStringSet(KEY_BLACKLIST, HashSet(cache)) }
         }
     }
 
@@ -46,7 +46,7 @@ class CandidateBlacklist(context: Context) {
      */
     fun remove(word: String) {
         if (cache.remove(word)) {
-            prefs.edit { putStringSet(KEY_BLACKLIST, cache) }
+            prefs.edit { putStringSet(KEY_BLACKLIST, HashSet(cache)) }
         }
     }
 

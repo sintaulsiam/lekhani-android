@@ -46,6 +46,10 @@ pub fn set_dictionary_directory(path: String) {
     let _ = CUSTOM_DICT_DIR.set(path);
 }
 
+pub fn get_custom_dict_dir() -> Option<&'static str> {
+    CUSTOM_DICT_DIR.get().map(|s| s.as_str())
+}
+
 pub fn get_core_database() -> &'static PhoneticDatabase {
     CORE_DB.get_or_init(|| {
         let mut db = PhoneticDatabase::new();
@@ -101,29 +105,73 @@ pub fn get_next_word_predictor() -> &'static lekhani_ai::NextWordPredictor {
 pub fn get_neural_predictor() -> &'static lekhani_neural::NeuralContextPredictor {
     NEURAL_PREDICTOR.get_or_init(|| {
         use lekhani_neural::{BpeVocabulary, MicroGruModel, NeuralContextPredictor};
-        // Seed BPE vocabulary from the core database trie so the neural predictor
-        // shares word-space with the N-gram scorer without an extra binary load.
-        let db = get_core_database();
-        let word_list: Vec<String> = db.trie.iter()
-            .take(2048)
-            .map(|(w, _)| w.to_string())
-            .collect();
-        let vocab = Arc::new(if word_list.is_empty() {
-            BpeVocabulary::new()
-        } else {
-            BpeVocabulary::from_tokens(word_list)
-        });
-        let mut model = Arc::new(MicroGruModel::new(vocab.len(), 32, 32));
-        // Attempt to load trained weights (graceful no-op if absent — model falls back
-        // to a zero-initialized uniform distribution, which still provides valid output)
+
+        let mut vocab_opt = None;
+        let mut model_opt = None;
+
+        let mut search_dirs = Vec::new();
         if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
-            let p = std::path::Path::new(custom_dir).join("bengali_gru.bin");
-            if p.exists() {
-                if let Ok(loaded) = MicroGruModel::load_binary(&p) {
-                    model = Arc::new(loaded);
+            search_dirs.push(std::path::PathBuf::from(custom_dir));
+        }
+        for dir in candidate_dict_dirs() {
+            search_dirs.push(dir.to_path_buf());
+        }
+
+        for dir in &search_dirs {
+            if vocab_opt.is_none() {
+                let p_bin = dir.join("bengali_vocab.bin");
+                if p_bin.exists() {
+                    if let Ok(v) = BpeVocabulary::load_binary(&p_bin) {
+                        vocab_opt = Some(Arc::new(v));
+                    }
+                } else {
+                    let p_json = dir.join("neural_vocab.json");
+                    if p_json.exists() {
+                        if let Ok(v) = BpeVocabulary::load_json(&p_json) {
+                            vocab_opt = Some(Arc::new(v));
+                        }
+                    }
                 }
             }
+
+            if model_opt.is_none() {
+                let p_bin = dir.join("bengali_gru.bin");
+                if p_bin.exists() {
+                    if let Ok(m) = MicroGruModel::load_binary(&p_bin) {
+                        model_opt = Some(Arc::new(m));
+                    }
+                } else {
+                    let p_json = dir.join("neural_weights.json");
+                    if p_json.exists() {
+                        if let Ok(m) = MicroGruModel::load_json(&p_json) {
+                            model_opt = Some(Arc::new(m));
+                        }
+                    }
+                }
+            }
+
+            if vocab_opt.is_some() && model_opt.is_some() {
+                break;
+            }
         }
+
+        let vocab = vocab_opt.unwrap_or_else(|| {
+            let db = get_core_database();
+            let word_list: Vec<String> = db.trie.iter()
+                .take(2048)
+                .map(|(w, _)| w.to_string())
+                .collect();
+            Arc::new(if word_list.is_empty() {
+                BpeVocabulary::new()
+            } else {
+                BpeVocabulary::from_tokens(word_list)
+            })
+        });
+
+        let model = model_opt.unwrap_or_else(|| {
+            Arc::new(MicroGruModel::new(vocab.len(), 64, 64))
+        });
+
         NeuralContextPredictor::new(model, vocab)
     })
 }
@@ -217,6 +265,25 @@ struct SessionState {
     last_commit_info: Option<(Option<String>, String, std::time::Instant)>,
     /// Bivariate Gaussian spatial touch model for fat-finger correction
     spatial_model: crate::spatial::SpatialTouchModel,
+}
+
+impl SessionState {
+    fn append_to_context(&mut self, text: &str) {
+        if !self.surrounding_context.is_empty() {
+            self.surrounding_context.push(' ');
+        }
+        self.surrounding_context.push_str(text);
+        let char_count = self.surrounding_context.chars().count();
+        if char_count > MAX_CONTEXT_CHARS {
+            let trim_chars = char_count - MAX_CONTEXT_CHARS;
+            let trim_at = self.surrounding_context
+                .char_indices()
+                .nth(trim_chars)
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            self.surrounding_context = self.surrounding_context[trim_at..].to_string();
+        }
+    }
 }
 
 
@@ -392,10 +459,12 @@ impl AndroidLekhaniSession {
         if let Ok(mut state) = self.state.lock() {
             // Cap at MAX_CONTEXT_CHARS to prevent unbounded growth over a long session.
             // Trim from the start, always keeping the tail (most recent context).
-            if context.len() > MAX_CONTEXT_CHARS {
+            let char_count = context.chars().count();
+            if char_count > MAX_CONTEXT_CHARS {
+                let trim_chars = char_count - MAX_CONTEXT_CHARS;
                 let trim_at = context
                     .char_indices()
-                    .nth(context.len().saturating_sub(MAX_CONTEXT_CHARS))
+                    .nth(trim_chars)
                     .map(|(i, _)| i)
                     .unwrap_or(0);
                 state.surrounding_context = context[trim_at..].to_string();
@@ -476,7 +545,8 @@ impl AndroidLekhaniSession {
                     .lock()
                     .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
                 if !state.composing_buffer.is_empty() {
-                    let mut alt_buf = state.composing_buffer[..state.composing_buffer.len().saturating_sub(1)].to_string();
+                    let mut alt_buf = state.composing_buffer.clone();
+                    alt_buf.pop();
                     alt_buf.push_str(&neighbor.key);
 
                     match state.layout {
@@ -519,6 +589,50 @@ impl AndroidLekhaniSession {
             .state
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+
+        // Universal punctuation flush across all layouts:
+        // Punctuation and newlines immediately flush the composing buffer as committed text.
+        let is_punct = key == "।"
+            || key == "॥"
+            || key == ","
+            || key == ";"
+            || key == ":"
+            || key == "?"
+            || key == "!"
+            || key == "."
+            || key == "\n";
+
+        if is_punct {
+            let mut committed = if state.layout == LekhaniLayoutType::Avro && !state.composing_buffer.is_empty() {
+                let words: Vec<&str> = if !state.surrounding_context.is_empty() {
+                    state.surrounding_context.split_whitespace().collect()
+                } else {
+                    Vec::new()
+                };
+                let (preedit, _) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, &words);
+                state.composing_buffer.clear();
+                preedit
+            } else {
+                std::mem::take(&mut state.composing_buffer)
+            };
+            state.composing_buffer = String::with_capacity(64);
+            committed.push_str(&key);
+            state.append_to_context(&committed);
+
+            let next_words = if state.layout == LekhaniLayoutType::English {
+                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                crate::english::get_english_next_words(&words, 5)
+            } else {
+                get_bengali_next_words(&state.surrounding_context)
+            };
+
+            return Ok(TypingResult {
+                preedit: String::new(),
+                commit_text: Some(nfc_normalize(&committed)),
+                candidates: next_words,
+                cursor_position: 0,
+            });
+        }
 
         match state.layout {
             LekhaniLayoutType::Probaho => {
@@ -585,7 +699,14 @@ impl AndroidLekhaniSession {
                 };
                 let words = &words_buf[..count];
                 let (mut preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, words);
-                if count > 0 && candidates.len() > 1 {
+                let has_candidate_memory = {
+                    let db = get_core_database();
+                    db.learner.read().ok().is_some_and(|l| {
+                        l.candidate_memory.contains_key(&state.composing_buffer)
+                            || l.candidate_memory.contains_key(&state.composing_buffer.to_lowercase())
+                    })
+                };
+                if !has_candidate_memory && count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     scorer.rank_candidates_in_place(words, &mut candidates);
                     if let Some(top) = candidates.first() {
@@ -628,11 +749,8 @@ impl AndroidLekhaniSession {
                     if !state.composing_buffer.is_empty() {
                         let mut committed = std::mem::take(&mut state.composing_buffer);
                         state.composing_buffer = String::with_capacity(64);
-                        if !state.surrounding_context.is_empty() {
-                            state.surrounding_context.push(' ');
-                        }
-                        state.surrounding_context.push_str(&committed);
                         committed.push_str(&key);
+                        state.append_to_context(&committed);
 
                         let mut words_buf = [""; 16];
                         let count = get_context_words(&state.surrounding_context, &mut words_buf);
@@ -726,19 +844,6 @@ impl AndroidLekhaniSession {
             }
 
             _ => {
-                // Flush buffer immediately on punctuation or newline
-                let is_punct = key == "।" || key == "॥" || key == "," || key == ";" || key == ":" || key == "?" || key == "!" || key == "\n";
-                if is_punct {
-                    let mut committed = std::mem::take(&mut state.composing_buffer);
-                    committed.push_str(&key);
-                    return Ok(TypingResult {
-                        preedit: String::new(),
-                        commit_text: Some(nfc_normalize(&committed)),
-                        candidates: Vec::new(),
-                        cursor_position: 0,
-                    });
-                }
-
                 // Fixed / transliteration layouts — accumulate in buffer, query PrefixTrie
                 state.composing_buffer.push_str(&key);
                 let mut candidates = Vec::new();
@@ -1179,6 +1284,8 @@ impl AndroidLekhaniSession {
                     })
                 }
             } else {
+                // Key-by-key char deletion for all Bengali fixed layouts
+                // (Probaho, National, Probhat, Gboard) inside active composing buffer
                 state.composing_buffer.pop();
                 if state.composing_buffer.is_empty() {
                     Ok(TypingResult {
@@ -1217,6 +1324,13 @@ impl AndroidLekhaniSession {
                         learner.penalize_mistake(prev.as_deref(), &committed);
                     }
                 }
+                if state.surrounding_context.ends_with(&committed) {
+                    let trim_len = state.surrounding_context.len() - committed.len();
+                    state.surrounding_context.truncate(trim_len);
+                    if state.surrounding_context.ends_with(' ') {
+                        state.surrounding_context.pop();
+                    }
+                }
             }
 
             Ok(TypingResult {
@@ -1245,9 +1359,20 @@ impl AndroidLekhaniSession {
             // the composing buffer shrinking to zero capacity after `take`.
             state.composing_buffer = String::with_capacity(64);
             let mut normalized = if state.layout == LekhaniLayoutType::Avro {
-                let (_, mut candidates) = crate::avro::transliterate_avro(&raw);
-                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
-                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                let words: Vec<&str> = if !state.surrounding_context.is_empty() {
+                    state.surrounding_context.split_whitespace().collect()
+                } else {
+                    Vec::new()
+                };
+                let has_candidate_memory = {
+                    let db = get_core_database();
+                    db.learner.read().ok().is_some_and(|l| {
+                        l.candidate_memory.contains_key(&raw)
+                            || l.candidate_memory.contains_key(&raw.to_lowercase())
+                    })
+                };
+                let (_, mut candidates) = crate::avro::transliterate_avro_with_context(&raw, &words);
+                if !has_candidate_memory && !words.is_empty() && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
@@ -1290,19 +1415,7 @@ impl AndroidLekhaniSession {
                 state.last_commit_info = None;
             }
 
-            if !state.surrounding_context.is_empty() {
-                state.surrounding_context.push(' ');
-            }
-            state.surrounding_context.push_str(&word);
-            // Cap in-session context to prevent unbounded growth
-            if state.surrounding_context.len() > MAX_CONTEXT_CHARS {
-                let trim_at = state.surrounding_context
-                    .char_indices()
-                    .nth(state.surrounding_context.len().saturating_sub(MAX_CONTEXT_CHARS))
-                    .map(|(i, _)| i)
-                    .unwrap_or(0);
-                state.surrounding_context = state.surrounding_context[trim_at..].to_string();
-            }
+            state.append_to_context(&word);
 
             let next_words = if state.layout == LekhaniLayoutType::English {
                 if state.is_private_field {
@@ -1381,10 +1494,7 @@ impl AndroidLekhaniSession {
             state.last_commit_info = None;
         }
 
-        if !state.surrounding_context.is_empty() {
-            state.surrounding_context.push(' ');
-        }
-        state.surrounding_context.push_str(&normalized);
+        state.append_to_context(&normalized);
 
         let next_words = if state.layout == LekhaniLayoutType::English {
             if state.is_private_field {
@@ -1807,6 +1917,17 @@ mod tests {
             assert_eq!(learner.candidate_memory.get("kormo"), Some(&"কৰ্ম".to_string()));
             assert!(learner.observed_counts.contains_key("কৰ্ম"));
         }
+
+        // Typing 'kormo' again must immediately yield user's remembered candidate as top-1
+        let _ = session.process_key("k".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let _ = session.process_key("r".into()).unwrap();
+        let _ = session.process_key("m".into()).unwrap();
+        let retype_res = session.process_key("o".into()).unwrap();
+        assert_eq!(retype_res.preedit, "কৰ্ম");
+        assert_eq!(retype_res.candidates.first().map(|s| s.as_str()), Some("কৰ্ম"));
+        let retype_space = session.handle_space().unwrap();
+        assert_eq!(retype_space.commit_text, Some("কৰ্ম ".into()));
 
         // 2. Spacebar commit records bigram pair ("কৰ্ম" -> "ভালো")
         let _ = session.process_key("b".into()).unwrap();

@@ -44,6 +44,16 @@ pub fn get_english_lm() -> Option<&'static lekhani_ai::LanguageModel> {
     if let Some(lm) = ENGLISH_LM.get() {
         return Some(lm);
     }
+    if let Some(custom_dir) = crate::session::get_custom_dict_dir() {
+        let bin_path = std::path::Path::new(custom_dir).join("english_lm.bin");
+        if bin_path.exists() {
+            let mut lm = lekhani_ai::LanguageModel::new();
+            if lm.load_binary_file(&bin_path).is_ok() {
+                let _ = ENGLISH_LM.set(lm);
+                return ENGLISH_LM.get();
+            }
+        }
+    }
     let candidate_dirs = [
         std::path::Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),
         std::path::Path::new("/data/user_de/0/com.lekhani.android.debug/files/dictionaries"),
@@ -72,6 +82,17 @@ pub fn get_english_lm() -> Option<&'static lekhani_ai::LanguageModel> {
 pub fn get_english_trie() -> Option<&'static PrefixTrie> {
     if let Some(trie) = ENGLISH_TRIE.get() {
         return Some(trie);
+    }
+    if let Some(custom_dir) = crate::session::get_custom_dict_dir() {
+        let bin_path = std::path::Path::new(custom_dir).join("english_dict.bin");
+        if bin_path.exists() {
+            if let Ok(bytes) = std::fs::read(&bin_path) {
+                if let Ok(trie) = PrefixTrie::from_binary(&bytes) {
+                    let _ = ENGLISH_TRIE.set(trie);
+                    return ENGLISH_TRIE.get();
+                }
+            }
+        }
     }
     let candidate_dirs = [
         std::path::Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),

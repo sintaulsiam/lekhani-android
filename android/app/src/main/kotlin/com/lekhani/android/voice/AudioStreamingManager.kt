@@ -126,8 +126,8 @@ class AudioStreamingManager(
                 while (isActive && audioRecord?.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                     val readSamples = record.read(audioBuffer, 0, audioBuffer.size)
                     if (readSamples > 0) {
-                        // Convert ShortArray to List<Short> for UniFFI FFI call
-                        val samplesList = audioBuffer.take(readSamples).map { it }
+                        // Convert ShortArray to List<Short> for UniFFI FFI call without intermediate take() list
+                        val samplesList = List(readSamples) { audioBuffer[it] }
                         val analysis = audioProcessor.processPcm(samplesList)
 
                         _voiceState.value = VoiceTypingState.Listening(

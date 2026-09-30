@@ -18,6 +18,8 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Audio recording for 100% on-device offline voice typing (Phase 5) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Import existing user dictionary words from previous keyboards (Gboard/Samsung) -->
+    <uses-permission android:name="android.permission.READ_USER_DICTIONARY" />
 
     <!-- ── Application ─────────────────────────────────────────────────────── -->
     <application

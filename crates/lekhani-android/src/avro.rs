@@ -104,6 +104,38 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("rasta", &["রাস্তা"][..]);
         m.insert("gaan", &["গান"][..]);
         m.insert("gan", &["গান"][..]);
+        // Conversational chat contractions & shortcuts
+        m.insert("kmn", &["কেমন"][..]);
+        m.insert("kemn", &["কেমন"][..]);
+        m.insert("aso", &["আছো"][..]);
+        m.insert("asen", &["আছেন"][..]);
+        m.insert("asi", &["আছি"][..]);
+        m.insert("kisu", &["কিছু"][..]);
+        m.insert("khbr", &["খবর"][..]);
+        m.insert("thnx", &["ধন্যবাদ"][..]);
+        m.insert("thx", &["ধন্যবাদ"][..]);
+        m.insert("apnr", &["আপনার"][..]);
+        m.insert("tmr", &["তোমার"][..]);
+        m.insert("amr", &["আমার"][..]);
+        m.insert("amdr", &["আমাদের"][..]);
+        m.insert("tmdr", &["তোমাদের"][..]);
+        m.insert("sbai", &["সবাই"][..]);
+        m.insert("shb", &["সব"][..]);
+        m.insert("ekhn", &["এখন"][..]);
+        m.insert("tkhn", &["তখন"][..]);
+        m.insert("kn", &["কেন"][..]);
+        m.insert("hbe", &["হবে"][..]);
+        m.insert("hoise", &["হয়েছে"][..]);
+        m.insert("krbo", &["করবো"][..]);
+        m.insert("krben", &["করবেন"][..]);
+        m.insert("krso", &["করছো"][..]);
+        m.insert("krse", &["করছে"][..]);
+        m.insert("bujhsi", &["বুঝেছি"][..]);
+        m.insert("thik", &["ঠিক"][..]);
+        m.insert("shotti", &["সত্যি"][..]);
+        m.insert("sotti", &["সত্যি"][..]);
+        m.insert("plz", &["প্লিজ"][..]);
+        m.insert("pls", &["প্লিজ"][..]);
         m
     })
 }
@@ -137,9 +169,11 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
     // 0. User candidate override memory
     let mut candidate_memory = HashMap::new();
+    let mut remembered_choice: Option<String> = None;
     if let Ok(learner) = db.learner.read() {
         if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
             candidate_memory.insert(input.to_string(), user_choice.clone());
+            remembered_choice = Some(user_choice.clone());
         }
     }
 
@@ -198,10 +232,20 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
-    let primary = if selected_idx < candidates.len() {
-        candidates[selected_idx].clone()
-    } else {
+    let primary = if let Some(ref choice) = remembered_choice {
+        if let Some(pos) = candidates.iter().position(|c| c == choice) {
+            candidates.remove(pos);
+        }
+        candidates.insert(0, choice.clone());
+        choice.clone()
+    } else if selected_idx < candidates.len() && selected_idx > 0 {
+        let p = candidates.remove(selected_idx);
+        candidates.insert(0, p.clone());
+        p
+    } else if !candidates.is_empty() {
         candidates[0].clone()
+    } else {
+        String::new()
     };
 
     // 4. Core database PrefixTrie lookup to expand matching vocabulary

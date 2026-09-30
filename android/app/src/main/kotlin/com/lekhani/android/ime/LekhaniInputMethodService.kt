@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import android.provider.UserDictionary
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -288,6 +289,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     val ok = session.loadUserAutocorrect(acFile.absolutePath)
                     Log.i(TAG, "User autocorrect rules loaded ($ok): ${acFile.absolutePath}")
                 }
+                importSystemUserDictionaryIfNeeded()
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading user learned dictionary or autocorrect: ${e.message}")
             }
@@ -1714,7 +1716,7 @@ class LekhaniInputMethodService : InputMethodService() {
         updateGboardDynamicRow(keyToken)
 
         result.commitText?.let { text ->
-            val isPunctuation = text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',')
+            val isPunctuation = text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',', '.')
             val finalText = if (isPunctuation) {
                 if (text == ",") {
                     val before = try { ic.getTextBeforeCursor(1, 0)?.toString() } catch (_: Exception) { null }
@@ -1732,6 +1734,12 @@ class LekhaniInputMethodService : InputMethodService() {
 
             ic.beginBatchEdit()
             try {
+                if (isPunctuation) {
+                    val before = try { ic.getTextBeforeCursor(1, 0)?.toString() } catch (_: Exception) { null }
+                    if (before == " ") {
+                        ic.deleteSurroundingText(1, 0)
+                    }
+                }
                 ic.commitText(finalText, 1)
                 preeditShadow = ""
                 rawInputBuffer.clear()
@@ -1796,7 +1804,9 @@ class LekhaniInputMethodService : InputMethodService() {
         // 2. If composing buffer is non-empty, delegate to Rust engine
         if (session.isComposing()) {
             if (rawInputBuffer.isNotEmpty()) {
-                rawInputBuffer.setLength(rawInputBuffer.length - 1)
+                val len = rawInputBuffer.length
+                val delCount = if (len >= 2 && Character.isSurrogatePair(rawInputBuffer[len - 2], rawInputBuffer[len - 1])) 2 else 1
+                rawInputBuffer.setLength(len - delCount)
             }
             val result = try {
                 session.handleBackspace()
@@ -2137,6 +2147,45 @@ class LekhaniInputMethodService : InputMethodService() {
             Log.e(TAG, "Error installing assets for English dict: ${e.message}")
         }
         Log.w(TAG, "English dictionary file not found or failed to load")
+    }
+
+    /**
+     * Imports user words from Android's system UserDictionary (e.g. from Gboard/Samsung Keyboard)
+     * into AutonomousLearner on first run.
+     */
+    private fun importSystemUserDictionaryIfNeeded() {
+        if (devicePrefs.getBoolean("system_user_dict_imported", false)) return
+
+        try {
+            val words = mutableListOf<String>()
+            val cursor = contentResolver.query(
+                UserDictionary.Words.CONTENT_URI,
+                arrayOf(UserDictionary.Words.WORD),
+                null,
+                null,
+                null
+            )
+            cursor?.use {
+                val colIdx = it.getColumnIndex(UserDictionary.Words.WORD)
+                if (colIdx >= 0) {
+                    while (it.moveToNext()) {
+                        val word = it.getString(colIdx)?.trim()
+                        if (!word.isNullOrEmpty()) {
+                            words.add(word)
+                        }
+                    }
+                }
+            }
+            if (words.isNotEmpty()) {
+                val count = session.importRawWords(words)
+                Log.i(TAG, "Imported $count words from system UserDictionary")
+            }
+            devicePrefs.edit().putBoolean("system_user_dict_imported", true).apply()
+        } catch (e: SecurityException) {
+            Log.d(TAG, "UserDictionary permission not granted or unavailable: ${e.message}")
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not import system UserDictionary: ${e.message}")
+        }
     }
 
     /**
