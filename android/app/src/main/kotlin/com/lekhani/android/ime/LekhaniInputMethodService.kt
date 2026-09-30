@@ -423,6 +423,8 @@ class LekhaniInputMethodService : InputMethodService() {
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         ensureEnglishDictionaryLoaded()
+        clipboardStore.retentionMinutes = keyboardPrefs.clipboardRetentionMinutes
+        clipboardStore.pruneExpiredClips()
         syncSystemClipboard()
         currentSelStart = -1
         currentSelEnd = -1
@@ -926,15 +928,19 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun crossfadeViewMode(activeView: View?, vararg otherViews: View?) {
+        val duration = 120L
         for (view in otherViews) {
             view?.animate()?.cancel()
-            view?.visibility = View.GONE
-            view?.alpha = 1f
+            view?.animate()?.alpha(0f)?.setDuration(duration)?.withEndAction {
+                view.visibility = View.GONE
+                view.alpha = 1f
+            }?.start()
         }
         activeView?.let { view ->
-            view.animate().cancel()
-            view.alpha = 1f
+            view.animate()?.cancel()
+            view.alpha = 0f
             view.visibility = View.VISIBLE
+            view.animate()?.alpha(1f)?.setDuration(duration)?.start()
         }
     }
 
