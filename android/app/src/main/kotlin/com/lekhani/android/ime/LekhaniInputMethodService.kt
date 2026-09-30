@@ -2185,28 +2185,26 @@ class LekhaniInputMethodService : InputMethodService() {
         val filtered = raw.filter { !blacklist.isBlacklisted(it) }.toMutableList()
 
         // 1. Avro Verbatim Token & Code Shield:
-        // Offer raw English input so users can verify phonetic spelling and commit English directly
+        // Offer raw English input in first place (index 0) so users can verify phonetic spelling and commit English directly
         val rawInput = rawInputBuffer.toString()
+        var primaryIndex = 0
         if (session.getLayout() == LekhaniLayoutType.AVRO && rawInput.isNotBlank()) {
-            if (keyboardPrefs.codeShieldEnabled && SmartAssistant.isCodeToken(rawInput)) {
-                if (!filtered.contains(rawInput)) {
-                    filtered.add(0, rawInput)
-                }
-            } else if (!filtered.contains(rawInput)) {
-                val insertPos = if (filtered.isEmpty()) 0 else if (filtered.size == 1) 1 else 2
-                filtered.add(insertPos, rawInput)
-            }
+            filtered.remove(rawInput)
+            filtered.add(0, rawInput)
+            val isCode = keyboardPrefs.codeShieldEnabled && SmartAssistant.isCodeToken(rawInput)
+            primaryIndex = if (isCode || filtered.size <= 1) 0 else 1
         }
 
         // 2. Smart Math Evaluation: e.g. "500+250=" -> "= 750"
         val mathAnswer = SmartAssistant.evaluateMath(rawInput)
         if (mathAnswer != null && !filtered.contains("= $mathAnswer") && !filtered.contains(mathAnswer)) {
             filtered.add(0, "= $mathAnswer")
+            primaryIndex = 0
         }
 
         // 3. Dynamic Date & Time Suggestions
         val isEng = session.getLayout() == LekhaniLayoutType.ENGLISH
-        val topCandidate = filtered.firstOrNull() ?: ""
+        val topCandidate = filtered.getOrNull(primaryIndex) ?: filtered.firstOrNull() ?: ""
         if (SmartAssistant.isDateQuery(rawInput) || SmartAssistant.isDateQuery(topCandidate)) {
             val dateStr = SmartAssistant.getFormattedDate(!isEng)
             if (!filtered.contains(dateStr)) filtered.add(dateStr)
@@ -2231,13 +2229,16 @@ class LekhaniInputMethodService : InputMethodService() {
         val newState = if (filtered.isEmpty()) {
             if (undo != null) CandidateStripState.Undo(undo) else CandidateStripState.Empty
         } else {
-            CandidateStripState.Candidates(HomophoneAnnotator.annotate(filtered), undoInfo = undo)
+            CandidateStripState.Candidates(
+                HomophoneAnnotator.annotate(filtered, primaryIdx = primaryIndex),
+                undoInfo = undo
+            )
         }
-        // Skip redundant emission: if the candidate texts haven't changed, don't trigger
+        // Skip redundant emission: if candidates haven't changed, don't trigger
         // a Compose recomposition — this is the primary cause of the per-keystroke jitter.
         val cur = _candidateState.value
         if (newState is CandidateStripState.Candidates && cur is CandidateStripState.Candidates
-            && newState.items.map { it.text } == cur.items.map { it.text }
+            && newState.items == cur.items
             && newState.undoInfo == cur.undoInfo) {
             return
         }
