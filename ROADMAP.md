@@ -81,13 +81,14 @@
   - Conversational next-word bigram predictive pairs.
   - Unit tests in `english.rs` and `session.rs` passing cleanly.
 - [x] Unit test suite (`HomophoneAnnotatorTest.kt`) covering pair detection, reverse mappings, and primary selection.
-- [x] **Dual-Speed Hybrid AI Architecture (v2.1 Supercharged Intelligence)**:
-  - **Bivariate Gaussian Spatial Touch Correction** (`spatial.rs`): Precomputed inverse covariance matrices and log-determinants in `onSizeChanged` providing fat-finger boundary correction with zero allocations.
-  - **Sentence-Boundary Context Reset**: Context truncation on punctuation (`।`, `?`, `!`, `\n`) preventing stale cross-sentence n-gram contamination.
-  - **Zero-Allocation Hot-Vocab Personal Overlay**: 4096-slot FNV-1a direct hash table with Ebbinghaus exponential recency decay ($\lambda = 0.05$, $3\times$ boost in 24h).
-  - **Revert-on-Backspace Signal**: Instant mistake penalty on backspace within 1500ms of spacebar commit.
-  - **Asynchronous Micro-Neural Predictor Worker**: Background coroutine dispatch (`predictNextWords`) on Spacebar and typing pauses, preserving 120 FPS UI frame budget.
-  - **Zero-Allocation Beam Search Arena**: Parent-pointer node arena eliminating inner-loop heap allocations during transliteration decoding.
+- [x] **Next-Gen Contextual Intelligence & Smart Mechanics**:
+  - **Inline Contextual Emojis (Gboard-Style)**: Sub-microsecond $O(1)$ inverted index (`EmojiData.findContextualEmojis`) suggesting top 1–2 emojis inline in the candidate strip matching typed romanized or Bengali tokens (`cha` $\rightarrow$ `☕`, `hasi` $\rightarrow$ `😄`, `khela` $\rightarrow$ `⚽`, `bhalobasha` $\rightarrow$ `❤️`).
+  - **Smart Double-Space Dari & Period**: Double-tapping Space within 450 ms replaces space with `। ` in Bengali mode, and `. ` with automatic uppercase Shift in English mode.
+  - **Auto-Punctuation Spacing**: Committing punctuation (`।`, `,`, `?`, `!`, `;`) automatically appends trailing space (preserving numbers e.g. `1,000`).
+  - **Code & Token Shield**: Heuristic detector (`SmartAssistant.isCodeToken`) protecting `@mentions`, `#hashtags`, URLs, CLI flags, `camelCase`, and code keywords from Avro transliteration corruption.
+  - **Smart Quick-Fill & Inline Math**: Real-time arithmetic solver (`500+250=` $\rightarrow$ `750`, `১২০*৫=` $\rightarrow$ `৬০০`), dynamic date/time suggestions (`তারিখ` $\rightarrow$ `৩০ সেপ্টেম্বর, ২০২৬`, `সময়` $\rightarrow$ `০২:৪৫ AM`), and numeral conversion (`123` $\leftrightarrow$ `১২৩`).
+  - **Smart Clipboard Quick-Paste Chips**: Auto-detection of 4–8 digit OTP codes, URLs, emails, phone numbers, and recent snippets surfaced as instant 1-tap `[ 📋 Paste 482910 ]` chips in `CandidateStripView`.
+  - **Physical Touch Geometry Sync**: Dynamic export of `KeyGeometryConfig`s from `KeyboardCanvasView` to native Rust session for active bivariate Gaussian fat-finger error correction.
 
 
 ---
