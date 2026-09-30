@@ -240,7 +240,7 @@ object ProbhatLayout {
             // Row 1 (12 keys: দ ূ ী র ট এ ু ি ও প ে ো)
             listOf(
                 Ch("দ", "ধ"), Ch("ূ", "ঊ"), Ch("ী", "ঈ"), Ch("র", "ড়"),
-                Ch("ট", "ঠ"), Ch("এ", "ঐ"), Ch("ু", "উ"), Ch("ি", "ই"),
+                Ch("ট", "ঠ"), Ch("এ", shifted = "ঐ", shiftedHint = "ঞ", desc = "এ, shifted ঐ, long-press ঞ"), Ch("ু", "উ"), Ch("ি", "ই"),
                 Ch("ও", "ঔ"), Ch("প", "ফ"), Ch("ে", "ৈ"), Ch("ো", "ৌ"),
             ),
             // Row 2 (Home: া স ড ত গ হ জ ক ল — 9 keys centered)

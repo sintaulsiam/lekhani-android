@@ -434,22 +434,26 @@ class KeyboardCanvasView @JvmOverloads constructor(
             feedbackManager?.onLongPressFeedback(this@KeyboardCanvasView)
                 ?: performHapticFeedback(
                     HapticFeedbackConstants.LONG_PRESS)
+            val longAction = key.activeLongPressAction(isShifted)
             when {
                 key.action == KeyAction.Space || key.action == KeyAction.SwitchLayout -> {
                     keyListener?.onSpaceLongPress()
                 }
-                key.longPressAction != null -> {
-                    keyListener?.onKey(key, key.longPressAction)
+                longAction != null -> {
+                    keyListener?.onKey(key, longAction)
                 }
                 else -> {
                     val rawChar = key.displayLabel(isShifted)
                     val alts = com.lekhani.android.model.BengaliAlternates.getAlternates(rawChar)
                     if (!alts.isNullOrEmpty()) {
                         showAlternatePopup(resolvedKeys[pressedKeyIndex], alts)
-                    } else if (key.hintLabel != null) {
-                        keyListener?.onKey(key, KeyAction.Character(key.hintLabel))
-                    } else if (key.shiftedLabel != null && key.shiftedLabel != key.label) {
-                        keyListener?.onKey(key, key.shiftedAction)
+                    } else {
+                        val activeHint = key.displayHint(isShifted)
+                        if (activeHint != null) {
+                            keyListener?.onKey(key, KeyAction.Character(activeHint))
+                        } else if (key.shiftedLabel != null && key.shiftedLabel != key.label) {
+                            keyListener?.onKey(key, key.shiftedAction)
+                        }
                     }
                 }
             }
@@ -1493,7 +1497,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 else -> {
                     canvas.drawText(labelText, cx, cy, labelPaint)
-                    val hint = key.hintLabel ?: if (!isShifted && key.shiftedLabel != null && key.shiftedLabel != key.label && key.shiftedLabel.isNotEmpty()) key.shiftedLabel else null
+                    val hint = key.displayHint(isShifted)
                     if (hint != null) {
                         val hintX = drawBounds.right - 5f * density
                         val hintY = drawBounds.top + 13f * density

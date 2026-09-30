@@ -23,8 +23,8 @@ object ProbahLayout {
             listOf(
                 Ch("আ", shifted = "ঔ", desc = "আ, shifted ঔ"),
                 Ch("ো", shifted = "ৌ", hint = "ঐ", desc = "ো, shifted ৌ, hint ঐ"),
-                Ch("ী", shifted = "ঊ", desc = "ী, shifted ঊ"),
-                Ch("ূ", shifted = "ঈ", desc = "ূ, shifted ঈ"),
+                Ch("ী", shifted = "ঈ", desc = "ী, shifted ঈ"),
+                Ch("ূ", shifted = "ঊ", desc = "ূ, shifted ঊ"),
                 Ch("ৈ", shifted = "ৃ", hint = "ৃ", desc = "ৈ, shifted ৃ"),
                 Ch("প", shifted = "ফ", desc = "প, shifted ফ"),
                 Ch("ব", shifted = "ভ", desc = "ব, shifted ভ"),
@@ -53,10 +53,10 @@ object ProbahLayout {
                     widthWeight = 1.32f,
                     contentDesc = "Shift",
                 ),
-                Ch("হ", shifted = "ঞ", hint = "্", desc = "হ, shifted ঞ, hint ্"),
+                Ch("হ", shifted = "ঞ", hint = "ঞ", desc = "হ, shifted ঞ, hint ঞ"),
                 Ch("ং", shifted = "ঙ", desc = "ং, shifted ঙ"),
-                Ch("ঁ",  shifted = "\u200D", desc = "ঁ, shifted ZWJ"),    // ZWJ on shift
-                Ch("ঃ",  shifted = "\u200C", desc = "ঃ, shifted ZWNJ"),   // ZWNJ on shift
+                Ch("ঁ",  shifted = "\u200D", hint = "ZWJ", desc = "ঁ, shifted ZWJ"),    // ZWJ on shift
+                Ch("ঃ",  shifted = "\u200C", hint = "ZWNJ", desc = "ঃ, shifted ZWNJ"),   // ZWNJ on shift
                 Ch("চ", shifted = "ছ", desc = "চ, shifted ছ"),
                 Ch("জ", shifted = "ঝ", desc = "জ, shifted ঝ"),
                 Ch("ট", shifted = "ঠ", desc = "ট, shifted ঠ"),

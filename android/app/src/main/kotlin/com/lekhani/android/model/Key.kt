@@ -60,11 +60,13 @@ data class Key(
     val label: String,
     val shiftedLabel: String? = null,
     val hintLabel: String? = null,
+    val shiftedHintLabel: String? = null,
     val action: KeyAction,
     val shiftedAction: KeyAction = shiftedLabel
         ?.let { KeyAction.Character(it) }
         ?: action,
     val longPressAction: KeyAction? = null,
+    val shiftedLongPressAction: KeyAction? = null,
     val widthWeight: Float = 1.0f,
     val isHomeRow: Boolean = false,
     val contentDesc: String = label,
@@ -73,7 +75,16 @@ data class Key(
     fun displayLabel(shifted: Boolean): String =
         if (shifted && shiftedLabel != null) shiftedLabel else label
 
+    /** Returns the active hint for the current shift state */
+    fun displayHint(shifted: Boolean): String? =
+        if (shifted) shiftedHintLabel ?: (if (hintLabel != shiftedLabel) hintLabel else null)
+        else hintLabel ?: if (shiftedLabel != null && shiftedLabel != label) shiftedLabel else null
+
     /** Returns the active action for the current shift state */
     fun activeAction(shifted: Boolean): KeyAction =
         if (shifted) shiftedAction else action
+
+    /** Returns the active long-press action for the current shift state */
+    fun activeLongPressAction(shifted: Boolean): KeyAction? =
+        if (shifted && shiftedLongPressAction != null) shiftedLongPressAction else longPressAction
 }
