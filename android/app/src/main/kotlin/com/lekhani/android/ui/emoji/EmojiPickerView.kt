@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Job
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -147,8 +148,17 @@ fun EmojiPickerView(
         offsets
     }
 
+    val totalEmojiCount = remember(EmojiData.categories) {
+        EmojiData.categories.sumOf { it.items.size }
+    }
+
+    // Active category index: updated immediately on tab click, or updated when user scrolls manually
+    var activeCategoryIdx by remember { mutableIntStateOf(0) }
+    var isProgrammaticScroll by remember { mutableStateOf(false) }
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
+
     // Decoupled category index calculation: only notifies observers when category boundary is crossed
-    val currentCategoryIdx by remember {
+    val visibleCategoryIdx by remember {
         derivedStateOf {
             val firstVisible = gridState.firstVisibleItemIndex
             val index = categoryScrollOffsets.indexOfLast { it <= firstVisible }
@@ -156,27 +166,51 @@ fun EmojiPickerView(
         }
     }
 
-    // Auto-scroll the top tab bar to keep the active category in view,
-    // but ONLY when the user is not actively flinging the grid to prevent animation collisions
-    LaunchedEffect(currentCategoryIdx, selectedTabIdx, gridState.isScrollInProgress) {
-        if (selectedTabIdx == 1 && !gridState.isScrollInProgress) {
+    // Sync active category with visible category when user scrolls manually
+    LaunchedEffect(visibleCategoryIdx, isProgrammaticScroll) {
+        if (!isProgrammaticScroll) {
+            activeCategoryIdx = visibleCategoryIdx
+        }
+    }
+
+    // Auto-scroll the top tab bar to keep the active category in view
+    LaunchedEffect(activeCategoryIdx, selectedTabIdx) {
+        if (selectedTabIdx == 1) {
             val density = view.resources.displayMetrics.density
             val approxTabWidthPx = (46f * density).toInt()
-            val targetScroll = (currentCategoryIdx * approxTabWidthPx) - (view.width / 3).coerceAtLeast(0)
+            val targetScroll = (activeCategoryIdx * approxTabWidthPx) - (view.width / 3).coerceAtLeast(0)
             tabScrollState.animateScrollTo(targetScroll.coerceAtLeast(0))
         }
     }
 
-    // Handle jump to category (including switching from Recents / Kaomoji / Symbols)
+    // Handle jump to category with smooth fluid 120 FPS animation
     val onCategoryClick: (Int) -> Unit = { catIndex ->
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        activeCategoryIdx = catIndex
         if (selectedTabIdx != 1) {
             pendingScrollCategory = catIndex
             selectedTabIdx = 1
         } else {
             val targetOffset = categoryScrollOffsets.getOrElse(catIndex) { 0 }
-            coroutineScope.launch {
-                gridState.scrollToItem(targetOffset)
+            scrollJob?.cancel()
+            scrollJob = coroutineScope.launch {
+                isProgrammaticScroll = true
+                try {
+                    val currentOffset = gridState.firstVisibleItemIndex
+                    val diff = targetOffset - currentOffset
+                    // If jump distance is large (> 24 items), pre-jump close first, then animate the final stretch for high FPS
+                    if (Math.abs(diff) > 24) {
+                        val preJumpOffset = if (diff > 0) {
+                            (targetOffset - 16).coerceAtLeast(0)
+                        } else {
+                            (targetOffset + 16).coerceAtMost((totalEmojiCount - 1).coerceAtLeast(0))
+                        }
+                        gridState.scrollToItem(preJumpOffset)
+                    }
+                    gridState.animateScrollToItem(targetOffset)
+                } finally {
+                    isProgrammaticScroll = false
+                }
             }
         }
     }
@@ -186,6 +220,7 @@ fun EmojiPickerView(
         if (selectedTabIdx == 1 && pendingScrollCategory != null) {
             val targetCat = pendingScrollCategory!!
             pendingScrollCategory = null
+            activeCategoryIdx = targetCat
             val targetOffset = categoryScrollOffsets.getOrElse(targetCat) { 0 }
             gridState.scrollToItem(targetOffset)
         }
@@ -201,7 +236,7 @@ fun EmojiPickerView(
         // ── Top: Category Tab Bar (Isolated in sub-composable to avoid root recompositions) ──
         CategoryTabBar(
             selectedTabIdx = selectedTabIdx,
-            currentCategoryIdx = currentCategoryIdx,
+            currentCategoryIdx = activeCategoryIdx,
             tabScrollState = tabScrollState,
             tabBarBg = tabBarBg,
             activeTabPill = activeTabPill,
@@ -260,7 +295,12 @@ fun EmojiPickerView(
                     LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Adaptive(minSize = 40.dp),
-                        contentPadding = PaddingValues(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 12.dp),
+                        contentPadding = PaddingValues(
+                            start = 6.dp,
+                            end = 6.dp,
+                            top = 4.dp,
+                            bottom = (paletteHeight - 48.dp).coerceAtLeast(200.dp)
+                        ),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         EmojiData.categories.forEach { cat ->
@@ -559,7 +599,7 @@ private fun TabItem(
     Box(
         modifier = Modifier
             .fillMaxHeight()
-            .defaultMinSize(minWidth = 38.dp)
+            .defaultMinSize(minWidth = 40.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(if (isSelected) activePill else Color.Transparent)
             .clickable(
@@ -590,7 +630,7 @@ private fun CategoryTabBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(38.dp)
+            .height(40.dp)
             .background(tabBarBg)
             .horizontalScroll(tabScrollState)
             .padding(horizontal = 4.dp, vertical = 2.dp),

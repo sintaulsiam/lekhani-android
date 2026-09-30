@@ -902,31 +902,14 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun crossfadeViewMode(activeView: View?, vararg otherViews: View?) {
         for (view in otherViews) {
-            if (view != null && view.visibility == View.VISIBLE) {
-                view.animate().cancel()
-                view.animate()
-                    .alpha(0f)
-                    .setDuration(120L)
-                    .withEndAction {
-                        view.visibility = View.GONE
-                        view.alpha = 1f
-                    }
-                    .start()
-            } else if (view != null) {
-                view.visibility = View.GONE
-                view.alpha = 1f
-            }
+            view?.animate()?.cancel()
+            view?.visibility = View.GONE
+            view?.alpha = 1f
         }
         activeView?.let { view ->
-            if (view.visibility != View.VISIBLE || view.alpha < 1f) {
-                view.animate().cancel()
-                view.alpha = 0f
-                view.visibility = View.VISIBLE
-                view.animate()
-                    .alpha(1f)
-                    .setDuration(120L)
-                    .start()
-            }
+            view.animate().cancel()
+            view.alpha = 1f
+            view.visibility = View.VISIBLE
         }
     }
 
