@@ -163,9 +163,9 @@ fun AboutPrivacyTab(
                            else "শব্দ সাজেশন ও ব্যাকরণ পার্সিং সবকিছু সরাসরি আপনার ফোনেই প্রসেস হয়।"
                 )
                 PrivacyFeatureItem(
-                    title = if (isEnglish) "Encrypted Local Storage" else "ডিভাইসেই সুরক্ষিত সেভ",
-                    desc = if (isEnglish) "Personal learned words and clipboard items are encrypted in device-protected storage."
-                           else "ব্যক্তিগত ডিকশনারি ও ক্লিপবোর্ড আপনার ফোনেই এনক্রিপ্ট করা অবস্থায় সুরক্ষিত থাকে।"
+                    title = if (isEnglish) "Device-Protected Storage" else "ডিভাইসেই সুরক্ষিত সেভ",
+                    desc = if (isEnglish) "Personal learned words and clipboard items are stored securely on your device and never shared with anyone."
+                           else "ব্যক্তিগত ডিকশনারি ও ক্লিপবোর্ড আপনার ফোনেই সুরক্ষিত থাকে এবং কখনোই কারো সাথে শেয়ার করা হয় না।"
                 )
             }
         }
