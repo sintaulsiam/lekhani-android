@@ -1232,12 +1232,12 @@ fun LekhaniAppTheme(
                     onSecondaryContainer = Color(0xFF034466),
                     surface = Color(0xFFFFFFFF),
                     onSurface = Color(0xFF0F172A),
-                    background = Color(0xFFF6F8FA),
+                    background = Color(0xFFFFFFFF),
                     onBackground = Color(0xFF0F172A),
-                    surfaceVariant = Color(0xFFEEF2F6),
-                    onSurfaceVariant = Color(0xFF64748B),
-                    outline = Color(0xFFD8DFE8),
-                    outlineVariant = Color(0xFFE5EAF0)
+                    surfaceVariant = Color(0xFFF1F5F9),
+                    onSurfaceVariant = Color(0xFF475569),
+                    outline = Color(0xFFE2E8F0),
+                    outlineVariant = Color(0xFFEEF2F6)
                 )
             }
         } else if (appThemeMode == KeyboardPreferences.AppThemeMode.DYNAMIC
@@ -1267,12 +1267,12 @@ fun LekhaniAppTheme(
                 outlineVariant = Color(0xFF1B2028)
             )
         } else {
-            // Lustrous, High-End Alabaster & Radiant Emerald Light Theme
+            // Pure White Canvas & Radiant Emerald Light Theme
             lightColorScheme(
                 primary = Color(0xFF007A55),
                 onPrimary = Color.White,
-                primaryContainer = Color(0xFFE1F5EC),
-                onPrimaryContainer = Color(0xFF003322),
+                primaryContainer = Color(0xFFE6F7F0),
+                onPrimaryContainer = Color(0xFF003828),
                 secondary = Color(0xFF0284C7),
                 onSecondary = Color.White,
                 secondaryContainer = Color(0xFFE0F2FE),
@@ -1281,14 +1281,14 @@ fun LekhaniAppTheme(
                 onTertiary = Color.White,
                 tertiaryContainer = Color(0xFFEDE9FE),
                 onTertiaryContainer = Color(0xFF3B0764),
-                background = Color(0xFFF6F8FA),
+                background = Color(0xFFFFFFFF),
                 onBackground = Color(0xFF0F172A),
                 surface = Color(0xFFFFFFFF),
                 onSurface = Color(0xFF0F172A),
-                surfaceVariant = Color(0xFFEEF2F6),
-                onSurfaceVariant = Color(0xFF64748B),
-                outline = Color(0xFFD8DFE8),
-                outlineVariant = Color(0xFFE5EAF0)
+                surfaceVariant = Color(0xFFF1F5F9),
+                onSurfaceVariant = Color(0xFF475569),
+                outline = Color(0xFFE2E8F0),
+                outlineVariant = Color(0xFFEEF2F6)
             )
         }
     }
