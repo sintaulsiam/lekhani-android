@@ -313,118 +313,131 @@ fun LekhaniSettingsScreen(
     } else {
     Scaffold(
         topBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 3.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            Column {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        LekhaniBrandLogo(size = 32.dp, shapeCornerPercent = 25)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Bilingual Language Switcher Segment
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(3.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(if (!isEnglish) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                        .clickable {
-                                            uiLanguage = "bn"
-                                            keyboardPrefs.uiLanguage = "bn"
-                                        }
-                                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "বাংলা",
-                                        fontSize = 12.sp,
-                                        fontWeight = if (!isEnglish) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (!isEnglish) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(if (isEnglish) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                        .clickable {
-                                            uiLanguage = "en"
-                                            keyboardPrefs.uiLanguage = "en"
-                                        }
-                                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = "EN",
-                                        fontSize = 12.sp,
-                                        fontWeight = if (isEnglish) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isEnglish) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LekhaniBrandLogo(size = 32.dp, shapeCornerPercent = 25)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
 
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Bilingual Language Switcher Segment
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(if (!isEnglish) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                            .clickable {
+                                                uiLanguage = "bn"
+                                                keyboardPrefs.uiLanguage = "bn"
+                                            }
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "বাংলা",
+                                            fontSize = 12.sp,
+                                            fontWeight = if (!isEnglish) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (!isEnglish) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(if (isEnglish) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                            .clickable {
+                                                uiLanguage = "en"
+                                                keyboardPrefs.uiLanguage = "en"
+                                            }
+                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "EN",
+                                            fontSize = 12.sp,
+                                            fontWeight = if (isEnglish) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isEnglish) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
 
-                        // Quick About & Privacy Dialog Trigger
-                        IconButton(
-                            onClick = { showAboutDialog = true },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = if (isEnglish) "About & Privacy" else "অ্যাপ সম্পর্কিত তথ্য",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            // Quick About & Privacy Dialog Trigger
+                            IconButton(
+                                onClick = { showAboutDialog = true },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Info,
+                                    contentDescription = if (isEnglish) "About & Privacy" else "অ্যাপ সম্পর্কিত তথ্য",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                    thickness = 1.dp
+                )
             }
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp
-            ) {
-                navItems.forEachIndexed { index, (label, icon, _) ->
-                    NavigationBarItem(
-                        selected = (selectedTab == index),
-                        onClick = { selectedTab = index },
-                        icon = {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = label,
-                                modifier = Modifier.size(24.dp)
+            Column {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                    thickness = 1.dp
+                )
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 0.dp
+                ) {
+                    navItems.forEachIndexed { index, (label, icon, _) ->
+                        NavigationBarItem(
+                            selected = (selectedTab == index),
+                            onClick = { selectedTab = index },
+                            icon = {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = label,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer
                             )
-                        },
-                        label = {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            indicatorColor = MaterialTheme.colorScheme.primaryContainer
                         )
-                    )
+                    }
                 }
             }
         }
@@ -1211,20 +1224,20 @@ fun LekhaniAppTheme(
                 lightColorScheme(
                     primary = primaryColor,
                     onPrimary = onPrimaryColor,
-                    primaryContainer = primaryColor.copy(alpha = 0.16f),
-                    onPrimaryContainer = Color(0xFF002820),
-                    secondary = Color(0xFF4A635B),
+                    primaryContainer = primaryColor.copy(alpha = 0.14f),
+                    onPrimaryContainer = if (isAccentLight) Color(0xFF0F172A) else primaryColor,
+                    secondary = Color(0xFF0284C7),
                     onSecondary = Color.White,
-                    secondaryContainer = Color(0xFFD6EAE2),
-                    onSecondaryContainer = Color(0xFF051F19),
+                    secondaryContainer = Color(0xFFE0F2FE),
+                    onSecondaryContainer = Color(0xFF034466),
                     surface = Color(0xFFFFFFFF),
                     onSurface = Color(0xFF0F172A),
-                    background = Color(0xFFF8FAFC),
+                    background = Color(0xFFF6F8FA),
                     onBackground = Color(0xFF0F172A),
-                    surfaceVariant = Color(0xFFF1F5F9),
-                    onSurfaceVariant = Color(0xFF475569),
-                    outline = Color(0xFFCBD5E1),
-                    outlineVariant = Color(0xFFE2E8F0)
+                    surfaceVariant = Color(0xFFEEF2F6),
+                    onSurfaceVariant = Color(0xFF64748B),
+                    outline = Color(0xFFD8DFE8),
+                    outlineVariant = Color(0xFFE5EAF0)
                 )
             }
         } else if (appThemeMode == KeyboardPreferences.AppThemeMode.DYNAMIC
@@ -1254,24 +1267,28 @@ fun LekhaniAppTheme(
                 outlineVariant = Color(0xFF1B2028)
             )
         } else {
-            // Crisp, High-Contrast Modern Porcelain & Emerald Light Theme
+            // Lustrous, High-End Alabaster & Radiant Emerald Light Theme
             lightColorScheme(
-                primary = Color(0xFF006D52),
+                primary = Color(0xFF007A55),
                 onPrimary = Color.White,
-                primaryContainer = Color(0xFFD1FAE5),
-                onPrimaryContainer = Color(0xFF00281C),
+                primaryContainer = Color(0xFFE1F5EC),
+                onPrimaryContainer = Color(0xFF003322),
                 secondary = Color(0xFF0284C7),
                 onSecondary = Color.White,
                 secondaryContainer = Color(0xFFE0F2FE),
                 onSecondaryContainer = Color(0xFF034466),
-                background = Color(0xFFF8FAFC),
+                tertiary = Color(0xFF7C3AED),
+                onTertiary = Color.White,
+                tertiaryContainer = Color(0xFFEDE9FE),
+                onTertiaryContainer = Color(0xFF3B0764),
+                background = Color(0xFFF6F8FA),
                 onBackground = Color(0xFF0F172A),
                 surface = Color(0xFFFFFFFF),
                 onSurface = Color(0xFF0F172A),
-                surfaceVariant = Color(0xFFF1F5F9),
-                onSurfaceVariant = Color(0xFF475569),
-                outline = Color(0xFFCBD5E1),
-                outlineVariant = Color(0xFFE2E8F0)
+                surfaceVariant = Color(0xFFEEF2F6),
+                onSurfaceVariant = Color(0xFF64748B),
+                outline = Color(0xFFD8DFE8),
+                outlineVariant = Color(0xFFE5EAF0)
             )
         }
     }
