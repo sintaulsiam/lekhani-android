@@ -206,6 +206,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var currentSelEnd: Int = -1
     private var isSwipeDeleteActive: Boolean = false
     private var swipeDeleteAnchorCursor: Int = -1
+    private var activeSwipeDeletePreviewText: String = ""
 
     // Raw keystroke buffer and undo action state
     private val rawInputBuffer = StringBuilder()
@@ -480,6 +481,10 @@ class LekhaniInputMethodService : InputMethodService() {
             if (_candidateState.value is CandidateStripState.SwipeDeletePreview) {
                 return
             }
+            // Guard: Do not clobber active Undo chip
+            if (_candidateState.value is CandidateStripState.Undo) {
+                return
+            }
             val ic = currentInputConnection
             _candidateState.value = CandidateStripState.Selection(
                 onCut = { ic?.performContextMenuAction(android.R.id.cut) },
@@ -695,6 +700,17 @@ class LekhaniInputMethodService : InputMethodService() {
 
                 override fun onSwipeDeletePreview(wordCount: Int) {
                     handleSwipeDeletePreview(wordCount)
+                }
+
+                override fun canSwipeDelete(): Boolean {
+                    if (session.isComposing() || preeditShadow.isNotEmpty() || rawInputBuffer.isNotEmpty()) {
+                        return true
+                    }
+                    val ic = currentInputConnection ?: return false
+                    val before = cachedSurroundingContext.ifEmpty {
+                        ic.getTextBeforeCursor(16, 0)?.toString() ?: ""
+                    }
+                    return before.isNotEmpty()
                 }
 
                 override fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor) {
@@ -2338,6 +2354,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
                 isSwipeDeleteActive = false
                 swipeDeleteAnchorCursor = -1
+                activeSwipeDeletePreviewText = ""
             }
             updateCandidatesVisibility()
             return
@@ -2355,9 +2372,13 @@ class LekhaniInputMethodService : InputMethodService() {
             }
             isSwipeDeleteActive = false
             swipeDeleteAnchorCursor = -1
+            activeSwipeDeletePreviewText = ""
+            keyboardView?.cancelSwipeDelete()
             updateCandidatesVisibility()
             return
         }
+
+        activeSwipeDeletePreviewText = previewText
 
         // Highlight real text in target application
         if (keyboardPrefs.swipeDeleteHighlightInApp && swipeDeleteAnchorCursor >= 0) {
@@ -2378,6 +2399,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
                 isSwipeDeleteActive = false
                 swipeDeleteAnchorCursor = -1
+                activeSwipeDeletePreviewText = ""
                 keyboardView?.cancelSwipeDelete()
                 updateCandidatesVisibility()
             },
@@ -2434,84 +2456,49 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun handleSwipeDelete(wordCount: Int) {
         if (wordCount <= 0) return
-        var remainingWords = wordCount
-        val deletedBuffer = StringBuilder()
-
         val ic = currentInputConnection ?: return
-        val wasHighlightingInApp = isSwipeDeleteActive && keyboardPrefs.swipeDeleteHighlightInApp && swipeDeleteAnchorCursor >= 0
+
+        val previewToDelete = activeSwipeDeletePreviewText.ifEmpty {
+            computeSwipeDeletePreviewText(wordCount)
+        }
+        activeSwipeDeletePreviewText = ""
+
+        val anchorCursor = swipeDeleteAnchorCursor
+        val wasHighlightingInApp = isSwipeDeleteActive && keyboardPrefs.swipeDeleteHighlightInApp && anchorCursor >= 0
         isSwipeDeleteActive = false
         swipeDeleteAnchorCursor = -1
+
+        if (previewToDelete.isEmpty()) {
+            return
+        }
 
         ic.beginBatchEdit()
         try {
             // 1. If currently composing Bengali in session, discard composition first
             if (preeditShadow.isNotEmpty()) {
-                val preeditDeleted = preeditShadow
                 session.reset()
                 preeditShadow = ""
                 ic.setComposingText("", 0)
                 clearCandidates()
-                deletedBuffer.append(preeditDeleted)
-                remainingWords--
             }
 
-            // 2. If real text was highlighted in app, commitText("", 1) atomically deletes the selection
+            // 2. If text was highlighted in app, restore cursor to anchor first so selection is clean
             if (wasHighlightingInApp) {
-                val selectedText = ic.getSelectedText(0)?.toString()
-                if (!selectedText.isNullOrEmpty()) {
-                    deletedBuffer.append(selectedText)
-                    ic.commitText("", 1)
-                    remainingWords = 0
-                }
+                ic.setSelection(anchorCursor, anchorCursor)
             }
 
-            // 3. Fallback / remaining words deletion via deleteSurroundingText
-            if (remainingWords > 0) {
-                val before = cachedSurroundingContext.ifEmpty {
-                    // Fallback: read synchronously only if cache is empty (first swipe-delete ever)
-                    ic.getTextBeforeCursor(512, 0)?.toString() ?: ""
-                }
-                if (before.isNotEmpty()) {
-                    var charsToDelete = 0
-                    var wordsFound = 0
-                    var inWord = false
-                    for (i in before.length - 1 downTo 0) {
-                        val ch = before[i]
-                        val isSpace = ch.isWhitespace()
-                        if (!isSpace) {
-                            inWord = true
-                        } else if (inWord) {
-                            wordsFound++
-                            inWord = false
-                            if (wordsFound >= remainingWords) {
-                                break
-                            }
-                        }
-                        charsToDelete++
-                    }
-                    if (charsToDelete > 0) {
-                        val committedDeleted = before.takeLast(charsToDelete)
-                        if (deletedBuffer.isNotEmpty()) {
-                            deletedBuffer.insert(0, committedDeleted)
-                        } else {
-                            deletedBuffer.append(committedDeleted)
-                        }
-                        ic.deleteSurroundingText(charsToDelete, 0)
-                    }
-                }
-            }
+            // 3. Atomically delete the characters
+            ic.deleteSurroundingText(previewToDelete.length, 0)
         } finally {
             ic.endBatchEdit()
         }
 
-        val deletedStr = deletedBuffer.toString()
-        if (deletedStr.isNotEmpty()) {
-            val undo = UndoInfo(originalText = deletedStr, committedText = "")
-            activeUndoInfo = undo
-            scheduleUndoExpiry()
-            _candidateState.value = CandidateStripState.Undo(undo)
-            updateCandidatesVisibility()
-        }
+        // 4. Create and publish Undo state
+        val undo = UndoInfo(originalText = previewToDelete, committedText = "")
+        activeUndoInfo = undo
+        scheduleUndoExpiry()
+        _candidateState.value = CandidateStripState.Undo(undo)
+        candidateStripComposeView?.visibility = View.VISIBLE
 
         refreshSurroundingContext()
     }
@@ -2629,7 +2616,9 @@ class LekhaniInputMethodService : InputMethodService() {
                     if (nextWords.isNotEmpty()) {
                         withContext(Dispatchers.Main) {
                             if (preeditShadow.isEmpty() && rawInputBuffer.isEmpty()) {
-                                publishCandidates(nextWords)
+                                if (_candidateState.value !is CandidateStripState.Undo) {
+                                    publishCandidates(nextWords)
+                                }
                             }
                         }
                     }

@@ -72,6 +72,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         fun onCursorMove(deltaChars: Int)
         fun onSwipeDelete(wordCount: Int)
         fun onSwipeDeletePreview(wordCount: Int)
+        fun canSwipeDelete(): Boolean = true
         fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor)
     }
 
@@ -1787,6 +1788,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         val dx = curX - backspaceSwipeStartX
                         val dy = curY - backspaceSwipeStartY
 
+                        // If not already swiping, verify with IME that there is text to delete
+                        if (!isBackspaceSwiping && keyListener?.canSwipeDelete() == false) {
+                            return true
+                        }
+
                         // Downward swipe cancellation
                         if (dy > 32f * resources.displayMetrics.density) {
                             if (isBackspaceSwiping) {
@@ -1989,15 +1995,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
 
                 if (isBackspaceSwiping) {
-                    if (backspaceDeletedWordCount > 0) {
-                        keyListener?.onSwipeDelete(backspaceDeletedWordCount)
+                    val count = backspaceDeletedWordCount
+                    isBackspaceSwiping = false
+                    backspaceDeletedWordCount = 0
+                    if (count > 0) {
+                        keyListener?.onSwipeDelete(count)
                         feedbackManager?.onKeyFeedback(this)
                             ?: performHapticFeedback(
                                 HapticFeedbackConstants.KEYBOARD_TAP)
+                    } else {
+                        keyListener?.onSwipeDeletePreview(0)
                     }
-                    isBackspaceSwiping = false
-                    backspaceDeletedWordCount = 0
-                    keyListener?.onSwipeDeletePreview(0)
                     pressedKeyIndex = -1
                     pressedPointerId = -1
                     invalidate()
