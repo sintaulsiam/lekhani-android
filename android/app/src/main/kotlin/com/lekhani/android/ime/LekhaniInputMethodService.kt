@@ -610,6 +610,10 @@ class LekhaniInputMethodService : InputMethodService() {
                             if (result.isNotBlank()) {
                                 currentInputConnection?.finishComposingText()
                                 currentInputConnection?.commitText(result, 1)
+                                // Forward the voice transcript to the AI context window so the
+                                // N-gram / neural next-word predictor can use it for the next
+                                // typed word, exactly as keyboard commits do.
+                                refreshSurroundingContext()
                             }
                         },
                         onCancel = {

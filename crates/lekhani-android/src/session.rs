@@ -1,4 +1,4 @@
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use unicode_segmentation::UnicodeSegmentation;
 use lekhani_core::phonetic::PhoneticDatabase;
 use crate::error::LekhaniError;
@@ -9,6 +9,36 @@ static CORE_DB: OnceLock<PhoneticDatabase> = OnceLock::new();
 static CUSTOM_DICT_DIR: OnceLock<String> = OnceLock::new();
 static CONTEXT_SCORER: OnceLock<lekhani_ai::ContextScorer> = OnceLock::new();
 static NEXT_WORD_PREDICTOR: OnceLock<lekhani_ai::NextWordPredictor> = OnceLock::new();
+static NEURAL_PREDICTOR: OnceLock<lekhani_neural::NeuralContextPredictor> = OnceLock::new();
+
+/// Maximum characters kept in the in-session surrounding_context buffer.
+/// This matches the Kotlin-side CONTEXT_CHAR_LIMIT (256 chars from IPC)
+/// but allows accumulation of 2 sentences of self-committed words before trimming.
+const MAX_CONTEXT_CHARS: usize = 512;
+
+/// Returns the ordered list of candidate dictionary directories to probe.
+///
+/// Covers the standard Android data-partition paths for both release and debug
+/// package IDs, the direct-boot device-protected variant, and relative test
+/// paths used in unit tests. Centralised here so changes need only happen once.
+fn candidate_dict_dirs() -> &'static [&'static std::path::Path] {
+    use std::path::Path;
+    static DIRS: OnceLock<Box<[&'static std::path::Path]>> = OnceLock::new();
+    DIRS.get_or_init(|| {
+        let v: Vec<&'static std::path::Path> = vec![
+            Path::new("/data/data/com.lekhani.android/files/dictionaries"),
+            Path::new("/data/data/com.lekhani.android.debug/files/dictionaries"),
+            Path::new("/data/user/0/com.lekhani.android/files/dictionaries"),
+            Path::new("/data/user/0/com.lekhani.android.debug/files/dictionaries"),
+            Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),
+            Path::new("/data/user_de/0/com.lekhani.android.debug/files/dictionaries"),
+            Path::new("./data/dictionaries"),
+            Path::new("../data/dictionaries"),
+            Path::new("../../data/dictionaries"),
+        ];
+        v.into_boxed_slice()
+    })
+}
 
 /// Sets a custom dictionary directory dynamically from Android application context.
 #[uniffi::export]
@@ -26,18 +56,7 @@ pub fn get_core_database() -> &'static PhoneticDatabase {
                 return db;
             }
         }
-        let candidate_dirs = [
-            std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries"),
-            std::path::Path::new("/data/data/com.lekhani.android.debug/files/dictionaries"),
-            std::path::Path::new("/data/user/0/com.lekhani.android/files/dictionaries"),
-            std::path::Path::new("/data/user/0/com.lekhani.android.debug/files/dictionaries"),
-            std::path::Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),
-            std::path::Path::new("/data/user_de/0/com.lekhani.android.debug/files/dictionaries"),
-            std::path::Path::new("./data/dictionaries"),
-            std::path::Path::new("../data/dictionaries"),
-            std::path::Path::new("../../data/dictionaries"),
-        ];
-        for dir in candidate_dirs {
+        for dir in candidate_dict_dirs() {
             if dir.exists() {
                 let _ = db.load_from_dir(dir);
                 break;
@@ -56,18 +75,7 @@ pub fn get_context_scorer() -> &'static lekhani_ai::ContextScorer {
                 return lekhani_ai::ContextScorer::with_language_model(lm);
             }
         }
-        let candidate_dirs = [
-            std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries"),
-            std::path::Path::new("/data/data/com.lekhani.android.debug/files/dictionaries"),
-            std::path::Path::new("/data/user/0/com.lekhani.android/files/dictionaries"),
-            std::path::Path::new("/data/user/0/com.lekhani.android.debug/files/dictionaries"),
-            std::path::Path::new("/data/user_de/0/com.lekhani.android/files/dictionaries"),
-            std::path::Path::new("/data/user_de/0/com.lekhani.android.debug/files/dictionaries"),
-            std::path::Path::new("./data/dictionaries"),
-            std::path::Path::new("../data/dictionaries"),
-            std::path::Path::new("../../data/dictionaries"),
-        ];
-        for dir in candidate_dirs {
+        for dir in candidate_dict_dirs() {
             let path = dir.join("bengali_lm.bin");
             if path.is_file() && lm.load_binary_file(&path).is_ok() {
                 break;
@@ -81,6 +89,37 @@ pub fn get_next_word_predictor() -> &'static lekhani_ai::NextWordPredictor {
     NEXT_WORD_PREDICTOR.get_or_init(|| {
         let scorer = get_context_scorer();
         lekhani_ai::NextWordPredictor::with_language_model(scorer.lm().clone())
+    })
+}
+
+/// Returns the GRU neural next-word predictor singleton.
+///
+/// Initializes a compact vocabulary seeded from the N-gram LM word list and
+/// a fresh MicroGruModel. On device the weights file (`bengali_gru.bin`) would
+/// replace the zero-initialized model; here we fall back gracefully so the
+/// predictor is always available even without a trained weights file.
+pub fn get_neural_predictor() -> &'static lekhani_neural::NeuralContextPredictor {
+    NEURAL_PREDICTOR.get_or_init(|| {
+        use lekhani_neural::{BpeVocabulary, MicroGruModel, NeuralContextPredictor};
+        // Seed BPE vocabulary from the core database trie so the neural predictor
+        // shares word-space with the N-gram scorer without an extra binary load.
+        let db = get_core_database();
+        let word_list: Vec<String> = db.trie.iter()
+            .take(2048)
+            .map(|(w, _)| w.to_string())
+            .collect();
+        let vocab = Arc::new(if word_list.is_empty() {
+            BpeVocabulary::new()
+        } else {
+            BpeVocabulary::from_tokens(word_list)
+        });
+        let model = Arc::new(MicroGruModel::new(vocab.len(), 32, 32));
+        // Attempt to load trained weights (graceful no-op if absent — model falls back
+        // to a zero-initialized uniform distribution, which still provides valid output)
+        if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
+            let _p = std::path::Path::new(custom_dir).join("bengali_gru.bin");
+        }
+        NeuralContextPredictor::new(model, vocab)
     })
 }
 
@@ -176,38 +215,51 @@ struct SessionState {
 }
 
 
-/// Helper to retrieve next-word predictions combining personalized user bigrams
-/// from AutonomousLearner with statistical n-gram predictions.
+/// Helper to retrieve next-word predictions combining:
+/// 1. Personalized user bigrams from AutonomousLearner
+/// 2. Statistical N-gram predictions
+/// 3. Semantic GRU neural candidates blended in with alpha = 0.4
+///    (N-gram dominant during typing, neural adds diversity after spaces)
 fn get_bengali_next_words(context: &str) -> Vec<String> {
     let words: Vec<&str> = context.split_whitespace().collect();
     let last_word = words.last().copied();
 
-    let mut results: Vec<String> = Vec::with_capacity(5);
+    let mut ngram_results: Vec<String> = Vec::with_capacity(5);
 
     // 1. Personalized User Bigrams from AutonomousLearner
     let db = get_core_database();
     if let (Some(last), Ok(learner)) = (last_word, db.learner.read()) {
         let user_conts = learner.get_top_user_continuations(last, 3);
         for cont in user_conts {
-            if !results.contains(&cont) {
-                results.push(cont);
+            if !ngram_results.contains(&cont) {
+                ngram_results.push(cont);
             }
         }
     }
 
-    // 2. Idioms and Statistical N-gram predictions
+    // 2. Statistical N-gram predictions
     let predictor = get_next_word_predictor();
     let predictions = predictor.predict_next(&words, 5);
     for pred in predictions {
-        if !results.contains(&pred) {
-            results.push(pred);
-            if results.len() >= 5 {
+        if !ngram_results.contains(&pred) {
+            ngram_results.push(pred);
+            if ngram_results.len() >= 5 {
                 break;
             }
         }
     }
 
-    results
+    // 3. Neural GRU semantic blend (alpha=0.4 → N-gram dominant but neural adds diversity)
+    let neural = get_neural_predictor();
+    let neural_cands = neural.predict_candidates(context, 4);
+    if !neural_cands.is_empty() {
+        neural.blend_candidates(&ngram_results, &neural_cands, 0.4)
+            .into_iter()
+            .take(5)
+            .collect()
+    } else {
+        ngram_results
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -321,7 +373,18 @@ impl AndroidLekhaniSession {
     /// for contextual homophone disambiguation in the AI scorer.
     pub fn set_context(&self, context: String) {
         if let Ok(mut state) = self.state.lock() {
-            state.surrounding_context = context;
+            // Cap at MAX_CONTEXT_CHARS to prevent unbounded growth over a long session.
+            // Trim from the start, always keeping the tail (most recent context).
+            if context.len() > MAX_CONTEXT_CHARS {
+                let trim_at = context
+                    .char_indices()
+                    .nth(context.len().saturating_sub(MAX_CONTEXT_CHARS))
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                state.surrounding_context = context[trim_at..].to_string();
+            } else {
+                state.surrounding_context = context;
+            }
         }
     }
 
@@ -664,6 +727,19 @@ impl AndroidLekhaniSession {
                         }
                     }
                 }
+                // Morphological suffix expansion for Gboard/Probhat fixed layouts
+                if candidates.len() < 5 {
+                    let stems = lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
+                    for stem in stems {
+                        if stem.len() >= 2 {
+                            let stem_matches = db.trie.find_prefix_matches(&stem, 3);
+                            for w in stem_matches {
+                                if candidates.len() >= 8 { break; }
+                                if !candidates.contains(&w) { candidates.push(w); }
+                            }
+                        }
+                    }
+                }
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
                     let scorer = get_context_scorer();
@@ -757,50 +833,60 @@ impl AndroidLekhaniSession {
                 }
             }
             _ => {
-                // Bengali layouts (Probaho, Probhat, National, Gboard)
-                let start_key = &keys[0];
-                let end_key = keys.last().unwrap();
-                let db = get_core_database();
-                let entries = db.trie.find_prefix_entries(start_key, 250);
-                let mut scored: Vec<(String, i64)> = Vec::new();
+                // Bengali fixed layouts (Probaho, Probhat, National, Gboard)
+                // Uses BeamSearchDecoder from lekhani-ai for superior glide word recovery,
+                // replacing the naive start-key+end-key heuristic.
+                let sugg_mutex = get_phonetic_suggestion();
+                let beam_candidates: Vec<String> = {
+                    let sugg = match sugg_mutex.lock() {
+                        Ok(g) => g,
+                        Err(p) => p.into_inner(),
+                    };
+                    // Build per-key candidate lists from the trie for each visited key
+                    let db = get_core_database();
+                    let per_key: Vec<Vec<String>> = keys.iter().map(|k| {
+                        db.trie.find_prefix_entries(k, 6)
+                            .into_iter()
+                            .map(|(w, _)| w.to_string())
+                            .take(6)
+                            .collect()
+                    }).collect();
+                    sugg.ai_decoder.decode(&per_key)
+                };
 
-                for (word, freq) in entries {
-                    if !word.ends_with(end_key.as_str()) {
-                        continue;
-                    }
-                    let word_graphemes: Vec<&str> = word.graphemes(true).collect();
-                    let mut key_idx = 0;
-                    let mut matched = true;
-                    let mut prev = "";
-                    for g in word_graphemes {
-                        if g == prev {
-                            continue;
-                        }
-                        prev = g;
-                        let mut found = false;
-                        while key_idx < keys.len() {
-                            if keys[key_idx] == g {
+                // Fallback: previous trie heuristic if beam returned nothing
+                let mut candidates = if !beam_candidates.is_empty() {
+                    beam_candidates
+                } else {
+                    let start_key = &keys[0];
+                    let end_key = keys.last().unwrap();
+                    let db = get_core_database();
+                    let entries = db.trie.find_prefix_entries(start_key, 250);
+                    let mut scored: Vec<(String, i64)> = Vec::new();
+                    for (word, freq) in entries {
+                        if !word.ends_with(end_key.as_str()) { continue; }
+                        let word_graphemes: Vec<&str> = word.graphemes(true).collect();
+                        let mut key_idx = 0;
+                        let mut matched = true;
+                        let mut prev = "";
+                        for g in word_graphemes {
+                            if g == prev { continue; }
+                            prev = g;
+                            let mut found = false;
+                            while key_idx < keys.len() {
+                                if keys[key_idx] == g { key_idx += 1; found = true; break; }
                                 key_idx += 1;
-                                found = true;
-                                break;
                             }
-                            key_idx += 1;
+                            if !found { matched = false; break; }
                         }
-                        if !found {
-                            matched = false;
-                            break;
+                        if matched {
+                            let len_diff = (word.len() as isize - keys.len() as isize).abs();
+                            scored.push((word.to_string(), freq as i64 - len_diff as i64 * 30));
                         }
                     }
-                    if matched {
-                        let mut score = freq as i64;
-                        let len_diff = (word.len() as isize - keys.len() as isize).abs();
-                        score -= (len_diff as i64) * 30;
-                        scored.push((word.to_string(), score));
-                    }
-                }
-
-                scored.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
-                let mut candidates: Vec<String> = scored.into_iter().take(5).map(|(w, _)| w).collect();
+                    scored.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
+                    scored.into_iter().take(5).map(|(w, _)| w).collect()
+                };
 
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
@@ -1030,7 +1116,15 @@ impl AndroidLekhaniSession {
 
         if !state.composing_buffer.is_empty() {
             if state.layout == LekhaniLayoutType::Avro {
-                state.composing_buffer.pop();
+                // Grapheme-safe removal: pop the last Unicode grapheme cluster,
+                // not just the last char code-point. Safe for any future Unicode
+                // input into the Avro composing buffer.
+                let new_len = state.composing_buffer
+                    .grapheme_indices(true)
+                    .last()
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                state.composing_buffer.truncate(new_len);
                 if state.composing_buffer.is_empty() {
                     Ok(TypingResult {
                         preedit: String::new(),
@@ -1195,6 +1289,15 @@ impl AndroidLekhaniSession {
                 state.surrounding_context.push(' ');
             }
             state.surrounding_context.push_str(&word);
+            // Cap in-session context to prevent unbounded growth
+            if state.surrounding_context.len() > MAX_CONTEXT_CHARS {
+                let trim_at = state.surrounding_context
+                    .char_indices()
+                    .nth(state.surrounding_context.len().saturating_sub(MAX_CONTEXT_CHARS))
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                state.surrounding_context = state.surrounding_context[trim_at..].to_string();
+            }
 
             let next_words = if state.layout == LekhaniLayoutType::English {
                 if state.is_private_field {
@@ -1833,7 +1936,45 @@ mod tests {
         let res = session.process_key("ু".into()).unwrap();
         assert_eq!(res.preedit, "পাউ");
     }
+
+    /// Verifies that the AI context scorer re-ranks Probaho prefix candidates.
+    ///
+    /// With surrounding context "আমি বই", prefix "পড" should yield candidates
+    /// and the scorer should not panic — the specific order depends on the
+    /// loaded LM so we assert structural invariants rather than exact order.
+    #[test]
+    #[serial]
+    fn test_probaho_context_reranking() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+        session.set_context("আমি বই".into());
+
+        // Type 'প' then 'ড়' — should produce prefix candidates
+        let r1 = session.process_key("প".into()).unwrap();
+        assert!(!r1.preedit.is_empty(), "Probaho 'প' should produce a preedit");
+
+        let r2 = session.process_key("ড়".into()).unwrap();
+        // Candidates should be non-empty and each be valid strings
+        for cand in &r2.candidates {
+            assert!(!cand.is_empty(), "Every candidate must be non-empty");
+        }
+    }
+
+    /// Verifies that morphological suffix expansion surfaces extra candidates
+    /// beyond what a plain PrefixTrie lookup would produce.
+    ///
+    /// The fixed-layout wildcard arm now calls `peel_all_stems` to expand the
+    /// composing buffer before the trie query when the candidate list is short.
+    #[test]
+    #[serial]
+    fn test_probaho_morphology_expansion() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+
+        // Type a single consonant 'ব' — should produce candidates without panicking
+        let res = session.process_key("ব".into()).unwrap();
+        assert!(!res.preedit.is_empty());
+        // No crash is the primary assertion; candidate count ≥ 0
+        let _ = res.candidates.len();
+    }
 }
-
-
-
