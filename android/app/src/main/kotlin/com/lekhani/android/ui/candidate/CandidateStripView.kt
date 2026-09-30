@@ -57,7 +57,11 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.Icon
@@ -845,9 +849,18 @@ private fun QuickChipPill(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = chip.icon,
-                fontSize = 15.sp,
+            val chipIcon = when (chip.chipType) {
+                com.lekhani.android.data.smart.SmartAssistant.QuickChipType.OTP -> Icons.Filled.Lock
+                com.lekhani.android.data.smart.SmartAssistant.QuickChipType.URL -> Icons.Filled.Link
+                com.lekhani.android.data.smart.SmartAssistant.QuickChipType.EMAIL -> Icons.Filled.Email
+                com.lekhani.android.data.smart.SmartAssistant.QuickChipType.PHONE -> Icons.Filled.Phone
+                com.lekhani.android.data.smart.SmartAssistant.QuickChipType.RECENT -> Icons.Filled.ContentPaste
+            }
+            Icon(
+                imageVector = chipIcon,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.size(16.dp)
             )
             Spacer(Modifier.width(6.dp))
             Text(

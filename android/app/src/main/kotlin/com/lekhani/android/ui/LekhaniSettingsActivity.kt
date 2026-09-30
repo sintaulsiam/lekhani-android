@@ -461,11 +461,9 @@ fun LekhaniSettingsScreen(
                 0 -> LayoutsTabContent(
                     context = context,
                     prefs = prefs,
-                    clipboardStore = clipboardStore,
                     isEnglish = isEnglish,
                     onOpenImeSettings = onOpenImeSettings,
                     onOpenImePicker = onOpenImePicker,
-                    onOpenClipboard = { selectedTab = 3 },
                     onOpenLayoutFlow = { showLayoutFlowScreen = true }
                 )
                 1 -> ThemeStudioSheet(
@@ -562,11 +560,9 @@ fun LekhaniSettingsScreen(
 private fun LayoutsTabContent(
     context: Context,
     prefs: android.content.SharedPreferences,
-    clipboardStore: LekhaniClipboardStore,
     isEnglish: Boolean = false,
     onOpenImeSettings: () -> Unit,
     onOpenImePicker: () -> Unit,
-    onOpenClipboard: () -> Unit,
     onOpenLayoutFlow: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -862,13 +858,6 @@ private fun LayoutsTabContent(
             }
         }
 
-        // ── Quick Access: Clipboard & Vault Card (Isolated collection) ─────────
-        QuickClipboardCard(
-            clipboardStore = clipboardStore,
-            isEnglish = isEnglish,
-            onOpenClipboard = onOpenClipboard
-        )
-
         // ── 3. Keyboard Layout Selection & Ordering Card ───────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -1108,72 +1097,6 @@ private fun LayoutsTabContent(
     }
 }
 
-@Composable
-private fun QuickClipboardCard(
-    clipboardStore: LekhaniClipboardStore,
-    isEnglish: Boolean,
-    onOpenClipboard: () -> Unit
-) {
-    val clips by clipboardStore.clips.collectAsState()
-    val savedCount = remember(clips) { clips.count { it.isSaved } }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Assignment,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Column {
-                    Text(
-                        text = if (isEnglish) "Clipboard & Vault" else "ক্লিপবোর্ড ও ভল্ট",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = if (isEnglish) "${clips.size} clips • $savedCount saved"
-                               else "${clips.size}টি ক্লিপ • ${savedCount}টি সেভ করা",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            FilledTonalButton(
-                onClick = onOpenClipboard,
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Text(if (isEnglish) "Open" else "খুলুন", fontSize = 12.sp)
-            }
-        }
-    }
-}
 
 /**
  * LekhaniAppTheme

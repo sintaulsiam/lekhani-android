@@ -455,14 +455,14 @@ fun PreferencesTabContent(
                 val bottomKeyOptions = if (isEnglish) {
                     listOf(
                         KeyboardPreferences.BottomRowKeyMode.SMART to ("Smart (Automatic)" to "Emoji key when spacebar switches layout or only 1 layout; Globe otherwise"),
-                        KeyboardPreferences.BottomRowKeyMode.EMOJI to ("Always Emoji Key (😊)" to "Dedicated instant-access emoji button"),
-                        KeyboardPreferences.BottomRowKeyMode.LANGUAGE_SWITCH to ("Always Language Key (🌐)" to "Dedicated language / layout switch button")
+                        KeyboardPreferences.BottomRowKeyMode.EMOJI to ("Always Emoji Key" to "Dedicated instant-access emoji button"),
+                        KeyboardPreferences.BottomRowKeyMode.LANGUAGE_SWITCH to ("Always Language Key" to "Dedicated language / layout switch button")
                     )
                 } else {
                     listOf(
                         KeyboardPreferences.BottomRowKeyMode.SMART to ("স্মার্ট / স্বয়ংক্রিয়" to "স্পেসবারে ভাষা পরিবর্তন থাকলে ইমোজি কি, নয়তো ভাষা কি"),
-                        KeyboardPreferences.BottomRowKeyMode.EMOJI to ("সর্বদা ইমোজি কি (😊)" to "সহজে ইমোজি ব্যবহারের জন্য স্থায়ী বাটন"),
-                        KeyboardPreferences.BottomRowKeyMode.LANGUAGE_SWITCH to ("সর্বদা ভাষা কি (🌐)" to "লেআউট ও ভাষা পরিবর্তনের জন্য স্থায়ী বাটন")
+                        KeyboardPreferences.BottomRowKeyMode.EMOJI to ("সর্বদা ইমোজি কি" to "সহজে ইমোজি ব্যবহারের জন্য স্থায়ী বাটন"),
+                        KeyboardPreferences.BottomRowKeyMode.LANGUAGE_SWITCH to ("সর্বদা ভাষা কি" to "লেআউট ও ভাষা পরিবর্তনের জন্য স্থায়ী বাটন")
                     )
                 }
 

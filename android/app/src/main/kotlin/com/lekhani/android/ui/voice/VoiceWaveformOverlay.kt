@@ -75,6 +75,7 @@ fun VoiceWaveformOverlay(
     onDone: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    isEnglish: Boolean = false,
 ) {
     val state by voiceStateFlow.collectAsState()
     val isListening = state is VoiceTypingState.Listening
@@ -93,7 +94,7 @@ fun VoiceWaveformOverlay(
                 .background(OverlayBg)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .semantics {
-                    contentDescription = "ভয়েস টাইপিং চলছে। কথা বলুন।"
+                    contentDescription = if (isEnglish) "Voice typing active. Speak now." else "ভয়েস টাইপিং চলছে। কথা বলুন।"
                 },
             contentAlignment = Alignment.Center,
         ) {
@@ -115,7 +116,7 @@ fun VoiceWaveformOverlay(
                     PulsingRecordingDot()
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "শুনছি...",
+                        text = if (isEnglish) "Listening..." else "শুনছি...",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         color = TextPrimary,
@@ -130,7 +131,8 @@ fun VoiceWaveformOverlay(
                     text = if (listeningState.partialTranscript.isNotBlank())
                         listeningState.partialTranscript
                     else
-                        "কথা বলুন, এখানে লেখা দেখা যাবে...",
+                        if (isEnglish) "Speak now, transcript will appear here..."
+                        else "কথা বলুন, এখানে লেখা দেখা যাবে...",
                     fontSize = 16.sp,
                     color = if (listeningState.partialTranscript.isNotBlank()) TextPrimary else TextSecondary,
                     textAlign = TextAlign.Center,
@@ -151,10 +153,10 @@ fun VoiceWaveformOverlay(
                             .background(Color(0xFF21262D))
                             .clickable { onCancel() }
                             .padding(horizontal = 24.dp, vertical = 8.dp)
-                            .semantics { contentDescription = "বাতিল করুন" },
+                            .semantics { contentDescription = if (isEnglish) "Cancel voice typing" else "বাতিল করুন" },
                     ) {
                         Text(
-                            text = "বাতিল",
+                            text = if (isEnglish) "Cancel" else "বাতিল",
                             fontSize = 14.sp,
                             color = TextSecondary,
                             fontWeight = FontWeight.Medium,
@@ -171,10 +173,10 @@ fun VoiceWaveformOverlay(
                             )
                             .clickable { onDone() }
                             .padding(horizontal = 28.dp, vertical = 8.dp)
-                            .semantics { contentDescription = "সম্পন্ন করুন" },
+                            .semantics { contentDescription = if (isEnglish) "Done voice typing" else "সম্পন্ন করুন" },
                     ) {
                         Text(
-                            text = "সম্পন্ন",
+                            text = if (isEnglish) "Done" else "সম্পন্ন",
                             fontSize = 14.sp,
                             color = Color.Black,
                             fontWeight = FontWeight.SemiBold,

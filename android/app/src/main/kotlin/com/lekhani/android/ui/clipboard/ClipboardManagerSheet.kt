@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Search
@@ -698,13 +699,24 @@ private fun ClipItemCard(
                             shape = RoundedCornerShape(6.dp),
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                         ) {
-                            Text(
-                                text = if (isEnglish) "📌 Pinned" else "📌 পিন করা",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                            Row(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            )
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.PushPin,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Pinned" else "পিন করা",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
 
@@ -713,13 +725,24 @@ private fun ClipItemCard(
                             shape = RoundedCornerShape(6.dp),
                             color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
                         ) {
-                            Text(
-                                text = if (isEnglish) "💾 Saved Vault" else "💾 সংরক্ষিত ভল্ট",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.tertiary,
+                            Row(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            )
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Bookmark,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Saved Vault" else "সংরক্ষিত ভল্ট",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                )
+                            }
                         }
                     }
 
@@ -728,13 +751,24 @@ private fun ClipItemCard(
                             shape = RoundedCornerShape(6.dp),
                             color = Color(0xFFFF9500).copy(alpha = 0.2f),
                         ) {
-                            Text(
-                                text = if (isEnglish) "🔒 Sensitive / OTP" else "🔒 সংবেদনশীল",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFF9500),
+                            Row(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            )
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF9500),
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Sensitive / OTP" else "সংবেদনশীল",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFF9500),
+                                )
+                            }
                         }
                     }
 
@@ -743,13 +777,24 @@ private fun ClipItemCard(
                             shape = RoundedCornerShape(6.dp),
                             color = Color(0xFF00B4D8).copy(alpha = 0.2f),
                         ) {
-                            Text(
-                                text = "🔗 Link",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0096C7),
+                            Row(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            )
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Link,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0096C7),
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Link" else "লিংক",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0096C7),
+                                )
+                            }
                         }
                     }
                 }
@@ -1282,8 +1327,8 @@ private fun RetentionPeriodDialog(
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 ) {
                     Text(
-                        text = if (isEnglish) "📌 Pinned items and 💾 Saved vault items will never be auto-cleared."
-                        else "📌 পিন করা এবং 💾 ভল্টে সংরক্ষিত লেখা কখনো স্বয়ংক্রিয়ভাবে মুছে যাবে না।",
+                        text = if (isEnglish) "Pinned items and Saved vault items will never be auto-cleared."
+                        else "পিন করা এবং ভল্টে সংরক্ষিত লেখা কখনো স্বয়ংক্রিয়ভাবে মুছে যাবে না।",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(8.dp),

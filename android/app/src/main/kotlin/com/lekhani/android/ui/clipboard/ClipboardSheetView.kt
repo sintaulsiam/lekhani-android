@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
@@ -587,12 +589,23 @@ private fun CleanClipCard(
                                 .background(accentColor.copy(alpha = 0.22f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                         ) {
-                            Text(
-                                text = if (isEnglish) "📌 Pinned" else "📌 পিন করা",
-                                fontSize = 10.sp,
-                                color = accentColor,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.PushPin,
+                                    contentDescription = null,
+                                    tint = accentColor,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Pinned" else "পিন করা",
+                                    fontSize = 10.sp,
+                                    color = accentColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                     if (clip.isSensitive) {
@@ -602,12 +615,23 @@ private fun CleanClipCard(
                                 .background(sensitiveBadge.copy(alpha = 0.2f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                         ) {
-                            Text(
-                                text = if (isEnglish) "⚠️ OTP / Sensitive" else "⚠️ ওটিপি / সংবেদনশীল",
-                                fontSize = 10.sp,
-                                color = sensitiveBadge,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = sensitiveBadge,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "OTP / Sensitive" else "ওটিপি / সংবেদনশীল",
+                                    fontSize = 10.sp,
+                                    color = sensitiveBadge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                     if (containsLinks) {
@@ -617,12 +641,23 @@ private fun CleanClipCard(
                                 .background(Color(0xFF00B4D8).copy(alpha = 0.2f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                         ) {
-                            Text(
-                                text = if (isEnglish) "🔗 Link" else "🔗 লিংক",
-                                fontSize = 10.sp,
-                                color = Color(0xFF0096C7),
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Link,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0096C7),
+                                    modifier = Modifier.size(10.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Link" else "লিংক",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF0096C7),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }

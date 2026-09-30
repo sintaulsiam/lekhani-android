@@ -234,9 +234,9 @@ class KeyboardPreferences private constructor(context: Context) {
     }
 
     enum class BottomRowKeyMode(val titleBengali: String, val titleEnglish: String) {
-        SMART("স্মার্ট / স্বয়ংক্রিয় (Smart)", "Smart (Automatic)"),
-        EMOJI("সর্বদা ইমোজি (Emoji)", "Always Emoji Key (😊)"),
-        LANGUAGE_SWITCH("সর্বদা ভাষা (Language)", "Always Language Key (🌐)"),
+        SMART("স্মার্ট / স্বয়ংক্রিয়", "Smart (Automatic)"),
+        EMOJI("সর্বদা ইমোজি", "Always Emoji Key"),
+        LANGUAGE_SWITCH("সর্বদা ভাষা", "Always Language Key"),
     }
 
     enum class FormFactor(val titleBengali: String, val titleEnglish: String) {

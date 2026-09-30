@@ -363,6 +363,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     label = chipInfo.label,
                     icon = chipInfo.icon,
                     pasteText = chipInfo.fullText,
+                    chipType = chipInfo.type,
                 )
                 updateCandidatesVisibility()
             }
@@ -592,6 +593,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
                     VoiceWaveformOverlay(
                         voiceStateFlow = audioManager.voiceState,
+                        isEnglish = keyboardPrefs.uiLanguage == "en",
                         onDone = {
                             val result = audioManager.stopStreaming()
                             if (result.isNotBlank()) {

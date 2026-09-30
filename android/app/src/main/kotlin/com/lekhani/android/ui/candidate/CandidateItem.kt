@@ -64,8 +64,9 @@ sealed class CandidateStripState {
      */
     data class QuickChip(
         val label: String,
-        val icon: String,
+        val icon: String = "",
         val pasteText: String,
+        val chipType: com.lekhani.android.data.smart.SmartAssistant.QuickChipType = com.lekhani.android.data.smart.SmartAssistant.QuickChipType.RECENT,
     ) : CandidateStripState()
 
     /**

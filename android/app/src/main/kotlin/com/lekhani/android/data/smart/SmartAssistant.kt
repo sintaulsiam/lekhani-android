@@ -242,7 +242,7 @@ object SmartAssistant {
             val code = otpMatch.groupValues[1]
             return QuickChipInfo(
                 label = if (isEnglish) "Paste $code" else "ওটিপি $code পেস্ট",
-                icon = "📋",
+                icon = "",
                 fullText = code,
                 type = QuickChipType.OTP,
             )
@@ -252,7 +252,7 @@ object SmartAssistant {
         if (text.startsWith("http://") || text.startsWith("https://") || text.startsWith("www.")) {
             return QuickChipInfo(
                 label = if (isEnglish) "Paste Link" else "লিংক পেস্ট করুন",
-                icon = "🔗",
+                icon = "",
                 fullText = text,
                 type = QuickChipType.URL,
             )
@@ -262,7 +262,7 @@ object SmartAssistant {
         if (Regex("""^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$""").matches(text)) {
             return QuickChipInfo(
                 label = if (isEnglish) "Paste Email" else "ইমেইল পেস্ট করুন",
-                icon = "✉️",
+                icon = "",
                 fullText = text,
                 type = QuickChipType.EMAIL,
             )
@@ -274,7 +274,7 @@ object SmartAssistant {
         ) {
             return QuickChipInfo(
                 label = if (isEnglish) "Paste Number" else "নম্বর পেস্ট করুন",
-                icon = "📞",
+                icon = "",
                 fullText = text,
                 type = QuickChipType.PHONE,
             )
@@ -285,7 +285,7 @@ object SmartAssistant {
             val snippet = if (text.length > 16) "${text.take(14)}…" else text
             return QuickChipInfo(
                 label = if (isEnglish) "Paste \"$snippet\"" else "পেস্ট: \"$snippet\"",
-                icon = "📋",
+                icon = "",
                 fullText = text,
                 type = QuickChipType.RECENT,
             )

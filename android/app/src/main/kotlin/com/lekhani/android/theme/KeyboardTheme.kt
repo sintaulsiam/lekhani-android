@@ -9,14 +9,14 @@ import android.os.Build
  * ══════════════════════════════════════════════════════════════════════════════
  * Categorization taxonomy for Lekhani keyboard themes.
  */
-enum class ThemeCategory(val titleBengali: String, val titleEnglish: String, val iconEmoji: String = "") {
-    ALL("সব থিম", "All Themes", "✦"),
-    CLASSIC("ক্লাসিক ও মডার্ন", "Classic & Modern", "🌟"),
-    RGB_CHROMA("আরজিবি ডাইনামিক", "RGB & Dynamic", "🌈"),
-    NEON("নিওন ও সাইবার", "Neon & Cyber", "⚡"),
-    AESTHETIC("এসথেটিক পেস্টেল", "Aesthetic & Pastel", "🎨"),
-    CONTRAST_NATURE("কনট্রাস্ট ও প্রকৃতি", "Contrast & Nature", "🌿"),
-    CUSTOM("কাস্টম", "Custom", "🛠️");
+enum class ThemeCategory(val titleBengali: String, val titleEnglish: String) {
+    ALL("সব থিম", "All Themes"),
+    CLASSIC("ক্লাসিক ও মডার্ন", "Classic & Modern"),
+    RGB_CHROMA("আরজিবি ডাইনামিক", "RGB & Dynamic"),
+    NEON("নিওন ও সাইবার", "Neon & Cyber"),
+    AESTHETIC("এসথেটিক পেস্টেল", "Aesthetic & Pastel"),
+    CONTRAST_NATURE("কনট্রাস্ট ও প্রকৃতি", "Contrast & Nature"),
+    CUSTOM("কাস্টম", "Custom");
 }
 
 /**
