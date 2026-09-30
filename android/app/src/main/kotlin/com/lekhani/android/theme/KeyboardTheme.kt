@@ -9,7 +9,7 @@ import android.os.Build
  * ══════════════════════════════════════════════════════════════════════════════
  * Categorization taxonomy for Lekhani keyboard themes.
  */
-enum class ThemeCategory(val titleBengali: String, val titleEnglish: String, val iconEmoji: String) {
+enum class ThemeCategory(val titleBengali: String, val titleEnglish: String, val iconEmoji: String = "") {
     ALL("সব থিম", "All Themes", "✦"),
     NEON("নিওন ও সাইবার", "Neon & Cyber", "⚡"),
     AESTHETIC("এসথেটিক পেস্টেল", "Aesthetic & Pastel", "🎨"),
@@ -17,6 +17,20 @@ enum class ThemeCategory(val titleBengali: String, val titleEnglish: String, val
     CLASSIC("ক্লাসিক ও মডার্ন", "Classic & Modern", "🌟"),
     CONTRAST_NATURE("কনট্রাস্ট ও প্রকৃতি", "Contrast & Nature", "🌿"),
     CUSTOM("কাস্টম", "Custom", "🛠️");
+}
+
+/**
+ * ChromaMode
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Dynamic color-shifting algorithms for 120 FPS animated RGB themes.
+ */
+enum class ChromaMode {
+    NONE,
+    RAINBOW_FLOW,       // Continuous 360° chromatic wave
+    AURORA_BOREALIS,    // Emerald teal -> cyan -> polar violet wave
+    SUNSET_HORIZON,     // Golden amber -> fiery coral -> dusk magenta wave
+    COSMIC_NEBULA,      // Indigo -> laser violet -> hot pink wave
+    MATRIX_PULSE,       // Phosphor lime -> cyber aqua wave
 }
 
 /**
@@ -46,6 +60,7 @@ data class KeyboardTheme(
     val isDark: Boolean = true,
     val isCustom: Boolean = false,
     val isRgbChroma: Boolean = false,
+    val chromaMode: ChromaMode = if (isRgbChroma) ChromaMode.RAINBOW_FLOW else ChromaMode.NONE,
     val category: ThemeCategory = ThemeCategory.CLASSIC,
 ) {
     fun toJson(): org.json.JSONObject {
@@ -68,6 +83,7 @@ data class KeyboardTheme(
         json.put("isDark", isDark)
         json.put("isCustom", isCustom)
         json.put("isRgbChroma", isRgbChroma)
+        json.put("chromaMode", chromaMode.name)
         json.put("category", category.name)
         return json
     }
@@ -78,6 +94,12 @@ data class KeyboardTheme(
                 ThemeCategory.valueOf(json.optString("category", ThemeCategory.CUSTOM.name))
             } catch (_: Exception) {
                 ThemeCategory.CUSTOM
+            }
+            val isChroma = json.optBoolean("isRgbChroma", false)
+            val cMode = try {
+                ChromaMode.valueOf(json.optString("chromaMode", if (isChroma) ChromaMode.RAINBOW_FLOW.name else ChromaMode.NONE.name))
+            } catch (_: Exception) {
+                if (isChroma) ChromaMode.RAINBOW_FLOW else ChromaMode.NONE
             }
             return KeyboardTheme(
                 id = json.getString("id"),
@@ -97,7 +119,8 @@ data class KeyboardTheme(
                 glideGlowColor = json.optInt("glideGlowColor", 0x4000E5B8),
                 isDark = json.optBoolean("isDark", true),
                 isCustom = json.optBoolean("isCustom", true),
-                isRgbChroma = json.optBoolean("isRgbChroma", false),
+                isRgbChroma = isChroma,
+                chromaMode = cMode,
                 category = cat,
             )
         }
@@ -139,6 +162,7 @@ object ThemeRegistry {
     const val ID_AURORA_BOREALIS = "aurora_borealis"
     const val ID_SUNSET_HORIZON = "sunset_horizon"
     const val ID_COSMIC_NEBULA = "cosmic_nebula"
+    const val ID_MATRIX_PULSE = "matrix_pulse"
 
     // High Contrast & Nature IDs
     const val ID_HIGH_CONTRAST = "high_contrast"
@@ -494,6 +518,7 @@ object ThemeRegistry {
         glideGlowColor = 0x6000E5FF.toInt(),
         isDark = true,
         isRgbChroma = true,
+        chromaMode = ChromaMode.RAINBOW_FLOW,
         category = ThemeCategory.RGB_CHROMA,
     )
 
@@ -514,6 +539,8 @@ object ThemeRegistry {
         glideStrokeColor = 0xFF38BDF8.toInt(),
         glideGlowColor = 0x502DD4BF.toInt(),
         isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.AURORA_BOREALIS,
         category = ThemeCategory.RGB_CHROMA,
     )
 
@@ -534,6 +561,8 @@ object ThemeRegistry {
         glideStrokeColor = 0xFFFF9100.toInt(),
         glideGlowColor = 0x50FF5252.toInt(),
         isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.SUNSET_HORIZON,
         category = ThemeCategory.RGB_CHROMA,
     )
 
@@ -554,6 +583,30 @@ object ThemeRegistry {
         glideStrokeColor = 0xFF00E5FF.toInt(),
         glideGlowColor = 0x507C4DFF.toInt(),
         isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.COSMIC_NEBULA,
+        category = ThemeCategory.RGB_CHROMA,
+    )
+
+    val THEME_MATRIX_PULSE = KeyboardTheme(
+        id = ID_MATRIX_PULSE,
+        nameBengali = "ম্যাট্রিক্স পালস",
+        nameEnglish = "Matrix Pulse",
+        backgroundColor = 0xFF050B07.toInt(),
+        keyNormalColor = 0xFF0D1C12.toInt(),
+        keyShiftColor = 0xFF08140C.toInt(),
+        keySpaceColor = 0xFF12281A.toInt(),
+        keyHasantaColor = 0xFF144D2B.toInt(),
+        keyBorderColor = 0xFF00FF66.toInt(),
+        labelColor = 0xFFE0FFE8.toInt(),
+        labelDimColor = 0xFF00E5A3.toInt(),
+        accentColor = 0xFF00FF66.toInt(),
+        rippleColor = 0x4000FF66.toInt(),
+        glideStrokeColor = 0xFF00F5D4.toInt(),
+        glideGlowColor = 0x5000FF66.toInt(),
+        isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.MATRIX_PULSE,
         category = ThemeCategory.RGB_CHROMA,
     )
 
@@ -630,6 +683,7 @@ object ThemeRegistry {
         THEME_AURORA_BOREALIS,
         THEME_SUNSET_HORIZON,
         THEME_COSMIC_NEBULA,
+        THEME_MATRIX_PULSE,
 
         // Contrast & Nature
         THEME_HIGH_CONTRAST,

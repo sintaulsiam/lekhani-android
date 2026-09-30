@@ -36,7 +36,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -44,7 +46,11 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Forest
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -70,16 +76,77 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.settings.KeyboardPreferences
+import com.lekhani.android.theme.ChromaMode
 import com.lekhani.android.theme.CustomThemeManager
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeCategory
 import com.lekhani.android.theme.ThemeRegistry
+
+/**
+ * Maps each [ThemeCategory] to a Material 3 vector icon.
+ */
+fun ThemeCategory.getIcon(): ImageVector = when (this) {
+    ThemeCategory.ALL -> Icons.Filled.AutoAwesome
+    ThemeCategory.NEON -> Icons.Filled.Bolt
+    ThemeCategory.AESTHETIC -> Icons.Filled.Palette
+    ThemeCategory.RGB_CHROMA -> Icons.Filled.Animation
+    ThemeCategory.CLASSIC -> Icons.Filled.Star
+    ThemeCategory.CONTRAST_NATURE -> Icons.Filled.Forest
+    ThemeCategory.CUSTOM -> Icons.Filled.Tune
+}
+
+/**
+ * Computes dynamic color transitions for Chroma preview elements in Compose.
+ */
+private fun computeChromaComposeColor(mode: ChromaMode, phase: Float, xRatio: Float = 0.5f): Color {
+    val hsv = FloatArray(3)
+    when (mode) {
+        ChromaMode.RAINBOW_FLOW -> {
+            val hue = (phase * 360f + xRatio * 180f) % 360f
+            hsv[0] = hue
+            hsv[1] = 0.90f
+            hsv[2] = 1.0f
+        }
+        ChromaMode.AURORA_BOREALIS -> {
+            val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
+            hsv[0] = 150f + wave * (280f - 150f)
+            hsv[1] = 0.88f
+            hsv[2] = 1.0f
+        }
+        ChromaMode.SUNSET_HORIZON -> {
+            val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
+            val h = 315f + wave * 80f
+            hsv[0] = if (h >= 360f) h - 360f else h
+            hsv[1] = 0.92f
+            hsv[2] = 1.0f
+        }
+        ChromaMode.COSMIC_NEBULA -> {
+            val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
+            hsv[0] = 230f + wave * (340f - 230f)
+            hsv[1] = 0.88f
+            hsv[2] = 1.0f
+        }
+        ChromaMode.MATRIX_PULSE -> {
+            val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
+            hsv[0] = 115f + wave * (175f - 115f)
+            hsv[1] = 0.95f
+            hsv[2] = 1.0f
+        }
+        ChromaMode.NONE -> {
+            hsv[0] = 0f
+            hsv[1] = 0f
+            hsv[2] = 1.0f
+        }
+    }
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
 
 /**
  * ThemeStudioSheet
@@ -318,9 +385,17 @@ fun ThemeStudioSheet(
                                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                         selectedCategory = cat
                                     },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = cat.getIcon(),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
                                     label = {
                                         val title = if (isEnglish) cat.titleEnglish else cat.titleBengali
-                                        Text("${cat.iconEmoji} $title")
+                                        Text(title)
                                     },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -542,13 +617,40 @@ private fun ThemePreviewCard(
     onDuplicate: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
+    val liveChromaColor = if (theme.isRgbChroma) {
+        val infiniteTransition = rememberInfiniteTransition(label = "CardChroma_${theme.id}")
+        val phase by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 3600, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "CardHue_${theme.id}"
+        )
+        remember(phase, theme.chromaMode) {
+            computeChromaComposeColor(theme.chromaMode, phase, 0.5f)
+        }
+    } else {
+        Color(theme.accentColor)
+    }
+
+    val cardAccentColor = if (theme.isRgbChroma) liveChromaColor else Color(theme.accentColor)
+    val cardBorderColor = if (isSelected) {
+        cardAccentColor
+    } else if (theme.isRgbChroma) {
+        liveChromaColor.copy(alpha = 0.65f)
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .border(
-                width = if (isSelected) 2.5.dp else 1.dp,
-                color = if (isSelected) Color(theme.accentColor) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                width = if (isSelected) 2.5.dp else if (theme.isRgbChroma) 1.5.dp else 1.dp,
+                color = cardBorderColor,
                 shape = RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onSelect),
@@ -570,16 +672,24 @@ private fun ThemePreviewCard(
                         color = Color(theme.labelColor)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Box(
+                    Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(theme.accentColor).copy(alpha = 0.18f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .background(cardAccentColor.copy(alpha = 0.18f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            imageVector = theme.category.getIcon(),
+                            contentDescription = null,
+                            tint = cardAccentColor,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = "${theme.category.iconEmoji} ${if (isEnglish) theme.category.titleEnglish else theme.category.titleBengali}",
+                            text = if (isEnglish) theme.category.titleEnglish else theme.category.titleBengali,
                             fontSize = 10.sp,
-                            color = Color(theme.accentColor),
+                            color = cardAccentColor,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -594,14 +704,32 @@ private fun ThemePreviewCard(
                 ) {
                     ColorSwatchCircle(Color(theme.keyNormalColor), "Key")
                     ColorSwatchCircle(Color(theme.keyShiftColor), "Shift")
-                    ColorSwatchCircle(Color(theme.accentColor), "Accent")
-                    ColorSwatchCircle(Color(theme.keyBorderColor), "Border")
+                    ColorSwatchCircle(cardAccentColor, "Accent")
+                    ColorSwatchCircle(if (theme.isRgbChroma) cardAccentColor else Color(theme.keyBorderColor), "Border")
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (theme.isRgbChroma) "🌈 120 FPS Chroma" else if (theme.isDark) "Dark" else "Light",
-                        fontSize = 11.sp,
-                        color = Color(theme.labelDimColor)
-                    )
+                    if (theme.isRgbChroma) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Animation,
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = liveChromaColor
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = if (isEnglish) "Dynamic Chroma" else "ডাইনামিক ক্রোমা",
+                                fontSize = 11.sp,
+                                color = liveChromaColor,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = if (theme.isDark) "Dark" else "Light",
+                            fontSize = 11.sp,
+                            color = Color(theme.labelDimColor)
+                        )
+                    }
                 }
             }
 
@@ -642,7 +770,7 @@ private fun ThemePreviewCard(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color(theme.accentColor)),
+                            .background(cardAccentColor),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -683,26 +811,22 @@ private fun LiveKeyboardMiniPreview(
     val view = LocalView.current
     var testInput by remember { mutableStateOf("") }
 
-    // Dynamic RGB Rainbow animation for chroma themes
+    // Dynamic RGB animation for chroma themes
+    val infiniteTransition = rememberInfiniteTransition(label = "ChromaFlow")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "PhaseAnim"
+    )
+
     val animatedBorderColor = if (theme.isRgbChroma) {
-        val infiniteTransition = rememberInfiniteTransition(label = "ChromaFlow")
-        val hue by infiniteTransition.animateFloat(
-            initialValue = 0f,
-            targetValue = 360f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 3600, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "HueAnim"
-        )
-        val hsv = remember(hue) {
-            val arr = FloatArray(3)
-            arr[0] = hue
-            arr[1] = 0.85f
-            arr[2] = 1.0f
-            Color(android.graphics.Color.HSVToColor(arr))
+        remember(phase, theme.chromaMode) {
+            computeChromaComposeColor(theme.chromaMode, phase, 0.5f)
         }
-        hsv
     } else {
         Color(theme.keyBorderColor)
     }
@@ -713,7 +837,7 @@ private fun LiveKeyboardMiniPreview(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundColor)),
-        border = BorderStroke(1.5.dp, liveAccentColor.copy(alpha = 0.7f))
+        border = BorderStroke(1.5.dp, liveAccentColor.copy(alpha = 0.85f))
     ) {
         Column(
             modifier = Modifier
@@ -734,14 +858,22 @@ private fun LiveKeyboardMiniPreview(
                         color = Color(theme.labelColor)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Box(
+                    Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
                             .background(liveAccentColor.copy(alpha = 0.2f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            imageVector = theme.category.getIcon(),
+                            contentDescription = null,
+                            tint = liveAccentColor,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = "${theme.category.iconEmoji} ${if (isEnglish) theme.category.titleEnglish else theme.category.titleBengali}",
+                            text = if (isEnglish) theme.category.titleEnglish else theme.category.titleBengali,
                             fontSize = 10.sp,
                             color = liveAccentColor,
                             fontWeight = FontWeight.SemiBold
@@ -817,14 +949,15 @@ private fun LiveKeyboardMiniPreview(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল").forEach { ch ->
+                listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল").forEachIndexed { colIdx, ch ->
+                    val keyBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, colIdx / 7f) else animatedBorderColor
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(30.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(Color(theme.keyNormalColor))
-                            .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                            .border(1.2.dp, keyBorder, RoundedCornerShape(6.dp))
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 testInput += ch
@@ -841,14 +974,15 @@ private fun LiveKeyboardMiniPreview(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক").forEach { ch ->
+                listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক").forEachIndexed { colIdx, ch ->
+                    val keyBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, colIdx / 7f) else animatedBorderColor
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(30.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(Color(theme.keyNormalColor))
-                            .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                            .border(1.2.dp, keyBorder, RoundedCornerShape(6.dp))
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 testInput += ch
@@ -865,13 +999,18 @@ private fun LiveKeyboardMiniPreview(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                val shiftBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 0f) else animatedBorderColor
+                val hasantaBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 0.25f) else animatedBorderColor
+                val spaceBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 0.5f) else animatedBorderColor
+                val enterBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 1.0f) else animatedBorderColor
+
                 Box(
                     modifier = Modifier
                         .weight(1.2f)
                         .height(30.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(theme.keyShiftColor))
-                        .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp)),
+                        .border(1.2.dp, shiftBorder, RoundedCornerShape(6.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("⇧", color = Color(theme.labelDimColor), fontSize = 12.sp)
@@ -882,7 +1021,7 @@ private fun LiveKeyboardMiniPreview(
                         .height(30.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(theme.keyHasantaColor))
-                        .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                        .border(1.2.dp, hasantaBorder, RoundedCornerShape(6.dp))
                         .clickable {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             testInput += "্"
@@ -897,7 +1036,7 @@ private fun LiveKeyboardMiniPreview(
                         .height(30.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color(theme.keySpaceColor))
-                        .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                        .border(1.2.dp, spaceBorder, RoundedCornerShape(6.dp))
                         .clickable {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             testInput += " "
@@ -916,7 +1055,7 @@ private fun LiveKeyboardMiniPreview(
                         .height(30.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(liveAccentColor)
-                        .border(1.dp, animatedBorderColor, RoundedCornerShape(6.dp))
+                        .border(1.2.dp, enterBorder, RoundedCornerShape(6.dp))
                         .clickable {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             if (testInput.isNotEmpty()) testInput = testInput.dropLast(1)

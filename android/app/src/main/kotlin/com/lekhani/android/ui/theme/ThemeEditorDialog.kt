@@ -20,8 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -243,15 +245,23 @@ fun ThemeEditorDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val badgeColor = if (isContrastPass) Color(0xFF2E7D32) else Color(0xFFD84315)
-                    Box(
+                    Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .background(badgeColor.copy(alpha = 0.15f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            imageVector = if (isContrastPass) Icons.Filled.Check else Icons.Filled.Warning,
+                            contentDescription = null,
+                            tint = badgeColor,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isContrastPass) "✓ WCAG AA Passed (${String.format("%.1f", textContrast)}:1)"
-                                   else "⚠️ Low Contrast (${String.format("%.1f", textContrast)}:1)",
+                            text = if (isContrastPass) "WCAG AA Passed (${String.format("%.1f", textContrast)}:1)"
+                                   else "Low Contrast (${String.format("%.1f", textContrast)}:1)",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = badgeColor
@@ -268,13 +278,24 @@ fun ThemeEditorDialog(
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
-                            Text(
-                                text = if (isEnglish) "⚡ Auto-Fix" else "⚡ সমাধান",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Bolt,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = if (isEnglish) "Auto-Fix" else "সমাধান",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
                         }
                     } else {
                         Spacer(modifier = Modifier.width(8.dp))

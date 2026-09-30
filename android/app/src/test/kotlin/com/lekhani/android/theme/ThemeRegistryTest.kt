@@ -12,7 +12,7 @@ class ThemeRegistryTest {
     fun testPresetThemesIntegrity() {
         val presets = ThemeRegistry.PRESET_THEMES
         assertTrue(presets.isNotEmpty())
-        assertEquals(22, presets.size)
+        assertEquals(23, presets.size)
 
         val flowTeal = presets.find { it.id == ThemeRegistry.ID_FLOW_TEAL }
         assertNotNull(flowTeal)
@@ -60,10 +60,12 @@ class ThemeRegistryTest {
         assertNotNull(cyberpunk)
         assertEquals(ThemeCategory.NEON, cyberpunk!!.category)
 
-        val rgbFlow = presets.find { it.id == ThemeRegistry.ID_RGB_CHROMA_FLOW }
-        assertNotNull(rgbFlow)
-        assertTrue(rgbFlow!!.isRgbChroma)
-        assertEquals(ThemeCategory.RGB_CHROMA, rgbFlow.category)
+        val chromaThemes = presets.filter { it.category == ThemeCategory.RGB_CHROMA }
+        assertEquals(5, chromaThemes.size)
+        for (ct in chromaThemes) {
+            assertTrue("Chroma theme ${ct.id} must have isRgbChroma = true", ct.isRgbChroma)
+            assertTrue("Chroma theme ${ct.id} must have non-NONE chromaMode", ct.chromaMode != ChromaMode.NONE)
+        }
     }
 
     @Test
@@ -84,6 +86,7 @@ class ThemeRegistryTest {
             nameEnglish = "Experimental Teal",
             isCustom = true,
             isRgbChroma = true,
+            chromaMode = ChromaMode.COSMIC_NEBULA,
             category = ThemeCategory.RGB_CHROMA
         )
         val json = original.toJson()
@@ -98,6 +101,7 @@ class ThemeRegistryTest {
         assertEquals(original.isDark, restored.isDark)
         assertTrue(restored.isCustom)
         assertTrue(restored.isRgbChroma)
+        assertEquals(ChromaMode.COSMIC_NEBULA, restored.chromaMode)
         assertEquals(ThemeCategory.RGB_CHROMA, restored.category)
     }
 

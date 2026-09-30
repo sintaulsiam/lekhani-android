@@ -27,6 +27,7 @@ import com.lekhani.android.feedback.LekhaniFeedbackManager
 import com.lekhani.android.model.Key
 import com.lekhani.android.model.KeyAction
 import com.lekhani.android.model.KeyboardLayout
+import com.lekhani.android.theme.ChromaMode
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeRegistry
 
@@ -314,6 +315,62 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     // Pre-allocated array for zero-allocation dynamic 120 FPS RGB Chroma calculation
     private val rgbHsv = FloatArray(3)
+
+    /**
+     * Computes the dynamic RGB Chroma color based on [mode], animation timestamp [now],
+     * and horizontal position ratio [xRatio] (0f..1f) across keyboard surface.
+     * Reuses pre-allocated [rgbHsv] for zero allocations inside the 120 FPS hot path.
+     */
+    private fun getChromaColor(mode: ChromaMode, now: Long, xRatio: Float = 0.5f): Int {
+        val cycleDuration = when (mode) {
+            ChromaMode.RAINBOW_FLOW -> 3600L
+            ChromaMode.AURORA_BOREALIS -> 4200L
+            ChromaMode.SUNSET_HORIZON -> 4000L
+            ChromaMode.COSMIC_NEBULA -> 3800L
+            ChromaMode.MATRIX_PULSE -> 2800L
+            ChromaMode.NONE -> 3600L
+        }
+        val phase = ((now % cycleDuration).toFloat() / cycleDuration.toFloat())
+        when (mode) {
+            ChromaMode.RAINBOW_FLOW -> {
+                val hue = (phase * 360f + xRatio * 180f) % 360f
+                rgbHsv[0] = hue
+                rgbHsv[1] = 0.90f
+                rgbHsv[2] = 1.0f
+            }
+            ChromaMode.AURORA_BOREALIS -> {
+                val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
+                rgbHsv[0] = 150f + wave * (280f - 150f)
+                rgbHsv[1] = 0.88f
+                rgbHsv[2] = 1.0f
+            }
+            ChromaMode.SUNSET_HORIZON -> {
+                val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
+                val h = 315f + wave * 80f
+                rgbHsv[0] = if (h >= 360f) h - 360f else h
+                rgbHsv[1] = 0.92f
+                rgbHsv[2] = 1.0f
+            }
+            ChromaMode.COSMIC_NEBULA -> {
+                val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
+                rgbHsv[0] = 230f + wave * (340f - 230f)
+                rgbHsv[1] = 0.88f
+                rgbHsv[2] = 1.0f
+            }
+            ChromaMode.MATRIX_PULSE -> {
+                val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
+                rgbHsv[0] = 115f + wave * (175f - 115f)
+                rgbHsv[1] = 0.95f
+                rgbHsv[2] = 1.0f
+            }
+            ChromaMode.NONE -> {
+                rgbHsv[0] = 0f
+                rgbHsv[1] = 0f
+                rgbHsv[2] = 1f
+            }
+        }
+        return Color.HSVToColor(rgbHsv)
+    }
 
     // Key labels
     private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -1333,16 +1390,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         val now = SystemClock.uptimeMillis()
+        var centerChromaColor = 0
         if (activeTheme.isRgbChroma) {
-            val hue = ((now % 3600L).toFloat() / 3600f) * 360f
-            rgbHsv[0] = hue
-            rgbHsv[1] = 0.85f
-            rgbHsv[2] = 1.0f
-            val chromaColor = Color.HSVToColor(rgbHsv)
-            keyBorderPaint.color = chromaColor
-            homeRowAccentPaint.color = chromaColor
-            keyGlowPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(chromaColor, 0x80)
-            spaceSlideThumbPaint.color = chromaColor
+            centerChromaColor = getChromaColor(activeTheme.chromaMode, now, 0.5f)
+            keyBorderPaint.color = centerChromaColor
+            keyBorderPaint.strokeWidth = 1.6f * cachedDensity
+            homeRowAccentPaint.color = centerChromaColor
+            keyGlowPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(centerChromaColor, 0x80)
+            spaceSlideThumbPaint.color = centerChromaColor
             postInvalidateOnAnimation()
         }
         // Use the cached density — never call resources.displayMetrics in onDraw (120 FPS hot path)
@@ -1417,8 +1472,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
             // Draw key background with rounded corners
             canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, bgPaint)
 
-            // Draw key border
-            if (showKeyBorders) {
+            // Draw key border (enabled by user preference OR automatically illuminated on 120 FPS RGB Chroma themes)
+            if (showKeyBorders || activeTheme.isRgbChroma) {
+                if (activeTheme.isRgbChroma) {
+                    val xRatio = if (width > 0) (drawBounds.centerX() / width.toFloat()).coerceIn(0f, 1f) else 0.5f
+                    keyBorderPaint.color = getChromaColor(activeTheme.chromaMode, now, xRatio)
+                }
                 canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, keyBorderPaint)
             }
 
@@ -1464,7 +1523,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 KeyAction.Enter -> {
                     val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
+                    if (activeTheme.isRgbChroma) {
+                        vectorIconStrokePaint.color = keyBorderPaint.color
+                    }
                     drawVectorEnter(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                    if (activeTheme.isRgbChroma) {
+                        vectorIconStrokePaint.color = activeTheme.labelColor
+                    }
                 }
                 KeyAction.SwitchLayout -> {
                     val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
