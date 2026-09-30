@@ -108,18 +108,19 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
     })
 }
 
-/// Transliterates Romanized ASCII text to Bengali script using `lekhani-parser` Trie grammar rules,
-/// bilingual loanword dictionary, and phonetic database.
-/// Returns a tuple of (primary_transliteration, list_of_candidates).
-pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
+/// Transliterates Romanized ASCII text to Bengali script using `lekhani-core`'s
+/// production PhoneticSuggestion engine, bilingual loanwords, and Avro Trie parser.
+///
+/// Returns (primary_transliteration, list_of_candidates).
+pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String, Vec<String>) {
     if input.is_empty() {
         return (String::new(), Vec::new());
     }
 
     let lower = input.to_lowercase();
+    let db = crate::session::get_core_database();
 
     // -1. User-defined explicit autocorrect / shortcut rules
-    let db = crate::session::get_core_database();
     if let Ok(uac) = db.user_autocorrect.read() {
         if let Some(replacement) = uac.get(input).or_else(|| uac.get(&lower)) {
             let primary = replacement.clone();
@@ -134,84 +135,51 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
         }
     }
 
-    // 0. User candidate override memory (personal learned overrides)
+    // 0. User candidate override memory
+    let mut candidate_memory = HashMap::new();
     if let Ok(learner) = db.learner.read() {
         if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
-            let primary = user_choice.clone();
-            let mut candidates = vec![primary.clone()];
-            let parser = get_avro_parser();
-            let def = parser.convert(input);
-            if def != primary {
-                candidates.push(def);
-            }
-            append_prefix_matches(&primary, &mut candidates);
-            return (primary, candidates);
+            candidate_memory.insert(input.to_string(), user_choice.clone());
         }
     }
 
-    // 1. Bilingual Loanword Dictionary (e.g. "shirt" -> "শার্ট", "copy" -> "কপি", "password" -> "পাসওয়ার্ড")
-    if let Some((bn_loan, en_loan)) = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower) {
-        let primary = bn_loan.to_string();
-        let mut candidates = vec![primary.clone()];
+    // 1. Upstream PhoneticSuggestion Engine:
+    // Performs Chandra Bindu normalization ("c^ad" -> "চাঁদ"),
+    // Sanskrit and sound-law conjuncts ("sotyo" -> "সত্য", "mrittu" -> "মৃত্যু", "shuryo" -> "সূর্য"),
+    // vowel/kar normalization ("dure" -> "দূরে", "tomake" -> "তোমাকে", "boiti" -> "বইটি"),
+    // loanwords ("shirt" -> "শার্ট", "password" -> "পাসওয়ার্ড"),
+    // and statistical context ranking.
+    let sugg_mutex = crate::session::get_phonetic_suggestion();
+    let (mut candidates, selected_idx) = {
+        let mut sugg = match sugg_mutex.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        sugg.suggest_with_multi_context(
+            input,
+            context,
+            false,
+            true,
+            &candidate_memory,
+        )
+    };
+
+    if candidates.is_empty() {
         let parser = get_avro_parser();
         let def = parser.convert(input);
-        if def != primary && !candidates.contains(&def) {
-            candidates.push(def);
-        }
-        if !candidates.iter().any(|c| c == en_loan) {
-            candidates.push(en_loan.to_string());
-        }
-        append_prefix_matches(&primary, &mut candidates);
-        return (primary, candidates);
+        candidates.push(def);
     }
 
-    // 2. Exact common word match with prefix autocomplete expansion
-    if let Some(&words) = get_common_words().get(input) {
-        let primary = words[0].to_string();
-        let mut candidates: Vec<String> = words.iter().map(|&s| s.to_string()).collect();
-        append_prefix_matches(&primary, &mut candidates);
-        return (primary, candidates);
-    }
-    if let Some(&words) = get_common_words().get(lower.as_str()) {
-        let primary = words[0].to_string();
-        let mut candidates: Vec<String> = words.iter().map(|&s| s.to_string()).collect();
-        append_prefix_matches(&primary, &mut candidates);
-        return (primary, candidates);
-    }
-
-    // 3. Upstream lekhani-parser Trie grammar engine (11 ns/char)
-    let parser = get_avro_parser();
-    let primary = parser.convert(input);
-    let mut candidates = vec![primary.clone()];
-
-    // Generate alternate phonetic candidates for casual mobile typing:
-    // 3a. 'r' <-> 'R' (র vs ড়) homophone expansion (e.g. "pora" -> "পরা" and "পড়া")
-    if input.contains('r') && !input.contains("rr") {
-        let alt_r = parser.convert(&input.replace('r', "R"));
-        if alt_r != primary && !candidates.contains(&alt_r) {
-            candidates.push(alt_r);
-        }
-    } else if input.contains('R') {
-        let alt_r = parser.convert(&input.replace('R', "r"));
-        if alt_r != primary && !candidates.contains(&alt_r) {
-            candidates.push(alt_r);
+    // 2. Ensure core common words are present in candidate list for classic muscle memory
+    if let Some(&words) = get_common_words().get(input).or_else(|| get_common_words().get(lower.as_str())) {
+        for &w in words {
+            if !candidates.contains(&w.to_string()) {
+                candidates.push(w.to_string());
+            }
         }
     }
 
-    // 3b. 'sh' <-> 's' (শ vs স) alternation
-    if input.contains("sh") || input.contains('s') {
-        let alt_input = if input.contains("sh") {
-            input.replace("sh", "s")
-        } else {
-            input.replace('s', "sh")
-        };
-        let alt = parser.convert(&alt_input);
-        if alt != primary && !candidates.contains(&alt) {
-            candidates.push(alt);
-        }
-    }
-
-    // 4. QWERTY adjacency auto-correction for fat-finger typos
+    // 3. QWERTY adjacency auto-correction for fat-finger typos on touchscreen
     if lower.len() >= 3 {
         let chars: Vec<char> = lower.chars().collect();
         for (i, &ch) in chars.iter().enumerate() {
@@ -230,10 +198,21 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
         }
     }
 
-    // 5. Core database PrefixTrie lookup to expand matching vocabulary
+    let primary = if selected_idx < candidates.len() {
+        candidates[selected_idx].clone()
+    } else {
+        candidates[0].clone()
+    };
+
+    // 4. Core database PrefixTrie lookup to expand matching vocabulary
     append_prefix_matches(&primary, &mut candidates);
 
     (primary, candidates)
+}
+
+/// Convenience wrapper for zero-context transliteration
+pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
+    transliterate_avro_with_context(input, &[])
 }
 
 fn append_prefix_matches(primary: &str, candidates: &mut Vec<String>) {
@@ -335,5 +314,80 @@ mod tests {
         let (_, cands_pora) = transliterate_avro("pora");
         assert!(cands_pora.contains(&"পরা".to_string()));
         assert!(cands_pora.contains(&"পড়া".to_string()));
+    }
+
+    #[test]
+    fn test_avro_complex_and_common_fidelity() {
+        // 1. Chandra Bindu normalization
+        let (cad, _) = transliterate_avro("c^ad");
+        assert_eq!(cad, "চাঁদ", "c^ad should transliterate to চাঁদ");
+        let (ca_d, _) = transliterate_avro("ca^d");
+        assert_eq!(ca_d, "চাঁদ", "ca^d should transliterate to চাঁদ");
+        let (ch_ad, _) = transliterate_avro("ch^ad");
+        assert_eq!(ch_ad, "ছাঁদ", "ch^ad should transliterate to ছাঁদ");
+        let (kada, _) = transliterate_avro("k^ada");
+        assert_eq!(kada, "কাঁদা", "k^ada should transliterate to কাঁদা");
+        let (bash, _) = transliterate_avro("b^ash");
+        assert_eq!(bash, "বাঁশ", "b^ash should transliterate to বাঁশ");
+
+        // 2. Vowel and Kar normalization
+        let (dure, _) = transliterate_avro("dure");
+        assert_eq!(dure, "দূরে", "dure should transliterate to দূরে");
+        let (d_ure, _) = transliterate_avro("dUre");
+        assert_eq!(d_ure, "দূরে", "dUre should transliterate to দূরে");
+        let (dur, _) = transliterate_avro("dur");
+        assert_eq!(dur, "দূর", "dur should transliterate to দূর");
+        let (d_ur, _) = transliterate_avro("dUr");
+        assert_eq!(d_ur, "দূর", "dUr should transliterate to দূর");
+        let (tomake, _) = transliterate_avro("tomake");
+        assert_eq!(tomake, "তোমাকে", "tomake should transliterate to তোমাকে");
+        let (t_omake, _) = transliterate_avro("tOmake");
+        assert_eq!(t_omake, "তোমাকে", "tOmake should transliterate to তোমাকে");
+        let (boiti, _) = transliterate_avro("boiti");
+        assert_eq!(boiti, "বইটি", "boiti should transliterate to কোনটি");
+
+        // 3. Sanskrit & Sound-Law Complex Conjuncts
+        let (sotyo, _) = transliterate_avro("sotyo");
+        assert_eq!(sotyo, "সত্য", "sotyo should transliterate to সত্য");
+        let (mrittu, _) = transliterate_avro("mrittu");
+        assert_eq!(mrittu, "মৃত্যু", "mrittu should transliterate to মৃত্যু");
+        let (mrittyu, _) = transliterate_avro("mrittyu");
+        assert_eq!(mrittyu, "মৃত্যু", "mrittyu should transliterate to মৃত্যু");
+        let (shuryo, _) = transliterate_avro("shuryo");
+        assert_eq!(shuryo, "সূর্য", "shuryo should transliterate to সূর্য");
+        let (nomoshkar, _) = transliterate_avro("nomoshkar");
+        assert_eq!(nomoshkar, "নমস্কার", "nomoshkar should transliterate to নমস্কার");
+        let (porishkar, _) = transliterate_avro("porishkar");
+        assert_eq!(porishkar, "পরিষ্কার", "porishkar should transliterate to পরিষ্কার");
+        let (puroshkar, _) = transliterate_avro("puroshkar");
+        assert_eq!(puroshkar, "পুরস্কার", "puroshkar should transliterate to পুরস্কার");
+        let (abishkar, _) = transliterate_avro("abishkar");
+        assert_eq!(abishkar, "আবিষ্কার", "abishkar should transliterate to আবিষ্কার");
+        let (lokkhi, _) = transliterate_avro("lokkhi");
+        assert_eq!(lokkhi, "লক্ষ্মী", "lokkhi should transliterate to লক্ষ্মী");
+        let (rokkha, _) = transliterate_avro("rokkha");
+        assert_eq!(rokkha, "রক্ষা", "rokkha should transliterate to রক্ষা");
+        let (bhabishshot, _) = transliterate_avro("bhabishshot");
+        assert_eq!(bhabishshot, "ভবিষ্যৎ", "bhabishshot should transliterate to ভবিষ্যৎ");
+        let (shobcheye, _) = transliterate_avro("shobcheye");
+        assert!(shobcheye == "সবচেয়ে" || shobcheye == "সবচেয়ে", "shobcheye should transliterate to সবচেয়ে");
+        let (chikitshok, _) = transliterate_avro("chikitshok");
+        assert_eq!(chikitshok, "চিকিৎসক", "chikitshok should transliterate to চিকিৎসক");
+        let (ahban, _) = transliterate_avro("ahban");
+        assert_eq!(ahban, "আহ্বান", "ahban should transliterate to আহ্বান");
+        let (jihba, _) = transliterate_avro("jihba");
+        assert_eq!(jihba, "জিহ্বা", "jihba should transliterate to জিহ্বা");
+        let (chinho, _) = transliterate_avro("chinho");
+        assert_eq!(chinho, "চিহ্ন", "chinho should transliterate to চিহ্ন");
+        let (totto, _) = transliterate_avro("totto");
+        assert_eq!(totto, "তত্ত্ব", "totto should transliterate to তত্ত্ব");
+        let (ucchash, _) = transliterate_avro("ucchash");
+        assert_eq!(ucchash, "উচ্ছ্বাস", "ucchash should transliterate to উচ্ছ্বাস");
+        let (protiddhoni, _) = transliterate_avro("protiddhoni");
+        assert_eq!(protiddhoni, "প্রতিধ্বনি", "protiddhoni should transliterate to প্রতিধ্বনি");
+        let (bhalobasha, _) = transliterate_avro("bhalobasha");
+        assert_eq!(bhalobasha, "ভালোবাসা", "bhalobasha should transliterate to ভালোবাসা");
+        let (valobasha, _) = transliterate_avro("valobasha");
+        assert_eq!(valobasha, "ভালোবাসা", "valobasha should transliterate to ভালোবাসা");
     }
 }

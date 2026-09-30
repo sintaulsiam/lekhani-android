@@ -84,6 +84,56 @@ pub fn get_next_word_predictor() -> &'static lekhani_ai::NextWordPredictor {
     })
 }
 
+static PHONETIC_SUGGESTION: OnceLock<Mutex<lekhani_core::phonetic::PhoneticSuggestion>> = OnceLock::new();
+
+pub fn get_phonetic_suggestion() -> &'static Mutex<lekhani_core::phonetic::PhoneticSuggestion> {
+    PHONETIC_SUGGESTION.get_or_init(|| {
+        let db = get_core_database();
+        let scorer = get_context_scorer();
+        let predictor = get_next_word_predictor();
+        let mut sugg = lekhani_core::phonetic::PhoneticSuggestion::new();
+        sugg.database = db.clone();
+        sugg.ai_context = scorer.clone();
+        sugg.ai_predictor = predictor.clone();
+
+        let layout_candidates = [
+            std::path::Path::new("/data/data/com.lekhani.android/files/layouts/avrophonetic.json"),
+            std::path::Path::new("/data/data/com.lekhani.android.debug/files/layouts/avrophonetic.json"),
+            std::path::Path::new("/data/user/0/com.lekhani.android/files/layouts/avrophonetic.json"),
+            std::path::Path::new("/data/user/0/com.lekhani.android.debug/files/layouts/avrophonetic.json"),
+            std::path::Path::new("/data/user_de/0/com.lekhani.android/files/layouts/avrophonetic.json"),
+            std::path::Path::new("/data/user_de/0/com.lekhani.android.debug/files/layouts/avrophonetic.json"),
+            std::path::Path::new("./data/layouts/avrophonetic.json"),
+            std::path::Path::new("../data/layouts/avrophonetic.json"),
+            std::path::Path::new("../../data/layouts/avrophonetic.json"),
+        ];
+        if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
+            let parent = std::path::Path::new(custom_dir).parent();
+            if let Some(p) = parent {
+                let layout_path = p.join("layouts/avrophonetic.json");
+                if layout_path.is_file() {
+                    if let Ok(content) = std::fs::read_to_string(&layout_path) {
+                        if let Ok(json) = serde_json::from_str(&content) {
+                            sugg.set_layout(&json);
+                        }
+                    }
+                }
+            }
+        }
+        for path in layout_candidates {
+            if path.is_file() {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    if let Ok(json) = serde_json::from_str(&content) {
+                        sugg.set_layout(&json);
+                        break;
+                    }
+                }
+            }
+        }
+        Mutex::new(sugg)
+    })
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Public data types exported to Kotlin via UniFFI
 // ──────────────────────────────────────────────────────────────────────────────
@@ -445,9 +495,13 @@ impl AndroidLekhaniSession {
 
             LekhaniLayoutType::Avro => {
                 state.composing_buffer.push_str(&key);
-                let (mut preedit, mut candidates) = crate::avro::transliterate_avro(&state.composing_buffer);
-                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
-                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                let words: Vec<&str> = if !state.surrounding_context.is_empty() {
+                    state.surrounding_context.split_whitespace().collect()
+                } else {
+                    Vec::new()
+                };
+                let (mut preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, &words);
+                if !words.is_empty() && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                     if let Some(top) = candidates.first() {
@@ -649,9 +703,13 @@ impl AndroidLekhaniSession {
         match state.layout {
             LekhaniLayoutType::Avro => {
                 let raw_token = keys.join("");
-                let (_preedit, mut candidates) = crate::avro::transliterate_avro(&raw_token);
-                if !state.surrounding_context.is_empty() && candidates.len() > 1 {
-                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                let words: Vec<&str> = if !state.surrounding_context.is_empty() {
+                    state.surrounding_context.split_whitespace().collect()
+                } else {
+                    Vec::new()
+                };
+                let (_preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw_token, &words);
+                if !words.is_empty() && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
                 }
@@ -981,7 +1039,19 @@ impl AndroidLekhaniSession {
                         cursor_position: 0,
                     })
                 } else {
-                    let (preedit, candidates) = crate::avro::transliterate_avro(&state.composing_buffer);
+                    let words: Vec<&str> = if !state.surrounding_context.is_empty() {
+                        state.surrounding_context.split_whitespace().collect()
+                    } else {
+                        Vec::new()
+                    };
+                    let (mut preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, &words);
+                    if !words.is_empty() && candidates.len() > 1 {
+                        let scorer = get_context_scorer();
+                        candidates = scorer.rank_candidates(&words, &candidates);
+                        if let Some(top) = candidates.first() {
+                            preedit = top.clone();
+                        }
+                    }
                     let len = preedit.graphemes(true).count() as u32;
                     Ok(TypingResult {
                         preedit,
