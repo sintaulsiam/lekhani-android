@@ -19,7 +19,6 @@ import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
@@ -41,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.theme.KeyboardTheme
@@ -49,13 +49,11 @@ import com.lekhani.android.theme.KeyboardTheme
  * Text & Cursor Editor Sheet
  * Provides a dedicated navigation D-pad, precise character/word cursor traversal,
  * text selection mode, and clipboard actions (Cut, Copy, Paste, Select All).
- *
- * Designed to ensure full text navigation capability even when the spacebar is
- * assigned to layout switching.
  */
 @Composable
 fun TextEditorSheetView(
     theme: KeyboardTheme,
+    sheetHeight: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.Dp.Unspecified,
     isEnglish: Boolean = false,
     onMoveLeft: (select: Boolean) -> Unit,
     onMoveRight: (select: Boolean) -> Unit,
@@ -72,13 +70,16 @@ fun TextEditorSheetView(
     onClose: () -> Unit,
 ) {
     var isSelectActive by remember { mutableStateOf(false) }
+    val heightModifier = if (sheetHeight.value > 0f) Modifier.height(sheetHeight) else Modifier
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .then(heightModifier)
             .background(Color(theme.backgroundColor))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween,
     ) {
         // ── Header Bar ────────────────────────────────────────────────────────
         Row(
@@ -93,12 +94,12 @@ fun TextEditorSheetView(
                     imageVector = Icons.Filled.OpenWith,
                     contentDescription = null,
                     tint = Color(theme.accentColor),
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(18.dp),
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isEnglish) "Text Navigation & Editor" else "কার্সার ও টেক্সট এডিটর (Text Navigation)",
-                    fontSize = 14.sp,
+                    text = if (isEnglish) "Text Navigation & Editor" else "কার্সার ও টেক্সট এডিটর",
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(theme.labelColor),
                 )
@@ -118,7 +119,7 @@ fun TextEditorSheetView(
                         imageVector = Icons.Filled.Keyboard,
                         contentDescription = if (isEnglish) "Back to Keyboard" else "কীবোর্ডে ফিরুন",
                         tint = Color(theme.labelColor),
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(15.dp),
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -131,48 +132,115 @@ fun TextEditorSheetView(
             }
         }
 
-        // ── Main Controller Grid ──────────────────────────────────────────────
+        // ── Top Action Strip: 5 uniform actions (Select, Select All, Cut, Copy, Paste) ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Left Column: Quick jumps & Select All
+            // Select Mode Toggle
+            ActionStripButton(
+                label = if (isSelectActive) {
+                    if (isEnglish) "Selecting" else "নির্বাচন"
+                } else {
+                    if (isEnglish) "Select" else "নির্বাচন"
+                },
+                icon = if (isSelectActive) Icons.Filled.SelectAll else null,
+                isActive = isSelectActive,
+                theme = theme,
+                modifier = Modifier.weight(1.1f),
+                onClick = { isSelectActive = !isSelectActive },
+            )
+
+            // Select All
+            ActionStripButton(
+                label = if (isEnglish) "Select All" else "সব নির্বাচন",
+                icon = Icons.Filled.SelectAll,
+                theme = theme,
+                modifier = Modifier.weight(1.2f),
+                onClick = {
+                    onSelectAll()
+                    isSelectActive = true
+                },
+            )
+
+            // Cut
+            ActionStripButton(
+                label = if (isEnglish) "Cut" else "কাট",
+                icon = Icons.Filled.ContentCut,
+                theme = theme,
+                modifier = Modifier.weight(0.9f),
+                onClick = {
+                    onCut()
+                    isSelectActive = false
+                },
+            )
+
+            // Copy
+            ActionStripButton(
+                label = if (isEnglish) "Copy" else "কপি",
+                icon = Icons.Filled.ContentCopy,
+                theme = theme,
+                modifier = Modifier.weight(0.9f),
+                onClick = {
+                    onCopy()
+                    isSelectActive = false
+                },
+            )
+
+            // Paste
+            ActionStripButton(
+                label = if (isEnglish) "Paste" else "পেস্ট",
+                icon = Icons.Filled.ContentPaste,
+                theme = theme,
+                modifier = Modifier.weight(0.9f),
+                onClick = {
+                    onPaste()
+                    isSelectActive = false
+                },
+            )
+        }
+
+        // ── Main Controller Grid: Left Column, Center D-Pad, Right Column ──────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Left Column: Home and Delete
             Column(
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                EditorPillButton(
+                EditorSideButton(
                     label = if (isEnglish) "Home" else "শুরু (Home)",
                     theme = theme,
                     onClick = { onMoveHome(isSelectActive) },
                 )
-                EditorPillButton(
-                    label = if (isSelectActive) {
-                        if (isEnglish) "✓ Selecting" else "✓ নির্বাচন চালু"
-                    } else {
-                        if (isEnglish) "Select Mode" else "নির্বাচন মোড"
+                EditorSideButton(
+                    label = if (isEnglish) "Delete" else "মুছুন",
+                    icon = Icons.AutoMirrored.Filled.Backspace,
+                    isDestructive = true,
+                    theme = theme,
+                    onClick = {
+                        onBackspace()
+                        isSelectActive = false
                     },
-                    theme = theme,
-                    isActive = isSelectActive,
-                    onClick = { isSelectActive = !isSelectActive },
-                )
-                EditorPillButton(
-                    label = if (isEnglish) "Select All" else "সব নির্বাচন",
-                    icon = Icons.Filled.SelectAll,
-                    theme = theme,
-                    onClick = onSelectAll,
                 )
             }
 
-            // Center Column: 4-Way D-Pad
+            // Center Column: 3x3 Unified Directional D-Pad
             Column(
+                modifier = Modifier.padding(horizontal = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                // Up
+                // Top: Up
                 DPadArrowButton(
                     icon = Icons.Filled.KeyboardArrowUp,
                     theme = theme,
@@ -180,9 +248,9 @@ fun TextEditorSheetView(
                     onClick = { onMoveUp(isSelectActive) },
                 )
 
-                // Left, Center Dot/Status, Right
+                // Mid row: Left, Center Dot/SEL, Right
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     DPadArrowButton(
@@ -192,15 +260,16 @@ fun TextEditorSheetView(
                         onClick = { onMoveLeft(isSelectActive) },
                     )
 
-                    // Center Dot indicating active selection status
+                    // Center Dot indicating active selection status, toggles on click
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(
                                 if (isSelectActive) Color(theme.accentColor)
                                 else Color(theme.keyNormalColor)
-                            ),
+                            )
+                            .clickable { isSelectActive = !isSelectActive },
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -219,7 +288,7 @@ fun TextEditorSheetView(
                     )
                 }
 
-                // Down
+                // Bottom: Down
                 DPadArrowButton(
                     icon = Icons.Filled.KeyboardArrowDown,
                     theme = theme,
@@ -228,119 +297,129 @@ fun TextEditorSheetView(
                 )
             }
 
-            // Right Column: Line End & Editing
+            // Right Column: End and Enter
             Column(
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                EditorPillButton(
+                EditorSideButton(
                     label = if (isEnglish) "End" else "শেষ (End)",
                     theme = theme,
                     onClick = { onMoveEnd(isSelectActive) },
                 )
-                EditorPillButton(
-                    label = if (isEnglish) "Cut" else "কাট (Cut)",
-                    icon = Icons.Filled.ContentCut,
+                EditorSideButton(
+                    label = if (isEnglish) "Enter" else "নতুন লাইন",
+                    icon = Icons.AutoMirrored.Filled.KeyboardReturn,
+                    isAccent = true,
                     theme = theme,
-                    onClick = onCut,
-                )
-                EditorPillButton(
-                    label = if (isEnglish) "Copy" else "কপি (Copy)",
-                    icon = Icons.Filled.ContentCopy,
-                    theme = theme,
-                    onClick = onCopy,
+                    onClick = {
+                        onEnter()
+                        isSelectActive = false
+                    },
                 )
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // ── Bottom Action Row (Paste, Backspace, Enter) ────────────────────────
+@Composable
+private fun ActionStripButton(
+    label: String,
+    theme: KeyboardTheme,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    isActive: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .height(32.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (isActive) Color(theme.accentColor)
+                else Color(theme.keyNormalColor)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
         ) {
-            // Paste
-            Box(
-                modifier = Modifier
-                    .weight(1.2f)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(theme.keyNormalColor))
-                    .clickable { onPaste() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.ContentPaste,
-                        contentDescription = if (isEnglish) "Paste" else "পেস্ট",
-                        tint = Color(theme.accentColor),
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isEnglish) "Paste" else "পেস্ট (Paste)",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(theme.labelColor),
-                    )
-                }
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = if (isActive) Color(theme.backgroundColor) else Color(theme.labelColor),
+                    modifier = Modifier.size(13.dp),
+                )
+                Spacer(modifier = Modifier.width(3.dp))
             }
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                color = if (isActive) Color(theme.backgroundColor) else Color(theme.labelColor),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
 
-            // Backspace
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(theme.keyShiftColor))
-                    .clickable { onBackspace() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Backspace,
-                        contentDescription = if (isEnglish) "Delete" else "ব্যাকস্পেস",
-                        tint = Color(theme.labelColor),
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (isEnglish) "Delete" else "মুছুন",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(theme.labelColor),
-                    )
-                }
+@Composable
+private fun EditorSideButton(
+    label: String,
+    theme: KeyboardTheme,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    isDestructive: Boolean = false,
+    isAccent: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val bgColor = when {
+        isAccent -> Color(theme.accentColor)
+        isDestructive -> Color(theme.keyShiftColor)
+        else -> Color(theme.keyNormalColor)
+    }
+    val contentColor = when {
+        isAccent -> Color(theme.backgroundColor)
+        isDestructive -> Color(0xFFFF5252)
+        else -> Color(theme.labelColor)
+    }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(38.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(bgColor)
+            .clickable { onClick() }
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = contentColor,
+                    modifier = Modifier.size(15.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
             }
-
-            // Enter
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(theme.accentColor))
-                    .clickable { onEnter() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardReturn,
-                        contentDescription = if (isEnglish) "Enter" else "নতুন লাইন",
-                        tint = Color(theme.backgroundColor),
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = if (isEnglish) "Enter" else "নতুন লাইন",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(theme.backgroundColor),
-                    )
-                }
-            }
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -354,8 +433,8 @@ private fun DPadArrowButton(
 ) {
     Box(
         modifier = Modifier
-            .size(46.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .size(38.dp)
+            .clip(RoundedCornerShape(10.dp))
             .background(Color(theme.keyNormalColor))
             .clickable { onClick() },
         contentAlignment = Alignment.Center,
@@ -364,52 +443,7 @@ private fun DPadArrowButton(
             imageVector = icon,
             contentDescription = contentDesc,
             tint = Color(theme.labelColor),
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(22.dp),
         )
-    }
-}
-
-@Composable
-private fun EditorPillButton(
-    label: String,
-    theme: KeyboardTheme,
-    icon: ImageVector? = null,
-    isActive: Boolean = false,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .width(105.dp)
-            .height(38.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(
-                if (isActive) Color(theme.accentColor)
-                else Color(theme.keyNormalColor)
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = if (isActive) Color(theme.backgroundColor) else Color(theme.labelColor),
-                    modifier = Modifier.size(15.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-            Text(
-                text = label,
-                fontSize = 11.5.sp,
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                color = if (isActive) Color(theme.backgroundColor) else Color(theme.labelColor),
-                maxLines = 1,
-            )
-        }
     }
 }

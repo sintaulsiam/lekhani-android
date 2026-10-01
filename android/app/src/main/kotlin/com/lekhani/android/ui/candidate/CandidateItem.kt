@@ -92,6 +92,7 @@ sealed class CandidateStripState {
         val onPaste: () -> Unit,
         val onSelectAll: () -> Unit,
         val onDelete: () -> Unit,
+        val onDeselect: () -> Unit = {},
     ) : CandidateStripState()
 }
 

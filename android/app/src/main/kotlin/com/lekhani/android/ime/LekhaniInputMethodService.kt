@@ -522,9 +522,23 @@ class LekhaniInputMethodService : InputMethodService() {
             }
             val ic = currentInputConnection
             _candidateState.value = CandidateStripState.Selection(
-                onCut = { ic?.performContextMenuAction(android.R.id.cut) },
-                onCopy = { ic?.performContextMenuAction(android.R.id.copy) },
-                onPaste = { ic?.performContextMenuAction(android.R.id.paste) },
+                onCut = {
+                    ic?.performContextMenuAction(android.R.id.cut)
+                    updateCandidatesVisibility()
+                },
+                onCopy = {
+                    ic?.performContextMenuAction(android.R.id.copy)
+                    // Standard UX: collapse selection to deselect and return to normal candidate bar
+                    val collapsePos = maxOf(newSelStart, newSelEnd)
+                    if (collapsePos >= 0) {
+                        ic?.setSelection(collapsePos, collapsePos)
+                    }
+                    updateCandidatesVisibility()
+                },
+                onPaste = {
+                    ic?.performContextMenuAction(android.R.id.paste)
+                    updateCandidatesVisibility()
+                },
                 onSelectAll = {
                     if (ic?.performContextMenuAction(android.R.id.selectAll) != true) {
                         sendEditorKeyWithMeta(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON)
@@ -532,6 +546,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 },
                 onDelete = {
                     ic?.commitText("", 0)
+                    updateCandidatesVisibility()
+                },
+                onDeselect = {
+                    val collapsePos = maxOf(newSelStart, newSelEnd)
+                    if (collapsePos >= 0) {
+                        ic?.setSelection(collapsePos, collapsePos)
+                    }
+                    updateCandidatesVisibility()
                 }
             )
             candidateStripComposeView?.visibility = View.VISIBLE
@@ -828,6 +850,9 @@ class LekhaniInputMethodService : InputMethodService() {
     // ── Internal key dispatch ─────────────────────────────────────────────────
 
     private fun handleKeyAction(key: Key, action: KeyAction) {
+        if (_candidateState.value is CandidateStripState.Selection) {
+            updateCandidatesVisibility()
+        }
         if (currentMode == InputViewMode.EMOJI_SEARCH) {
             when (action) {
                 is KeyAction.Character -> {
@@ -1161,8 +1186,10 @@ class LekhaniInputMethodService : InputMethodService() {
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
                         setContent {
                             val theme by _themeFlow.collectAsState()
+                            val heightDp by _paletteHeightDp.collectAsState()
                             TextEditorSheetView(
                                 theme = theme,
+                                sheetHeight = heightDp,
                                 isEnglish = (keyboardPrefs.uiLanguage == "en"),
                                 onMoveLeft = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_LEFT, select) },
                                 onMoveRight = { select -> sendEditorNavKey(KeyEvent.KEYCODE_DPAD_RIGHT, select) },
@@ -1176,9 +1203,25 @@ class LekhaniInputMethodService : InputMethodService() {
                                         sendEditorKeyWithMeta(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON)
                                     }
                                 },
-                                onCut = { currentInputConnection?.performContextMenuAction(android.R.id.cut) },
-                                onCopy = { currentInputConnection?.performContextMenuAction(android.R.id.copy) },
-                                onPaste = { currentInputConnection?.performContextMenuAction(android.R.id.paste) },
+                                onCut = {
+                                    val ic = currentInputConnection
+                                    ic?.performContextMenuAction(android.R.id.cut)
+                                    updateCandidatesVisibility()
+                                },
+                                onCopy = {
+                                    val ic = currentInputConnection
+                                    ic?.performContextMenuAction(android.R.id.copy)
+                                    val end = maxOf(currentSelStart, currentSelEnd)
+                                    if (end >= 0) {
+                                        ic?.setSelection(end, end)
+                                    }
+                                    updateCandidatesVisibility()
+                                },
+                                onPaste = {
+                                    val ic = currentInputConnection
+                                    ic?.performContextMenuAction(android.R.id.paste)
+                                    updateCandidatesVisibility()
+                                },
                                 onBackspace = { onBackspace() },
                                 onEnter = { commitEnter() },
                                 onClose = { setInputViewMode(InputViewMode.KEYBOARD) },

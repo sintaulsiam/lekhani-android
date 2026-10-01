@@ -1114,6 +1114,12 @@ private fun CandidateSelectionStrip(
             isDestructive = true,
             onClick = state.onDelete,
         )
+        SelectionActionButton(
+            icon = Icons.Filled.Close,
+            label = if (isEnglish) "Deselect" else "বাতিল",
+            theme = theme,
+            onClick = state.onDeselect,
+        )
     }
 }
 
