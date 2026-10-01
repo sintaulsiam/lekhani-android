@@ -284,4 +284,202 @@ object NumberSymbolsLayout {
             ),
         ),
     )
+
+    /** Dedicated 3×4 Phone Dialpad layout for TYPE_CLASS_PHONE */
+    val phoneDialpadLayout: KeyboardLayout = KeyboardLayout(
+        name = "Phone Dialpad",
+        rows = listOf(
+            // Row 1: 1, 2, 3
+            listOf(
+                Ch("1", hint = "১", desc = "1"),
+                Ch("2", hint = "ABC", desc = "2 ABC"),
+                Ch("3", hint = "DEF", desc = "3 DEF"),
+            ),
+            // Row 2: 4, 5, 6
+            listOf(
+                Ch("4", hint = "GHI", desc = "4 GHI"),
+                Ch("5", hint = "JKL", desc = "5 JKL"),
+                Ch("6", hint = "MNO", desc = "6 MNO"),
+            ),
+            // Row 3: 7, 8, 9
+            listOf(
+                Ch("7", hint = "PQRS", desc = "7 PQRS"),
+                Ch("8", hint = "TUV", desc = "8 TUV"),
+                Ch("9", hint = "WXYZ", desc = "9 WXYZ"),
+            ),
+            // Row 4: *, 0/+, #
+            listOf(
+                Key(
+                    label = "*", shiftedLabel = "*",
+                    action = KeyAction.Character("*"), shiftedAction = KeyAction.Character("*"),
+                    widthWeight = 1.0f, contentDesc = "Star",
+                ),
+                Key(
+                    label = "0", shiftedLabel = "+", hintLabel = "+",
+                    action = KeyAction.Character("0"), shiftedAction = KeyAction.Character("+"),
+                    longPressAction = KeyAction.Character("+"),
+                    widthWeight = 1.0f, contentDesc = "0, long press plus",
+                ),
+                Key(
+                    label = "#", shiftedLabel = "#",
+                    action = KeyAction.Character("#"), shiftedAction = KeyAction.Character("#"),
+                    widthWeight = 1.0f, contentDesc = "Pound hash",
+                ),
+            ),
+        ),
+        spacebarRow = listOf(
+            Key(
+                label = "ABC", shiftedLabel = "ABC",
+                action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
+                widthWeight = 1.0f, contentDesc = "Switch to text keyboard",
+            ),
+            Key(
+                label = "+", shiftedLabel = "+",
+                action = KeyAction.Character("+"), shiftedAction = KeyAction.Character("+"),
+                widthWeight = 0.8f, contentDesc = "Plus",
+            ),
+            Key(
+                label = ",", shiftedLabel = ";", hintLabel = ";",
+                action = KeyAction.Character(","), shiftedAction = KeyAction.Character(";"),
+                longPressAction = KeyAction.Character(";"),
+                widthWeight = 0.8f, contentDesc = "Pause / Wait",
+            ),
+            Key(
+                label = "⌫", shiftedLabel = "⌫",
+                action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                widthWeight = 1.0f, contentDesc = "Backspace",
+            ),
+            Key(
+                label = "↵", shiftedLabel = "↵",
+                action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
+                widthWeight = 1.2f, contentDesc = "Call or Next",
+            ),
+        ),
+    )
+
+    /** Dedicated 3×4 Number/PIN Pad layout for TYPE_CLASS_NUMBER and TYPE_CLASS_DATETIME */
+    val numpadPinLayout: KeyboardLayout = KeyboardLayout(
+        name = "Number PIN Pad",
+        rows = listOf(
+            // Row 1: 1, 2, 3
+            listOf(
+                Ch("1", hint = "১", desc = "1"),
+                Ch("2", hint = "২", desc = "2"),
+                Ch("3", hint = "৩", desc = "3"),
+            ),
+            // Row 2: 4, 5, 6
+            listOf(
+                Ch("4", hint = "৪", desc = "4"),
+                Ch("5", hint = "৫", desc = "5"),
+                Ch("6", hint = "৬", desc = "6"),
+            ),
+            // Row 3: 7, 8, 9
+            listOf(
+                Ch("7", hint = "৭", desc = "7"),
+                Ch("8", hint = "৮", desc = "8"),
+                Ch("9", hint = "৯", desc = "9"),
+            ),
+            // Row 4: ., 0, ⌫
+            listOf(
+                Key(
+                    label = ".", shiftedLabel = ",", hintLabel = ",",
+                    action = KeyAction.Character("."), shiftedAction = KeyAction.Character(","),
+                    longPressAction = KeyAction.Character(","),
+                    widthWeight = 1.0f, contentDesc = "Decimal point, long press comma",
+                ),
+                Ch("0", hint = "০", desc = "0"),
+                Key(
+                    label = "⌫", shiftedLabel = "⌫",
+                    action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                    widthWeight = 1.0f, contentDesc = "Backspace",
+                ),
+            ),
+        ),
+        spacebarRow = listOf(
+            Key(
+                label = "ABC", shiftedLabel = "ABC",
+                action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
+                widthWeight = 1.0f, contentDesc = "Switch to text keyboard",
+            ),
+            Key(
+                label = "১২৩", shiftedLabel = "১২৩",
+                action = KeyAction.ToggleBengaliDigits, shiftedAction = KeyAction.ToggleBengaliDigits,
+                widthWeight = 1.0f, contentDesc = "Switch to Bengali digits",
+            ),
+            Key(
+                label = "-", shiftedLabel = "/", hintLabel = "/",
+                action = KeyAction.Character("-"), shiftedAction = KeyAction.Character("/"),
+                longPressAction = KeyAction.Character("/"),
+                widthWeight = 1.0f, contentDesc = "Minus, slash",
+            ),
+            Key(
+                label = "↵", shiftedLabel = "↵",
+                action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
+                widthWeight = 1.2f, contentDesc = "Done or Enter",
+            ),
+        ),
+    )
+
+    /** Native Bengali numerals 3×4 Number/PIN Pad layout */
+    val bengaliNumpadPinLayout: KeyboardLayout = KeyboardLayout(
+        name = "Bengali Number PIN Pad",
+        rows = listOf(
+            // Row 1: ১, ২, ৩
+            listOf(
+                Ch("১", hint = "1", desc = "১"),
+                Ch("২", hint = "2", desc = "২"),
+                Ch("৩", hint = "3", desc = "৩"),
+            ),
+            // Row 2: ৪, ৫, ৬
+            listOf(
+                Ch("৪", hint = "4", desc = "৪"),
+                Ch("৫", hint = "5", desc = "৫"),
+                Ch("৬", hint = "6", desc = "৬"),
+            ),
+            // Row 3: ৭, ৮, ৯
+            listOf(
+                Ch("৭", hint = "7", desc = "৭"),
+                Ch("৮", hint = "8", desc = "৮"),
+                Ch("৯", hint = "9", desc = "৯"),
+            ),
+            // Row 4: ., ০, ⌫
+            listOf(
+                Key(
+                    label = ".", shiftedLabel = "।", hintLabel = "।",
+                    action = KeyAction.Character("."), shiftedAction = KeyAction.Character("।"),
+                    longPressAction = KeyAction.Character("।"),
+                    widthWeight = 1.0f, contentDesc = "Decimal point, long press Dari",
+                ),
+                Ch("০", hint = "0", desc = "০"),
+                Key(
+                    label = "⌫", shiftedLabel = "⌫",
+                    action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                    widthWeight = 1.0f, contentDesc = "Backspace",
+                ),
+            ),
+        ),
+        spacebarRow = listOf(
+            Key(
+                label = "ABC", shiftedLabel = "ABC",
+                action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
+                widthWeight = 1.0f, contentDesc = "Switch to text keyboard",
+            ),
+            Key(
+                label = "123", shiftedLabel = "123",
+                action = KeyAction.ToggleBengaliDigits, shiftedAction = KeyAction.ToggleBengaliDigits,
+                widthWeight = 1.0f, contentDesc = "Switch to English digits",
+            ),
+            Key(
+                label = "৳", shiftedLabel = "-", hintLabel = "-",
+                action = KeyAction.Character("৳"), shiftedAction = KeyAction.Character("-"),
+                longPressAction = KeyAction.Character("-"),
+                widthWeight = 1.0f, contentDesc = "Taka symbol, minus",
+            ),
+            Key(
+                label = "↵", shiftedLabel = "↵",
+                action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
+                widthWeight = 1.2f, contentDesc = "Done or Enter",
+            ),
+        ),
+    )
 }

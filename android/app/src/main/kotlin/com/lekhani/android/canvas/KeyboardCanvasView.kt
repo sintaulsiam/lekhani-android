@@ -551,7 +551,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
         layout == com.lekhani.android.model.NumberSymbolsLayout.numericLayout ||
         layout == com.lekhani.android.model.NumberSymbolsLayout.bengaliNumericLayout ||
         layout == com.lekhani.android.model.NumberSymbolsLayout.englishNumericLayout ||
-        layout == com.lekhani.android.model.NumberSymbolsLayout.moreSymbolsLayout
+        layout == com.lekhani.android.model.NumberSymbolsLayout.moreSymbolsLayout ||
+        layout == com.lekhani.android.model.NumberSymbolsLayout.phoneDialpadLayout ||
+        layout == com.lekhani.android.model.NumberSymbolsLayout.numpadPinLayout ||
+        layout == com.lekhani.android.model.NumberSymbolsLayout.bengaliNumpadPinLayout
+
+    private fun isNumpadLayout(): Boolean =
+        layout == com.lekhani.android.model.NumberSymbolsLayout.phoneDialpadLayout ||
+        layout == com.lekhani.android.model.NumberSymbolsLayout.numpadPinLayout ||
+        layout == com.lekhani.android.model.NumberSymbolsLayout.bengaliNumpadPinLayout
 
     private val accessibilityHelper = KeyboardAccessibilityHelper()
 
@@ -966,8 +974,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val sidePadding = (keyMarginH * 0.75f).coerceAtLeast(2f * density)
         val availableRowW = (totalW - 2f * sidePadding).coerceAtLeast(10f)
 
-        // Find reference key width based on the primary 10-key row (or the widest character row)
-        val maxKeysInRow = allRows.maxOfOrNull { it.size }?.coerceAtLeast(10) ?: 10
+        // Find reference key width based on the primary 10-key row (or numpad row)
+        val isNumpad = isNumpadLayout()
+        val maxKeysInRow = if (isNumpad) {
+            allRows.maxOfOrNull { it.size } ?: 3
+        } else {
+            allRows.maxOfOrNull { it.size }?.coerceAtLeast(10) ?: 10
+        }
         val standardGaps = (maxKeysInRow - 1) * keyMarginH
         val standardUnitWidth = (availableRowW - standardGaps) / maxKeysInRow
 
@@ -1015,6 +1028,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val isStandardCharRow = row.all { it.widthWeight == 1.0f }
 
                 val (rowSideInset, unitWidth) = when {
+                    // Numpad / Phone Dialpad: evenly distribute large keys across available width
+                    isNumpad -> {
+                        val w = (availableRowW - totalGaps) / rowWeight
+                        Pair(0f, w)
+                    }
                     // Gboard: 10 keys per row, uniform width across all rows, no insets
                     layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD -> {
                         val w = (availableRowW - totalGaps) / rowWeight

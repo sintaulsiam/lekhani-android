@@ -188,6 +188,9 @@ class LekhaniInputMethodService : InputMethodService() {
     private var isNumericMode: Boolean = false
     private var isMoreSymbolsMode: Boolean = false
     private var isBengaliDigitsMode: Boolean = false
+    private var isNumericFieldMode: Boolean = false
+    private var isPhoneDialpadMode: Boolean = false
+    private var previousLayoutBeforeNumeric: LekhaniLayoutType? = null
 
     private val recentsManager: EmojiRecentsManager by lazy { EmojiRecentsManager(this) }
     private val clipboardStore: LekhaniClipboardStore by lazy { LekhaniClipboardStore(this) }
@@ -421,6 +424,8 @@ class LekhaniInputMethodService : InputMethodService() {
         activeSwipeDeletePreviewText = ""
         isNumericMode = false
         isMoreSymbolsMode = false
+        isNumericFieldMode = false
+        isPhoneDialpadMode = false
         setInputViewMode(InputViewMode.KEYBOARD)
         applyInputTypePolicy(info)
         refreshSurroundingContext()
@@ -1364,6 +1369,8 @@ class LekhaniInputMethodService : InputMethodService() {
         val currentLayoutType = session.getLayout()
         val isEnglish = currentLayoutType == LekhaniLayoutType.ENGLISH
         val layout = when {
+            isPhoneDialpadMode -> NumberSymbolsLayout.phoneDialpadLayout
+            isNumericFieldMode -> if (isBengaliDigitsMode) NumberSymbolsLayout.bengaliNumpadPinLayout else NumberSymbolsLayout.numpadPinLayout
             isMoreSymbolsMode -> NumberSymbolsLayout.moreSymbolsLayout
             isEnglish -> NumberSymbolsLayout.englishNumericLayout
             isBengaliDigitsMode -> NumberSymbolsLayout.bengaliNumericLayout
@@ -1378,7 +1385,10 @@ class LekhaniInputMethodService : InputMethodService() {
     private fun restoreAlphaKeyboard() {
         isNumericMode = false
         isMoreSymbolsMode = false
-        val currentLayoutType = session.getLayout()
+        isNumericFieldMode = false
+        isPhoneDialpadMode = false
+        val currentLayoutType = previousLayoutBeforeNumeric ?: session.getLayout()
+        previousLayoutBeforeNumeric = null
         keyboardView?.setLayout(LayoutRegistry.get(currentLayoutType), currentLayoutType, shifted = false)
         keyboardView?.setGboardKarsActive(false)
         updateCandidatesVisibility()
@@ -2833,6 +2843,36 @@ class LekhaniInputMethodService : InputMethodService() {
                 if (session.getLayout() != restoreLayout) {
                     switchLayout(restoreLayout)
                 }
+            }
+        }
+
+        val isPhone = inputClass == InputType.TYPE_CLASS_PHONE
+        val isNumeric = inputClass == InputType.TYPE_CLASS_NUMBER || inputClass == InputType.TYPE_CLASS_DATETIME
+
+        if (isPhone) {
+            isPhoneDialpadMode = true
+            isNumericFieldMode = false
+            isNumericMode = true
+            isMoreSymbolsMode = false
+            if (previousLayoutBeforeNumeric == null) {
+                previousLayoutBeforeNumeric = session.getLayout()
+            }
+            updateNumberSymbolsKeyboard()
+        } else if (isNumeric && !isNumericPassword) {
+            isNumericFieldMode = true
+            isPhoneDialpadMode = false
+            isNumericMode = true
+            isMoreSymbolsMode = false
+            if (previousLayoutBeforeNumeric == null) {
+                previousLayoutBeforeNumeric = session.getLayout()
+            }
+            updateNumberSymbolsKeyboard()
+        } else {
+            if (isPhoneDialpadMode || isNumericFieldMode) {
+                isPhoneDialpadMode = false
+                isNumericFieldMode = false
+                isNumericMode = false
+                restoreAlphaKeyboard()
             }
         }
     }

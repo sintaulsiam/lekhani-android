@@ -8,9 +8,11 @@
 - **Fixed Gboard-style Layout**: Standard Google Gboard Bengali layout with full modifier coverage (Hasanta `্`, Anusvara `ং`, Visarga `ঃ`, Chandrabindu `ঁ`) and dynamic Kar/Phala morphing.
 - **English (QWERTY)**: Clean bilingual typing experience.
 - **Dedicated Number & Symbol Panels**:
+  - **Adaptive Number & PIN Pad (`TYPE_CLASS_NUMBER` / `TYPE_CLASS_DATETIME`)**: Automatic 3×4 large-target keypad with decimal point, comma, minus, slash, and instant `ABC` / `১২৩` toggles for bank OTPs, amounts, and dates.
+  - **Adaptive Phone Dialpad (`TYPE_CLASS_PHONE`)**: Ergonomic 3×4 phone dialpad with Latin letters, `*`, `0/+`, `#`, pause/wait punctuation, and direct backspace.
   - **?123 Numeric Layer**: Full 1..0 row with native Bengali numeral hints (`১..০`), Bengali currency (`৳`), math operators, and common punctuation.
   - **=\\< More Symbols Layer**: Extended brackets, mathematical signs, currency (`৳`, `€`, `¥`, `£`, `₹`), and typographical glyphs.
-  - **Quick Digit Toggle (`১২৩` / `123`)**: Seamless 1-tap toggle between Bengali numerals and Western Arabic digits on the number row.
+  - **Quick Digit Toggle (`১২৩` / `123`)**: Seamless 1-tap toggle between Bengali numerals and Western Arabic digits across all number layers.
 - **Layout Toggle & Dedicated Layout Flow Screen**:
   - Individual toggle switches in Settings to enable/disable any layout, with minimum layout protection.
   - Dedicated **Layout Flow** screen (`LayoutFlowScreen.kt`) featuring a forward-curved cylindrical 3D carousel with active `Current layout` speech bubble pill and pagination dots.
