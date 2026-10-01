@@ -91,6 +91,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SHOW_KEY_PREVIEWS, true)
         set(value) = prefs.edit().putBoolean(KEY_SHOW_KEY_PREVIEWS, value).apply()
 
+    var showLayoutNameOnSpacebar: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_LAYOUT_NAME_ON_SPACEBAR, true)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_LAYOUT_NAME_ON_SPACEBAR, value).apply()
+
     var uiLanguage: String
         get() = prefs.getString(KEY_UI_LANGUAGE, null)
             ?: if (java.util.Locale.getDefault().language == "bn") "bn" else "en"
@@ -311,6 +315,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_DOUBLE_SPACE_DARI_ENABLED = "double_space_dari_enabled"
         const val KEY_SPACEBAR_AUTOCOMPLETE_ENABLED = "spacebar_autocomplete_enabled"
         const val KEY_AUTO_LEARN_WORDS_ENABLED = "auto_learn_words_enabled"
+        const val KEY_SHOW_LAYOUT_NAME_ON_SPACEBAR = "show_layout_name_on_spacebar"
         const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
 
         const val KEY_HAPTIC_ENABLED = "haptic_enabled"

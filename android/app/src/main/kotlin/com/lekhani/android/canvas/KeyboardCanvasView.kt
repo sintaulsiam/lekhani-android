@@ -124,6 +124,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var glideTypingEnabled: Boolean = false
     var showKeyPreviews: Boolean = true
     var isUiLanguageEnglish: Boolean = false
+    var showLayoutNameOnSpacebar: Boolean = true
 
     var isResizeVisualGuide: Boolean = false
         set(value) {
@@ -606,6 +607,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.glideTypingEnabled = prefs.glideTypingEnabled
         this.showKeyPreviews = prefs.showKeyPreviews
         this.isUiLanguageEnglish = (prefs.uiLanguage == "en")
+        this.showLayoutNameOnSpacebar = prefs.showLayoutNameOnSpacebar
 
         val tf = when (prefs.fontStyle) {
             KeyboardPreferences.FONT_SERIF -> Typeface.SERIF
@@ -833,11 +835,16 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val chinPx = bottomChinPaddingDp * density
         val availableH = (h - chinPx).coerceAtLeast(100f)
         val totalRows = rowCount + 1
-        val totalMarginsV = (totalRows + 1) * keyMarginV
-        keyHeight = ((availableH - totalMarginsV) / totalRows).coerceAtLeast(32f * density)
-        spacebarRowHeight = (keyHeight * 0.96f).coerceAtLeast(32f * density)
-        labelSize = keyHeight * 0.38f * fontScale
-        labelSizeSmall = keyHeight * 0.22f * fontScale
+        val effectiveMarginV = if (availableH / totalRows < 40f * density) {
+            (keyMarginV * 0.5f).coerceAtLeast(1.5f * density)
+        } else {
+            keyMarginV
+        }
+        val totalMarginsV = (totalRows + 1) * effectiveMarginV
+        keyHeight = ((availableH - totalMarginsV) / totalRows).coerceAtLeast(18f * density)
+        spacebarRowHeight = keyHeight
+        labelSize = (keyHeight * 0.38f * fontScale).coerceAtLeast(10f * density)
+        labelSizeSmall = (keyHeight * 0.22f * fontScale).coerceAtLeast(8f * density)
 
         labelPaint.textSize = labelSize
         labelPaintSmall.textSize = labelSizeSmall
@@ -950,8 +957,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         val rowCount = allRows.size
         val totalRows = rowCount + 1
-        val totalMarginsV = (totalRows + 1) * keyMarginV
-        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
+        val effectiveMarginV = if (totalH / totalRows < 40f * density) {
+            (keyMarginV * 0.5f).coerceAtLeast(1.5f * density)
+        } else {
+            keyMarginV
+        }
+        val totalMarginsV = (totalRows + 1) * effectiveMarginV
+        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(18f * density)
 
         val sidePadding = (keyMarginH * 0.75f).coerceAtLeast(2f * density)
         val availableRowW = (totalW - 2f * sidePadding).coerceAtLeast(10f)
@@ -961,7 +973,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val standardGaps = (maxKeysInRow - 1) * keyMarginH
         val standardUnitWidth = (availableRowW - standardGaps) / maxKeysInRow
 
-        var currentRowTop = yOffset + keyMarginV
+        var currentRowTop = yOffset + effectiveMarginV
         for ((rowIndex, row) in allRows.withIndex()) {
             val hasShiftAtStart = row.isNotEmpty() && row.first().action == KeyAction.Shift
             val hasBackspaceAtEnd = row.isNotEmpty() && row.last().action == KeyAction.Backspace
@@ -1053,7 +1065,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     keyLeft += keyWidth + keyMarginH
                 }
             }
-            currentRowTop += kHeight + keyMarginV
+            currentRowTop += kHeight + effectiveMarginV
         }
 
         // Spacebar row: proportional, sleek, and never oversized
@@ -1062,7 +1074,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val spaceGaps = (spaceRow.size - 1) * keyMarginH
         val spaceUnitWidth = (availableRowW - spaceGaps) / totalSpaceWeight
         val spaceRowTop = currentRowTop
-        val spaceKeyHeight = (kHeight * 0.96f).coerceAtLeast(32f * density)
+        val spaceKeyHeight = kHeight
 
         var spaceKeyLeft = originX + sidePadding
         for (key in spaceRow) {
@@ -1101,14 +1113,19 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         val rowCount = allRows.size
         val totalRows = rowCount + 1
-        val totalMarginsV = (totalRows + 1) * keyMarginV
-        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(36f * density)
+        val effectiveMarginV = if (totalH / totalRows < 40f * density) {
+            (keyMarginV * 0.5f).coerceAtLeast(1.5f * density)
+        } else {
+            keyMarginV
+        }
+        val totalMarginsV = (totalRows + 1) * effectiveMarginV
+        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(18f * density)
 
         val centerGap = totalW * 0.14f
         val clusterW = (totalW - centerGap) / 2f
         val rightClusterOrigin = clusterW + centerGap
 
-        var currentRowTop = keyMarginV
+        var currentRowTop = effectiveMarginV
         for ((rowIndex, row) in allRows.withIndex()) {
             val halfCount = (row.size + 1) / 2
             val leftKeys = row.take(halfCount)
@@ -1132,7 +1149,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 rightKeyLeft += keyW + keyMarginH
             }
 
-            currentRowTop += kHeight + keyMarginV
+            currentRowTop += kHeight + effectiveMarginV
         }
 
         // Spacebar row in Split mode — ergonomic split spacebar for both thumbs
@@ -1156,7 +1173,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             rightSpaceKeys = spaceRow.drop(halfCount)
         }
         val spaceRowTop = currentRowTop
-        val spaceKeyHeight = (kHeight * 0.96f).coerceAtLeast(32f * density)
+        val spaceKeyHeight = kHeight
 
         val leftWeight = leftSpaceKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
         val leftUnitW = (clusterW - keyMarginH * (leftSpaceKeys.size + 1)) / leftWeight
@@ -1458,12 +1475,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
             // Draw label
             val labelText = if (key.action == KeyAction.Space) {
-                com.lekhani.android.model.LayoutRegistry.getSpacebarLabel(layoutType, isUiLanguageEnglish)
+                com.lekhani.android.model.LayoutRegistry.getSpacebarDisplayLabel(
+                    layoutType,
+                    showLayoutNameOnSpacebar,
+                    isUiLanguageEnglish
+                )
             } else {
                 key.displayLabel(isShifted)
             }
             val cx = drawBounds.centerX()
             val cy = drawBounds.centerY() - (labelPaint.ascent() + labelPaint.descent()) / 2f
+            val cySmall = drawBounds.centerY() - (labelPaintSmall.ascent() + labelPaintSmall.descent()) / 2f
 
             when (key.action) {
                 KeyAction.Backspace -> {
@@ -1504,13 +1526,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 KeyAction.Space -> {
                     if (spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH && enabledLayoutsCount > 1 && !isSpaceCursorMoving) {
-                        canvas.drawText("‹   $labelText   ›", cx, cy, labelPaintSmall)
+                        canvas.drawText("‹   $labelText   ›", cx, cySmall, labelPaintSmall)
                     } else {
-                        canvas.drawText(labelText, cx, cy, labelPaintSmall)
+                        canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
                     }
                 }
                 KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits -> {
-                    canvas.drawText(labelText, cx, cy, labelPaintSmall)
+                    canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
                 }
                 else -> {
                     canvas.drawText(labelText, cx, cy, labelPaint)

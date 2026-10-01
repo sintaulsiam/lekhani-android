@@ -100,6 +100,7 @@ fun PreferencesTabContent(
     var avroShowEnglishPreview by remember { mutableStateOf(prefs.avroShowEnglishPreview) }
     var showDedicatedNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
+    var showLayoutNameOnSpacebar by remember { mutableStateOf(prefs.showLayoutNameOnSpacebar) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
 
     var fontStyle by remember { mutableStateOf(prefs.fontStyle) }
@@ -450,6 +451,38 @@ fun PreferencesTabContent(
                             Text(text = pair.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+
+                // Show Layout Name on Spacebar Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Show layout name on spacebar" else "স্পেসবারে লেআউটের নাম দেখান",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Displays native script name (e.g. প্রবাহ, অভ্র, জাতীয়, প্রভাত, বাংলা, English)"
+                                   else "স্পেসবারে নিজস্ব লিপিতে লেআউটের নাম দেখাবে (যেমন প্রবাহ, অভ্র, জাতীয়, প্রভাত, বাংলা, English)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = showLayoutNameOnSpacebar,
+                        onCheckedChange = {
+                            showLayoutNameOnSpacebar = it
+                            prefs.showLayoutNameOnSpacebar = it
+                        }
+                    )
                 }
 
                 HorizontalDivider(

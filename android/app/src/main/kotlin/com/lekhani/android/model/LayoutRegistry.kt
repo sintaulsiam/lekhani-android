@@ -67,6 +67,36 @@ object LayoutRegistry {
         }
     }
 
+    /**
+     * Native script name of layout for display on spacebar
+     * (Bengali layouts show in Bengali, English shows in English).
+     */
+    fun getSpacebarNativeName(type: LekhaniLayoutType): String = when (type) {
+        LekhaniLayoutType.PROBAHO  -> "প্রবাহ"
+        LekhaniLayoutType.AVRO     -> "অভ্র"
+        LekhaniLayoutType.NATIONAL -> "জাতীয়"
+        LekhaniLayoutType.PROBHAT  -> "প্রভাত"
+        LekhaniLayoutType.GBOARD   -> "বাংলা"
+        LekhaniLayoutType.ENGLISH  -> "English"
+    }
+
+    /**
+     * Resolves spacebar display label based on layout name visibility preference.
+     * When [showLayoutName] is true, displays the layout's native name (e.g. প্রবাহ, অভ্র, English).
+     * When false, displays generic "Space" / "স্পেস".
+     */
+    fun getSpacebarDisplayLabel(
+        type: LekhaniLayoutType,
+        showLayoutName: Boolean = true,
+        isEnglishUi: Boolean = false,
+    ): String {
+        return if (showLayoutName) {
+            getSpacebarNativeName(type)
+        } else {
+            if (type == LekhaniLayoutType.ENGLISH || isEnglishUi) "Space" else "স্পেস"
+        }
+    }
+
     fun getSpacebarLabel(type: LekhaniLayoutType, isEnglish: Boolean = false): String = if (isEnglish) {
         when (type) {
             LekhaniLayoutType.PROBAHO  -> "Space • Probaho"
@@ -86,6 +116,7 @@ object LayoutRegistry {
             LekhaniLayoutType.ENGLISH  -> "স্পেস • ইংরেজি"
         }
     }
+
 
     /** Default enabled layouts for initial onboarding and clean reset */
     val DEFAULT_ENABLED_LAYOUTS: List<LekhaniLayoutType> = listOf(

@@ -22,8 +22,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -229,6 +231,9 @@ fun LekhaniSettingsScreen(
     onOpenImePicker: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 540
+    val isCompactWidth = configuration.screenWidthDp < 360
     var selectedTab by remember { mutableIntStateOf(initialTab) }
 
     LaunchedEffect(initialTab) {
@@ -349,7 +354,10 @@ fun LekhaniSettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                            .padding(
+                                horizontal = if (isCompactWidth) 10.dp else 16.dp,
+                                vertical = if (isCompactHeight) 4.dp else 10.dp
+                            ),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -357,11 +365,15 @@ fun LekhaniSettingsScreen(
                             modifier = Modifier.weight(1f, fill = false),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            LekhaniBrandLogo(size = 32.dp, shapeCornerPercent = 25)
-                            Spacer(modifier = Modifier.width(10.dp))
+                            LekhaniBrandLogo(
+                                size = if (isCompactHeight || isCompactWidth) 26.dp else 32.dp,
+                                shapeCornerPercent = 25
+                            )
+                            Spacer(modifier = Modifier.width(if (isCompactWidth) 6.dp else 10.dp))
                             Text(
                                 text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = (if (isCompactHeight || isCompactWidth) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium)
+                                    .copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -376,7 +388,7 @@ fun LekhaniSettingsScreen(
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(3.dp),
+                                    modifier = Modifier.padding(if (isCompactWidth) 2.dp else 3.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
@@ -387,11 +399,14 @@ fun LekhaniSettingsScreen(
                                                 uiLanguage = "bn"
                                                 keyboardPrefs.uiLanguage = "bn"
                                             }
-                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            .padding(
+                                                horizontal = if (isCompactWidth) 7.dp else 10.dp,
+                                                vertical = if (isCompactHeight) 2.dp else 4.dp
+                                            )
                                     ) {
                                         Text(
                                             text = "বাংলা",
-                                            fontSize = 12.sp,
+                                            fontSize = if (isCompactWidth) 11.sp else 12.sp,
                                             fontWeight = if (!isEnglish) FontWeight.Bold else FontWeight.Normal,
                                             color = if (!isEnglish) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -404,11 +419,14 @@ fun LekhaniSettingsScreen(
                                                 uiLanguage = "en"
                                                 keyboardPrefs.uiLanguage = "en"
                                             }
-                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                            .padding(
+                                                horizontal = if (isCompactWidth) 7.dp else 10.dp,
+                                                vertical = if (isCompactHeight) 2.dp else 4.dp
+                                            )
                                     ) {
                                         Text(
                                             text = "EN",
-                                            fontSize = 12.sp,
+                                            fontSize = if (isCompactWidth) 11.sp else 12.sp,
                                             fontWeight = if (isEnglish) FontWeight.Bold else FontWeight.Normal,
                                             color = if (isEnglish) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -416,17 +434,18 @@ fun LekhaniSettingsScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(if (isCompactWidth) 4.dp else 6.dp))
 
                             // Quick About & Privacy Dialog Trigger
                             IconButton(
                                 onClick = { showAboutDialog = true },
-                                modifier = Modifier.size(48.dp)
+                                modifier = Modifier.size(if (isCompactHeight || isCompactWidth) 36.dp else 48.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Info,
                                     contentDescription = if (isEnglish) "About & Privacy" else "অ্যাপ সম্পর্কিত তথ্য",
-                                    tint = MaterialTheme.colorScheme.primary
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(if (isCompactHeight || isCompactWidth) 20.dp else 24.dp)
                                 )
                             }
                         }
@@ -446,7 +465,8 @@ fun LekhaniSettingsScreen(
                 )
                 NavigationBar(
                     containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp
+                    tonalElevation = 0.dp,
+                    modifier = if (isCompactHeight) Modifier.height(54.dp) else Modifier
                 ) {
                     navItems.forEachIndexed { index, (label, icon, _) ->
                         NavigationBarItem(
@@ -456,7 +476,7 @@ fun LekhaniSettingsScreen(
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = label,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(if (isCompactHeight) 18.dp else 22.dp)
                                 )
                             },
                             label = {
@@ -464,7 +484,7 @@ fun LekhaniSettingsScreen(
                                     text = label,
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 11.sp
+                                        fontSize = if (isCompactHeight) 9.5.sp else 11.sp
                                     ),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -526,7 +546,9 @@ fun LekhaniSettingsScreen(
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding(),
                 color = MaterialTheme.colorScheme.background
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -562,11 +584,18 @@ fun LekhaniSettingsScreen(
             onDismissRequest = { showToolbarSheet = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            ToolbarCustomizationSheet(
-                prefs = keyboardPrefs,
-                isEnglish = isEnglish,
-                onClose = { showToolbarSheet = false }
-            )
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                ToolbarCustomizationSheet(
+                    prefs = keyboardPrefs,
+                    isEnglish = isEnglish,
+                    onClose = { showToolbarSheet = false }
+                )
+            }
         }
     }
 
@@ -575,11 +604,18 @@ fun LekhaniSettingsScreen(
             onDismissRequest = { showDictionarySheet = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            DictionaryManagementSheet(
-                dictManager = dictManager,
-                isEnglish = isEnglish,
-                onClose = { showDictionarySheet = false }
-            )
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                DictionaryManagementSheet(
+                    dictManager = dictManager,
+                    isEnglish = isEnglish,
+                    onClose = { showDictionarySheet = false }
+                )
+            }
         }
     }
     }
