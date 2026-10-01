@@ -197,6 +197,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     // Backspace swipe to delete state
     private var isBackspaceSwiping: Boolean = false
+    private var isSwipeDeleteGestureActive: Boolean = false
+    private var isBackspaceDisarmed: Boolean = false
     private var backspaceSwipeStartX: Float = 0f
     private var backspaceSwipeStartY: Float = 0f
     private var backspaceDeletedWordCount: Int = 0
@@ -717,8 +719,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * Disarms and cancels any active swipe-to-delete gesture (e.g. when user taps Copy in the preview strip).
      */
     fun cancelSwipeDelete() {
-        if (isBackspaceSwiping) {
+        if (isBackspaceSwiping || isSwipeDeleteGestureActive || isBackspaceDisarmed) {
             isBackspaceSwiping = false
+            isSwipeDeleteGestureActive = false
+            isBackspaceDisarmed = true
             backspaceDeletedWordCount = 0
             removeCallbacks(backspaceRepeatRunnable)
             invalidate()
@@ -1713,6 +1717,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         backspaceSwipeStartX = px
                         backspaceSwipeStartY = py
                         backspaceRepeatCount = 0
+                        isSwipeDeleteGestureActive = false
+                        isBackspaceDisarmed = false
                         postDelayed(backspaceRepeatRunnable, 350L)
                     }
                     // Show key preview popup for character keys (lives in its own window layer)
@@ -1822,10 +1828,22 @@ class KeyboardCanvasView @JvmOverloads constructor(
                             return true
                         }
 
+                        if (isBackspaceDisarmed) {
+                            return true
+                        }
+
+                        // Early cancellation of hold-repeat as soon as horizontal swipe intent is detected
+                        val density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
+                        if (kotlin.math.abs(dx) > 8f * density) {
+                            removeCallbacks(backspaceRepeatRunnable)
+                        }
+
                         // Downward swipe cancellation
-                        if (dy > 32f * resources.displayMetrics.density) {
+                        if (dy > 32f * density) {
                             if (isBackspaceSwiping) {
                                 isBackspaceSwiping = false
+                                isSwipeDeleteGestureActive = false
+                                isBackspaceDisarmed = true
                                 backspaceDeletedWordCount = 0
                                 keyListener?.onSwipeDeletePreview(0)
                                 feedbackManager?.onTickFeedback(this)
@@ -1838,6 +1856,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         if (dx < -swipeThresholdPx) {
                             removeCallbacks(backspaceRepeatRunnable)
                             isBackspaceSwiping = true
+                            isSwipeDeleteGestureActive = true
                             val words = ((-dx - swipeThresholdPx) / backspaceSwipeStepPx).toInt() + 1
                             val clamped = words.coerceIn(1, 15)
                             if (clamped != backspaceDeletedWordCount) {
@@ -1851,8 +1870,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
                             return true
                         } else if (isBackspaceSwiping) {
                             // User dragged back right towards Backspace key
-                            if (dx > -16f * resources.displayMetrics.density) {
+                            if (dx > -16f * density) {
                                 isBackspaceSwiping = false
+                                isSwipeDeleteGestureActive = false
                                 backspaceDeletedWordCount = 0
                                 keyListener?.onSwipeDeletePreview(0)
                                 feedbackManager?.onTickFeedback(this)
@@ -2023,16 +2043,20 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     return true
                 }
 
-                if (isBackspaceSwiping) {
+                if (isBackspaceSwiping || isSwipeDeleteGestureActive || isBackspaceDisarmed) {
                     val count = backspaceDeletedWordCount
+                    val wasSwiping = isBackspaceSwiping
+                    val wasDisarmed = isBackspaceDisarmed
                     isBackspaceSwiping = false
+                    isSwipeDeleteGestureActive = false
+                    isBackspaceDisarmed = false
                     backspaceDeletedWordCount = 0
-                    if (count > 0) {
+                    if (wasSwiping && count > 0 && !wasDisarmed) {
                         keyListener?.onSwipeDelete(count)
                         feedbackManager?.onKeyFeedback(this)
                             ?: performHapticFeedback(
                                 HapticFeedbackConstants.KEYBOARD_TAP)
-                    } else {
+                    } else if (!wasDisarmed) {
                         keyListener?.onSwipeDeletePreview(0)
                     }
                     pressedKeyIndex = -1
@@ -2093,6 +2117,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 isGliding = false
                 isSpaceCursorMoving = false
                 isBackspaceSwiping = false
+                isSwipeDeleteGestureActive = false
+                isBackspaceDisarmed = false
                 isDraggingFloatingBar = false
                 backspaceDeletedWordCount = 0
                 keyListener?.onSwipeDeletePreview(0)

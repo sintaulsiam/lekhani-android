@@ -54,8 +54,8 @@ object ProbahLayout {
                 ),
                 Ch("হ", shifted = "ঞ", hint = "ঞ", desc = "হ, shifted ঞ, hint ঞ"),
                 Ch("ং", shifted = "ঙ", desc = "ং, shifted ঙ"),
-                Ch("ঁ",  shifted = "\u200D", hint = "ZWJ", desc = "ঁ, shifted ZWJ"),    // ZWJ on shift
-                Ch("ঃ",  shifted = "\u200C", hint = "ZWNJ", desc = "ঃ, shifted ZWNJ"),   // ZWNJ on shift
+                Ch("ঁ",  shifted = "৳", hint = "৳", desc = "ঁ, shifted Taka ৳"),
+                Ch("ঃ",  shifted = "॥", hint = "॥", desc = "ঃ, shifted Double Dari ॥"),
                 Ch("চ", shifted = "ছ", desc = "চ, shifted ছ"),
                 Ch("জ", shifted = "ঝ", desc = "জ, shifted ঝ"),
                 Ch("ট", shifted = "ঠ", desc = "ট, shifted ঠ"),

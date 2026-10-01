@@ -162,8 +162,14 @@ fun CandidateStripView(
     val hasItems = state is CandidateStripState.Candidates && !isToolsMenuOpen
     var showToolbarOverride by remember { mutableStateOf(false) }
 
-    LaunchedEffect(hasItems) {
-        if (!hasItems) showToolbarOverride = false
+    val currentTopCandidate = (state as? CandidateStripState.Candidates)?.items?.firstOrNull()?.text
+    var lastCandidateText by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(currentTopCandidate, hasItems) {
+        if (!hasItems || (currentTopCandidate != null && currentTopCandidate != lastCandidateText)) {
+            showToolbarOverride = false
+        }
+        lastCandidateText = currentTopCandidate
     }
 
     val isEmojiSearch = state is CandidateStripState.EmojiSearch

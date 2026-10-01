@@ -55,7 +55,7 @@
   - **English (QWERTY)**: `EnglishQwertyLayout.kt` — bilingual alphanumeric typing layer.
   - **LayoutRegistry**: maps `LekhaniLayoutType` → `KeyboardLayout`; `cycleLayout()` in IME.
   - 20 JVM unit tests in `ProbahLayoutTest.kt` covering spec compliance.
-- [x] **World-Class Visual & Tactile Polish**:
+- [x] **Visual & Tactile Polish**:
   - Combining vowel signs mapped to canonical independent vowels to eradicate `◌` (`\u25CC`) dotted circles on keycaps.
   - Zero-allocation vector paths for Hasanta (`্`) and Chandra Bindu (`ঁ`) keycap rendering.
   - Material 3 Expressive candidate strip with pill chips and accent highlighting (no pipe dividers).
@@ -208,7 +208,7 @@
 
 ---
 
-## Phase 11: World-Class Modern UI/UX & Form Factors
+## Phase 11: Modern UI/UX & Form Factors
 - [x] Material 3 Expressive aesthetic with fluid 120 FPS spring physics and key glow/ripple effects.
 - [x] Bilingual UI toggle (English | বাংলা) across all Settings tabs and sheets.
 - [x] Developer & Organization showcase: Syntenium profile and BRUR CSE developer credentials.

@@ -68,7 +68,7 @@
 - **Smooth Accent Trail**: Elegant visual trace line with theme-adaptive color glow.
 
 ## 7. Ergonomics, Touch Controls & UI/UX
-- **Material 3 Expressive UI**: 120 FPS buttery-smooth touch grid with spring physics and gentle keypress glow.
+- **Material 3 Expressive UI**: 120 FPS hardware canvas touch grid with responsive tactile feedback.
 - **Dedicated Text & Cursor Editor Sheet**:
   - Full 4-way D-Pad (Up, Down, Left, Right) for precise single-character or line navigation.
   - Home and End quick jump controls (`|◀`, `▶|`).

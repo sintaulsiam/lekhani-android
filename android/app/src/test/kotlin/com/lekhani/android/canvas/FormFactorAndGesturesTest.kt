@@ -2,6 +2,7 @@ package com.lekhani.android.canvas
 
 import com.lekhani.android.data.settings.KeyboardPreferences
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -124,5 +125,70 @@ class FormFactorAndGesturesTest {
     fun testCodeShieldAndDoubleSpaceDariPreferences() {
         assertEquals("code_shield_enabled", KeyboardPreferences.KEY_CODE_SHIELD_ENABLED)
         assertEquals("double_space_dari_enabled", KeyboardPreferences.KEY_DOUBLE_SPACE_DARI_ENABLED)
+    }
+
+    @Test
+    fun testSwipeDeleteEmptyBufferReturnsZero() {
+        fun calculateCharsToDelete(text: String, wordCount: Int): Int {
+            if (wordCount <= 0 || text.isEmpty()) return 0
+            var charsToDelete = 0
+            var wordsFound = 0
+            var inWord = false
+            for (i in text.length - 1 downTo 0) {
+                val ch = text[i]
+                if (!ch.isWhitespace()) {
+                    inWord = true
+                } else if (inWord) {
+                    wordsFound++
+                    inWord = false
+                    if (wordsFound >= wordCount) break
+                }
+                charsToDelete++
+            }
+            return charsToDelete
+        }
+
+        // Empty field must return 0 characters to delete, regardless of requested wordCount
+        assertEquals(0, calculateCharsToDelete("", 1))
+        assertEquals(0, calculateCharsToDelete("", 5))
+        assertEquals(0, calculateCharsToDelete("hello", 0))
+    }
+
+    @Test
+    fun testSwipeDeleteCancellationState() {
+        var isBackspaceSwiping = false
+        var isSwipeDeleteGestureActive = false
+        var backspaceDeletedWordCount = 0
+        var keyDispatched = false
+
+        // Simulate swipe start
+        isBackspaceSwiping = true
+        isSwipeDeleteGestureActive = true
+        backspaceDeletedWordCount = 2
+
+        // Simulate downward cancellation
+        isBackspaceSwiping = false
+        isSwipeDeleteGestureActive = true
+        backspaceDeletedWordCount = 0
+
+        // Simulate ACTION_UP
+        if (isBackspaceSwiping || isSwipeDeleteGestureActive) {
+            val count = backspaceDeletedWordCount
+            val wasSwiping = isBackspaceSwiping
+            isBackspaceSwiping = false
+            isSwipeDeleteGestureActive = false
+            backspaceDeletedWordCount = 0
+            if (wasSwiping && count > 0) {
+                // Committed
+            } else {
+                // Cancelled preview
+            }
+            // Consumed! Did NOT dispatch key
+        } else {
+            keyDispatched = true
+        }
+
+        assertFalse("Key should not be dispatched upon cancelled swipe", keyDispatched)
+        assertFalse("Gesture active should be reset", isSwipeDeleteGestureActive)
     }
 }

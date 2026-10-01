@@ -209,6 +209,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var isSwipeDeleteActive: Boolean = false
     private var swipeDeleteAnchorCursor: Int = -1
     private var activeSwipeDeletePreviewText: String = ""
+    @Volatile private var activeSwipeSnapshotText: String = ""
 
     // Raw keystroke buffer and undo action state
     private val rawInputBuffer = StringBuilder()
@@ -413,6 +414,11 @@ class LekhaniInputMethodService : InputMethodService() {
         rawInputBuffer.clear()
         session.reset()
         preeditShadow = ""
+        cachedSurroundingContext = ""
+        activeSwipeSnapshotText = ""
+        isSwipeDeleteActive = false
+        swipeDeleteAnchorCursor = -1
+        activeSwipeDeletePreviewText = ""
         isNumericMode = false
         isMoreSymbolsMode = false
         setInputViewMode(InputViewMode.KEYBOARD)
@@ -426,6 +432,11 @@ class LekhaniInputMethodService : InputMethodService() {
         audioManager.cancelStreaming()
         session.reset()
         preeditShadow = ""
+        cachedSurroundingContext = ""
+        activeSwipeSnapshotText = ""
+        isSwipeDeleteActive = false
+        swipeDeleteAnchorCursor = -1
+        activeSwipeDeletePreviewText = ""
         clearCandidates()
         persistUserLearnedAsync()
         super.onFinishInput()
@@ -492,6 +503,9 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         currentSelStart = newSelStart
         currentSelEnd = newSelEnd
+        if (newSelStart == 0 && newSelEnd == 0) {
+            cachedSurroundingContext = ""
+        }
 
         // Check if user manually repositioned the cursor or changed selection
         if (session.isComposing() || preeditShadow.isNotEmpty()) {
@@ -516,15 +530,17 @@ class LekhaniInputMethodService : InputMethodService() {
             if (_candidateState.value is CandidateStripState.SwipeDeletePreview) {
                 return
             }
-            // Guard: Do not clobber active Undo chip
+            // If user highlights text, dismiss any pending Undo chip
             if (_candidateState.value is CandidateStripState.Undo) {
-                return
+                clearUndo()
             }
             val ic = currentInputConnection
             _candidateState.value = CandidateStripState.Selection(
                 onCut = {
                     ic?.performContextMenuAction(android.R.id.cut)
+                    _candidateState.value = CandidateStripState.Empty
                     updateCandidatesVisibility()
+                    refreshSurroundingContext()
                 },
                 onCopy = {
                     ic?.performContextMenuAction(android.R.id.copy)
@@ -533,11 +549,15 @@ class LekhaniInputMethodService : InputMethodService() {
                     if (collapsePos >= 0) {
                         ic?.setSelection(collapsePos, collapsePos)
                     }
+                    _candidateState.value = CandidateStripState.Empty
                     updateCandidatesVisibility()
+                    refreshSurroundingContext()
                 },
                 onPaste = {
                     ic?.performContextMenuAction(android.R.id.paste)
+                    _candidateState.value = CandidateStripState.Empty
                     updateCandidatesVisibility()
+                    refreshSurroundingContext()
                 },
                 onSelectAll = {
                     if (ic?.performContextMenuAction(android.R.id.selectAll) != true) {
@@ -546,19 +566,25 @@ class LekhaniInputMethodService : InputMethodService() {
                 },
                 onDelete = {
                     ic?.commitText("", 0)
+                    _candidateState.value = CandidateStripState.Empty
                     updateCandidatesVisibility()
+                    refreshSurroundingContext()
                 },
                 onDeselect = {
                     val collapsePos = maxOf(newSelStart, newSelEnd)
                     if (collapsePos >= 0) {
                         ic?.setSelection(collapsePos, collapsePos)
                     }
+                    _candidateState.value = CandidateStripState.Empty
                     updateCandidatesVisibility()
+                    refreshSurroundingContext()
                 }
             )
             candidateStripComposeView?.visibility = View.VISIBLE
         } else if (_candidateState.value is CandidateStripState.Selection) {
+            _candidateState.value = CandidateStripState.Empty
             updateCandidatesVisibility()
+            refreshSurroundingContext()
         }
     }
 
@@ -772,10 +798,11 @@ class LekhaniInputMethodService : InputMethodService() {
                         return true
                     }
                     val ic = currentInputConnection ?: return false
-                    val before = cachedSurroundingContext.ifEmpty {
-                        ic.getTextBeforeCursor(16, 0)?.toString() ?: ""
+                    return try {
+                        ic.getTextBeforeCursor(1, 0)?.isNotEmpty() == true
+                    } catch (_: Exception) {
+                        false
                     }
-                    return before.isNotEmpty()
                 }
 
                 override fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor) {
@@ -851,6 +878,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun handleKeyAction(key: Key, action: KeyAction) {
         if (_candidateState.value is CandidateStripState.Selection) {
+            _candidateState.value = CandidateStripState.Empty
             updateCandidatesVisibility()
         }
         if (currentMode == InputViewMode.EMOJI_SEARCH) {
@@ -1381,6 +1409,17 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onFinishInputView(finishingInput)
         if (currentMode != InputViewMode.KEYBOARD) {
             setInputViewMode(InputViewMode.KEYBOARD)
+        }
+        keyboardView?.cancelSwipeDelete()
+        if (isSwipeDeleteActive) {
+            isSwipeDeleteActive = false
+            swipeDeleteAnchorCursor = -1
+            activeSwipeDeletePreviewText = ""
+            activeSwipeSnapshotText = ""
+        }
+        if (_candidateState.value is CandidateStripState.SwipeDeletePreview ||
+            _candidateState.value is CandidateStripState.Selection) {
+            _candidateState.value = CandidateStripState.Empty
         }
         persistUserLearnedAsync()
     }
@@ -2511,7 +2550,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 isSwipeDeleteActive = false
                 swipeDeleteAnchorCursor = -1
                 activeSwipeDeletePreviewText = ""
+                activeSwipeSnapshotText = ""
             }
+            restoreStateAfterSwipeDeleteCancel()
             updateCandidatesVisibility()
             return
         }
@@ -2519,6 +2560,22 @@ class LekhaniInputMethodService : InputMethodService() {
         if (!isSwipeDeleteActive) {
             isSwipeDeleteActive = true
             swipeDeleteAnchorCursor = if (currentSelEnd >= 0) currentSelEnd else -1
+            // Capture fresh snapshot directly from InputConnection at the very start of the gesture
+            activeSwipeSnapshotText = try {
+                ic?.getTextBeforeCursor(1024, 0)?.toString() ?: ""
+            } catch (_: Exception) {
+                ""
+            }
+            if (activeSwipeSnapshotText.isEmpty() && preeditShadow.isEmpty()) {
+                isSwipeDeleteActive = false
+                swipeDeleteAnchorCursor = -1
+                activeSwipeDeletePreviewText = ""
+                activeSwipeSnapshotText = ""
+                keyboardView?.cancelSwipeDelete()
+                restoreStateAfterSwipeDeleteCancel()
+                updateCandidatesVisibility()
+                return
+            }
         }
 
         val previewText = computeSwipeDeletePreviewText(wordCount)
@@ -2529,7 +2586,9 @@ class LekhaniInputMethodService : InputMethodService() {
             isSwipeDeleteActive = false
             swipeDeleteAnchorCursor = -1
             activeSwipeDeletePreviewText = ""
+            activeSwipeSnapshotText = ""
             keyboardView?.cancelSwipeDelete()
+            restoreStateAfterSwipeDeleteCancel()
             updateCandidatesVisibility()
             return
         }
@@ -2556,7 +2615,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 isSwipeDeleteActive = false
                 swipeDeleteAnchorCursor = -1
                 activeSwipeDeletePreviewText = ""
+                activeSwipeSnapshotText = ""
                 keyboardView?.cancelSwipeDelete()
+                restoreStateAfterSwipeDeleteCancel()
                 updateCandidatesVisibility()
             },
             onCut = {
@@ -2570,6 +2631,16 @@ class LekhaniInputMethodService : InputMethodService() {
         candidateStripComposeView?.visibility = View.VISIBLE
     }
 
+    private fun restoreStateAfterSwipeDeleteCancel() {
+        if (preeditShadow.isNotEmpty()) {
+            publishCandidates(listOf(preeditShadow))
+        } else {
+            _candidateState.value = CandidateStripState.Empty
+            checkAndShowQuickChip()
+            refreshSurroundingContext()
+        }
+    }
+
     private fun computeSwipeDeletePreviewText(wordCount: Int): String {
         if (wordCount <= 0) return ""
         var remainingWords = wordCount
@@ -2579,9 +2650,7 @@ class LekhaniInputMethodService : InputMethodService() {
             remainingWords--
         }
         if (remainingWords > 0) {
-            val before = cachedSurroundingContext.ifEmpty {
-                currentInputConnection?.getTextBeforeCursor(512, 0)?.toString() ?: ""
-            }
+            val before = activeSwipeSnapshotText
             if (before.isNotEmpty()) {
                 var charsToDelete = 0
                 var wordsFound = 0
@@ -2618,6 +2687,7 @@ class LekhaniInputMethodService : InputMethodService() {
             computeSwipeDeletePreviewText(wordCount)
         }
         activeSwipeDeletePreviewText = ""
+        activeSwipeSnapshotText = ""
 
         val anchorCursor = swipeDeleteAnchorCursor
         val wasHighlightingInApp = isSwipeDeleteActive && keyboardPrefs.swipeDeleteHighlightInApp && anchorCursor >= 0
@@ -2638,18 +2708,17 @@ class LekhaniInputMethodService : InputMethodService() {
                 clearCandidates()
             }
 
-            // 2. If text was highlighted in app, restore cursor to anchor first so selection is clean
+            // 2. If text was highlighted in app, commit empty string directly to delete selection cleanly
             if (wasHighlightingInApp) {
-                ic.setSelection(anchorCursor, anchorCursor)
+                ic.commitText("", 0)
+            } else {
+                ic.deleteSurroundingText(previewToDelete.length, 0)
             }
-
-            // 3. Atomically delete the characters
-            ic.deleteSurroundingText(previewToDelete.length, 0)
         } finally {
             ic.endBatchEdit()
         }
 
-        // 4. Create and publish Undo state
+        // 3. Create and publish Undo state
         val undo = UndoInfo(originalText = previewToDelete, committedText = "")
         activeUndoInfo = undo
         scheduleUndoExpiry()
@@ -2765,10 +2834,8 @@ class LekhaniInputMethodService : InputMethodService() {
                     ""
                 }
             }
-            val effectiveContext = if (contextText.isNotBlank()) contextText else cachedSurroundingContext
-            if (contextText.isNotEmpty()) {
-                cachedSurroundingContext = contextText
-            }
+            cachedSurroundingContext = contextText
+            val effectiveContext = contextText
             withContext(Dispatchers.Default) {
                 // Only overwrite session context if IPC returned genuine text;
                 // never erase valid shadow context accumulated from committed words.

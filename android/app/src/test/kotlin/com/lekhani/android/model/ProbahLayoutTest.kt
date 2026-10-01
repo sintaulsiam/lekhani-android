@@ -96,19 +96,19 @@ class ProbahLayoutTest {
     }
 
     @Test
-    fun `ZWJ is on shift layer of nasal modifier key`() {
-        // ZWJ (\u200D) should be the shifted action of ঁ (4th key in bottom row after shift key)
+    fun `Taka symbol is on shift layer of nasal modifier key`() {
+        // Taka (৳) should be the shifted action of ঁ (4th key in bottom row after shift key)
         val nasalKey = layout.rows[2].find { it.label == "ঁ" }
         assertNotNull("ঁ key should exist", nasalKey)
-        assertEquals(KeyAction.Character("\u200D"), nasalKey!!.shiftedAction)
+        assertEquals(KeyAction.Character("৳"), nasalKey!!.shiftedAction)
     }
 
     @Test
-    fun `ZWNJ is on shift layer of visarga key`() {
-        // ZWNJ (\u200C) should be the shifted action of ঃ
+    fun `Double Dari is on shift layer of visarga key`() {
+        // Double Dari (॥) should be the shifted action of ঃ
         val visargaKey = layout.rows[2].find { it.label == "ঃ" }
         assertNotNull("ঃ key should exist", visargaKey)
-        assertEquals(KeyAction.Character("\u200C"), visargaKey!!.shiftedAction)
+        assertEquals(KeyAction.Character("॥"), visargaKey!!.shiftedAction)
     }
 
     @Test
