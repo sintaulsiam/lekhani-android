@@ -2517,6 +2517,21 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyboardPreferences.ToolbarTool.CLIPBOARD -> {
                 setInputViewMode(InputViewMode.CLIPBOARD)
             }
+            KeyboardPreferences.ToolbarTool.NUMPAD -> {
+                if (isNumericFieldMode || isPhoneDialpadMode) {
+                    restoreAlphaKeyboard()
+                } else {
+                    if (previousLayoutBeforeNumeric == null) {
+                        previousLayoutBeforeNumeric = session.getLayout()
+                    }
+                    isNumericFieldMode = true
+                    isPhoneDialpadMode = false
+                    isNumericMode = true
+                    isMoreSymbolsMode = false
+                    setInputViewMode(InputViewMode.KEYBOARD)
+                    updateNumberSymbolsKeyboard()
+                }
+            }
             KeyboardPreferences.ToolbarTool.RESIZE -> {
                 setInputViewMode(InputViewMode.RESIZE)
             }
@@ -2849,7 +2864,15 @@ class LekhaniInputMethodService : InputMethodService() {
         val isPhone = inputClass == InputType.TYPE_CLASS_PHONE
         val isNumeric = inputClass == InputType.TYPE_CLASS_NUMBER || inputClass == InputType.TYPE_CLASS_DATETIME
 
-        if (isPhone) {
+        val isSearchOrFilter = (inputClass == InputType.TYPE_CLASS_TEXT) ||
+            inputVariation == InputType.TYPE_TEXT_VARIATION_FILTER ||
+            (info.imeOptions and EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_SEARCH
+
+        val shouldAutoSwitchNumpad = keyboardPrefs.autoSwitchNumpad &&
+            (isPhone || isNumeric) &&
+            !isSearchOrFilter
+
+        if (shouldAutoSwitchNumpad && isPhone) {
             isPhoneDialpadMode = true
             isNumericFieldMode = false
             isNumericMode = true
@@ -2858,7 +2881,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 previousLayoutBeforeNumeric = session.getLayout()
             }
             updateNumberSymbolsKeyboard()
-        } else if (isNumeric && !isNumericPassword) {
+        } else if (shouldAutoSwitchNumpad && isNumeric && !isNumericPassword) {
             isNumericFieldMode = true
             isPhoneDialpadMode = false
             isNumericMode = true

@@ -98,6 +98,7 @@ fun PreferencesTabContent(
     var codeShield by remember { mutableStateOf(prefs.codeShieldEnabled) }
     var avroShowEnglishPreview by remember { mutableStateOf(prefs.avroShowEnglishPreview) }
     var showDedicatedNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
+    var autoSwitchNumpad by remember { mutableStateOf(prefs.autoSwitchNumpad) }
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
     var showLayoutNameOnSpacebar by remember { mutableStateOf(prefs.showLayoutNameOnSpacebar) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
@@ -201,6 +202,37 @@ fun PreferencesTabContent(
                         onCheckedChange = {
                             showDedicatedNumberRow = it
                             prefs.showDedicatedNumberRow = it
+                        }
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                // Auto-Switch to Number Pad Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Auto-switch to Number Pad" else "স্বয়ংক্রিয় নম্বর প্যাড",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Automatically open number pad for phone and number input fields (off by default)" else "ফোন বা নম্বর ইনপুট ফিল্ডে স্বয়ংক্রিয়ভাবে নম্বর প্যাড দেখাবে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = autoSwitchNumpad,
+                        onCheckedChange = {
+                            autoSwitchNumpad = it
+                            prefs.autoSwitchNumpad = it
                         }
                     )
                 }

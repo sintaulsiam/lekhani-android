@@ -83,6 +83,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SHOW_DEDICATED_NUMBER_ROW, false)
         set(value) = prefs.edit().putBoolean(KEY_SHOW_DEDICATED_NUMBER_ROW, value).apply()
 
+    var autoSwitchNumpad: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_SWITCH_NUMPAD, false)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_SWITCH_NUMPAD, value).apply()
+
     var showHomeRowAccents: Boolean
         get() = prefs.getBoolean(KEY_SHOW_HOMEROW_ACCENTS, false)
         set(value) = prefs.edit().putBoolean(KEY_SHOW_HOMEROW_ACCENTS, value).apply()
@@ -272,6 +276,7 @@ class KeyboardPreferences private constructor(context: Context) {
         TEXT_EDITOR("এডিটর", "Editor"),
         VOICE("ভয়েস", "Voice"),
         CLIPBOARD("ক্লিপবোর্ড", "Clipboard"),
+        NUMPAD("নম্বর প্যাড", "Numpad"),
         RESIZE("উচ্চতা", "Height"),
         THEME("থিম", "Theme"),
         ONE_HANDED("একহাতে", "One-Handed"),
@@ -298,6 +303,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SHOW_KEY_BORDERS = "show_key_borders"
         const val KEY_SHOW_KEY_PREVIEWS = "show_key_previews"
         const val KEY_SHOW_DEDICATED_NUMBER_ROW = "pref_show_dedicated_number_row"
+        const val KEY_AUTO_SWITCH_NUMPAD = "auto_switch_numpad"
         const val KEY_SHOW_HOMEROW_ACCENTS = "show_homerow_accents"
         const val KEY_FONT_STYLE = "font_style"
         const val KEY_FONT_SCALE = "font_scale"
@@ -350,6 +356,7 @@ class KeyboardPreferences private constructor(context: Context) {
         val DEFAULT_TOOLBAR = DEFAULT_TOOL_LIST.joinToString(",") { it.name }
 
         val DEFAULT_VAULT_LIST = listOf(
+            ToolbarTool.NUMPAD,
             ToolbarTool.RESIZE,
             ToolbarTool.ONE_HANDED,
             ToolbarTool.FLOATING,

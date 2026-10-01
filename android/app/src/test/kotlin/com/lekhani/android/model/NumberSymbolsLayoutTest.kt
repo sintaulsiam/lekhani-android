@@ -108,26 +108,30 @@ class NumberSymbolsLayoutTest {
         assertEquals("Phone Dialpad", dialpad.name)
         assertEquals(4, dialpad.rows.size)
 
-        // 3 columns in each row
+        // 4 columns in each row (standard keyboard-like proportion)
         dialpad.rows.forEach { row ->
-            assertEquals(3, row.size)
+            assertEquals(4, row.size)
         }
 
-        // Row 1: 1, 2, 3
+        // Row 1: 1, 2, 3, ⌫
         assertEquals("1", dialpad.rows[0][0].label)
         assertEquals("2", dialpad.rows[0][1].label)
         assertEquals("3", dialpad.rows[0][2].label)
+        assertEquals(KeyAction.Backspace, dialpad.rows[0][3].action)
 
-        // Row 4: *, 0, #
+        // No garbage hints on digit keys
+        org.junit.Assert.assertNull(dialpad.rows[0][0].hintLabel)
+        org.junit.Assert.assertNull(dialpad.rows[0][1].hintLabel)
+
+        // Row 4: *, 0, #, ↵
         assertEquals("*", dialpad.rows[3][0].label)
         assertEquals("0", dialpad.rows[3][1].label)
-        assertEquals("+", dialpad.rows[3][1].hintLabel)
         assertEquals("#", dialpad.rows[3][2].label)
+        assertEquals(KeyAction.Enter, dialpad.rows[3][3].action)
 
-        // Control row must have ABC switch and Backspace
+        // Control row must have ABC switch and Space
         assertTrue(dialpad.spacebarRow.any { it.action == KeyAction.SwitchAlpha })
-        assertTrue(dialpad.spacebarRow.any { it.action == KeyAction.Backspace })
-        assertTrue(dialpad.spacebarRow.any { it.action == KeyAction.Enter })
+        assertTrue(dialpad.spacebarRow.any { it.action == KeyAction.Space })
     }
 
     @Test
@@ -136,27 +140,34 @@ class NumberSymbolsLayoutTest {
         assertEquals("Number PIN Pad", numpad.name)
         assertEquals(4, numpad.rows.size)
 
-        // 3 columns in each row
+        // 4 columns in each row (proper keyboard proportions)
         numpad.rows.forEach { row ->
-            assertEquals(3, row.size)
+            assertEquals(4, row.size)
         }
 
-        // Row 1: 1, 2, 3
+        // Row 1: 1, 2, 3, ⌫
         assertEquals("1", numpad.rows[0][0].label)
         assertEquals("2", numpad.rows[0][1].label)
         assertEquals("3", numpad.rows[0][2].label)
+        assertEquals(KeyAction.Backspace, numpad.rows[0][3].action)
 
-        // Row 4: ., 0, Backspace
+        // No garbage hints on digit keys
+        org.junit.Assert.assertNull(numpad.rows[0][0].hintLabel)
+        org.junit.Assert.assertNull(numpad.rows[0][1].hintLabel)
+
+        // Row 4: ., 0, ,, ↵
         assertEquals(".", numpad.rows[3][0].label)
         assertEquals("0", numpad.rows[3][1].label)
-        assertEquals(KeyAction.Backspace, numpad.rows[3][2].action)
+        assertEquals(",", numpad.rows[3][2].label)
+        assertEquals(KeyAction.Enter, numpad.rows[3][3].action)
 
-        // Control row must have ABC, Bengali digits toggle ('১২৩'), and Enter
+        // Control row must have ABC, Bengali digits toggle ('১২৩'), and Space
         val abcKey = numpad.spacebarRow.find { it.action == KeyAction.SwitchAlpha }
         assertNotNull(abcKey)
         val toggleKey = numpad.spacebarRow.find { it.action == KeyAction.ToggleBengaliDigits }
         assertNotNull(toggleKey)
         assertEquals("১২৩", toggleKey?.label)
+        assertTrue(numpad.spacebarRow.any { it.action == KeyAction.Space })
     }
 
     @Test
@@ -165,19 +176,30 @@ class NumberSymbolsLayoutTest {
         assertEquals("Bengali Number PIN Pad", bengaliNumpad.name)
         assertEquals(4, bengaliNumpad.rows.size)
 
-        // Row 1: ১, ২, ৩
+        // 4 columns in each row
+        bengaliNumpad.rows.forEach { row ->
+            assertEquals(4, row.size)
+        }
+
+        // Row 1: ১, ২, ৩, ⌫
         assertEquals("১", bengaliNumpad.rows[0][0].label)
         assertEquals("২", bengaliNumpad.rows[0][1].label)
         assertEquals("৩", bengaliNumpad.rows[0][2].label)
+        assertEquals(KeyAction.Backspace, bengaliNumpad.rows[0][3].action)
 
-        // Row 4: ., ০, Backspace
+        // No garbage hints
+        org.junit.Assert.assertNull(bengaliNumpad.rows[0][0].hintLabel)
+
+        // Row 4: ., ০, ।, ↵
         assertEquals(".", bengaliNumpad.rows[3][0].label)
         assertEquals("০", bengaliNumpad.rows[3][1].label)
-        assertEquals(KeyAction.Backspace, bengaliNumpad.rows[3][2].action)
+        assertEquals("।", bengaliNumpad.rows[3][2].label)
+        assertEquals(KeyAction.Enter, bengaliNumpad.rows[3][3].action)
 
-        // Control row must have English digits toggle ('123')
+        // Control row must have English digits toggle ('123') and Space
         val toggleKey = bengaliNumpad.spacebarRow.find { it.action == KeyAction.ToggleBengaliDigits }
         assertNotNull(toggleKey)
         assertEquals("123", toggleKey?.label)
+        assertTrue(bengaliNumpad.spacebarRow.any { it.action == KeyAction.Space })
     }
 }
