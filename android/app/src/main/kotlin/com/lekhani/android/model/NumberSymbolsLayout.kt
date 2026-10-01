@@ -184,6 +184,11 @@ object NumberSymbolsLayout {
                 widthWeight = 1.4f, contentDesc = "Alphabet",
             ),
             Key(
+                label = "123", shiftedLabel = "123",
+                action = KeyAction.ToggleBengaliDigits, shiftedAction = KeyAction.ToggleBengaliDigits,
+                widthWeight = 1.0f, contentDesc = "English digits",
+            ),
+            Key(
                 label = ",", shiftedLabel = ",",
                 action = KeyAction.Character(","), shiftedAction = KeyAction.Character(","),
                 widthWeight = 1.0f, contentDesc = "Comma",
@@ -237,6 +242,11 @@ object NumberSymbolsLayout {
                     label = "◀", shiftedLabel = "◀",
                     action = KeyAction.CursorLeft, shiftedAction = KeyAction.CursorLeft,
                     widthWeight = 1.0f, contentDesc = "Cursor left",
+                ),
+                Key(
+                    label = "▶", shiftedLabel = "▶",
+                    action = KeyAction.CursorRight, shiftedAction = KeyAction.CursorRight,
+                    widthWeight = 1.0f, contentDesc = "Cursor right",
                 ),
                 Ch("®"), Ch("©"), Ch("™"),
                 Ch("\\"), Ch("<"), Ch(">"),

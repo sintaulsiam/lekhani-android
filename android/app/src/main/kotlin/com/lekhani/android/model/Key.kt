@@ -35,6 +35,8 @@ sealed class KeyAction {
     data object SwitchClipboard : KeyAction()
     /** Move cursor left in active input connection */
     data object CursorLeft : KeyAction()
+    /** Move cursor right in active input connection */
+    data object CursorRight : KeyAction()
     /** Insert Tab character / event */
     data object Tab : KeyAction()
 }

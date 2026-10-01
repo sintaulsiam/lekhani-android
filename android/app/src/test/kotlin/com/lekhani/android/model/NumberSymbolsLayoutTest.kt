@@ -50,6 +50,11 @@ class NumberSymbolsLayoutTest {
         assertEquals("১", row1[0].label)
         assertEquals("০", row1[9].label)
         assertEquals("1", row1[0].hintLabel)
+
+        // Spacebar row must have English digits toggle ('123') to avoid keyboard trap
+        val toggleKey = layout.spacebarRow.find { it.action == KeyAction.ToggleBengaliDigits }
+        assertNotNull("123 toggle key must exist in Bengali numeric layout", toggleKey)
+        assertEquals("123", toggleKey?.label)
     }
 
     @Test
@@ -66,12 +71,23 @@ class NumberSymbolsLayoutTest {
         assertTrue(row2.any { it.label == "€" })
         assertTrue(row2.any { it.label == "£" })
 
-        // Row 3 switches back to ?123
+        // Row 3 switches back to ?123, has cursor left AND right, and 10 total keys
         val row3 = layout.rows[2]
+        assertEquals(10, row3.size)
         assertEquals("?123", row3[0].label)
         assertEquals(KeyAction.SwitchNumeric, row3[0].action)
+        assertEquals(KeyAction.CursorLeft, row3[1].action)
+        assertEquals(KeyAction.CursorRight, row3[2].action)
         assertTrue(row3.any { it.label == "©" })
         assertTrue(row3.any { it.label == "®" })
+    }
+
+    @Test
+    fun testProbhatSpacebarRowConsistency() {
+        val probhat = ProbhatLayout.layout
+        val globeKey = probhat.spacebarRow.find { it.action == KeyAction.SwitchLayout }
+        assertNotNull("Globe switch layout key must be present in Probhat layout", globeKey)
+        assertEquals("🌐", globeKey?.label)
     }
 
     @Test

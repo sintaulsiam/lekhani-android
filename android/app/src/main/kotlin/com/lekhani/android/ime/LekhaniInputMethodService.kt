@@ -177,6 +177,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private val _showQuickLayoutPickerFlow = MutableStateFlow(false)
     private val _paletteHeightDp = MutableStateFlow(304.dp)
     private var isCurrentFieldPrivate: Boolean = false
+    private var consumedBackOnKeyDown: Boolean = false
     private var isEnglishDictLoaded: Boolean = false
     private var previousLayoutBeforePassword: LekhaniLayoutType? = null
     private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
@@ -957,7 +958,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     setInputViewMode(InputViewMode.CLIPBOARD)
                     return
                 }
-                KeyAction.CursorLeft, KeyAction.Tab -> return
+                KeyAction.CursorLeft, KeyAction.CursorRight, KeyAction.Tab -> return
             }
         }
 
@@ -995,25 +996,22 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyAction.VoiceTyping  -> startVoiceTyping()
             KeyAction.SwitchEmoji  -> setInputViewMode(InputViewMode.EMOJI)
             KeyAction.SwitchClipboard -> setInputViewMode(InputViewMode.CLIPBOARD)
-            KeyAction.CursorLeft -> sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+            KeyAction.CursorLeft -> handleCursorMove(-1)
+            KeyAction.CursorRight -> handleCursorMove(1)
             KeyAction.Tab -> sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
         }
     }
 
     private fun crossfadeViewMode(activeView: View?, vararg otherViews: View?) {
-        val duration = 120L
         for (view in otherViews) {
             view?.animate()?.cancel()
-            view?.animate()?.alpha(0f)?.setDuration(duration)?.withEndAction {
-                view.visibility = View.GONE
-                view.alpha = 1f
-            }?.start()
+            view?.visibility = View.GONE
+            view?.alpha = 1f
         }
         activeView?.let { view ->
             view.animate()?.cancel()
-            view.alpha = 0f
+            view.alpha = 1f
             view.visibility = View.VISIBLE
-            view.animate()?.alpha(1f)?.setDuration(duration)?.start()
         }
     }
 
@@ -1517,16 +1515,20 @@ class LekhaniInputMethodService : InputMethodService() {
             if (_showQuickLayoutPickerFlow.value) {
                 _showQuickLayoutPickerFlow.value = false
                 quickLayoutPickerComposeView?.visibility = View.GONE
+                consumedBackOnKeyDown = true
                 return true
             }
             if (currentMode == InputViewMode.EMOJI_SEARCH) {
                 setInputViewMode(InputViewMode.EMOJI)
+                consumedBackOnKeyDown = true
                 return true
             }
             if (currentMode != InputViewMode.KEYBOARD) {
                 setInputViewMode(InputViewMode.KEYBOARD)
+                consumedBackOnKeyDown = true
                 return true
             }
+            consumedBackOnKeyDown = false
             return super.onKeyDown(keyCode, event)
         }
 
@@ -1643,6 +1645,12 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (consumedBackOnKeyDown) {
+                consumedBackOnKeyDown = false
+                return true
+            }
+        }
         if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
             keyboardView?.setShifted(false)
         }
@@ -2282,7 +2290,7 @@ class LekhaniInputMethodService : InputMethodService() {
      * dynamic date/time, and inline contextual emojis.
      */
     private fun publishCandidates(raw: List<String>, undo: UndoInfo? = null) {
-        if (currentMode == InputViewMode.EMOJI_SEARCH) return
+        if (currentMode == InputViewMode.EMOJI_SEARCH || isCurrentFieldPrivate) return
         if (undo != null) {
             activeUndoInfo = undo
             scheduleUndoExpiry()
@@ -2385,12 +2393,14 @@ class LekhaniInputMethodService : InputMethodService() {
                     if (result.isNotBlank()) {
                         currentInputConnection?.finishComposingText()
                         currentInputConnection?.commitText(result, 1)
+                        refreshSurroundingContext()
                     }
                 } else {
                     audioManager.startStreaming { finalResult ->
                         if (finalResult.isNotBlank()) {
                             currentInputConnection?.finishComposingText()
                             currentInputConnection?.commitText(finalResult, 1)
+                            refreshSurroundingContext()
                         }
                     }
                 }
@@ -2659,16 +2669,27 @@ class LekhaniInputMethodService : InputMethodService() {
         val inputClass = info.inputType and InputType.TYPE_MASK_CLASS
         val inputVariation = info.inputType and InputType.TYPE_MASK_VARIATION
         val noSuggestions = (info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
+        val noPersonalizedLearning = (info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
 
-        val isPasswordField = inputClass == InputType.TYPE_CLASS_TEXT && (
+        val isTextPassword = inputClass == InputType.TYPE_CLASS_TEXT && (
             inputVariation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
             inputVariation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
             inputVariation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
         )
-        isCurrentFieldPrivate = isPasswordField
-        session.setPrivateField(isPasswordField)
+        val isNumericPassword = inputClass == InputType.TYPE_CLASS_NUMBER && (
+            inputVariation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        )
+        val isPassword = isTextPassword || isNumericPassword
+        val isPrivate = isPassword || noSuggestions || noPersonalizedLearning
 
-        if (isPasswordField) {
+        isCurrentFieldPrivate = isPrivate
+        session.setPrivateField(isPrivate)
+
+        if (isPrivate) {
+            clearCandidates()
+        }
+
+        if (isPassword) {
             // Auto-switch to English QWERTY for passwords and preserve the previous layout
             if (session.getLayout() != LekhaniLayoutType.ENGLISH) {
                 if (previousLayoutBeforePassword == null) {
@@ -2697,6 +2718,10 @@ class LekhaniInputMethodService : InputMethodService() {
      * AGENTS.md §5: The UI thread and onKey() methods must remain non-blocking.
      */
     private fun refreshSurroundingContext() {
+        if (isCurrentFieldPrivate) {
+            clearCandidates()
+            return
+        }
         serviceScope.launch {
             val contextText = withContext(Dispatchers.IO) {
                 try {

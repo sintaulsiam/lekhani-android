@@ -274,12 +274,13 @@ object ProbhatLayout {
             Key(
                 label = "?123", shiftedLabel = "?123",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
-                widthWeight = 1.4f, contentDesc = "Numbers",
+                longPressAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.4f, contentDesc = "Numbers, long press for emoji",
             ),
             Key(
-                label = "😊", shiftedLabel = "😊",
-                action = KeyAction.SwitchEmoji, shiftedAction = KeyAction.SwitchEmoji,
-                widthWeight = 1.0f, contentDesc = "Emoji",
+                label = "🌐", shiftedLabel = "🌐",
+                action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
+                widthWeight = 1.0f, contentDesc = "Switch layout",
             ),
             Key(
                 label = ",", shiftedLabel = ";",

@@ -1135,11 +1135,26 @@ class KeyboardCanvasView @JvmOverloads constructor(
             currentRowTop += kHeight + keyMarginV
         }
 
-        // Spacebar row in Split mode
+        // Spacebar row in Split mode — ergonomic split spacebar for both thumbs
         val spaceRow = currentLayout.spacebarRow
-        val halfCount = (spaceRow.size + 1) / 2
-        val leftSpaceKeys = spaceRow.take(halfCount)
-        val rightSpaceKeys = spaceRow.drop(halfCount)
+        val spaceIndex = spaceRow.indexOfFirst { it.action == KeyAction.Space }
+        val spaceKey = if (spaceIndex >= 0) spaceRow[spaceIndex] else Key(
+            label = "Space", shiftedLabel = "Space",
+            action = KeyAction.Space, shiftedAction = KeyAction.Space,
+            widthWeight = 2.4f, contentDesc = "Space",
+        )
+        val leftSpaceKeys: List<Key>
+        val rightSpaceKeys: List<Key>
+        if (spaceIndex >= 0) {
+            val leftSide = spaceRow.take(spaceIndex)
+            val rightSide = spaceRow.drop(spaceIndex + 1)
+            leftSpaceKeys = leftSide + spaceKey.copy(widthWeight = 2.4f)
+            rightSpaceKeys = listOf(spaceKey.copy(widthWeight = 2.4f)) + rightSide
+        } else {
+            val halfCount = (spaceRow.size + 1) / 2
+            leftSpaceKeys = spaceRow.take(halfCount)
+            rightSpaceKeys = spaceRow.drop(halfCount)
+        }
         val spaceRowTop = currentRowTop
         val spaceKeyHeight = (kHeight * 0.96f).coerceAtLeast(32f * density)
 
@@ -1383,7 +1398,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 key.action == KeyAction.SwitchAlpha || key.action == KeyAction.ToggleBengaliDigits ||
                 key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
                 key.action == KeyAction.SwitchEmoji || key.action == KeyAction.SwitchClipboard ||
-                key.action == KeyAction.CursorLeft || key.action == KeyAction.Tab -> keyShiftBgPaint
+                key.action == KeyAction.CursorLeft || key.action == KeyAction.CursorRight ||
+                key.action == KeyAction.Tab -> keyShiftBgPaint
                 key.action == KeyAction.Space -> keySpaceBgPaint
                 else -> keyBgPaint
             }
@@ -1572,7 +1588,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         key.action == KeyAction.SwitchMoreSymbols || key.action == KeyAction.SwitchAlpha ||
         key.action == KeyAction.ToggleBengaliDigits ||
         key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
-        key.action == KeyAction.CursorLeft || key.action == KeyAction.Tab
+        key.action == KeyAction.CursorLeft || key.action == KeyAction.CursorRight ||
+        key.action == KeyAction.Tab
 
     // ══════════════════════════════════════════════════════════════════════════
     // Touch handling — ZERO allocations permitted here
@@ -1673,12 +1690,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         visitedGlideKeys.add(keyAct.token)
                         lastVisitedKeyIdx = idx
                     }
-                    if (keyAct is KeyAction.Character) {
-                        postDelayed(longPressRunnable, longPressDelayMs)
-                    } else if (key.action == KeyAction.Space) {
+                    if (key.action == KeyAction.Space) {
                         spaceTouchStartX = px
                         spaceTouchStartY = py
                         spaceSlideLastX = px
+                        postDelayed(longPressRunnable, longPressDelayMs)
+                    } else if (keyAct is KeyAction.Character || key.action == KeyAction.SwitchLayout || key.activeLongPressAction(isShifted) != null) {
                         postDelayed(longPressRunnable, longPressDelayMs)
                     } else if (key.action == KeyAction.Backspace) {
                         backspaceSwipeStartX = px
@@ -2079,6 +2096,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        removeCallbacks(longPressRunnable)
+        removeCallbacks(backspaceRepeatRunnable)
         // Dismiss both PopupWindows to avoid "window leaked" exceptions when IME hides
         keyPreviewPopup.dismiss()
         alternatePopup.dismiss()
