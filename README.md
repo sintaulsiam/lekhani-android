@@ -9,6 +9,13 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Platform-Android_10+-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android" />
+  <img src="https://img.shields.io/badge/Language-Rust_%7C_Kotlin_2.0-orange?style=for-the-badge&logo=rust&logoColor=white" alt="Rust & Kotlin" />
+  <img src="https://img.shields.io/badge/Privacy-100%25_Offline-00E5FF?style=for-the-badge&logo=shield&logoColor=white" alt="100% Offline" />
+  <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=for-the-badge" alt="GPL 3.0" />
+</p>
+
+<p align="center">
   <a href="#vision">Vision</a> •
   <a href="#key-features">Features</a> •
   <a href="ARCHITECTURE.md">Architecture</a> •
@@ -16,7 +23,8 @@
   <a href="FEATURES.md">Feature Spec</a> •
   <a href="LAYOUT_PROBAHO.md">Lekhani প্রবাহ (Flow)</a> •
   <a href="mockups/index.html">Interactive Mockup</a> •
-  <a href="#license">License</a>
+  <a href="#build-instructions">Build</a> •
+  <a href="#author--credits">Credits</a>
 </p>
 
 ---
@@ -100,6 +108,37 @@ Detailed task breakdown in [ROADMAP.md](ROADMAP.md).
 
 ---
 
+## 🛠️ Build Instructions
+
+### Prerequisites
+- **Rust**: 1.78+ with `cargo-ndk` (`cargo install cargo-ndk`)
+- **Android NDK**: r25c or r26b (`$ANDROID_NDK_HOME` or standard SDK location)
+- **JDK**: OpenJDK 17 or 21
+- **Android SDK**: API 34+
+
+### 1. Compile Native Rust Libraries
+```bash
+# Cross-compiles crates/lekhani-android for arm64-v8a, armeabi-v7a, x86, and x86_64
+./scripts/build_rust.sh
+```
+
+### 2. Build Android Debug APK
+```bash
+./gradlew assembleDebug
+```
+The output APK is generated at:
+`android/app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+## 👤 Author & Credits
+
+- **Architect & Lead Developer**: **Sintaul Mahdi Siam** ([@sintaulsiam](https://github.com/sintaulsiam))
+- **Email**: [sintaulsiam@gmail.com](mailto:sintaulsiam@gmail.com)
+- **GitHub Repository**: [https://github.com/sintaulsiam/lekhani-android](https://github.com/sintaulsiam/lekhani-android)
+
+---
+
 ## 📄 License
 
-Licensed under GPL-3.0-or-later. © 2026 Syntenium.
+Licensed under GPL-3.0-or-later. © 2026 Sintaul Mahdi Siam.

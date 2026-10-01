@@ -61,7 +61,7 @@ import androidx.compose.ui.unit.dp
 import com.lekhani.android.ui.components.LekhaniBrandLogo
 
 private const val SUPPORT_EMAIL = "sintaulsiam@gmail.com"
-private const val GITHUB_REPO_URL = "https://github.com/syntenium/lekhani-android"
+private const val GITHUB_REPO_URL = "https://github.com/sintaulsiam/lekhani-android"
 
 /**
  * AboutPrivacyTab
