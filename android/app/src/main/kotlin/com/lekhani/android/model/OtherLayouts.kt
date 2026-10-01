@@ -93,7 +93,6 @@ object EnglishQwertyLayout {
 
 /**
  * Avro Phonetic Layout
- * ══════════════════════════════════════════════════════════════════════════════
  * Classic muscle-memory transliteration: typing phonetic English produces
  * Bengali output via the lekhani-parser crate (e.g. "ami" → "আমি").
  * The visual keys are standard QWERTY; the Rust engine handles transliteration.
@@ -111,7 +110,6 @@ object AvroPhoneticLayout {
 
 /**
  * Fixed National (জাতীয়) Layout — Official Bangladesh BBS Standard
- * ══════════════════════════════════════════════════════════════════════════════
  * Standard government-mandated fixed layout for official Bengali typing.
  * Commonly used in government offices and educational institutions.
  */
@@ -228,7 +226,6 @@ object NationalLayout {
 
 /**
  * Probhat (प्रभात) Layout — Official 12-Key Ergonomic Bengali Layout
- * ══════════════════════════════════════════════════════════════════════════════
  * Features full standard letter coverage including ে/ৈ and ো/ৌ on top row,
  * dedicated Hasanta (্) and Chandra Bindu (ঁ) in row 3, and standardized spacebar.
  */
@@ -312,7 +309,6 @@ object ProbhatLayout {
 
 /**
  * Gboard Bengali (জি-বোর্ড বাংলা) Layout
- * ══════════════════════════════════════════════════════════════════════════════
  * Official Gboard Bengali Varnamala Layout with Dynamic Vowel/Kar Row.
  * - In default/initial state: Row 1 displays independent vowels (অ..ঔ).
  * - After a consonant is typed: Row 1 dynamically morphs into vowel kars (া..ৌ).

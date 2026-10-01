@@ -46,7 +46,6 @@ import com.lekhani.android.feedback.LekhaniFeedbackManager
 
 /**
  * HapticsSoundSheet
- * ══════════════════════════════════════════════════════════════════════════════
  * Settings sheet for keypress vibration intensity and sound packs.
  */
 @Composable

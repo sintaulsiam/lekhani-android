@@ -47,7 +47,6 @@ import com.lekhani.android.theme.KeyboardTheme
 
 /**
  * QuickLayoutPickerSheet
- * ══════════════════════════════════════════════════════════════════════════════
  * Material 3 Expressive Quick Layout Picker displayed directly within the IME window
  * when spacebar is long-pressed. Replaces the legacy Android AlertDialog.
  */

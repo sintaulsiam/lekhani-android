@@ -553,9 +553,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     private val accessibilityHelper = KeyboardAccessibilityHelper()
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Initialization
-    // ══════════════════════════════════════════════════════════════════════════
 
     private var isThemeApplied: Boolean = false
 
@@ -576,9 +574,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         return accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Layout & Theme Management
-    // ══════════════════════════════════════════════════════════════════════════
 
     /**
      * Applies full configuration and theme from [KeyboardPreferences].
@@ -766,9 +762,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         return isShifted
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Measurement & Size change
-    // ══════════════════════════════════════════════════════════════════════════
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -1209,9 +1203,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyListener?.onGeometryChanged(configs)
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Vector Drawing Helpers — Zero allocations permitted
-    // ══════════════════════════════════════════════════════════════════════════
 
     private fun drawVectorBackspace(canvas: Canvas, cx: Float, cy: Float, size: Float, paint: Paint) {
         vectorIconPath.rewind()
@@ -1613,9 +1605,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         key.action == KeyAction.CursorLeft || key.action == KeyAction.CursorRight ||
         key.action == KeyAction.Tab
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Touch handling — ZERO allocations permitted here
-    // ══════════════════════════════════════════════════════════════════════════
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val action = event.actionMasked
@@ -2188,9 +2178,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Accessibility / TalkBack Exploration (WCAG 2.1)
-    // ══════════════════════════════════════════════════════════════════════════
 
     @Suppress("DEPRECATION") // setBoundsInParent is the correct API for ExploreByTouchHelper virtual views
     private inner class KeyboardAccessibilityHelper : ExploreByTouchHelper(this@KeyboardCanvasView) {
@@ -2335,9 +2323,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Constants — all colours and metrics in one place
-    // ══════════════════════════════════════════════════════════════════════════
 
     companion object {
         // Palette (dark theme — Material 3 Expressive)

@@ -5,7 +5,6 @@ import androidx.core.content.edit
 
 /**
  * CandidateBlacklist
- * ══════════════════════════════════════════════════════════════════════════════
  * Persists user-blacklisted candidates to Device Protected Storage.
  * A candidate is blacklisted when the user long-presses it in the strip
  * (FEATURES.md §2 "Candidate Blacklisting").

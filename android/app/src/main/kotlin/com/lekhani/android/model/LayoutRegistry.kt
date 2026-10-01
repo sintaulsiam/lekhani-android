@@ -4,7 +4,6 @@ import com.lekhani.android.ffi.LekhaniLayoutType
 
 /**
  * LayoutRegistry — single source of truth for layout → KeyboardLayout mapping
- * ══════════════════════════════════════════════════════════════════════════════
  * All layout objects are singletons (Kotlin objects), so this registry holds
  * only references — zero heap allocation at call time.
  */

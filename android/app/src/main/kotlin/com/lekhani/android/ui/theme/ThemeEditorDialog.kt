@@ -52,7 +52,6 @@ import com.lekhani.android.theme.KeyboardTheme
 
 /**
  * ThemeEditorDialog
- * ══════════════════════════════════════════════════════════════════════════════
  * Interactive Material 3 theme customizer with real-time mini-keyboard canvas preview,
  * color swatches, WCAG 2.1 AA luminance contrast checker, and direct local persistence.
  */

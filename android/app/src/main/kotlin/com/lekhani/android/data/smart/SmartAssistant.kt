@@ -6,7 +6,6 @@ import java.util.Locale
 
 /**
  * SmartAssistant
- * ══════════════════════════════════════════════════════════════════════════════
  * On-device intelligence engine providing zero-network, sub-microsecond smart
  * assistance for Lekhani:
  *  - Inline arithmetic solver (e.g. "500+250=" → "750", "১২০*৫=" → "৬০০")

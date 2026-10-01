@@ -13,7 +13,6 @@ import com.lekhani.android.theme.KeyboardTheme
 
 /**
  * KeyPreviewPopupWindow
- * ══════════════════════════════════════════════════════════════════════════════
  * A lightweight [PopupWindow] that renders the key-press preview bubble
  * (the "keycap" that floats above the pressed key).
  *

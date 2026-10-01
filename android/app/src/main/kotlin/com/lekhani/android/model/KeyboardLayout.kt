@@ -2,7 +2,6 @@ package com.lekhani.android.model
 
 /**
  * KeyboardLayout — immutable layout specification
- * ══════════════════════════════════════════════════════════════════════════════
  * A layout is a list of rows; each row is a list of [Key]s. The canvas view
  * iterates this structure once on size change to compute pixel bounding boxes,
  * then never touches it again in the draw loop.

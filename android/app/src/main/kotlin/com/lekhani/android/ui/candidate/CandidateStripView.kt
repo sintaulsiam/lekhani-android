@@ -125,7 +125,6 @@ private val ItemSpacing       = 8.dp
 
 /**
  * CandidateStripView
- * ══════════════════════════════════════════════════════════════════════════════
  * The horizontal candidate suggestion strip rendered above the keyboard canvas.
  *
  * Features (FEATURES.md §2, ROADMAP.md Phase 4 & Phase 10):

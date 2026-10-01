@@ -38,7 +38,6 @@ import java.io.File
 
 /**
  * DictionaryManagementSheet
- * ══════════════════════════════════════════════════════════════════════════════
  * Material 3 Expressive UI for User Vocabulary & Shortcuts:
  *  - Tab 0: Personal Dictionary (custom words, search, import, export)
  *  - Tab 1: Text Replacements & Custom Auto-Correct Rules (triggers ➔ replacements)

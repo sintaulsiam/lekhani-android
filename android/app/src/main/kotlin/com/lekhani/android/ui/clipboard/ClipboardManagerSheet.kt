@@ -97,7 +97,6 @@ import java.util.Locale
 
 /**
  * ClipboardManagerSheet
- * ══════════════════════════════════════════════════════════════════════════════
  * Material 3 Expressive UI for Lekhani's full in-app Clipboard Suite:
  *  - Configurable auto-clearing retention (default 1 hour, customizable to 6h, 24h, 7d, Never)
  *  - Pin items to top & Save items permanently to long-term vault
@@ -581,9 +580,7 @@ fun ClipboardManagerSheet(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // Tab Content: Clips List
-// ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun ClipsListView(
@@ -880,9 +877,7 @@ private fun ClipItemCard(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // Tab Content: Links List
-// ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun LinksListView(
@@ -1096,9 +1091,7 @@ private fun LinksListView(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // Tab Content: Snapshots List
-// ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun SnapshotsListView(
@@ -1270,9 +1263,7 @@ private fun SnapshotsListView(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // Dialogs
-// ══════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun RetentionPeriodDialog(

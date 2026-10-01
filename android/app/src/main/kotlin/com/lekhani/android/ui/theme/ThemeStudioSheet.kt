@@ -150,7 +150,6 @@ private fun computeChromaComposeColor(mode: ChromaMode, phase: Float, xRatio: Fl
 
 /**
  * ThemeStudioSheet
- * ══════════════════════════════════════════════════════════════════════════════
  * Material 3 Expressive theme customization studio.
  * Supports independent app appearance modes, rich categorized keyboard themes
  * (Neon & Cyber, Aesthetic & Pastel, 120 FPS RGB Chroma Dynamic, Classic),

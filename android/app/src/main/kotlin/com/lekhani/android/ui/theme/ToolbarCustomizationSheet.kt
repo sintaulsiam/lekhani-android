@@ -45,7 +45,6 @@ import com.lekhani.android.data.settings.KeyboardPreferences
 
 /**
  * ToolbarCustomizationSheet
- * ══════════════════════════════════════════════════════════════════════════════
  * Settings sheet for customizing and reordering top toolbar shortcut tools.
  */
 @Composable

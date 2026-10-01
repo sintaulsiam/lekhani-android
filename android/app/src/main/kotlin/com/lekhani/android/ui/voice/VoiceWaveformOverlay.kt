@@ -59,7 +59,6 @@ private val TextSecondary    = Color(0xFF8B949E)
 
 /**
  * VoiceWaveformOverlay
- * ══════════════════════════════════════════════════════════════════════════════
  * Visual audio waveform and live transcription feedback overlay.
  *
  * Features (ROADMAP.md Phase 5):

@@ -67,7 +67,6 @@ import com.lekhani.android.data.settings.KeyboardPreferences
 
 /**
  * PreferencesTabContent
- * ══════════════════════════════════════════════════════════════════════════════
  * Unified Material 3 Preferences screen combining:
  * 1. Form Factors & Typing Modes
  * 2. Gestures (Spacebar swipe, Backspace swipe-delete, Glide typing)

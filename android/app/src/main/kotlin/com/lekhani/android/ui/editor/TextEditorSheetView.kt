@@ -47,7 +47,6 @@ import com.lekhani.android.theme.KeyboardTheme
 
 /**
  * Text & Cursor Editor Sheet
- * ══════════════════════════════════════════════════════════════════════════════
  * Provides a dedicated navigation D-pad, precise character/word cursor traversal,
  * text selection mode, and clipboard actions (Cut, Copy, Paste, Select All).
  *

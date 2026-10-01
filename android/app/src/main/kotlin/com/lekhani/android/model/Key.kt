@@ -2,7 +2,6 @@ package com.lekhani.android.model
 
 /**
  * KeyAction — what a key does when tapped
- * ══════════════════════════════════════════════════════════════════════════════
  * A sealed hierarchy so the keyboard view can dispatch actions without string
  * comparisons in the hot path.
  */
@@ -43,7 +42,6 @@ sealed class KeyAction {
 
 /**
  * Key — a single keyboard key's complete specification
- * ══════════════════════════════════════════════════════════════════════════════
  * Immutable data class. All layout definitions are declared as lists of Keys.
  *
  * Performance note: Key objects are created ONCE at layout initialization time

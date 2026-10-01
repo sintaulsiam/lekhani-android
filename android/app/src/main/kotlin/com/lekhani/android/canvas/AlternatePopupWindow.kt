@@ -14,7 +14,6 @@ import com.lekhani.android.theme.KeyboardTheme
 
 /**
  * AlternatePopupWindow
- * ══════════════════════════════════════════════════════════════════════════════
  * A [PopupWindow] that renders the long-press alternate-characters strip
  * (Gboard-style horizontal pill row). Lives in its own window layer — no
  * clipping against [KeyboardCanvasView] bounds.

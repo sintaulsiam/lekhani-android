@@ -2,7 +2,6 @@ package com.lekhani.android.model
 
 /**
  * Number & Symbol Layouts
- * ══════════════════════════════════════════════════════════════════════════════
  * Provides dedicated Number & Symbol layers across all typing modes:
  * - [numericLayout]: Primary digits (1..0) with Bengali digits hint, common punctuation, currency
  * - [bengaliNumericLayout]: Native Bengali numerals (১..০) with English digits hint (State 2)

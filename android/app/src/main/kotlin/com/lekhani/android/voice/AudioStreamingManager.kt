@@ -22,7 +22,6 @@ import kotlinx.coroutines.launch
 
 /**
  * AudioStreamingManager
- * ══════════════════════════════════════════════════════════════════════════════
  * Manages the Android [AudioRecord] hardware capture loop and feeds PCM frames
  * to the native UniFFI [AsrAudioProcessor].
  *

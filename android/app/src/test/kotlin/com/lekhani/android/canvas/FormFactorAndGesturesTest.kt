@@ -8,7 +8,6 @@ import org.junit.Test
 
 /**
  * FormFactorAndGesturesTest
- * ══════════════════════════════════════════════════════════════════════════════
  * Unit tests for Phase 11 Form Factors, Spacebar Cursor Slide, and Backspace Swipe Delete.
  */
 class FormFactorAndGesturesTest {

@@ -2,7 +2,6 @@ package com.lekhani.android.ui.candidate
 
 /**
  * HomophoneAnnotator
- * ══════════════════════════════════════════════════════════════════════════════
  * Detects known Bengali homophone pairs and attaches disambiguation badges
  * to [CandidateItem]s before they are displayed in the strip.
  *

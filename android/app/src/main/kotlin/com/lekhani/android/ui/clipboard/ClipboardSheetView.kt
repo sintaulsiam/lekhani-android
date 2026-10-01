@@ -67,7 +67,6 @@ import com.lekhani.android.theme.ThemeRegistry
 
 /**
  * ClipboardSheetView
- * ══════════════════════════════════════════════════════════════════════════════
  * Modern, resilient 100% on-device clipboard panel.
  *
  * IME Stability Guarantee:
@@ -608,7 +607,6 @@ fun ClipboardSheetView(
 
 /**
  * CleanClipCard
- * ══════════════════════════════════════════════════════════════════════════════
  * Elegant, thumb-friendly card designed for instant tap-to-paste without micro-button clutter.
  */
 @Composable

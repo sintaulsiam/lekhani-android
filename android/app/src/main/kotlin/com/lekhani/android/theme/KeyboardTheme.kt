@@ -6,7 +6,6 @@ import android.os.Build
 
 /**
  * ThemeCategory
- * ══════════════════════════════════════════════════════════════════════════════
  * Categorization taxonomy for Lekhani keyboard themes.
  */
 enum class ThemeCategory(val titleBengali: String, val titleEnglish: String) {
@@ -21,7 +20,6 @@ enum class ThemeCategory(val titleBengali: String, val titleEnglish: String) {
 
 /**
  * ChromaMode
- * ══════════════════════════════════════════════════════════════════════════════
  * Dynamic color-shifting algorithms for 120 FPS animated RGB themes.
  */
 enum class ChromaMode {
@@ -35,7 +33,6 @@ enum class ChromaMode {
 
 /**
  * KeyboardTheme
- * ══════════════════════════════════════════════════════════════════════════════
  * Immutable definition of color tokens used by [KeyboardCanvasView],
  * [CandidateStripView], and the keyboard toolbar.
  *
@@ -129,7 +126,6 @@ data class KeyboardTheme(
 
 /**
  * ThemeRegistry
- * ══════════════════════════════════════════════════════════════════════════════
  * Provides built-in theme presets and dynamic Material You theme generation.
  */
 object ThemeRegistry {

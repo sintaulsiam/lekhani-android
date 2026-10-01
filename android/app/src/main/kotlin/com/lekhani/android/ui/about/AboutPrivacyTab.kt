@@ -65,7 +65,6 @@ private const val GITHUB_REPO_URL = "https://github.com/sintaulsiam/lekhani-andr
 
 /**
  * AboutPrivacyTab
- * ══════════════════════════════════════════════════════════════════════════════
  * Clean, user-centric About screen:
  * 1. Brand Header (M3 circle logo, version badge with accessible dev unlock)
  * 2. 100% Offline & Privacy Guarantee (Primary user assurance)

@@ -51,7 +51,6 @@ import kotlin.math.roundToInt
 
 /**
  * ExtraToolsSheetView
- * ══════════════════════════════════════════════════════════════════════════════
  * Sleek, clean Material 3 Tool Vault drawer with rock-solid direct-placement drag-and-drop.
  *
  * Guarantees:
@@ -265,9 +264,7 @@ fun ExtraToolsSheetView(
             .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
         if (!isEditMode) {
-            // ══════════════════════════════════════════════════════════════════
             // NORMAL VIEW: Spacious, clean grid of Vault-only tools
-            // ══════════════════════════════════════════════════════════════════
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
@@ -416,9 +413,7 @@ fun ExtraToolsSheetView(
                 }
             }
         } else {
-            // ══════════════════════════════════════════════════════════════════
             // EDIT MODE: Direct-Placement Drag-and-Drop & Quick Tap Reorder
-            // ══════════════════════════════════════════════════════════════════
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1024,9 +1019,7 @@ fun ExtraToolsSheetView(
             }
         }
 
-        // ══════════════════════════════════════════════════════════════════════
         // DETACHED FLOATING CARD: Renders at root level following finger
-        // ══════════════════════════════════════════════════════════════════════
         if (draggedTool != null) {
             val activeTool = draggedTool!!
             val cardOffset = currentTouchPosInRoot - rootBounds.topLeft

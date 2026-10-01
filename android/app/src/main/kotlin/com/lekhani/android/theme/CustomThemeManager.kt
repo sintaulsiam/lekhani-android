@@ -7,7 +7,6 @@ import org.json.JSONObject
 
 /**
  * CustomThemeManager
- * ══════════════════════════════════════════════════════════════════════════════
  * Manages user-created and duplicated keyboard themes in Device Protected Storage.
  * Ensures zero network usage and 100% on-device offline persistence.
  */

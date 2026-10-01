@@ -91,7 +91,6 @@ import kotlinx.coroutines.launch
 
 /**
  * EmojiPickerView
- * ══════════════════════════════════════════════════════════════════════════════
  * Modern, fluid Unicode 15.1+ emoji, Kaomoji, and typographical symbols palette.
  *
  * Upgrades:

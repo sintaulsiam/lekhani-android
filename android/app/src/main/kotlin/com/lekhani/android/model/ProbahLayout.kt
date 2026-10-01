@@ -2,7 +2,6 @@ package com.lekhani.android.model
 
 /**
  * Lekhani প্রবাহ (Flow) Layout Definition
- * ══════════════════════════════════════════════════════════════════════════════
  * Based on the ergonomic specification in LAYOUT_PROBAHO.md.
  *
  * Design principles:

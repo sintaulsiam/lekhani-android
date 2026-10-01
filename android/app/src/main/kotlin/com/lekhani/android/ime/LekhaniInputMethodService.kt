@@ -75,7 +75,6 @@ import kotlinx.coroutines.withContext
 
 /**
  * LekhaniInputMethodService
- * ══════════════════════════════════════════════════════════════════════════════
  * The central Android IME service. Bridges the Kotlin/Android layer with the
  * Rust [AndroidLekhaniSession] engine via UniFFI-generated bindings.
  *
@@ -253,9 +252,7 @@ class LekhaniInputMethodService : InputMethodService() {
         LekhaniFeedbackManager(this)
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Lifecycle
-    // ══════════════════════════════════════════════════════════════════════════
 
     override fun onCreate() {
         super.onCreate()
@@ -408,9 +405,7 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onDestroy()
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Input session lifecycle  (called on every editor focus/blur)
-    // ══════════════════════════════════════════════════════════════════════════
 
     override fun onStartInput(info: EditorInfo, restarting: Boolean) {
         super.onStartInput(info, restarting)
@@ -545,9 +540,7 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // UI — keyboard view (stub; KeyboardCanvasView implemented in Phase 3)
-    // ══════════════════════════════════════════════════════════════════════════
 
     override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
         super.onConfigureWindow(win, isFullscreen, isCandidatesOnly)
@@ -1505,9 +1498,7 @@ class LekhaniInputMethodService : InputMethodService() {
         _showQuickLayoutPickerFlow.value = true
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Physical / Bluetooth Hardware Keyboard Integration (Phase 7)
-    // ══════════════════════════════════════════════════════════════════════════
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         // Intercept back key when inside Quick Layout Picker, Emoji or Clipboard view to return to Keyboard
@@ -1674,9 +1665,7 @@ class LekhaniInputMethodService : InputMethodService() {
         return true
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Key processing  (hot path — must not block the main thread)
-    // ══════════════════════════════════════════════════════════════════════════
 
     /**
      * Checks if the user manually repositioned the cursor away from the active
@@ -2786,9 +2775,7 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
     // Constants
-    // ══════════════════════════════════════════════════════════════════════════
 
     companion object {
         private const val TAG = "LekhaniIME"

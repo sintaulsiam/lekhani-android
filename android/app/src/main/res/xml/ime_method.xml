@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     res/xml/ime_method.xml — IME Subtype Metadata
-    ══════════════════════════════════════════════
     Declares the input method subtypes that appear in Android's Language &
     Input settings. Each subtype corresponds to one keyboard layout mode.
 

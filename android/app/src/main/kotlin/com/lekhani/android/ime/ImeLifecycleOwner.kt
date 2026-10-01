@@ -11,7 +11,6 @@ import androidx.savedstate.SavedStateRegistryOwner
 
 /**
  * ImeLifecycleOwner
- * ══════════════════════════════════════════════════════════════════════════════
  * Synthetic [LifecycleOwner], [ViewModelStoreOwner], and [SavedStateRegistryOwner]
  * for hosting Jetpack Compose views inside [LekhaniInputMethodService].
  *

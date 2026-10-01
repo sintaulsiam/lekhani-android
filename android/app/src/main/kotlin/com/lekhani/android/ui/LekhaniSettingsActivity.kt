@@ -130,7 +130,6 @@ import com.lekhani.android.ui.theme.ToolbarCustomizationSheet
 
 /**
  * LekhaniSettingsActivity
- * ══════════════════════════════════════════════════════════════════════════════
  * Main entry point and modern 4-tab Material 3 Settings app for Lekhani Keyboard.
  * Uncluttered navigation bar:
  * - Layouts
@@ -1165,7 +1164,6 @@ private fun LayoutsTabContent(
 
 /**
  * LekhaniAppTheme
- * ══════════════════════════════════════════════════════════════════════════════
  * Independent Material 3 Expressive theme engine for Lekhani Settings & Studio.
  * Completely decoupled from keyboard canvas colors to guarantee WCAG AAA contrast,
  * clean typography, and zero layout visual breakage across all custom & extreme themes.
