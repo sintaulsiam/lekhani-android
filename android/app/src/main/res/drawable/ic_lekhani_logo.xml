@@ -7,7 +7,7 @@
 
     <!-- Squircle Background Base -->
     <path
-        android:pathData="M 24,0 H 84 C 97.3,0 108,10.7 108,24 V 84 C 108,97.3 97.3,108 84,108 H 24 C 10.7,108 0,97.3 0,84 V 24 C 0,10.7 10.7,0 24,0 Z">
+        android:pathData="M 25,0 H 83 C 96.8,0 108,11.2 108,25 V 83 C 108,96.8 96.8,108 83,108 H 25 C 11.2,108 0,96.8 0,83 V 25 C 0,11.2 11.2,0 25,0 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="0"
@@ -15,49 +15,49 @@
                 android:endX="108"
                 android:endY="108"
                 android:type="linear">
-                <item android:color="#0F2E24" android:offset="0.0" />
-                <item android:color="#05130E" android:offset="1.0" />
+                <item android:color="#0E2A21" android:offset="0.0" />
+                <item android:color="#030C09" android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Ambient Glow -->
+    <!-- Ambient Mint Glow -->
     <path
-        android:fillColor="#1400E5B8"
-        android:pathData="M88,52 A34,34 0 0,1 54,86 34,34 0 0,1 20,52 34,34 0 0,1 54,18 34,34 0 0,1 88,52 Z" />
+        android:fillColor="#1A00E5B8"
+        android:pathData="M90,50 A36,36 0 0,1 54,86 36,36 0 0,1 18,50 36,36 0 0,1 54,14 36,36 0 0,1 90,50 Z" />
 
-    <!-- Fountain Pen Nib Silhouette -->
+    <!-- Sculpted Fountain Pen Nib Silhouette (Organic Concave Curves) -->
     <path
-        android:strokeWidth="1.6"
+        android:strokeWidth="1.8"
         android:strokeColor="#00E5B8"
         android:strokeLineJoin="round"
-        android:pathData="M 32,23 C 27,23 24,26 25,31 C 26,38 30,46 34,52 L 51.5,78.5 C 52.6,80.2 55.4,80.2 56.5,78.5 L 74,52 C 78,46 82,38 83,31 C 84,26 81,23 76,23 Z">
+        android:pathData="M 40,20 C 37,25 28,34 28,45 C 28,50 31,55 35,59 C 41,65 49,74 53.4,80.5 C 53.7,81 54.3,81 54.6,80.5 C 59,74 67,65 73,59 C 77,55 80,50 80,45 C 80,34 71,25 68,20 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="54"
-                android:startY="23"
+                android:startY="20"
                 android:endX="54"
-                android:endY="80"
+                android:endY="81"
                 android:type="linear">
-                <item android:color="#18483A" android:offset="0.0" />
-                <item android:color="#0C271E" android:offset="1.0" />
+                <item android:color="#194C3E" android:offset="0.0" />
+                <item android:color="#081E17" android:offset="1.0" />
             </gradient>
         </aapt:attr>
     </path>
 
     <!-- Breather Hole -->
     <path
-        android:fillColor="#0C251D"
+        android:fillColor="#071B15"
         android:strokeColor="#00E5B8"
-        android:strokeWidth="1.2"
-        android:pathData="M 56.5,33 A 2.5,2.5 0 0,1 54,35.5 2.5,2.5 0 0,1 51.5,33 2.5,2.5 0 0,1 54,30.5 2.5,2.5 0 0,1 56.5,33 Z" />
+        android:strokeWidth="1.4"
+        android:pathData="M 56.8,34 A 2.8,2.8 0 0,1 54,36.8 2.8,2.8 0 0,1 51.2,34 2.8,2.8 0 0,1 54,31.2 2.8,2.8 0 0,1 56.8,34 Z" />
 
     <!-- Ink Slit Line -->
     <path
-        android:strokeColor="#8000E5B8"
-        android:strokeWidth="1.1"
+        android:strokeColor="#CC00E5B8"
+        android:strokeWidth="1.2"
         android:strokeLineCap="round"
-        android:pathData="M 54,35.5 L 54,78.5" />
+        android:pathData="M 54,36.8 L 54,79.5" />
 
     <!-- Bengali 'লে' Typography -->
     <path
@@ -66,13 +66,13 @@
 
     <!-- Keyboard Spacebar Horizon Line -->
     <path
-        android:pathData="M 42.3,84.5 H 65.7 C 66.42,84.5 67,85.08 67,85.8 C 67,86.52 66.42,87.1 65.7,87.1 H 42.3 C 41.58,87.1 41,86.52 41,85.8 C 41,85.08 41.58,84.5 42.3,84.5 Z">
+        android:pathData="M 41.4,85.5 H 66.6 C 67.37,85.5 68,86.13 68,86.9 C 68,87.67 67.37,88.3 66.6,88.3 H 41.4 C 40.63,88.3 40,87.67 40,86.9 C 40,86.13 40.63,85.5 41.4,85.5 Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="41"
-                android:startY="85.8"
-                android:endX="67"
-                android:endY="85.8"
+                android:startX="40"
+                android:startY="86.9"
+                android:endX="68"
+                android:endY="86.9"
                 android:type="linear">
                 <item android:color="#00E5B8" android:offset="0.0" />
                 <item android:color="#36ECC4" android:offset="1.0" />
