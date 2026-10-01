@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="mockups/lekhani_android_flagship.jpg" alt="Lekhani Android Flagship Keyboard Mockup" width="700" style="border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6);" />
+  <img src="docs/screenshots/keyboard_avro.png" alt="Lekhani Android Bengali Keyboard" width="380" style="border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.6);" />
 </p>
 
 <p align="center">
@@ -22,8 +22,9 @@
   <a href="ROADMAP.md">Roadmap</a> •
   <a href="FEATURES.md">Feature Spec</a> •
   <a href="LAYOUT_PROBAHO.md">Lekhani প্রবাহ (Flow)</a> •
-  <a href="mockups/index.html">Interactive Mockup</a> •
+  <a href="#screenshots">Screenshots</a> •
   <a href="#build-instructions">Build</a> •
+  <a href="CONTRIBUTING.md">Contributing</a> •
   <a href="#author--credits">Credits</a>
 </p>
 
@@ -47,22 +48,18 @@ Lekhani Android is engineered to become the definitive mobile Bengali typing exp
 
 ---
 
-## 📱 Visual Mockups & UI Showcase
+## 📱 Screenshots
 
-### 1. Flagship Real-World View (Modern Bezel-Less Android 15)
-![Flagship Mockup](mockups/lekhani_android_flagship.jpg)
-
-### 2. Lekhani প্রবাহ (Flow) Ergonomic Two-Thumb Layout
-![Lekhani Probaho Layout](mockups/lekhani_android_probaho.jpg)
-
-### 3. Dark Mode Mobile Keyboard with Contextual Candidate Strip
-![Dark Mode Keyboard](mockups/lekhani_android_dark.jpg)
-
-### 4. Settings & Theme Studio (Material You & OLED Themes)
-![Settings & Themes](mockups/lekhani_android_themes.jpg)
-
-### 5. Interactive Web Mockup
-You can test the interactive prototype directly in your browser by opening [`mockups/index.html`](mockups/index.html).
+<p align="center">
+  <img src="docs/screenshots/keyboard_avro.png" width="280" alt="Avro Phonetic Layout" />
+  <img src="docs/screenshots/keyboard_probaho.png" width="280" alt="Lekhani Probaho Ergonomic" />
+  <img src="docs/screenshots/keyboard_probhat.png" width="280" alt="Probhat Layout" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/settings_layouts.png" width="280" alt="Layout Selection" />
+  <img src="docs/screenshots/settings_themes.png" width="280" alt="Theme Studio" />
+  <img src="docs/screenshots/settings_about.png" width="280" alt="About & Privacy" />
+</p>
 
 ---
 

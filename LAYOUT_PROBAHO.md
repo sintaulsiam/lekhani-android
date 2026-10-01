@@ -5,7 +5,7 @@
 The **Lekhani প্রবাহ (Flow)** layout is a ground-up mobile keyboard layout engineered specifically for Bengali. Unlike legacy layouts (জাতীয়/Bijoy, Probhat) conceived for 10-finger mechanical typewriters, or modern alphabetical layouts (Gboard Bengali) that ignore character frequency, **Lekhani প্রবাহ** optimizes for **two-thumb smartphone biomechanics**, **Bengali vowel-consonant alternation**, and **instant cognitive learnability**.
 
 <p align="center">
-  <img src="mockups/lekhani_android_probaho.jpg" alt="Lekhani Probaho Ergonomic Layout Mockup" width="700" style="border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
+  <img src="docs/screenshots/keyboard_probaho.png" alt="Lekhani Probaho Ergonomic Layout" width="380" style="border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" />
 </p>
 
 ---
