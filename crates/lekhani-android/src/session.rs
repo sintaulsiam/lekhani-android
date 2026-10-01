@@ -3,7 +3,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use lekhani_core::phonetic::PhoneticDatabase;
 use crate::error::LekhaniError;
 use crate::layout::LekhaniLayoutType;
-use crate::probaho::{get_conjunct_suggestions, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
+use crate::probaho::{get_conjunct_suggestions, is_bengali_consonant_or_modifier, is_bengali_punctuation_or_space, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
 
 static CORE_DB: OnceLock<PhoneticDatabase> = OnceLock::new();
 static CUSTOM_DICT_DIR: OnceLock<String> = OnceLock::new();
@@ -636,8 +636,19 @@ impl AndroidLekhaniSession {
 
         match state.layout {
             LekhaniLayoutType::Probaho => {
-                let is_start = state.composing_buffer.is_empty();
-                let last_is_vowel = state.composing_buffer.chars().last().is_some_and(is_bengali_vowel);
+                let (is_start, last_is_vowel) = if let Some(last_ch) = state.composing_buffer.chars().last() {
+                    (false, is_bengali_vowel(last_ch))
+                } else if let Some(ctx_ch) = state.surrounding_context.chars().last() {
+                    if is_bengali_consonant_or_modifier(ctx_ch) {
+                        (false, false)
+                    } else if is_bengali_vowel(ctx_ch) {
+                        (false, true)
+                    } else {
+                        (ctx_ch.is_whitespace() || is_bengali_punctuation_or_space(ctx_ch), false)
+                    }
+                } else {
+                    (true, false)
+                };
                 let promoted = promote_kar_if_needed(&key, is_start || last_is_vowel);
                 state.composing_buffer.push_str(&promoted);
 
@@ -647,16 +658,17 @@ impl AndroidLekhaniSession {
                 // base consonant that precedes the Hasanta.
                 // We use codepoints here (not graphemes) because the Unicode
                 // segmentation algorithm immediately merges `ক` + `্` into a
-                // single grapheme cluster, so grapheme[n-2] would refer to the
-                // consonant BEFORE the current sequence rather than the one
-                // the user just typed.
+                // single grapheme cluster.
                 if promoted == "্" {
                     let chars: Vec<char> = state.composing_buffer.chars().collect();
-                    // Layout: [..., base_consonant, '্']  <- just appended
                     let hasanta_pos = chars.len().wrapping_sub(1);
                     if hasanta_pos > 0 {
                         let base_consonant = chars[hasanta_pos - 1];
                         candidates = get_conjunct_suggestions(base_consonant);
+                    } else if let Some(base_consonant) = state.surrounding_context.chars().last() {
+                        if is_bengali_consonant_or_modifier(base_consonant) {
+                            candidates = get_conjunct_suggestions(base_consonant);
+                        }
                     }
                 }
 
@@ -2068,6 +2080,18 @@ mod tests {
         session.process_key("া".into()).unwrap();
         let res = session.process_key("ু".into()).unwrap();
         assert_eq!(res.preedit, "পাউ");
+
+        // Context-aware Kar attachment after consonant: 'মনুষ' + 'া' -> 'া' (NOT 'আ')
+        session.reset();
+        session.set_context("মনুষ".into());
+        let res = session.process_key("া".into()).unwrap();
+        assert_eq!(res.preedit, "া", "Kar 'া' after consonant 'ষ' must NOT promote to 'আ'");
+
+        // Context-aware Hasanta conjunct suggestion after consonant in context
+        session.reset();
+        session.set_context("এক".into());
+        let res = session.process_key("্".into()).unwrap();
+        assert!(res.candidates.iter().any(|c| c == "ক্ক" || c == "ক্ত"), "Hasanta after 'ক' in context must suggest conjuncts");
     }
 
     /// Verifies that the AI context scorer re-ranks Probaho prefix candidates.

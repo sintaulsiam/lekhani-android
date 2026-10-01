@@ -520,7 +520,13 @@ class LekhaniInputMethodService : InputMethodService() {
                 rawInputBuffer.clear()
                 clearCandidates()
                 clearUndo()
+                refreshSurroundingContext()
             }
+        } else if (newSelStart == newSelEnd && newSelStart >= 0) {
+            // User tapped somewhere in text to reposition the cursor while idle.
+            // Finalize any stale composing span in editor and refresh surrounding context.
+            currentInputConnection?.finishComposingText()
+            refreshSurroundingContext()
         }
 
         // Contextual Text Selection Toolbar shown whenever text is highlighted
@@ -1801,6 +1807,20 @@ class LekhaniInputMethodService : InputMethodService() {
             serviceScope.launch(Dispatchers.IO) { ensureEnglishDictionaryLoaded() }
         }
 
+        // If not actively composing, ensure engine has fresh preceding text before cursor
+        // so context-aware vowel promotion (e.g. Probaho 'মনুষ' + 'া' -> 'মনুষা', NOT 'মনুষআ')
+        // and conjunct suggestions have the exact preceding character.
+        if (!session.isComposing() && preeditShadow.isEmpty()) {
+            val immediateBefore = try {
+                ic.getTextBeforeCursor(64, 0)?.toString()
+            } catch (_: Exception) {
+                null
+            }
+            if (!immediateBefore.isNullOrEmpty()) {
+                session.setContext(immediateBefore)
+            }
+        }
+
         val touch = lastTouchCoordinates
         lastTouchCoordinates = null
         val result = try {
@@ -2182,6 +2202,15 @@ class LekhaniInputMethodService : InputMethodService() {
      * Switches the active layout. Persists the choice to Device Protected Storage.
      */
     fun switchLayout(layout: LekhaniLayoutType) {
+        // Finalize and seal any active composing text in the target editor before switching layouts
+        // to prevent setComposingText in the new layout from wiping out the previously typed word!
+        currentInputConnection?.finishComposingText()
+        session.reset()
+        preeditShadow = ""
+        rawInputBuffer.clear()
+        clearCandidates()
+        clearUndo()
+
         isNumericMode = false
         isMoreSymbolsMode = false
         if (layout == LekhaniLayoutType.ENGLISH) {
@@ -2195,6 +2224,7 @@ class LekhaniInputMethodService : InputMethodService() {
             ensureEnglishDictionaryLoaded()
         }
         devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()
+        refreshSurroundingContext()
         Log.i(TAG, "Layout switched to $layout")
     }
 

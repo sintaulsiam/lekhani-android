@@ -37,6 +37,24 @@ pub fn is_bengali_vowel(c: char) -> bool {
     )
 }
 
+/// Returns true if the character is a Bengali consonant or consonant modifier (Virama/Hasanta, Nukta).
+#[inline]
+pub fn is_bengali_consonant_or_modifier(c: char) -> bool {
+    matches!(c,
+        '\u{0995}'..='\u{09B9}' // Consonants: ক through হ
+        | '\u{09CE}'             // Khanda Ta: ৎ
+        | '\u{09DC}'..='\u{09DF}' // ড়, ঢ়, য়
+        | '\u{09CD}'             // Virama / Hasanta: ্
+        | '\u{09BC}'             // Nukta: ়
+    )
+}
+
+/// Returns true if the character is a delimiter, whitespace, or punctuation.
+#[inline]
+pub fn is_bengali_punctuation_or_space(c: char) -> bool {
+    c.is_whitespace() || matches!(c, '।' | '॥' | ',' | ';' | ':' | '?' | '!' | '.' | '"' | '\'' | '(' | ')' | '[' | ']' | '{' | '}' | '-' | '—' | '–' | '/' | '\\')
+}
+
 /// When a vowel modifier (Kar) is typed at the beginning of a word, after whitespace/punctuation,
 /// or immediately following another vowel (forming diphthongs like খাই, সেই, পাউরুটি),
 /// it promotes to the corresponding independent vowel.
@@ -115,5 +133,16 @@ mod tests {
         let suggestions = get_conjunct_suggestions('ক');
         assert!(suggestions.contains(&"ক্ত".to_string()));
         assert!(suggestions.contains(&"ক্ষ".to_string()));
+    }
+
+    #[test]
+    fn test_is_bengali_consonant_or_modifier() {
+        assert!(is_bengali_consonant_or_modifier('ক'));
+        assert!(is_bengali_consonant_or_modifier('ষ'));
+        assert!(is_bengali_consonant_or_modifier('্'));
+        assert!(is_bengali_consonant_or_modifier('়'));
+        assert!(!is_bengali_consonant_or_modifier('া'));
+        assert!(!is_bengali_consonant_or_modifier('আ'));
+        assert!(!is_bengali_consonant_or_modifier(' '));
     }
 }
