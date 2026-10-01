@@ -230,6 +230,26 @@ fun ClipboardSheetView(
                             }
                         }
                     } else {
+                        // Open in App's Clipboard Manager
+                        if (onOpenEditor != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(cardBg)
+                                    .clickable { onOpenEditor() }
+                                    .semantics { contentDescription = if (isEnglish) "Open App's Clipboard" else "অ্যাপের ক্লিপবোর্ড খুলুন" },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = null,
+                                    tint = textSecondary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+
                         // Manage Mode Toggle Button (Pencil Icon)
                         if (clips.isNotEmpty()) {
                             Box(
@@ -314,6 +334,34 @@ fun ClipboardSheetView(
                             color = textSecondary.copy(alpha = 0.65f),
                             textAlign = TextAlign.Center,
                         )
+                        if (onOpenEditor != null) {
+                            Spacer(Modifier.height(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(primaryAccent.copy(alpha = 0.15f))
+                                    .clickable { onOpenEditor() }
+                                    .padding(horizontal = 14.dp, vertical = 7.dp)
+                                    .semantics { contentDescription = if (isEnglish) "Open App's Clipboard" else "অ্যাপের ক্লিপবোর্ড খুলুন" },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                        contentDescription = null,
+                                        tint = primaryAccent,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isEnglish) "Open App's Clipboard" else "অ্যাপের ক্লিপবোর্ড খুলুন",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = primaryAccent,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             } else {
@@ -344,11 +392,11 @@ fun ClipboardSheetView(
                     // Helpful interaction hint footer
                     if (!isManageMode) {
                         item {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.Center
+                                    .padding(vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 Text(
                                     text = if (isEnglish) "Tap clip to paste • Long-press for options"
@@ -356,6 +404,32 @@ fun ClipboardSheetView(
                                     fontSize = 11.sp,
                                     color = textSecondary.copy(alpha = 0.6f)
                                 )
+                                if (onOpenEditor != null) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable { onOpenEditor() }
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            .semantics { contentDescription = if (isEnglish) "Open App's Clipboard" else "অ্যাপের ক্লিপবোর্ড খুলুন" },
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                            contentDescription = null,
+                                            tint = primaryAccent,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            text = if (isEnglish) "Open full clipboard manager"
+                                                   else "সম্পূর্ণ ক্লিপবোর্ড ম্যানেজার খুলুন",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = primaryAccent
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

@@ -2030,6 +2030,13 @@ mod tests {
         let preds = session.predict_next_words(3);
         assert!(!preds.is_empty(), "English context 'how are' should produce next words");
         assert!(preds.contains(&"you".to_string()));
+
+        // Bengali layout next-word prediction test
+        session.set_layout(LekhaniLayoutType::Avro);
+        session.set_context("আমি ভাত".into());
+        let bn_preds = session.predict_next_words(5);
+        assert!(!bn_preds.is_empty(), "Bengali context 'আমি ভাত' should produce predictions");
+        assert!(bn_preds.iter().any(|w| w == "খাচ্ছি" || w == "খাব" || w == "খেয়েছি" || w == "খেতে"));
     }
 
     #[test]

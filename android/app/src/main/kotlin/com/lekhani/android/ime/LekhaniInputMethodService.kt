@@ -9,6 +9,7 @@ import android.text.InputType
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
@@ -393,7 +394,15 @@ class LekhaniInputMethodService : InputMethodService() {
         imeLifecycleOwner.onDestroy()
         audioManager.cancelStreaming()
         feedbackManager.release()
+        clipboardView = null
+        emojiPickerView = null
+        textEditorView = null
+        toolsMenuView = null
+        resizeOverlayComposeView = null
+        modesContainer = null
         keyboardView = null
+        candidateStripComposeView = null
+        rootInputContainer = null
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -552,6 +561,12 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onCreateInputView(): View {
         window?.window?.decorView?.let { attachLifecycleOwner(it) }
+        clipboardView = null
+        emojiPickerView = null
+        textEditorView = null
+        toolsMenuView = null
+        resizeOverlayComposeView = null
+
         val rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
@@ -1064,7 +1079,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 emojiSearchRawQuery = ""
                 emojiSearchSession = null
 
-                if (emojiPickerView == null) {
+                if (emojiPickerView == null || emojiPickerView?.parent != container) {
+                    (emojiPickerView?.parent as? ViewGroup)?.removeView(emojiPickerView)
+                    emojiPickerView = null
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -1106,7 +1123,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 emojiSearchSession = null
                 syncSystemClipboard()
 
-                if (clipboardView == null) {
+                if (clipboardView == null || clipboardView?.parent != container) {
+                    (clipboardView?.parent as? ViewGroup)?.removeView(clipboardView)
+                    clipboardView = null
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -1143,7 +1162,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 emojiSearchQuery = ""
                 emojiSearchSession = null
 
-                if (textEditorView == null) {
+                if (textEditorView == null || textEditorView?.parent != container) {
+                    (textEditorView?.parent as? ViewGroup)?.removeView(textEditorView)
+                    textEditorView = null
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -1227,7 +1248,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 val minMenuHeight = (265 * resources.displayMetrics.density).toInt()
                 val kbHeight = maxOf(keyboardView?.height ?: 0, minMenuHeight)
 
-                if (toolsMenuView == null) {
+                if (toolsMenuView == null || toolsMenuView?.parent != container) {
+                    (toolsMenuView?.parent as? ViewGroup)?.removeView(toolsMenuView)
+                    toolsMenuView = null
                     val compose = ComposeView(this).apply {
                         attachLifecycleOwner(this)
                         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
@@ -1327,6 +1350,7 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         persistUserLearnedAsync()
     }
+
 
     private fun updateCandidatesVisibility() {
         val isSymbols = isNumericMode || isMoreSymbolsMode

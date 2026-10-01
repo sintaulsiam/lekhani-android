@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Gesture
@@ -33,6 +34,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -81,6 +83,7 @@ fun PreferencesTabContent(
     onOpenToolbarCustomizer: () -> Unit,
     onOpenDictionaryManager: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenClipboard: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -1057,6 +1060,22 @@ fun PreferencesTabContent(
                                 },
                                 label = { Text(label, fontSize = 11.5.sp) }
                             )
+                        }
+                    }
+                    if (onOpenClipboard != null) {
+                        Spacer(Modifier.height(4.dp))
+                        FilledTonalButton(
+                            onClick = onOpenClipboard,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Assignment,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (isEnglish) "Open Clipboard Manager" else "ক্লিপবোর্ড ম্যানেজার খুলুন")
                         }
                     }
                 }

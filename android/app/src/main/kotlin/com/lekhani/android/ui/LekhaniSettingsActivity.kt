@@ -144,6 +144,8 @@ class LekhaniSettingsActivity : ComponentActivity() {
         const val EXTRA_TAB_INDEX = "tab_index"
     }
 
+    private val requestedTabState = mutableStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
@@ -155,9 +157,11 @@ class LekhaniSettingsActivity : ComponentActivity() {
         } else {
             intent?.getIntExtra(EXTRA_TAB_INDEX, 0) ?: 0
         }
+        requestedTabState.value = startTab
 
         setContent {
             val context = LocalContext.current
+            val currentTab by requestedTabState
             val keyboardPrefs = remember { KeyboardPreferences.get(context) }
             var currentThemeId by remember { mutableStateOf(keyboardPrefs.themeId) }
             var currentAppThemeMode by remember { mutableStateOf(keyboardPrefs.appThemeMode) }
@@ -169,7 +173,7 @@ class LekhaniSettingsActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     LekhaniSettingsScreen(
-                        initialTab = startTab,
+                        initialTab = currentTab,
                         onThemeChanged = { newThemeId ->
                             currentThemeId = newThemeId
                         },
@@ -195,6 +199,19 @@ class LekhaniSettingsActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val tab = if (intent.getBooleanExtra(EXTRA_OPEN_CLIPBOARD, false)) {
+            3
+        } else {
+            intent.getIntExtra(EXTRA_TAB_INDEX, -1).takeIf { it >= 0 }
+        }
+        if (tab != null) {
+            requestedTabState.value = tab
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         // Proactively request garbage collection when Settings closes to release
@@ -213,6 +230,10 @@ fun LekhaniSettingsScreen(
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(initialTab) }
+
+    LaunchedEffect(initialTab) {
+        selectedTab = initialTab
+    }
 
     val deviceContext = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -486,7 +507,8 @@ fun LekhaniSettingsScreen(
                     isEnglish = isEnglish,
                     onOpenToolbarCustomizer = { showToolbarSheet = true },
                     onOpenDictionaryManager = { showDictionarySheet = true },
-                    onOpenAbout = { showAboutDialog = true }
+                    onOpenAbout = { showAboutDialog = true },
+                    onOpenClipboard = { selectedTab = 3 }
                 )
                 3 -> ClipboardManagerSheet(
                     clipboardStore = clipboardStore,
