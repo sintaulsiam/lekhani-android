@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -38,6 +39,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -437,63 +439,81 @@ fun ClipboardSheetView(
         }
 
         // ── INLINE OVERLAY: Long-Press Contextual Menu (Never closes the IME!) ─
+        // ── INLINE OVERLAY: Clip Options ─────────────────────────────────────
         actionClip?.let { clip ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.72f))
                     .clickable { actionClip = null }
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Card(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = cardBg),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(enabled = false) {} // Prevent dismiss when tapping card
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        // Header & Preview
-                        Text(
-                            text = if (isEnglish) "Clip Options" else "ক্লিপ অপশন",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textPrimary
-                        )
-                        Spacer(Modifier.height(8.dp))
+                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                        // Header with Title & prominent Close 'X' Button
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isEnglish) "Clip Options" else "ক্লিপ অপশন",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textPrimary
+                            )
+                            IconButton(
+                                onClick = { actionClip = null },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = if (isEnglish) "Close" else "বন্ধ করুন",
+                                    tint = textSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(4.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(headerBg)
-                                .padding(10.dp)
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = clip.text,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 color = textSecondary,
-                                maxLines = 2,
+                                maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(6.dp))
 
                         // Action 1: Paste into active input
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     onPaste(clip.text)
                                     actionClip = null
                                 }
-                                .padding(vertical = 9.dp, horizontal = 8.dp)
+                                .padding(vertical = 7.dp, horizontal = 8.dp)
                         ) {
                             Icon(Icons.Filled.ContentPaste, contentDescription = null, tint = primaryAccent, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Text(if (isEnglish) "Paste into field" else "ফিল্ডে পেস্ট করুন", fontSize = 14.sp, color = textPrimary, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.width(10.dp))
+                            Text(if (isEnglish) "Paste into field" else "ফিল্ডে পেস্ট করুন", fontSize = 13.sp, color = textPrimary, fontWeight = FontWeight.Medium)
                         }
 
                         // Action 2: Pin / Unpin
@@ -501,19 +521,19 @@ fun ClipboardSheetView(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     clipboardStore.togglePin(clip.id)
                                     actionClip = null
                                 }
-                                .padding(vertical = 9.dp, horizontal = 8.dp)
+                                .padding(vertical = 7.dp, horizontal = 8.dp)
                         ) {
                             Icon(Icons.Filled.PushPin, contentDescription = null, tint = if (clip.isPinned) primaryAccent else textSecondary, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(12.dp))
+                            Spacer(Modifier.width(10.dp))
                             Text(
                                 text = if (clip.isPinned) (if (isEnglish) "Unpin clip" else "আনপিন করুন")
                                        else (if (isEnglish) "Pin to top (Keep forever)" else "উপরে পিন করুন (স্থায়ী)"),
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 color = textPrimary,
                                 fontWeight = FontWeight.Medium
                             )
@@ -524,22 +544,22 @@ fun ClipboardSheetView(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .clickable {
                                     clipboardStore.deleteClip(clip.id)
                                     actionClip = null
                                 }
-                                .padding(vertical = 9.dp, horizontal = 8.dp)
+                                .padding(vertical = 7.dp, horizontal = 8.dp)
                         ) {
                             Icon(Icons.Filled.Delete, contentDescription = null, tint = dangerColor, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Text(if (isEnglish) "Delete clip" else "ক্লিপ মুছুন", fontSize = 14.sp, color = dangerColor, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.width(10.dp))
+                            Text(if (isEnglish) "Delete clip" else "ক্লিপ মুছুন", fontSize = 13.sp, color = dangerColor, fontWeight = FontWeight.Medium)
                         }
 
-                        Spacer(Modifier.height(6.dp))
+                        Spacer(Modifier.height(4.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                             TextButton(onClick = { actionClip = null }) {
-                                Text(if (isEnglish) "Cancel" else "বাতিল", color = textSecondary)
+                                Text(if (isEnglish) "Cancel" else "বাতিল", color = textSecondary, fontSize = 12.sp)
                             }
                         }
                     }
@@ -565,12 +585,29 @@ fun ClipboardSheetView(
                         .clickable(enabled = false) {}
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
-                        Text(
-                            text = if (isEnglish) "Clear unpinned clips?" else "পিন ছাড়া সব ক্লিপ মুছবেন?",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textPrimary
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isEnglish) "Clear unpinned clips?" else "পিন ছাড়া সব ক্লিপ মুছবেন?",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textPrimary
+                            )
+                            IconButton(
+                                onClick = { showClearConfirmOverlay = false },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = if (isEnglish) "Close" else "বন্ধ করুন",
+                                    tint = textSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = if (isEnglish) "All recent clips will be removed. Your pinned clips will stay safe."
