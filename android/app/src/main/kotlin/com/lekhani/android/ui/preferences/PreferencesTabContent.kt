@@ -89,6 +89,7 @@ fun PreferencesTabContent(
 
     var formFactor by remember { mutableStateOf(prefs.formFactor) }
     var spacebarSwipeMode by remember { mutableStateOf(prefs.spacebarSwipeMode) }
+    var volumeKeyCursorMode by remember { mutableStateOf(prefs.volumeKeyCursorMode) }
     var bottomRowKeyMode by remember { mutableStateOf(prefs.bottomRowKeyMode) }
     var swipeToDelete by remember { mutableStateOf(prefs.swipeToDeleteEnabled) }
     var glideTyping by remember { mutableStateOf(prefs.glideTypingEnabled) }
@@ -575,6 +576,58 @@ fun PreferencesTabContent(
                                 prefs.swipeDeleteHighlightInApp = it
                             }
                         )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                // Volume Key Cursor Navigation
+                Text(
+                    text = if (isEnglish) "Volume key cursor navigation" else "ভলিউম কি দিয়ে কার্সার নিয়ন্ত্রণ",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                val volumeKeyOptions = if (isEnglish) {
+                    listOf(
+                        KeyboardPreferences.VolumeKeyCursorMode.DISABLED to ("Disabled (Default)" to "Volume buttons control media and device sound"),
+                        KeyboardPreferences.VolumeKeyCursorMode.UP_LEFT_DOWN_RIGHT to ("Up = Left, Down = Right" to "Volume Up moves cursor backward, Down moves forward"),
+                        KeyboardPreferences.VolumeKeyCursorMode.UP_RIGHT_DOWN_LEFT to ("Up = Right, Down = Left" to "Volume Up moves cursor forward, Down moves backward")
+                    )
+                } else {
+                    listOf(
+                        KeyboardPreferences.VolumeKeyCursorMode.DISABLED to ("নিষ্ক্রিয় (ডিফল্ট)" to "ভলিউম বোতাম দিয়ে মিডিয়া ও রিংটোন সাউন্ড নিয়ন্ত্রিত হবে"),
+                        KeyboardPreferences.VolumeKeyCursorMode.UP_LEFT_DOWN_RIGHT to ("আপ = বামে, ডাউন = ডানে" to "ভলিউম আপে কার্সার বামে এবং ডাউনে ডানে সরবে"),
+                        KeyboardPreferences.VolumeKeyCursorMode.UP_RIGHT_DOWN_LEFT to ("আপ = ডানে, ডাউন = বামে" to "ভলিউম আপে কার্সার ডানে এবং ডাউনে বামে সরবে")
+                    )
+                }
+
+                volumeKeyOptions.forEach { (mode, pair) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                volumeKeyCursorMode = mode
+                                prefs.volumeKeyCursorMode = mode
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (volumeKeyCursorMode == mode),
+                            onClick = {
+                                volumeKeyCursorMode = mode
+                                prefs.volumeKeyCursorMode = mode
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(text = pair.first, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+                            Text(text = pair.second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
 

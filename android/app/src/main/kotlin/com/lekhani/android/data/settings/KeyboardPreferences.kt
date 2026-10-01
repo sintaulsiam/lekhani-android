@@ -162,6 +162,14 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SPACE_CURSOR_SLIDE, true)
         set(value) = prefs.edit().putBoolean(KEY_SPACE_CURSOR_SLIDE, value).apply()
 
+    var volumeKeyCursorMode: VolumeKeyCursorMode
+        get() {
+            val name = prefs.getString(KEY_VOLUME_KEY_CURSOR_MODE, VolumeKeyCursorMode.DISABLED.name)
+                ?: VolumeKeyCursorMode.DISABLED.name
+            return runCatching { VolumeKeyCursorMode.valueOf(name) }.getOrDefault(VolumeKeyCursorMode.DISABLED)
+        }
+        set(value) = prefs.edit().putString(KEY_VOLUME_KEY_CURSOR_MODE, value.name).apply()
+
     var swipeToDeleteEnabled: Boolean
         get() = prefs.getBoolean(KEY_SWIPE_TO_DELETE, true)
         set(value) = prefs.edit().putBoolean(KEY_SWIPE_TO_DELETE, value).apply()
@@ -249,6 +257,12 @@ class KeyboardPreferences private constructor(context: Context) {
         DISABLED("নিষ্ক্রিয় (Disabled)", "Disabled"),
     }
 
+    enum class VolumeKeyCursorMode(val titleBengali: String, val titleEnglish: String) {
+        DISABLED("নিষ্ক্রিয় (Disabled)", "Disabled"),
+        UP_LEFT_DOWN_RIGHT("ভলিউম আপ = বামে, ডাউন = ডানে", "Up = Left, Down = Right"),
+        UP_RIGHT_DOWN_LEFT("ভলিউম আপ = ডানে, ডাউন = বামে", "Up = Right, Down = Left"),
+    }
+
     enum class BottomRowKeyMode(val titleBengali: String, val titleEnglish: String) {
         SMART("স্মার্ট / স্বয়ংক্রিয়", "Smart (Automatic)"),
         EMOJI("সর্বদা ইমোজি", "Always Emoji Key"),
@@ -311,6 +325,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_FORM_FACTOR = "keyboard_form_factor"
         const val KEY_SPACE_CURSOR_SLIDE = "space_cursor_slide"
         const val KEY_SPACEBAR_SWIPE_MODE = "spacebar_swipe_mode"
+        const val KEY_VOLUME_KEY_CURSOR_MODE = "volume_key_cursor_mode"
         const val KEY_BOTTOM_ROW_KEY_MODE = "bottom_row_key_mode"
         const val KEY_SWIPE_TO_DELETE = "swipe_to_delete"
         const val KEY_SWIPE_DELETE_HIGHLIGHT_IN_APP = "swipe_delete_highlight_in_app"

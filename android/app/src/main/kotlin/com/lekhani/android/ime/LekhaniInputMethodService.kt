@@ -1626,6 +1626,25 @@ class LekhaniInputMethodService : InputMethodService() {
             return super.onKeyDown(keyCode, event)
         }
 
+        // Volume key cursor navigation (optional power-user preference)
+        val volumeKeyMode = keyboardPrefs.volumeKeyCursorMode
+        if (volumeKeyMode != KeyboardPreferences.VolumeKeyCursorMode.DISABLED && isInputViewShown && currentInputConnection != null) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    val delta = if (volumeKeyMode == KeyboardPreferences.VolumeKeyCursorMode.UP_LEFT_DOWN_RIGHT) -1 else 1
+                    handleCursorMove(delta)
+                    keyboardView?.let { feedbackManager.onTickFeedback(it) }
+                    return true
+                }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    val delta = if (volumeKeyMode == KeyboardPreferences.VolumeKeyCursorMode.UP_LEFT_DOWN_RIGHT) 1 else -1
+                    handleCursorMove(delta)
+                    keyboardView?.let { feedbackManager.onTickFeedback(it) }
+                    return true
+                }
+            }
+        }
+
         // Handle physical keyboard input while in Emoji Search mode
         if (currentMode == InputViewMode.EMOJI_SEARCH) {
             if (keyCode == KeyEvent.KEYCODE_DEL) {
@@ -1742,6 +1761,12 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
             keyboardView?.setShifted(false)
+        }
+        val volumeKeyMode = keyboardPrefs.volumeKeyCursorMode
+        if (volumeKeyMode != KeyboardPreferences.VolumeKeyCursorMode.DISABLED && isInputViewShown && currentInputConnection != null) {
+            if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+                return true
+            }
         }
         return super.onKeyUp(keyCode, event)
     }
