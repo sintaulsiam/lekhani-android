@@ -69,9 +69,9 @@ Typists struggle to adopt new layouts when key positions feel arbitrary. **Lekha
 ### Base Layer (Unshifted — Covers ~95.4% of Daily Keystrokes)
 
 ```
-Row 1 (Top):     [ আ ] [ ো ] [ ী ] [ ূ ] [ ৈ ]   |   [ প ] [ ব ] [ ম ] [ দ ] [ ল ]
+Row 1 (Top):     [ আ ] [ ো ] [ ী ] [ ূ ] [ য ]   |   [ প ] [ ব ] [ গ ] [ দ ] [ ল ]
 Row 2 (Home):    [ অ ] [ া ] [ ি ] [ ু ] [ ে ]   |   [ র ] [ ত ] [ ন ] [ স ] [ ক ]
-Row 3 (Bottom):  [ ⇧ ] [ হ ] [ ং ] [ ঁ ] [ ঃ ]   |   [ চ ] [ জ ] [ ট ] [ ড ] [ ⌫ ]
+Row 3 (Bottom):  [ ⇧ ] [ হ ] [ ম ] [ ং ] [ ঁ ]   |   [ চ ] [ জ ] [ ট ] [ ড ] [ ⌫ ]
 Row 4 (Space):   [ ?123 ] [ 🌐 ] [ , ] [     স্পেস     ] [  ্  ] [ । ] [ ↵ ]
                          └─ Left Thumb ─┘             └─ Right Thumb ─┘
 ```
@@ -79,9 +79,9 @@ Row 4 (Space):   [ ?123 ] [ 🌐 ] [ , ] [     স্পেস     ] [  ্  ] [
 ### Shifted Layer (Aspirated & Rare Characters)
 
 ```
-Row 1 (Top):     [ ঔ ] [ ৌ ] [ ঊ ] [ ঈ ] [ ৃ ]   |   [ ফ ] [ ভ ] [ গ ] [ ধ ] [ ঘ ]
-Row 2 (Home):    [ ঋ ] [ ঽ ] [ য় ] [ ৎ ] [ য ]   |   [ ড় ] [ থ ] [ ণ ] [ শ ] [ খ ]
-Row 3 (Bottom):  [ ⇧ ] [ ঞ ] [ ঙ ] [  ৳  ] [  ॥  ] |   [ ছ ] [ ঝ ] [ ঠ ] [ ঢ ] [ ⌫ ]
+Row 1 (Top):     [ ঔ ] [ ৌ ] [ ঈ ] [ ঊ ] [ ৈ ]   |   [ ফ ] [ ভ ] [ ঘ ] [ ধ ] [  ॥  ]
+Row 2 (Home):    [ ঋ ] [ ঽ ] [ য় ] [ ৎ ] [ ঐ ]   |   [ ড় ] [ থ ] [ ণ ] [ শ ] [ খ ]
+Row 3 (Bottom):  [ ⇧ ] [ ঞ ] [ ঙ ] [ ঃ ] [  ৳  ] |   [ ছ ] [ ঝ ] [ ঠ ] [ ঢ ] [ ⌫ ]
 Row 4 (Space):   [ ?123 ] [ 🌐 ] [ ? ] [     স্পেস     ] [ হ ] [ ! ] [ ↵ ]
 ```
 

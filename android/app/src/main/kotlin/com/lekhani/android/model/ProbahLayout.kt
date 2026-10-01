@@ -19,17 +19,19 @@ object ProbahLayout {
         name = "Lekhani প্রবাহ",
         rows = listOf(
             // ── Row 1 (Top) — Long vowels | Labial/Dental consonants ──────────
+            //  Left:  আ ো ী ূ য  (য promoted from Shift+ে; ৈ now lives on Shift+য)
+            //  Right: প ব গ দ ল  (গ promoted from Shift+ম; ঘ now lives on Shift+ল)
             listOf(
                 Ch("আ", shifted = "ঔ", desc = "আ, shifted ঔ"),
                 Ch("ো", shifted = "ৌ", hint = "ঐ", desc = "ো, shifted ৌ, hint ঐ"),
                 Ch("ী", shifted = "ঈ", desc = "ী, shifted ঈ"),
                 Ch("ূ", shifted = "ঊ", desc = "ূ, shifted ঊ"),
-                Ch("ৈ", shifted = "ৃ", hint = "ৃ", desc = "ৈ, shifted ৃ"),
+                Ch("য", shifted = "ৈ", hint = "ৃ", desc = "য, shifted ৈ (ai-kar), hint ৃ (ri-kar)"),
                 Ch("প", shifted = "ফ", desc = "প, shifted ফ"),
                 Ch("ব", shifted = "ভ", desc = "ব, shifted ভ"),
-                Ch("ম", shifted = "গ", hint = "গ", desc = "ম, shifted গ, hint গ"),
+                Ch("গ", shifted = "ঘ", desc = "গ, shifted ঘ"),
                 Ch("দ", shifted = "ধ", desc = "দ, shifted ধ"),
-                Ch("ল", shifted = "ঘ", hint = "ঘ", desc = "ল, shifted ঘ, hint ঘ"),
+                Ch("ল", shifted = "॥", hint = "॥", desc = "ল, shifted ॥ (Double Dari)"),
             ),
             // ── Row 2 (Home) — Base vowels | Golden 5 consonants ─────────────
             listOf(
@@ -37,7 +39,7 @@ object ProbahLayout {
                 Ch("া", shifted = "ঽ", homeRow = true, desc = "া, shifted ঽ"),
                 Ch("ি", shifted = "য়", homeRow = true, desc = "ি, shifted য়"),
                 Ch("ু", shifted = "ৎ", homeRow = true, desc = "ু, shifted ৎ"),
-                Ch("ে", shifted = "য",  homeRow = true, desc = "ে, shifted য"),
+                Ch("ে", shifted = "ঐ", hint = "ঐ", homeRow = true, desc = "ে, shifted ঐ"),
                 Ch("র", shifted = "ড়", hint = "ঢ়", homeRow = true, desc = "র, shifted ড়, hint ঢ়"),
                 Ch("ত", shifted = "থ",  homeRow = true, desc = "ত, shifted থ"),
                 Ch("ন", shifted = "ণ",  homeRow = true, desc = "ন, shifted ণ"),
@@ -45,6 +47,8 @@ object ProbahLayout {
                 Ch("ক", shifted = "খ",  homeRow = true, desc = "ক, shifted খ"),
             ),
             // ── Row 3 (Bottom) — Nasals/modifiers | Palatal/Retroflex ─────────
+            //  ম moved here from Row 1 (rank-7 frequency, still a dedicated key)
+            //  ঃ (Visarga — very rare) now Shift+ঁ; ঙ now Shift+ম
             listOf(
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
@@ -53,9 +57,9 @@ object ProbahLayout {
                     contentDesc = "Shift",
                 ),
                 Ch("হ", shifted = "ঞ", hint = "ঞ", desc = "হ, shifted ঞ, hint ঞ"),
-                Ch("ং", shifted = "ঙ", desc = "ং, shifted ঙ"),
-                Ch("ঁ",  shifted = "৳", hint = "৳", desc = "ঁ, shifted Taka ৳"),
-                Ch("ঃ",  shifted = "॥", hint = "॥", desc = "ঃ, shifted Double Dari ॥"),
+                Ch("ম", shifted = "ঙ", desc = "ম, shifted ঙ"),
+                Ch("ং", shifted = "ঃ", hint = "ঃ", desc = "ং, shifted ঃ (Visarga)"),
+                Ch("ঁ", shifted = "৳", hint = "৳", desc = "ঁ, shifted Taka ৳"),
                 Ch("চ", shifted = "ছ", desc = "চ, shifted ছ"),
                 Ch("জ", shifted = "ঝ", desc = "জ, shifted ঝ"),
                 Ch("ট", shifted = "ঠ", desc = "ট, shifted ঠ"),

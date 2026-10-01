@@ -97,18 +97,23 @@ class ProbahLayoutTest {
 
     @Test
     fun `Taka symbol is on shift layer of nasal modifier key`() {
-        // Taka (৳) should be the shifted action of ঁ (4th key in bottom row after shift key)
+        // Taka (৳) should be the shifted action of ঁ
         val nasalKey = layout.rows[2].find { it.label == "ঁ" }
         assertNotNull("ঁ key should exist", nasalKey)
         assertEquals(KeyAction.Character("৳"), nasalKey!!.shiftedAction)
     }
 
     @Test
-    fun `Double Dari is on shift layer of visarga key`() {
-        // Double Dari (॥) should be the shifted action of ঃ
-        val visargaKey = layout.rows[2].find { it.label == "ঃ" }
-        assertNotNull("ঃ key should exist", visargaKey)
-        assertEquals(KeyAction.Character("॥"), visargaKey!!.shiftedAction)
+    fun `Visarga is on shift layer of anusvara key and double dari on la`() {
+        // Visarga (ঃ) should be the shifted action of ং
+        val anusvaraKey = layout.rows[2].find { it.label == "ং" }
+        assertNotNull("ং key should exist", anusvaraKey)
+        assertEquals(KeyAction.Character("ঃ"), anusvaraKey!!.shiftedAction)
+
+        // Double Dari (॥) is on shift of ল
+        val laKey = layout.rows[0].find { it.label == "ল" }
+        assertNotNull("ল key should exist", laKey)
+        assertEquals(KeyAction.Character("॥"), laKey!!.shiftedAction)
     }
 
     @Test
@@ -136,11 +141,12 @@ class ProbahLayoutTest {
     }
 
     @Test
-    fun `ri-kar is accessible on shifted oi and as hint on o`() {
-        val oiKey = layout.rows[0].find { it.label == "ৈ" }
-        assertNotNull("ৈ key should exist", oiKey)
-        assertEquals("ৃ", oiKey!!.shiftedLabel)
-        assertEquals(KeyAction.Character("ৃ"), oiKey.shiftedAction)
+    fun `ri-kar is accessible as hint on unshifted ja and o`() {
+        val yaKey = layout.rows[0].find { it.label == "য" }
+        assertNotNull("য key should exist", yaKey)
+        assertEquals("ৈ", yaKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ৈ"), yaKey.shiftedAction)
+        assertEquals("ৃ", yaKey.hintLabel)
 
         val oKey = layout.rows[1].find { it.label == "অ" }
         assertNotNull("অ key should exist", oKey)
@@ -189,15 +195,20 @@ class ProbahLayoutTest {
     }
 
     @Test
-    fun `ga and gha have hints and long press on ma and la`() {
-        val maKey = layout.rows[0].find { it.label == "ম" }
-        assertNotNull("ম key should exist", maKey)
-        assertEquals("গ", maKey!!.hintLabel)
-        assertEquals(KeyAction.Character("গ"), maKey.longPressAction)
+    fun `ga and ya are unshifted on top row and ma on bottom row`() {
+        val gaKey = layout.rows[0].find { it.label == "গ" }
+        assertNotNull("গ key should exist in row 0", gaKey)
+        assertEquals("ঘ", gaKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ঘ"), gaKey.shiftedAction)
 
-        val laKey = layout.rows[0].find { it.label == "ল" }
-        assertNotNull("ল key should exist", laKey)
-        assertEquals("ঘ", laKey!!.hintLabel)
-        assertEquals(KeyAction.Character("ঘ"), laKey.longPressAction)
+        val yaKey = layout.rows[0].find { it.label == "য" }
+        assertNotNull("য key should exist in row 0", yaKey)
+        assertEquals("ৈ", yaKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ৈ"), yaKey.shiftedAction)
+
+        val maKey = layout.rows[2].find { it.label == "ম" }
+        assertNotNull("ম key should exist in row 2", maKey)
+        assertEquals("ঙ", maKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ঙ"), maKey.shiftedAction)
     }
 }
