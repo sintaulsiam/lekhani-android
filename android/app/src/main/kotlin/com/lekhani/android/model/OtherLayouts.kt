@@ -2,10 +2,10 @@ package com.lekhani.android.model
 
 /**
  * English QWERTY Layout
- * ══════════════════════════════════════════════════════════════════════════════
+ *
  * Standard QWERTY — used as:
  *  - The bilingual English typing layer
- *  - Auto-fallback for password / PIN fields (AGENTS.md §3.2)
+ *  - Auto-fallback for password / PIN fields
  */
 object EnglishQwertyLayout {
 

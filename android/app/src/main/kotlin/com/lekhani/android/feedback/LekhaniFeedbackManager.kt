@@ -18,14 +18,14 @@ import kotlin.math.sin
 
 /**
  * LekhaniFeedbackManager
- * ══════════════════════════════════════════════════════════════════════════════
+ *
  * Provides sub-millisecond haptic vibration and sound feedback on keypresses.
  *
- * Guarantees (AGENTS.md §1.2 & §1.1):
- *   ✅ Zero runtime allocation during [onKeyFeedback]
- *   ✅ 100% offline, synthesized PCM sound packs for Bubble, Mechanical, Typewriter, Woodblock
- *   ✅ Android 12+ VibratorManager support with amplitude control and USAGE_TOUCH
- *   ✅ Silent-mode resilient touch haptics and hardware-calibrated tactile click
+ * Guarantees:
+ *   - Zero runtime allocation during [onKeyFeedback]
+ *   - 100% offline, synthesized PCM sound packs for Bubble, Mechanical, Typewriter, Woodblock
+ *   - Android 12+ VibratorManager support with amplitude control and USAGE_TOUCH
+ *   - Silent-mode resilient touch haptics and hardware-calibrated tactile click
  */
 class LekhaniFeedbackManager(private val context: Context) {
 

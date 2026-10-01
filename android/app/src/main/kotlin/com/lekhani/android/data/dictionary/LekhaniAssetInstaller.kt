@@ -10,11 +10,11 @@ import java.io.IOException
 
 /**
  * LekhaniAssetInstaller
- * ══════════════════════════════════════════════════════════════════════════════
+ *
  * Automatically unpacks bundled offline dictionaries, language models, and
  * layouts from APK assets into internal application storage on first launch.
  *
- * Adheres strictly to AGENTS.md §1 (100% on-device offline storage, zero network).
+ * Adheres strictly to offline-first principles (100% on-device offline storage, zero network).
  */
 object LekhaniAssetInstaller {
     private const val TAG = "LekhaniAssetInstaller"

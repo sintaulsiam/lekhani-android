@@ -71,17 +71,17 @@ enum class RetentionPeriod(val minutes: Int, val labelBengali: String, val label
 
 /**
  * LekhaniClipboardStore
- * ══════════════════════════════════════════════════════════════════════════════
+ *
  * Smart, power-packed 100% on-device clipboard history & vault manager.
  *
  * Capabilities:
- *   ✅ Zero Network (AGENTS.md §1): All data stored strictly in Device Protected Storage.
- *   ✅ Configurable Auto-Clear: Default 1 hour; customizable to 6h, 24h, 7d, or Never.
- *   ✅ Pinning & Long-Term Vault: Pin items to top and save notes/snippets permanently.
- *   ✅ Clipboard Snapshots: Capture full historical snapshots with instant restore.
- *   ✅ Combine All Items as Text: Concatenate all/filtered clips into a single text block.
- *   ✅ Automatic Link Parser & Extractor: Parse URLs, deduplicate, and save into vault.
- *   ✅ Privacy Guard: Auto-detection of sensitive OTPs, cards, and password field freezing.
+ *   - Zero Network: All data stored strictly in Device Protected Storage.
+ *   - Configurable Auto-Clear: Default 1 hour; customizable to 6h, 24h, 7d, or Never.
+ *   - Pinning & Long-Term Vault: Pin items to top and save notes/snippets permanently.
+ *   - Clipboard Snapshots: Capture full historical snapshots with instant restore.
+ *   - Combine All Items as Text: Concatenate all/filtered clips into a single text block.
+ *   - Automatic Link Parser & Extractor: Parse URLs, deduplicate, and save into vault.
+ *   - Privacy Guard: Auto-detection of sensitive OTPs, cards, and password field freezing.
  */
 class LekhaniClipboardStore(context: Context) {
 

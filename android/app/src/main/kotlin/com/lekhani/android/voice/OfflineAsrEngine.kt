@@ -15,13 +15,13 @@ sealed class VoiceTypingState {
 
 /**
  * OfflineAsrEngine
- * ══════════════════════════════════════════════════════════════════════════════
+ *
  * Contract for 100% on-device embedded speech-to-text recognition.
  *
- * Inviolable constraints (AGENTS.md §1 & ROADMAP.md Phase 5):
- *   ✅ Zero Network: Engine must execute 100% locally from bundled APK assets or DPS.
- *   ✅ Sub-second responsiveness: VAD auto-stop within 1.5s of silence.
- *   ✅ Canonical Unicode: Restored Bengali punctuation (Dari `।`, `?`, `,`).
+ * Design constraints:
+ *   - Zero Network: Engine must execute 100% locally from bundled APK assets or DPS.
+ *   - Sub-second responsiveness: VAD auto-stop within 1.5s of silence.
+ *   - Canonical Unicode: Restored Bengali punctuation (Dari `।`, `?`, `,`).
  */
 interface OfflineAsrEngine {
     val state: StateFlow<VoiceTypingState>

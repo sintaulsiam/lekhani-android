@@ -6,9 +6,8 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// Bengali text composed via Kar key-presses can arrive in NFD order
 /// (base character + combining diacritic in decomposed sequences).
-/// Always committing NFC form satisfies AGENTS.md §1.3 "Canonical Unicode &
-/// Script Integrity" and prevents downstream apps from seeing duplicate
-/// representations of the same grapheme cluster.
+/// Always committing NFC form ensures Canonical Unicode & Script Integrity
+/// and prevents downstream apps from seeing duplicate representations of the same grapheme cluster.
 ///
 /// This implementation does an in-place scan and only allocates a new `String`
 /// when the input is not already NFC — the common case during normal typing

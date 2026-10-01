@@ -10,7 +10,7 @@ import org.junit.Test
  * Unit tests for the input-type policy logic in [LekhaniInputMethodService].
  *
  * These tests verify the password-field auto-switch and private-field freeze
- * behaviour defined in AGENTS.md §3.2, without requiring a real Android device
+ * behaviour, without requiring a real Android device
  * or the Rust .so (the session is mocked via a helper).
  *
  * Note: Full integration tests (binding a live InputMethodService to an emulator)

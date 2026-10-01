@@ -10,13 +10,13 @@ import java.io.InputStreamReader
 
 /**
  * LekhaniDictionaryManager
- * ══════════════════════════════════════════════════════════════════════════════
+ *
  * Manages custom user vocabulary, dictionary export/backup, and one-click
  * migration from Ridmik Keyboard and Desktop Avro dictionaries.
  *
- * Privacy guarantee (AGENTS.md §1.1):
- *   ✅ 100% offline — zero network transmission
- *   ✅ Stored locally on-device in application private storage
+ * Privacy guarantee:
+ *   - 100% offline — zero network transmission
+ *   - Stored locally on-device in application private storage
  */
 class LekhaniDictionaryManager(
     private val session: AndroidLekhaniSession = AndroidLekhaniSession()

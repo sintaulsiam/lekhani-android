@@ -6,10 +6,10 @@ import com.lekhani.android.theme.ThemeRegistry
 
 /**
  * KeyboardPreferences
- * ══════════════════════════════════════════════════════════════════════════════
+ *
  * Centralized, Device Protected Storage backed preferences for Lekhani.
  *
- * All settings are direct-boot safe (AGENTS.md §3.1) and cached in memory
+ * All settings are direct-boot safe and cached in memory
  * for zero-allocation access inside the rendering and typing loops.
  */
 class KeyboardPreferences private constructor(context: Context) {

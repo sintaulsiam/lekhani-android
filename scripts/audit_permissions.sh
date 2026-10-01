@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # scripts/audit_permissions.sh
-# ══════════════════════════════════════════════════════════════════════════════
-# Zero-Permission Audit — Phase 2, AGENTS.md §1.1 & ROADMAP.md Phase 2
+# Zero-Permission Audit — Verifies zero network permissions
 #
 # Verifies that android.permission.INTERNET is NEVER declared in any
 # AndroidManifest.xml in the project (including library manifests merged
@@ -14,7 +13,6 @@
 # Exit codes:
 #   0 — audit passed (no INTERNET permission found)
 #   1 — audit FAILED (INTERNET permission found — build must be rejected)
-# ══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
 FORBIDDEN_PERMISSION="android.permission.INTERNET"

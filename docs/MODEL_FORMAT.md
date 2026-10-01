@@ -12,7 +12,7 @@
 model and homophone ranker.  Before beginning Phase 4 (Candidate Strip), we must
 decide how to package, load, and query this model on-device so that:
 
-1. **Cold-load time** stays under 40 ms (AGENTS.md §1 performance budget).
+1. **Cold-load time** stays under 40 ms (strict performance budget).
 2. **Memory footprint** stays under tiered budget (< 55 MB Private Dirty, < 80 MB Total RSS).
 3. **Query latency** stays under 3 ms per keystroke.
 4. **No network access** is used — model files are bundled, never downloaded.

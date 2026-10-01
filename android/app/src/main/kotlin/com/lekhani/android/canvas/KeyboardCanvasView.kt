@@ -33,14 +33,14 @@ import com.lekhani.android.theme.ThemeRegistry
 
 /**
  * KeyboardCanvasView
- * ══════════════════════════════════════════════════════════════════════════════
+ *
  * The 120 FPS hardware-accelerated Canvas keyboard grid for Lekhani.
  *
- * Performance guarantees (AGENTS.md §1.2):
- *   ✅ Zero heap allocations in [onDraw] or [onTouchEvent]
- *   ✅ All Paint, RectF, and path objects pre-allocated in [init] / [onSizeChanged]
- *   ✅ Hardware canvas via android:hardwareAccelerated="true" on the Window
- *   ✅ Touch-to-screen keystroke latency target: < 3 ms
+ * Performance guarantees:
+ *   - Zero heap allocations in [onDraw] or [onTouchEvent]
+ *   - All Paint, RectF, and path objects pre-allocated in [init] / [onSizeChanged]
+ *   - Hardware canvas via android:hardwareAccelerated="true" on the Window
+ *   - Touch-to-screen keystroke latency target: < 3 ms
  *
  * Architecture:
  *   [onSizeChanged] ─ compute pixel bounding boxes for every key → [resolvedKeys]

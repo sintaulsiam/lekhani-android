@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     AndroidManifest.xml — Lekhani Keyboard
-    ═══════════════════════════════════════
-    CRITICAL POLICY RULES (from AGENTS.md §1):
+    Architecture & Security Policies:
       1. android.permission.INTERNET is NEVER declared here. Zero network access.
       2. directBootAware="true" — keyboard must work on the lockscreen before
          device decryption (Device Protected Storage for prefs).

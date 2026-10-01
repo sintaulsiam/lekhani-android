@@ -84,12 +84,12 @@ import kotlinx.coroutines.withContext
  *                                        │
  *                                   Tier 1 (lekhani-core / lekhani-parser)
  *
- * System constraint compliance (AGENTS.md §3):
- *   ✅ directBootAware="true"  — prefs use Device Protected Storage
- *   ✅ Password field policy   — auto-switch to English, freeze learning
- *   ✅ Landscape non-fullscreen — onEvaluateFullscreenMode() → false
- *   ✅ WebView resilience       — pre-edit shadow buffer + cursor guard
- *   ✅ Zero INTERNET permission — no network calls anywhere in this file
+ * System constraint compliance:
+ *   - directBootAware="true"  — prefs use Device Protected Storage
+ *   - Password field policy   — auto-switch to English, freeze learning
+ *   - Landscape non-fullscreen — onEvaluateFullscreenMode() → false
+ *   - WebView resilience       — pre-edit shadow buffer + cursor guard
+ *   - Zero INTERNET permission — no network calls anywhere in this file
  *
  * Threading model:
  *   - [onKey] and [onStartInput] run on the **main thread**.
@@ -235,7 +235,7 @@ class LekhaniInputMethodService : InputMethodService() {
     /**
      * Returns a SharedPreferences backed by Device Protected Storage.
      *
-     * AGENTS.md §3.1: When directBootAware="true", preferences MUST use DPS
+     * When directBootAware="true", preferences MUST use DPS
      * so they survive cold-boot before device decryption. Using credential-
      * protected storage here would throw an IllegalStateException on the lock
      * screen.
@@ -1657,9 +1657,7 @@ class LekhaniInputMethodService : InputMethodService() {
         return super.onKeyUp(keyCode, event)
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // Fullscreen mode policy  (AGENTS.md §3.3)
-    // ══════════════════════════════════════════════════════════════════════════
+    // Fullscreen mode policy
 
     /**
      * ALWAYS returns false.
@@ -2656,7 +2654,7 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     /**
-     * Enforces password / incognito field policy (AGENTS.md §3.2).
+     * Enforces password / incognito field policy.
      *
      * When the focused field is a password, PIN, or incognito text area:
      *  - Auto-switch the session to English QWERTY.
@@ -2714,8 +2712,6 @@ class LekhaniInputMethodService : InputMethodService() {
      * Run on a background coroutine (Dispatchers.IO for the Binder IPC call to
      * getTextBeforeCursor, then switch to Default for the Rust call) so the
      * main thread is never blocked.
-     *
-     * AGENTS.md §5: The UI thread and onKey() methods must remain non-blocking.
      */
     private fun refreshSurroundingContext() {
         if (isCurrentFieldPrivate) {
