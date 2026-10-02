@@ -518,11 +518,13 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // Check if user manually repositioned the cursor or changed selection
         if (session.isComposing() || preeditShadow.isNotEmpty()) {
-            val cursorAtComposingEnd = (candidatesStart >= 0 && candidatesEnd >= 0 &&
-                    newSelStart == candidatesEnd && newSelEnd == candidatesEnd)
-            if (!cursorAtComposingEnd) {
-                // Cursor moved away from composing tail, or composing span was dropped by editor.
-                // Finalize any active composing text so it stays in place as committed text.
+            val hasComposingSpan = candidatesStart >= 0 && candidatesEnd >= 0
+            val cursorOutsideSpan = hasComposingSpan && (newSelStart < candidatesStart || newSelEnd > candidatesEnd)
+            val hasSelectionRange = newSelStart != newSelEnd && newSelStart >= 0 && newSelEnd >= 0
+
+            if (cursorOutsideSpan || hasSelectionRange) {
+                // User manually tapped away from the composing region or highlighted text.
+                // Finalize active composing text so it stays in place as committed text.
                 currentInputConnection?.finishComposingText()
                 session.reset()
                 preeditShadow = ""
@@ -1911,18 +1913,24 @@ class LekhaniInputMethodService : InputMethodService() {
         if (!session.isComposing() && preeditShadow.isEmpty()) return
 
         val textBefore = try {
-            ic.getTextBeforeCursor(preeditShadow.length, 0)?.toString()
+            ic.getTextBeforeCursor(preeditShadow.length + 16, 0)?.toString()
         } catch (_: Exception) {
             null
-        }
+        } ?: return
 
-        if (textBefore != null && !textBefore.endsWith(preeditShadow)) {
-            ic.finishComposingText()
-            session.reset()
-            preeditShadow = ""
-            rawInputBuffer.clear()
-            clearCandidates()
-            clearUndo()
+        // In Chromium WebViews, Compose, or Flutter, getTextBeforeCursor may return empty
+        // or return text preceding the composing span. Never wipe composing on empty text.
+        if (textBefore.isEmpty()) return
+
+        if (!textBefore.endsWith(preeditShadow) && !textBefore.contains(preeditShadow)) {
+            if (textBefore.length >= preeditShadow.length) {
+                ic.finishComposingText()
+                session.reset()
+                preeditShadow = ""
+                rawInputBuffer.clear()
+                clearCandidates()
+                clearUndo()
+            }
         }
     }
 
@@ -2973,12 +2981,11 @@ class LekhaniInputMethodService : InputMethodService() {
             inputVariation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
         )
         val isPassword = isTextPassword || isNumericPassword
-        // isPrivate: hides ALL suggestions (passwords, explicit TYPE_TEXT_FLAG_NO_SUGGESTIONS)
-        val isPrivate = isPassword || noSuggestions
-        // isLearningFrozen: stops auto-learning but still shows suggestions
-        // IME_FLAG_NO_PERSONALIZED_LEARNING is set by Chrome, Gmail, Telegram, Signal, etc.
-        // — it means "don't learn from this", NOT "hide suggestions".
-        val isLearningFrozen = isPrivate || noPersonalizedLearning
+        // isPrivate: hides ALL suggestions and clipboard pills ONLY for password fields
+        val isPrivate = isPassword
+        // isLearningFrozen: stops auto-learning and AI context updates in private/password,
+        // no-suggestions, and explicit incognito fields (Chrome, Telegram, etc.)
+        val isLearningFrozen = isPassword || noSuggestions || noPersonalizedLearning
 
         isCurrentFieldPrivate = isPrivate
         session.setPrivateField(isLearningFrozen)

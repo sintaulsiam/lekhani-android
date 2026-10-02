@@ -28,19 +28,30 @@ class InputTypePolicyTest {
      * Classify an [EditorInfo] the same way [LekhaniInputMethodService] does,
      * without needing to instantiate the service itself.
      *
-     * Returns true if the field should be treated as private/password.
+     * Returns true if the field should be treated as private/password (hides candidates and clipboard).
      */
     private fun isPrivateField(info: EditorInfo): Boolean {
         val inputClass = info.inputType and InputType.TYPE_MASK_CLASS
         val inputVariation = info.inputType and InputType.TYPE_MASK_VARIATION
-        val noSuggestions = (info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
 
-        val isPasswordField = inputClass == InputType.TYPE_CLASS_TEXT && (
+        val isPasswordField = (inputClass == InputType.TYPE_CLASS_TEXT && (
             inputVariation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
             inputVariation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
             inputVariation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-        )
-        return isPasswordField || noSuggestions
+        )) || (inputClass == InputType.TYPE_CLASS_NUMBER && (
+            inputVariation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        ))
+        return isPasswordField
+    }
+
+    /**
+     * Returns true if learning should be frozen (no learning, no context poisoning)
+     * as per AGENTS.md.
+     */
+    private fun isLearningFrozen(info: EditorInfo): Boolean {
+        val noSuggestions = (info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
+        val noPersonalizedLearning = (info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0
+        return isPrivateField(info) || noSuggestions || noPersonalizedLearning
     }
 
     // ── Test cases ────────────────────────────────────────────────────────────
@@ -51,6 +62,7 @@ class InputTypePolicyTest {
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         )
         assertEquals(true, isPrivateField(info))
+        assertEquals(true, isLearningFrozen(info))
     }
 
     @Test
@@ -59,6 +71,7 @@ class InputTypePolicyTest {
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
         )
         assertEquals(true, isPrivateField(info))
+        assertEquals(true, isLearningFrozen(info))
     }
 
     @Test
@@ -67,20 +80,23 @@ class InputTypePolicyTest {
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
         )
         assertEquals(true, isPrivateField(info))
+        assertEquals(true, isLearningFrozen(info))
     }
 
     @Test
-    fun `no-suggestions flag marks field as private`() {
+    fun `no-suggestions flag freezes learning but does not hide candidates`() {
         val info = editorInfoWith(
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         )
-        assertEquals(true, isPrivateField(info))
+        assertEquals(true, isLearningFrozen(info))
+        assertEquals(false, isPrivateField(info))
     }
 
     @Test
-    fun `normal text field is not private`() {
+    fun `normal text field is not private and learning is active`() {
         val info = editorInfoWith(InputType.TYPE_CLASS_TEXT)
         assertEquals(false, isPrivateField(info))
+        assertEquals(false, isLearningFrozen(info))
     }
 
     @Test
