@@ -27,7 +27,6 @@ SYNC_FILES=(
     "dictionary.bin"
     "dictionary.json"
     "autocorrect.json"
-    "regex.json"
     "suffix.json"
 )
 

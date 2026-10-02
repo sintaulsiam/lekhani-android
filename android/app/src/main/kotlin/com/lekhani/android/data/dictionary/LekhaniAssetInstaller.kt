@@ -28,7 +28,6 @@ object LekhaniAssetInstaller {
         "bengali_vocab.bin",
         "bengali_gru.bin",
         "autocorrect.json",
-        "regex.json",
         "suffix.json"
     )
 
