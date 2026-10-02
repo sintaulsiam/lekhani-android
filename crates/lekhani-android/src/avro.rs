@@ -423,21 +423,48 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         candidates.insert(1.min(candidates.len()), def.clone());
     }
 
-    // 2d. Exact case-sensitivity fidelity: if the user explicitly typed an uppercase
-    // Avro character (e.g. 'D', 'T', 'R', 'S', 'N', 'Z') and def is non-empty,
-    // prioritize def at candidate index 0 to honor desktop Avro muscle memory.
+    // 2d. Exact case-sensitivity fidelity & Sentence-initial Titlecase smart promotion:
+    // If the user typed an uppercase Avro character ("OIUDGJNRSTYZ"):
+    // - If it's a mobile Titlecase (e.g. "Tomar", "Tumi") where the lowercase form is a valid
+    //   high-frequency dictionary word ("তোমার", "তুমি") but the uppercase form is non-existent
+    //   ("টোমার", "টুমি"), promote the valid word while retaining def as candidate.
+    // - Otherwise, prioritize def at candidate index 0 to honor desktop Avro muscle memory ("Daktar", "Dhaka", "poRa").
     let has_explicit_avro_case = input.chars().any(|c| {
         c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c)
     });
     if has_explicit_avro_case && !def.is_empty() {
-        if let Some(pos) = candidates.iter().position(|c| c == &def) {
-            candidates.remove(pos);
+        let is_titlecase = input.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+            && input.chars().skip(1).all(|c| c.is_ascii_lowercase());
+
+        let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
+            ac.clone()
+        } else if let Some(&words) = get_common_words().get(&lower.as_str()) {
+            words.first().copied().unwrap_or("").to_string()
+        } else {
+            parser.convert(&lower)
+        };
+        let def_in_dict = db.is_exact_dictionary_word(&def);
+        let lower_in_dict = db.is_exact_dictionary_word(&resolved_lower);
+
+        if is_titlecase && !def_in_dict && lower_in_dict {
+            if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
+                candidates.remove(pos);
+            }
+            candidates.insert(0, resolved_lower);
+            if !candidates.iter().any(|c| c == &def) {
+                candidates.insert(1.min(candidates.len()), def.clone());
+            }
+            selected_idx = 0;
+        } else {
+            if let Some(pos) = candidates.iter().position(|c| c == &def) {
+                candidates.remove(pos);
+            }
+            candidates.insert(0, def.clone());
+            selected_idx = 0;
         }
-        candidates.insert(0, def.clone());
-        selected_idx = 0;
     }
 
-    // 3. QWERTY adjacency auto-correction for fat-finger typos on touchscreen
+    // 3. QWERTY adjacency & transposition auto-correction for fat-finger typos on touchscreen
     let mut common_typos = Vec::new();
     let mut dict_typos = Vec::new();
     if lower.len() >= 3 {
@@ -460,6 +487,36 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                     }
                 } else if dict_typos.len() < 3 {
                     let conv = parser.convert(&cand_key);
+                    if !conv.is_empty()
+                        && db.is_exact_dictionary_word(&conv)
+                        && !candidates.contains(&conv)
+                        && !dict_typos.contains(&conv)
+                    {
+                        dict_typos.push(conv);
+                    }
+                }
+            }
+        }
+
+        // 3b. 1-step adjacent letter transposition recovery for fast two-thumb typing (e.g. "bhlao" -> "bhalo" -> "ভালো")
+        if common_typos.is_empty() && chars.len() >= 3 {
+            for i in 0..chars.len() - 1 {
+                let mut swapped = chars.clone();
+                swapped.swap(i, i + 1);
+                let swap_key: String = swapped.into_iter().collect();
+                if let Some(&words) = get_common_words().get(swap_key.as_str()) {
+                    for &w in words {
+                        let ws = w.to_string();
+                        if !candidates.contains(&ws) && !common_typos.contains(&ws) {
+                            common_typos.push(ws);
+                        }
+                    }
+                } else if let Some(ac) = db.autocorrect.get(&swap_key) {
+                    if !candidates.contains(ac) && !common_typos.contains(ac) {
+                        common_typos.push(ac.clone());
+                    }
+                } else if dict_typos.len() < 3 {
+                    let conv = parser.convert(&swap_key);
                     if !conv.is_empty()
                         && db.is_exact_dictionary_word(&conv)
                         && !candidates.contains(&conv)
@@ -807,5 +864,16 @@ mod tests {
         // 5. Fat-finger QWERTY proximity recovery: "bhslo" ('s' next to 'a') -> offers "ভালো"
         let (_, bhslo_cands) = transliterate_avro("bhslo");
         assert!(bhslo_cands.contains(&"ভালো".to_string()), "bhslo must recover ভালো via QWERTY proximity");
+
+        // 6. Sentence-initial Titlecase smart promotion: "Tomar" -> "তোমার", "Tumi" -> "তুমি"
+        let (tomar_title, _) = transliterate_avro("Tomar");
+        assert_eq!(tomar_title, "তোমার", "Titlecase 'Tomar' must promote তোমার over টোমার");
+
+        let (tumi_title, _) = transliterate_avro("Tumi");
+        assert_eq!(tumi_title, "তুমি", "Titlecase 'Tumi' must promote তুমি over টুমি");
+
+        // 7. 1-step adjacent letter transposition recovery: "bhlao" ('l' and 'a' swapped) -> offers "ভালো"
+        let (_, bhlao_cands) = transliterate_avro("bhlao");
+        assert!(bhlao_cands.contains(&"ভালো".to_string()), "bhlao must recover ভালো via transposition");
     }
 }
