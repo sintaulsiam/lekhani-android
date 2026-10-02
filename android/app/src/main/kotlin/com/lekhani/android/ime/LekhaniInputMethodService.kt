@@ -2234,6 +2234,7 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         refreshSurroundingContext()
+        updateAutoCaps()
     }
 
     /**
@@ -2433,7 +2434,7 @@ class LekhaniInputMethodService : InputMethodService() {
             activeUndoInfo = undo
             scheduleUndoExpiry()
         }
-        val filtered = raw.filter { !blacklist.isBlacklisted(it) }.toMutableList()
+        val filtered = raw.filter { !blacklist.isBlacklisted(it) }.distinct().toMutableList()
 
         // 1. Avro Verbatim Token & Code Shield:
         // Offer raw English input in first place (index 0) so users can verify phonetic spelling and commit English directly
