@@ -25,6 +25,21 @@ object EnterKeyResolver {
         RAW_KEY
     }
 
+    enum class ActionIcon {
+        NEWLINE,
+        SEARCH,
+        SEND,
+        GO,
+        NEXT,
+        DONE
+    }
+
+    enum class FieldType {
+        NORMAL,
+        EMAIL,
+        URI
+    }
+
     fun determineBehavior(
         info: EditorInfo?,
         isShiftActive: Boolean
@@ -68,5 +83,42 @@ object EnterKeyResolver {
 
         // 6. Single-line field with no action specified
         return Behavior.RAW_KEY
+    }
+
+    fun determineActionIcon(
+        info: EditorInfo?,
+        isShiftActive: Boolean
+    ): ActionIcon {
+        if (isShiftActive || info == null) return ActionIcon.NEWLINE
+
+        val behavior = determineBehavior(info, isShiftActive)
+        if (behavior == Behavior.NEWLINE) return ActionIcon.NEWLINE
+
+        val imeOptions = info.imeOptions
+        val action = imeOptions and EditorInfo.IME_MASK_ACTION
+        return when (action) {
+            EditorInfo.IME_ACTION_SEARCH -> ActionIcon.SEARCH
+            EditorInfo.IME_ACTION_SEND -> ActionIcon.SEND
+            EditorInfo.IME_ACTION_GO -> ActionIcon.GO
+            EditorInfo.IME_ACTION_NEXT -> ActionIcon.NEXT
+            EditorInfo.IME_ACTION_DONE -> ActionIcon.DONE
+            else -> ActionIcon.NEWLINE
+        }
+    }
+
+    fun determineFieldType(info: EditorInfo?): FieldType {
+        if (info == null) return FieldType.NORMAL
+        val inputClass = info.inputType and InputType.TYPE_MASK_CLASS
+        val inputVariation = info.inputType and InputType.TYPE_MASK_VARIATION
+        return when {
+            inputClass == InputType.TYPE_CLASS_TEXT && (
+                inputVariation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
+                inputVariation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+            ) -> FieldType.EMAIL
+            inputClass == InputType.TYPE_CLASS_TEXT && (
+                inputVariation == InputType.TYPE_TEXT_VARIATION_URI
+            ) -> FieldType.URI
+            else -> FieldType.NORMAL
+        }
     }
 }

@@ -27,6 +27,7 @@ import com.lekhani.android.feedback.LekhaniFeedbackManager
 import com.lekhani.android.model.Key
 import com.lekhani.android.model.KeyAction
 import com.lekhani.android.model.KeyboardLayout
+import com.lekhani.android.ime.EnterKeyResolver
 import com.lekhani.android.theme.ChromaMode
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeRegistry
@@ -247,6 +248,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private var isShifted: Boolean = false
     private var isCapsLock: Boolean = false
     private var lastShiftTapTime: Long = 0L
+
+    private var enterActionIcon: EnterKeyResolver.ActionIcon = EnterKeyResolver.ActionIcon.NEWLINE
+    private var fieldType: EnterKeyResolver.FieldType = EnterKeyResolver.FieldType.NORMAL
 
     val isShiftLocked: Boolean
         get() = isCapsLock
@@ -801,6 +805,24 @@ class KeyboardCanvasView @JvmOverloads constructor(
         return isShifted
     }
 
+    fun setEnterActionIcon(icon: EnterKeyResolver.ActionIcon) {
+        if (enterActionIcon != icon) {
+            enterActionIcon = icon
+            accessibilityHelper.invalidateRoot()
+            invalidate()
+        }
+    }
+
+    fun setFieldType(type: EnterKeyResolver.FieldType) {
+        if (fieldType != type) {
+            fieldType = type
+            if (width > 0 && height > 0) {
+                computeKeyBounds()
+                invalidate()
+            }
+        }
+    }
+
     // Measurement & Size change
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -1119,7 +1141,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         // Spacebar row: proportional, sleek, and never oversized
-        val spaceRow = currentLayout.spacebarRow
+        val spaceRow = getAdaptiveSpaceRow(currentLayout.spacebarRow)
         val totalSpaceWeight = spaceRow.sumOf { it.widthWeight.toDouble() }.toFloat()
         val spaceGaps = (spaceRow.size - 1) * keyMarginH
         val spaceUnitWidth = (availableRowW - spaceGaps) / totalSpaceWeight
@@ -1204,7 +1226,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
 
         // Spacebar row in Split mode — ergonomic split spacebar for both thumbs
-        val spaceRow = currentLayout.spacebarRow
+        val spaceRow = getAdaptiveSpaceRow(currentLayout.spacebarRow)
         val spaceIndex = spaceRow.indexOfFirst { it.action == KeyAction.Space }
         val spaceKey = if (spaceIndex >= 0) spaceRow[spaceIndex] else Key(
             label = "Space", shiftedLabel = "Space",
@@ -1317,6 +1339,56 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
     }
 
+    private fun getAdaptiveSpaceRow(originalRow: List<Key>): List<Key> {
+        if (fieldType == EnterKeyResolver.FieldType.NORMAL || isNumberSymbolsActive()) return originalRow
+
+        val spaceIndex = originalRow.indexOfFirst { it.action == KeyAction.Space }
+        if (spaceIndex < 0) return originalRow
+
+        return originalRow.mapIndexed { idx, key ->
+            when (idx) {
+                spaceIndex - 1 -> {
+                    if (fieldType == EnterKeyResolver.FieldType.EMAIL) {
+                        Key(
+                            label = "@",
+                            shiftedLabel = "@",
+                            action = KeyAction.Character("@"),
+                            shiftedAction = KeyAction.Character("@"),
+                            widthWeight = key.widthWeight,
+                            contentDesc = "At symbol",
+                        )
+                    } else {
+                        Key(
+                            label = "/",
+                            shiftedLabel = "/",
+                            action = KeyAction.Character("/"),
+                            shiftedAction = KeyAction.Character("/"),
+                            widthWeight = key.widthWeight,
+                            contentDesc = "Forward slash",
+                        )
+                    }
+                }
+                spaceIndex + 1 -> {
+                    if (key.action is KeyAction.Character && (key.action as KeyAction.Character).token == ".") {
+                        key
+                    } else if (key.action !is KeyAction.Enter) {
+                        Key(
+                            label = ".",
+                            shiftedLabel = ".",
+                            action = KeyAction.Character("."),
+                            shiftedAction = KeyAction.Character("."),
+                            widthWeight = key.widthWeight,
+                            contentDesc = "Period",
+                        )
+                    } else {
+                        key
+                    }
+                }
+                else -> key
+            }
+        }
+    }
+
     private fun drawVectorEnter(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
         vectorIconPath.rewind()
         val w = size * 0.60f
@@ -1335,6 +1407,84 @@ class KeyboardCanvasView @JvmOverloads constructor(
         vectorIconPath.lineTo(left, bottom)
         vectorIconPath.lineTo(left + arrowSize, bottom + arrowSize)
 
+        canvas.drawPath(vectorIconPath, strokePaint)
+    }
+
+    private fun drawVectorSearch(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        val r = size * 0.25f
+        val glassCx = cx - size * 0.08f
+        val glassCy = cy - size * 0.08f
+        canvas.drawCircle(glassCx, glassCy, r, strokePaint)
+        val cos45 = 0.7071f
+        val startX = glassCx + r * cos45
+        val startY = glassCy + r * cos45
+        val endX = startX + size * 0.30f * cos45
+        val endY = startY + size * 0.30f * cos45
+        canvas.drawLine(startX, startY, endX, endY, strokePaint)
+    }
+
+    private fun drawVectorSend(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        vectorIconPath.rewind()
+        val tipX = cx + size * 0.32f
+        val tipY = cy - size * 0.28f
+        val backBottomX = cx - size * 0.16f
+        val backBottomY = cy + size * 0.30f
+        val notchX = cx - size * 0.04f
+        val notchY = cy + size * 0.06f
+        val backLeftX = cx - size * 0.30f
+        val backLeftY = cy - size * 0.08f
+
+        vectorIconPath.moveTo(tipX, tipY)
+        vectorIconPath.lineTo(backLeftX, backLeftY)
+        vectorIconPath.lineTo(notchX, notchY)
+        vectorIconPath.lineTo(backBottomX, backBottomY)
+        vectorIconPath.close()
+
+        vectorIconPath.moveTo(tipX, tipY)
+        vectorIconPath.lineTo(notchX, notchY)
+        canvas.drawPath(vectorIconPath, strokePaint)
+    }
+
+    private fun drawVectorGo(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        vectorIconPath.rewind()
+        val halfW = size * 0.34f
+        val arrowHead = size * 0.22f
+        vectorIconPath.moveTo(cx - halfW, cy)
+        vectorIconPath.lineTo(cx + halfW, cy)
+        vectorIconPath.moveTo(cx + halfW - arrowHead, cy - arrowHead)
+        vectorIconPath.lineTo(cx + halfW, cy)
+        vectorIconPath.lineTo(cx + halfW - arrowHead, cy + arrowHead)
+        canvas.drawPath(vectorIconPath, strokePaint)
+    }
+
+    private fun drawVectorNext(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        vectorIconPath.rewind()
+        val halfW = size * 0.34f
+        val arrowHead = size * 0.20f
+        val stemRight = cx + halfW - size * 0.12f
+        vectorIconPath.moveTo(cx - halfW, cy)
+        vectorIconPath.lineTo(stemRight, cy)
+        vectorIconPath.moveTo(stemRight - arrowHead, cy - arrowHead)
+        vectorIconPath.lineTo(stemRight, cy)
+        vectorIconPath.lineTo(stemRight - arrowHead, cy + arrowHead)
+        val barX = cx + halfW
+        val barHalfH = size * 0.25f
+        vectorIconPath.moveTo(barX, cy - barHalfH)
+        vectorIconPath.lineTo(barX, cy + barHalfH)
+        canvas.drawPath(vectorIconPath, strokePaint)
+    }
+
+    private fun drawVectorDone(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
+        vectorIconPath.rewind()
+        val leftX = cx - size * 0.28f
+        val leftY = cy + size * 0.02f
+        val midX = cx - size * 0.08f
+        val midY = cy + size * 0.22f
+        val rightX = cx + size * 0.30f
+        val rightY = cy - size * 0.24f
+        vectorIconPath.moveTo(leftX, leftY)
+        vectorIconPath.lineTo(midX, midY)
+        vectorIconPath.lineTo(rightX, rightY)
         canvas.drawPath(vectorIconPath, strokePaint)
     }
 
@@ -1560,7 +1710,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     if (activeTheme.isRgbChroma) {
                         vectorIconStrokePaint.color = keyBorderPaint.color
                     }
-                    drawVectorEnter(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                    val resolvedIcon = if (isShiftActive) EnterKeyResolver.ActionIcon.NEWLINE else enterActionIcon
+                    when (resolvedIcon) {
+                        EnterKeyResolver.ActionIcon.SEARCH -> drawVectorSearch(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                        EnterKeyResolver.ActionIcon.SEND -> drawVectorSend(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                        EnterKeyResolver.ActionIcon.GO -> drawVectorGo(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                        EnterKeyResolver.ActionIcon.NEXT -> drawVectorNext(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                        EnterKeyResolver.ActionIcon.DONE -> drawVectorDone(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                        EnterKeyResolver.ActionIcon.NEWLINE -> drawVectorEnter(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
+                    }
                     if (activeTheme.isRgbChroma) {
                         vectorIconStrokePaint.color = activeTheme.labelColor
                     }
@@ -2327,7 +2485,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
         return when (key.action) {
             KeyAction.Space -> "স্পেসবার (Spacebar)"
             KeyAction.Backspace -> "ব্যাকস্পেস (Backspace)"
-            KeyAction.Enter -> "এন্টার (Enter)"
+            KeyAction.Enter -> {
+                val resolvedIcon = if (isShiftActive) EnterKeyResolver.ActionIcon.NEWLINE else enterActionIcon
+                when (resolvedIcon) {
+                    EnterKeyResolver.ActionIcon.SEARCH -> "অনুসন্ধান (Search)"
+                    EnterKeyResolver.ActionIcon.SEND -> "পাঠান (Send)"
+                    EnterKeyResolver.ActionIcon.GO -> "যান (Go)"
+                    EnterKeyResolver.ActionIcon.NEXT -> "পরবর্তী (Next)"
+                    EnterKeyResolver.ActionIcon.DONE -> "সম্পন্ন (Done)"
+                    EnterKeyResolver.ActionIcon.NEWLINE -> "এন্টার (Enter)"
+                }
+            }
             KeyAction.Shift -> when {
                 isCapsLock -> "ক্যাপস লক সক্রিয় (Caps Lock Active)"
                 shifted -> "শিফট সক্রিয় (Shift Active)"

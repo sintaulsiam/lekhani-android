@@ -248,4 +248,89 @@ class InputTypePolicyTest {
         val behavior = EnterKeyResolver.determineBehavior(null, isShiftActive = false)
         assertEquals(EnterKeyResolver.Behavior.NEWLINE, behavior)
     }
+
+    // ── determineActionIcon Tests ─────────────────────────────────────────────
+
+    @Test
+    fun `determineActionIcon correctly resolves action icons for single line fields`() {
+        val actions = mapOf(
+            EditorInfo.IME_ACTION_SEARCH to EnterKeyResolver.ActionIcon.SEARCH,
+            EditorInfo.IME_ACTION_SEND to EnterKeyResolver.ActionIcon.SEND,
+            EditorInfo.IME_ACTION_GO to EnterKeyResolver.ActionIcon.GO,
+            EditorInfo.IME_ACTION_NEXT to EnterKeyResolver.ActionIcon.NEXT,
+            EditorInfo.IME_ACTION_DONE to EnterKeyResolver.ActionIcon.DONE,
+            EditorInfo.IME_ACTION_NONE to EnterKeyResolver.ActionIcon.NEWLINE,
+            EditorInfo.IME_ACTION_UNSPECIFIED to EnterKeyResolver.ActionIcon.NEWLINE,
+        )
+
+        for ((imeAction, expectedIcon) in actions) {
+            val info = EditorInfo().apply {
+                inputType = InputType.TYPE_CLASS_TEXT
+                imeOptions = imeAction
+            }
+            val icon = EnterKeyResolver.determineActionIcon(info, isShiftActive = false)
+            assertEquals("Mismatch for IME action $imeAction", expectedIcon, icon)
+        }
+    }
+
+    @Test
+    fun `determineActionIcon returns NEWLINE when shift is active or multiline without send`() {
+        val searchInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+        }
+        assertEquals(EnterKeyResolver.ActionIcon.NEWLINE, EnterKeyResolver.determineActionIcon(searchInfo, isShiftActive = true))
+
+        val multilineInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            imeOptions = EditorInfo.IME_ACTION_DONE
+        }
+        assertEquals(EnterKeyResolver.ActionIcon.NEWLINE, EnterKeyResolver.determineActionIcon(multilineInfo, isShiftActive = false))
+
+        val chatSendInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            imeOptions = EditorInfo.IME_ACTION_SEND
+        }
+        assertEquals(EnterKeyResolver.ActionIcon.SEND, EnterKeyResolver.determineActionIcon(chatSendInfo, isShiftActive = false))
+
+        val noEnterActionInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_ENTER_ACTION
+        }
+        assertEquals(EnterKeyResolver.ActionIcon.NEWLINE, EnterKeyResolver.determineActionIcon(noEnterActionInfo, isShiftActive = false))
+
+        assertEquals(EnterKeyResolver.ActionIcon.NEWLINE, EnterKeyResolver.determineActionIcon(null, isShiftActive = false))
+    }
+
+    // ── determineFieldType Tests ──────────────────────────────────────────────
+
+    @Test
+    fun `determineFieldType recognizes email and uri variations`() {
+        val emailInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        }
+        assertEquals(EnterKeyResolver.FieldType.EMAIL, EnterKeyResolver.determineFieldType(emailInfo))
+
+        val webEmailInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+        }
+        assertEquals(EnterKeyResolver.FieldType.EMAIL, EnterKeyResolver.determineFieldType(webEmailInfo))
+
+        val uriInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+        }
+        assertEquals(EnterKeyResolver.FieldType.URI, EnterKeyResolver.determineFieldType(uriInfo))
+
+        val normalInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PERSON_NAME
+        }
+        assertEquals(EnterKeyResolver.FieldType.NORMAL, EnterKeyResolver.determineFieldType(normalInfo))
+
+        val numberInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        assertEquals(EnterKeyResolver.FieldType.NORMAL, EnterKeyResolver.determineFieldType(numberInfo))
+
+        assertEquals(EnterKeyResolver.FieldType.NORMAL, EnterKeyResolver.determineFieldType(null))
+    }
 }

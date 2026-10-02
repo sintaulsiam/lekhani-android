@@ -432,6 +432,7 @@ class LekhaniInputMethodService : InputMethodService() {
         editorSelectionAnchor = -1
         setInputViewMode(InputViewMode.KEYBOARD)
         applyInputTypePolicy(info)
+        updateEnterActionAndFieldType(info)
         refreshSurroundingContext()
     }
 
@@ -461,6 +462,7 @@ class LekhaniInputMethodService : InputMethodService() {
         currentSelEnd = -1
         // Re-apply policy in case the editor info changed after the view appeared
         applyInputTypePolicy(info)
+        updateEnterActionAndFieldType(info)
         val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
         _themeFlow.value = activeTheme
         keyboardView?.applyTheme(activeTheme)
@@ -1644,6 +1646,7 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.setShifted(false)
         keyboardView?.setGboardKarsActive(false)
         updateAutoCaps()
+        updateEnterActionAndFieldType(currentInputEditorInfo)
     }
 
     fun getEnabledLayouts(): List<LekhaniLayoutType> {
@@ -1992,7 +1995,8 @@ class LekhaniInputMethodService : InputMethodService() {
 
         updateGboardDynamicRow(keyToken)
 
-        result.commitText?.let { text ->
+        result.commitText?.let { rawText ->
+            val text = if (isUrlOrEmailOrNumericField() && rawText == "।") "." else rawText
             val isPunctuation = !isUrlOrEmailOrNumericField() && text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',', '.')
             val finalText = if (isPunctuation) {
                 if (text == ",") {
@@ -3141,6 +3145,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 restoreAlphaKeyboard()
             }
         }
+    }
+
+    private fun updateEnterActionAndFieldType(info: EditorInfo?) {
+        val kv = keyboardView ?: return
+        val actionIcon = EnterKeyResolver.determineActionIcon(info, kv.isShiftActive)
+        val fieldType = EnterKeyResolver.determineFieldType(info)
+        kv.setEnterActionIcon(actionIcon)
+        kv.setFieldType(fieldType)
     }
 
     fun isUrlOrEmailOrNumericField(): Boolean {
