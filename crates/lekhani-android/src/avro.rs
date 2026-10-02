@@ -252,8 +252,301 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("bishsho", &["বিশ্ব"][..]);
         m.insert("ryab", &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}"][..]);
         m.insert("rab", &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}", "রব"][..]);
+
+        // ── Phase 2: Missing-vowel chat shorthand verb families ─────────────
+        // 'kr' family (কর-)
+        m.insert("krbo", &["করবো", "করব"][..]);
+        m.insert("krchi", &["করছি"][..]);
+        m.insert("krcho", &["করছো"][..]);
+        m.insert("krche", &["করছে"][..]);
+        m.insert("krchen", &["করছেন"][..]);
+        m.insert("krchis", &["করছিস"][..]);
+        m.insert("krlam", &["করলাম"][..]);
+        m.insert("krle", &["করলে"][..]);
+        m.insert("krte", &["করতে"][..]);
+        m.insert("krbona", &["করবোনা", "করবো না"][..]);
+
+        // 'bl' family (বল-)
+        m.insert("blbo", &["বলবো", "বলব"][..]);
+        m.insert("blchi", &["বলছি"][..]);
+        m.insert("blcho", &["বলছো"][..]);
+        m.insert("blche", &["বলছে"][..]);
+        m.insert("blchen", &["বলছেন"][..]);
+        m.insert("bllam", &["বললাম"][..]);
+        m.insert("blle", &["বললে"][..]);
+        m.insert("blte", &["বলতে"][..]);
+
+        // 'dkh' family (দেখ-)
+        m.insert("dkhbo", &["দেখবো", "দেখব"][..]);
+        m.insert("dkhchi", &["দেখছি"][..]);
+        m.insert("dkhcho", &["দেখছো"][..]);
+        m.insert("dkhche", &["দেখছে"][..]);
+        m.insert("dkhlam", &["দেখলাম"][..]);
+        m.insert("dkhle", &["দেখলে"][..]);
+        m.insert("dkhte", &["দেখতে"][..]);
+
+        // 'shn' family (শুন-)
+        m.insert("shnbo", &["শুনবো", "শুনব"][..]);
+        m.insert("shnchi", &["শুনছি"][..]);
+        m.insert("shncho", &["শুনছো"][..]);
+        m.insert("shnche", &["শুনছে"][..]);
+        m.insert("shnlam", &["শুনলাম"][..]);
+        m.insert("shnte", &["শুনতে"][..]);
+
+        // 'pr' family (পার-)
+        m.insert("prbo", &["পারবো", "পারব"][..]);
+        m.insert("prchi", &["পারছি"][..]);
+        m.insert("prcho", &["পারছো"][..]);
+        m.insert("prche", &["পারছে"][..]);
+        m.insert("prlam", &["পারলাম"][..]);
+        m.insert("prle", &["পারলে"][..]);
+        m.insert("prte", &["পারতে"][..]);
+        m.insert("prbona", &["পারবোনা"][..]);
+
+        // 'bjh' family (বুঝ-)
+        m.insert("bjhsi", &["বুঝেছি"][..]);
+        m.insert("bjhlm", &["বুঝলাম"][..]);
+        m.insert("bjhso", &["বুঝেছো"][..]);
+        m.insert("bjhsen", &["বুঝেছেন"][..]);
+        m.insert("bjhte", &["বুঝতে"][..]);
+        m.insert("bjhina", &["বুঝিনা"][..]);
+        m.insert("bujhlam", &["বুঝলাম"][..]);
+        m.insert("bujhina", &["বুঝিনা"][..]);
+        m.insert("bujhte", &["বুঝতে"][..]);
+
+        // 'jb' / 'khb' family
+        m.insert("jbo", &["যাবো", "যাব"][..]);
+        m.insert("jbona", &["যাবোনা"][..]);
+        m.insert("khbo", &["খাবো", "খাব"][..]);
+        m.insert("khbona", &["খাবোনা"][..]);
+
+        // Conversational SMS contractions
+        m.insert("thk", &["ঠিক"][..]);
+        m.insert("thkse", &["ঠিক আছে"][..]);
+        m.insert("thikase", &["ঠিক আছে"][..]);
+        m.insert("thikache", &["ঠিক আছে"][..]);
+        m.insert("drkr", &["দরকার"][..]);
+        m.insert("kkhn", &["কখন"][..]);
+        m.insert("kkhno", &["কখনো"][..]);
+        m.insert("ekhno", &["এখনো"][..]);
+        m.insert("tkhno", &["তখনো"][..]);
+        m.insert("sbar", &["সবার"][..]);
+        m.insert("jni", &["জানি"][..]);
+        m.insert("jnina", &["জানিনা"][..]);
+        m.insert("dhnnbad", &["ধন্যবাদ"][..]);
+        m.insert("hye", &["হয়ে"][..]);
+        m.insert("hoisilo", &["হয়েছিল"][..]);
+        m.insert("accha", &["আচ্ছা"][..]);
+        m.insert("acchha", &["আচ্ছা"][..]);
+        m.insert("ekdom", &["একদম"][..]);
+        m.insert("arekta", &["আরেকটা"][..]);
+        m.insert("arekbar", &["আরেকবার"][..]);
+        m.insert("arekjon", &["আরেকজন"][..]);
+
+        // ── Phase 4: Suffix & Clitic Attachment Rules (-o 'also', -i 'emphatic') ──
+        m.insert("amio", &["আমিও"][..]);
+        m.insert("tumio", &["তুমিও"][..]);
+        m.insert("apnio", &["আপনিও"][..]);
+        m.insert("sheo", &["সেও"][..]);
+        m.insert("amrao", &["আমরাও"][..]);
+        m.insert("tomrao", &["তোমরাও"][..]);
+        m.insert("tarao", &["তারাও"][..]);
+        m.insert("orao", &["ওরাও"][..]);
+        m.insert("sobaio", &["সবাইও"][..]);
+        m.insert("shobaio", &["সবাইও"][..]);
+        m.insert("ekhono", &["এখনো"][..]);
+        m.insert("tokhono", &["তখনো"][..]);
+        m.insert("kokhono", &["কখনো"][..]);
+        m.insert("kothao", &["কোথাও"][..]);
+        m.insert("amii", &["আমিই"][..]);
+        m.insert("tumii", &["তুমিই"][..]);
+        m.insert("apnii", &["আপনিই"][..]);
+        m.insert("ekhoni", &["এখনই"][..]);
+        m.insert("shei", &["সেই"][..]);
+
+        // ── Phase 5: Regional & Sound-Law Equivalence (s/sh, v/bh, z/j) ───────
+        m.insert("vabchi", &["ভাবছি"][..]);
+        m.insert("vabcho", &["ভাবছো"][..]);
+        m.insert("vabche", &["ভাবছে"][..]);
+        m.insert("vablam", &["ভাবলাম"][..]);
+        m.insert("vabte", &["ভাবতে"][..]);
+        m.insert("vabbo", &["ভাববো"][..]);
+        m.insert("zao", &["যাও"][..]);
+        m.insert("zabe", &["যাবে"][..]);
+        m.insert("zodi", &["যদি"][..]);
+        m.insert("sombhob", &["সম্ভব"][..]);
+        m.insert("osombhob", &["অসম্ভব"][..]);
+        m.insert("somossa", &["সমস্যা"][..]);
+        m.insert("shomosya", &["সমস্যা"][..]);
+        m.insert("shombhob", &["সম্ভব"][..]);
+        m.insert("oshombhob", &["অসম্ভব"][..]);
+
+        // ── Phase 1: High-Frequency Everyday English Loanwords ────────────────
+        m.insert("school", &["স্কুল"][..]);
+        m.insert("college", &["কলেজ"][..]);
+        m.insert("varsity", &["ভার্সিটি"][..]);
+        m.insert("university", &["ভার্সিটি", "ইউনিভার্সিটি"][..]);
+        m.insert("class", &["ক্লাস"][..]);
+        m.insert("result", &["রেজাল্ট"][..]);
+        m.insert("exam", &["পরীক্ষা", "এক্সাম"][..]);
+        m.insert("routine", &["রুটিন"][..]);
+        m.insert("notice", &["নোটিশ"][..]);
+        m.insert("table", &["টেবিল"][..]);
+        m.insert("chair", &["চেয়ার"][..]);
+        m.insert("fan", &["ফ্যান"][..]);
+        m.insert("light", &["লাইট"][..]);
+        m.insert("pen", &["কলম", "পেন"][..]);
+        m.insert("pencil", &["পেন্সিল"][..]);
+        m.insert("paper", &["পেপার"][..]);
+        m.insert("bottle", &["বোতল"][..]);
+        m.insert("glass", &["গ্লাস"][..]);
+        m.insert("cup", &["কাপ"][..]);
+        m.insert("plate", &["প্লেট"][..]);
+        m.insert("box", &["বক্স"][..]);
+        m.insert("bag", &["ব্যাগ"][..]);
+        m.insert("doctor", &["ডাক্তার"][..]);
+        m.insert("hospital", &["হাসপাতাল"][..]);
+        m.insert("clinic", &["ক্লিনিক"][..]);
+        m.insert("medicine", &["ওষুধ", "মেডিসিন"][..]);
+        m.insert("nurse", &["নার্স"][..]);
+        m.insert("ambulance", &["অ্যাম্বুলেন্স"][..]);
+        m.insert("police", &["পুলিশ"][..]);
+        m.insert("bank", &["ব্যাংক"][..]);
+        m.insert("cash", &["ক্যাশ"][..]);
+        m.insert("card", &["কার্ড"][..]);
+        m.insert("balance", &["ব্যালেন্স"][..]);
+        m.insert("bill", &["বিল"][..]);
+        m.insert("recharge", &["রিচার্জ"][..]);
+        m.insert("offer", &["অফার"][..]);
+        m.insert("discount", &["ডিসকাউন্ট"][..]);
+        m.insert("price", &["দাম", "প্রাইস"][..]);
+        m.insert("market", &["মার্কেট"][..]);
+        m.insert("shop", &["দোকান", "শপ"][..]);
+        m.insert("order", &["অর্ডার"][..]);
+        m.insert("delivery", &["ডেলিভারি"][..]);
+        m.insert("salary", &["বেতন", "স্যালারি"][..]);
+        m.insert("job", &["চাকরি", "জব"][..]);
+        m.insert("boss", &["বস"][..]);
+        m.insert("sir", &["স্যার"][..]);
+        m.insert("madam", &["ম্যাডাম"][..]);
+        m.insert("car", &["কার", "গাড়ি"][..]);
+        m.insert("bike", &["বাইক"][..]);
+        m.insert("station", &["স্টেশন"][..]);
+        m.insert("airport", &["এয়ারপোর্ট"][..]);
+        m.insert("flight", &["ফ্লাইট"][..]);
+        m.insert("hotel", &["হোটেল"][..]);
+        m.insert("restaurant", &["রেস্টুরেন্ট"][..]);
+        m.insert("tour", &["ট্যুর"][..]);
+        m.insert("trip", &["ট্রিপ"][..]);
+        m.insert("traffic", &["ট্রাফিক"][..]);
+        m.insert("coffee", &["কফি"][..]);
+        m.insert("tea", &["চা"][..]);
+        m.insert("juice", &["জুস"][..]);
+        m.insert("cake", &["কেক"][..]);
+        m.insert("chocolate", &["চকলেট"][..]);
+        m.insert("biscuit", &["বিস্কুট"][..]);
+        m.insert("burger", &["বার্গার"][..]);
+        m.insert("pizza", &["পিৎজা", "পিজ্জা"][..]);
+        m.insert("sandwich", &["স্যান্ডউইচ"][..]);
+        m.insert("breakfast", &["ব্রেকফাস্ট"][..]);
+        m.insert("lunch", &["লাঞ্চ"][..]);
+        m.insert("dinner", &["ডিনার"][..]);
+        m.insert("party", &["পার্টি"][..]);
+        m.insert("picnic", &["পিকনিক"][..]);
+        m.insert("movie", &["মুভি", "সিনেমা"][..]);
+        m.insert("cinema", &["সিনেমা", "মুভি"][..]);
+        m.insert("drama", &["নাটক", "ড্রামা"][..]);
+        m.insert("cricket", &["ক্রিকেট"][..]);
+        m.insert("football", &["ফুটবল"][..]);
+        m.insert("sorry", &["সরি"][..]);
+        m.insert("thanks", &["ধন্যবাদ", "থ্যাংকস"][..]);
+        m.insert("thank", &["ধন্যবাদ", "থ্যাংকস"][..]);
+        m.insert("welcome", &["ওয়েলকাম"][..]);
+        m.insert("ok", &["ওকে"][..]);
+        m.insert("okay", &["ওকে"][..]);
+        m.insert("yes", &["হ্যাঁ", "ইয়েস"][..]);
+        m.insert("no", &["না", "নো"][..]);
+        m.insert("ready", &["রেডি"][..]);
+        m.insert("busy", &["ব্যস্ত", "বিজি"][..]);
+        m.insert("simple", &["সহজ", "সিম্পল"][..]);
+        m.insert("smart", &["স্মার্ট"][..]);
+        m.insert("cute", &["কিউট"][..]);
+        m.insert("sweet", &["সুইট"][..]);
+        m.insert("cool", &["কুল"][..]);
+        m.insert("nice", &["সুন্দর", "নাইস"][..]);
+        m.insert("tension", &["টেনশন"][..]);
+        m.insert("relax", &["রিল্যাক্স"][..]);
+        m.insert("happy", &["খুশি", "হ্যাপি"][..]);
+        m.insert("sad", &["দুঃখী", "স্যাড"][..]);
+        m.insert("love", &["ভালোবাসা", "লাভ"][..]);
+        m.insert("care", &["কেয়ার"][..]);
+        m.insert("miss", &["মিস"][..]);
+        m.insert("gift", &["উপহার", "গিফট"][..]);
+        m.insert("surprise", &["সারপ্রাইজ"][..]);
+        m.insert("date", &["তারিখ", "ডেট"][..]);
+        m.insert("family", &["পরিবার", "ফ্যামিলি"][..]);
+        m.insert("friend", &["বন্ধু", "ফ্রেন্ড"][..]);
+        m.insert("baby", &["বেবি", "শিশু"][..]);
+        m.insert("email", &["ইমেইল"][..]);
+        m.insert("mail", &["মেইল", "ইমেইল"][..]);
+        m.insert("facebook", &["ফেসবুক"][..]);
+        m.insert("fb", &["ফেসবুক"][..]);
+        m.insert("youtube", &["ইউটিউব"][..]);
+        m.insert("yt", &["ইউটিউব"][..]);
+        m.insert("google", &["গুগল"][..]);
+        m.insert("whatsapp", &["হোয়াটসঅ্যাপ"][..]);
+        m.insert("wa", &["হোয়াটসঅ্যাপ"][..]);
+        m.insert("page", &["পেজ"][..]);
+        m.insert("like", &["লাইক"][..]);
+        m.insert("inbox", &["ইনবক্স"][..]);
+        m.insert("status", &["স্ট্যাটাস"][..]);
+        m.insert("story", &["স্টোরি"][..]);
+        m.insert("reels", &["রিলস"][..]);
+        m.insert("block", &["ব্লক"][..]);
+        m.insert("unblock", &["আনব্লক"][..]);
+        m.insert("battery", &["ব্যাটারি"][..]);
+        m.insert("charger", &["চার্জার"][..]);
+        m.insert("charge", &["চার্জ"][..]);
+        m.insert("sim", &["সিম"][..]);
+        m.insert("wifi", &["ওয়াইফাই"][..]);
         m
     })
+}
+
+/// Collapses repeated characters (3+ identical consecutive characters) in chat typing.
+/// E.g. "haaa" -> "ha", "naaa" -> "na", "oneeeek" -> "onek", "plzzz" -> "plz".
+pub fn collapse_elongation(input: &str) -> Option<String> {
+    let chars: Vec<char> = input.chars().collect();
+    if chars.len() < 3 {
+        return None;
+    }
+
+    let mut has_elongation = false;
+    let mut collapsed = String::with_capacity(chars.len());
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        let mut count = 1;
+        while i + count < chars.len() && chars[i + count].eq_ignore_ascii_case(&ch) {
+            count += 1;
+        }
+
+        if count >= 3 {
+            has_elongation = true;
+            collapsed.push(ch);
+        } else {
+            for j in 0..count {
+                collapsed.push(chars[i + j]);
+            }
+        }
+        i += count;
+    }
+
+    if has_elongation {
+        Some(collapsed)
+    } else {
+        None
+    }
 }
 
 /// Transliterates Romanized ASCII text to Bengali script using `lekhani-core`'s
@@ -445,6 +738,30 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             candidates.insert(i.min(candidates.len()), ws);
         }
         selected_idx = 0;
+    } else if let Some(ref collapsed) = collapse_elongation(&lower) {
+        let words: Option<&[&str]> = match collapsed.as_str() {
+            "ha" => Some(&["হ্যাঁ", "হা"][..]),
+            "na" => Some(&["না"][..]),
+            _ => get_common_words().get(collapsed.as_str()).copied(),
+        };
+
+        if let Some(words) = words {
+            for (i, &w) in words.iter().enumerate() {
+                let ws = w.to_string();
+                if let Some(pos) = candidates.iter().position(|c| c == &ws) {
+                    candidates.remove(pos);
+                }
+                candidates.insert(i.min(candidates.len()), ws);
+            }
+            selected_idx = 0;
+        } else if let Some((bn_loan, _)) = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(collapsed) {
+            let ws = bn_loan.to_string();
+            if let Some(pos) = candidates.iter().position(|c| c == &ws) {
+                candidates.remove(pos);
+            }
+            candidates.insert(0, ws);
+            selected_idx = 0;
+        }
     }
 
     // 2b. If the user explicitly typed an inflection ending in 'bo' or 'cho' (e.g. khabo -> খাবো, korcho -> করছো),
@@ -847,7 +1164,7 @@ mod tests {
         let (bhabishshot, _) = transliterate_avro("bhabishshot");
         assert_eq!(bhabishshot, "ভবিষ্যৎ", "bhabishshot should transliterate to ভবিষ্যৎ");
         let (shobcheye, _) = transliterate_avro("shobcheye");
-        assert!(shobcheye == "সবচেয়ে" || shobcheye == "সবচেয়ে", "shobcheye should transliterate to সবচেয়ে");
+        assert!(shobcheye == "সবচেয়ে" || shobcheye == "সবচেয়ে", "shobcheye should transliterate to সবচেয়ে");
         let (chikitshok, _) = transliterate_avro("chikitshok");
         assert_eq!(chikitshok, "চিকিৎসক", "chikitshok should transliterate to চিকিৎসক");
         let (ahban, _) = transliterate_avro("ahban");
@@ -1009,5 +1326,131 @@ mod tests {
         // 15. ZWJ Ya-phala with Ra: "ryab" -> "র‍্যাব"
         let (ryab, _) = transliterate_avro("ryab");
         assert_eq!(ryab, "\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}", "ryab should produce র‍্যাব");
+    }
+
+    #[test]
+    fn test_loanwords_and_casual_slang_expansions() {
+        // 1. English loanwords
+        let (school, _) = transliterate_avro("school");
+        assert_eq!(school, "স্কুল");
+
+        let (table, _) = transliterate_avro("table");
+        assert_eq!(table, "টেবিল");
+
+        let (chair, _) = transliterate_avro("chair");
+        assert_eq!(chair, "চেয়ার");
+
+        let (doctor, _) = transliterate_avro("doctor");
+        assert_eq!(doctor, "ডাক্তার");
+
+        let (hospital, _) = transliterate_avro("hospital");
+        assert_eq!(hospital, "হাসপাতাল");
+
+        let (class, _) = transliterate_avro("class");
+        assert_eq!(class, "ক্লাস");
+
+        let (result, _) = transliterate_avro("result");
+        assert_eq!(result, "রেজাল্ট");
+
+        let (police, _) = transliterate_avro("police");
+        assert_eq!(police, "পুলিশ");
+
+        let (bank, _) = transliterate_avro("bank");
+        assert_eq!(bank, "ব্যাংক");
+
+        let (phone, _) = transliterate_avro("phone");
+        assert_eq!(phone, "ফোন");
+
+        // 2. Inflected English loanwords
+        let (schoole, _) = transliterate_avro("schoole");
+        assert_eq!(schoole, "স্কুলে");
+
+        let (tableta, _) = transliterate_avro("tableta");
+        assert_eq!(tableta, "টেবিলটা");
+
+        let (chaire, _) = transliterate_avro("chaire");
+        assert_eq!(chaire, "চেয়ারে");
+
+        let (hospitaler, _) = transliterate_avro("hospitaler");
+        assert_eq!(hospitaler, "হাসপাতালের");
+
+        // 3. Chat shorthand & missing vowels
+        let (krbo, _) = transliterate_avro("krbo");
+        assert_eq!(krbo, "করবো");
+
+        let (blbo, _) = transliterate_avro("blbo");
+        assert_eq!(blbo, "বলবো");
+
+        let (dkhbo, _) = transliterate_avro("dkhbo");
+        assert_eq!(dkhbo, "দেখবো");
+
+        let (shnbo, _) = transliterate_avro("shnbo");
+        assert_eq!(shnbo, "শুনবো");
+
+        let (prbo, _) = transliterate_avro("prbo");
+        assert_eq!(prbo, "পারবো");
+
+        let (bjhlm, _) = transliterate_avro("bjhlm");
+        assert_eq!(bjhlm, "বুঝলাম");
+
+        let (thk, _) = transliterate_avro("thk");
+        assert_eq!(thk, "ঠিক");
+
+        let (drkr, _) = transliterate_avro("drkr");
+        assert_eq!(drkr, "দরকার");
+
+        let (kkhn, _) = transliterate_avro("kkhn");
+        assert_eq!(kkhn, "কখন");
+
+        let (sbar, _) = transliterate_avro("sbar");
+        assert_eq!(sbar, "সবার");
+
+        // 4. Chat elongations
+        let (haaa, _) = transliterate_avro("haaa");
+        assert_eq!(haaa, "হ্যাঁ");
+
+        let (naaa, _) = transliterate_avro("naaa");
+        assert_eq!(naaa, "না");
+
+        let (oneeeek, _) = transliterate_avro("oneeeek");
+        assert_eq!(oneeeek, "অনেক");
+
+        let (plzzz, _) = transliterate_avro("plzzz");
+        assert_eq!(plzzz, "প্লিজ");
+
+        let (valooo, _) = transliterate_avro("valooo");
+        assert_eq!(valooo, "ভালো");
+
+        let (acchaaaa, _) = transliterate_avro("acchaaaa");
+        assert_eq!(acchaaaa, "আচ্ছা");
+
+        let (sundorrrr, _) = transliterate_avro("sundorrrr");
+        assert_eq!(sundorrrr, "সুন্দর");
+
+        // 5. Clitics (-o, -i)
+        let (amio, _) = transliterate_avro("amio");
+        assert_eq!(amio, "আমিও");
+
+        let (tumio, _) = transliterate_avro("tumio");
+        assert_eq!(tumio, "তুমিও");
+
+        let (sheo, _) = transliterate_avro("sheo");
+        assert_eq!(sheo, "সেও");
+
+        let (ekhono, _) = transliterate_avro("ekhono");
+        assert_eq!(ekhono, "এখনো");
+
+        let (amii, _) = transliterate_avro("amii");
+        assert_eq!(amii, "আমিই");
+
+        // 6. Sound laws / regional variants
+        let (vabchi, _) = transliterate_avro("vabchi");
+        assert_eq!(vabchi, "ভাবছি");
+
+        let (zao, _) = transliterate_avro("zao");
+        assert_eq!(zao, "যাও");
+
+        let (somossa, _) = transliterate_avro("somossa");
+        assert_eq!(somossa, "সমস্যা");
     }
 }
