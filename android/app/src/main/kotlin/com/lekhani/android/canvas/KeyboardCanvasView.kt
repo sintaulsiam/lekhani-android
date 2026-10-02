@@ -251,6 +251,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     val isShiftLocked: Boolean
         get() = isCapsLock
 
+    val isShiftActive: Boolean
+        get() = isShifted || isCapsLock
+
     /**
      * A resolved key pairs a [Key] with its computed pixel [RectF].
      * Pre-allocated as a flat list in [onSizeChanged]; never re-allocated in draw/touch.

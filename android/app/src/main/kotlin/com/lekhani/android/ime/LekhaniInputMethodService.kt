@@ -1589,7 +1589,7 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.toggleShift()
     }
 
-    private fun commitEnter() {
+    private fun commitEnter(forceNewline: Boolean = false) {
         val ic = currentInputConnection ?: return
         if (session.isComposing() || preeditShadow.isNotEmpty()) {
             ic.finishComposingText()
@@ -1600,24 +1600,37 @@ class LekhaniInputMethodService : InputMethodService() {
             clearUndo()
         }
         val info = currentInputEditorInfo
-        val imeOptions = info?.imeOptions ?: 0
-        val action = imeOptions and EditorInfo.IME_MASK_ACTION
-        val inputType = info?.inputType ?: 0
-        val isMultiline = (inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE) != 0
+        val isShiftActive = forceNewline || (keyboardView?.isShiftActive == true)
 
-        if (isMultiline && (action == EditorInfo.IME_ACTION_UNSPECIFIED || action == EditorInfo.IME_ACTION_NONE)) {
-            ic.commitText("\n", 1)
-        } else if (action != EditorInfo.IME_ACTION_UNSPECIFIED && action != EditorInfo.IME_ACTION_NONE) {
-            val handled = ic.performEditorAction(action)
-            if (!handled) {
-                if (isMultiline) {
-                    ic.commitText("\n", 1)
-                } else {
+        val behavior = EnterKeyResolver.determineBehavior(info, isShiftActive)
+        when (behavior) {
+            EnterKeyResolver.Behavior.NEWLINE -> {
+                if (!ic.commitText("\n", 1)) {
                     sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
                 }
             }
-        } else {
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+            EnterKeyResolver.Behavior.ACTION -> {
+                val action = (info?.imeOptions ?: 0) and EditorInfo.IME_MASK_ACTION
+                val handled = if (action != EditorInfo.IME_ACTION_UNSPECIFIED && action != EditorInfo.IME_ACTION_NONE) {
+                    ic.performEditorAction(action)
+                } else {
+                    false
+                }
+                if (!handled) {
+                    if (!ic.commitText("\n", 1)) {
+                        sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                    }
+                }
+            }
+            EnterKeyResolver.Behavior.RAW_KEY -> {
+                if (info?.inputType == InputType.TYPE_NULL) {
+                    sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                } else if (!sendDefaultEditorAction(true)) {
+                    if (!ic.commitText("\n", 1)) {
+                        sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                    }
+                }
+            }
         }
         session.reset()
         keyboardView?.setShifted(false)
@@ -1830,7 +1843,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 return true
             }
             KeyEvent.KEYCODE_ENTER -> {
-                commitEnter()
+                commitEnter(forceNewline = event.isShiftPressed)
                 return true
             }
         }

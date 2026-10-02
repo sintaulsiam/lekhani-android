@@ -155,4 +155,81 @@ class InputTypePolicyTest {
         assertEquals(false, isUrlOrEmailOrNumeric(normalInfo))
         assertEquals(false, isUrlOrEmailOrNumeric(multilineInfo))
     }
+
+    // ── EnterKeyResolver Tests ────────────────────────────────────────────────
+
+    @Test
+    fun `Shift-Enter forces newline regardless of field or action`() {
+        val searchInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+        }
+        val behavior = EnterKeyResolver.determineBehavior(searchInfo, isShiftActive = true)
+        assertEquals(EnterKeyResolver.Behavior.NEWLINE, behavior)
+    }
+
+    @Test
+    fun `IME_FLAG_NO_ENTER_ACTION always resolves to newline`() {
+        val info = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_ENTER_ACTION
+        }
+        val behavior = EnterKeyResolver.determineBehavior(info, isShiftActive = false)
+        assertEquals(EnterKeyResolver.Behavior.NEWLINE, behavior)
+    }
+
+    @Test
+    fun `Multiline fields resolve to newline even if actionDone or actionNext is set`() {
+        val noteInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            imeOptions = EditorInfo.IME_ACTION_DONE
+        }
+        val behavior = EnterKeyResolver.determineBehavior(noteInfo, isShiftActive = false)
+        assertEquals(EnterKeyResolver.Behavior.NEWLINE, behavior)
+    }
+
+    @Test
+    fun `Multiline with IME_FLAG_IME_MULTI_LINE resolves to newline`() {
+        val info = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE
+            imeOptions = EditorInfo.IME_ACTION_DONE
+        }
+        val behavior = EnterKeyResolver.determineBehavior(info, isShiftActive = false)
+        assertEquals(EnterKeyResolver.Behavior.NEWLINE, behavior)
+    }
+
+    @Test
+    fun `Multiline field with actionSend without noEnterAction resolves to action`() {
+        val chatInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            imeOptions = EditorInfo.IME_ACTION_SEND
+        }
+        val behavior = EnterKeyResolver.determineBehavior(chatInfo, isShiftActive = false)
+        assertEquals(EnterKeyResolver.Behavior.ACTION, behavior)
+    }
+
+    @Test
+    fun `Single line search field resolves to action`() {
+        val searchInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+        }
+        val behavior = EnterKeyResolver.determineBehavior(searchInfo, isShiftActive = false)
+        assertEquals(EnterKeyResolver.Behavior.ACTION, behavior)
+    }
+
+    @Test
+    fun `TYPE_NULL terminal inputs resolve to raw key`() {
+        val termInfo = EditorInfo().apply {
+            inputType = InputType.TYPE_NULL
+        }
+        val behavior = EnterKeyResolver.determineBehavior(termInfo, isShiftActive = false)
+        assertEquals(EnterKeyResolver.Behavior.RAW_KEY, behavior)
+    }
+
+    @Test
+    fun `Null EditorInfo safely defaults to newline`() {
+        val behavior = EnterKeyResolver.determineBehavior(null, isShiftActive = false)
+        assertEquals(EnterKeyResolver.Behavior.NEWLINE, behavior)
+    }
 }
