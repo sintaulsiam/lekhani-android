@@ -180,10 +180,33 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let parser = get_avro_parser();
     let def = parser.convert(input);
 
-    // For short inputs (1 or 2 characters), guarantee pure phonetic preedit fidelity
-    // so in-flight typing does not abruptly jump to multi-syllable shorthand words (e.g. "kn" -> "কেন").
-    // Shorthand and high-frequency completions are offered as candidate strip suggestions.
-    if input.chars().count() <= 2 {
+    // For single-character inputs: return ONLY the phonetic preedit.
+    // Showing multi-syllable completions (e.g. "k" → "কেমন") from a single keypress is bad UX:
+    //   • The preedit jumps to a long word the user hasn't signalled intent for.
+    //   • Space auto-complete would commit a completely wrong word.
+    // Completions and shorthand are surfaced starting from 2-char inputs.
+    if input.chars().count() == 1 {
+        let primary = if let Some(ref choice) = remembered_choice {
+            choice.clone()
+        } else {
+            def.clone()
+        };
+        let mut single_candidates = vec![primary.clone()];
+        // Only include shorthand that *exactly* matches the single char (rare user-defined shortcuts)
+        if let Some(shorthand) = db.shorthand.get(input).or_else(|| db.shorthand.get(&lower)) {
+            if !single_candidates.iter().any(|c| c == shorthand) {
+                single_candidates.push(shorthand.clone());
+            }
+        }
+        if !single_candidates.iter().any(|c| c == &def) {
+            single_candidates.push(def);
+        }
+        return (primary, single_candidates);
+    }
+
+    // For 2-character inputs: show phonetic preedit + targeted prefix completions.
+    // Two chars is a meaningful partial-word signal so helpful completions are warranted.
+    if input.chars().count() == 2 {
         let mut short_candidates = Vec::with_capacity(12);
 
         // 1. Direct phonetic transliteration is always the primary preedit
@@ -208,7 +231,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             }
         }
 
-        // Common word prefixes (e.g. "kn" -> "kno" -> "কোনো", "কোন")
+        // Common word prefixes (e.g. "kn" -> "কেন")
         let common = get_common_words();
         for (&k, &words) in common.iter() {
             if k.starts_with(&lower) && k != lower {
@@ -256,6 +279,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
         return (primary, short_candidates);
     }
+
 
     // 1. Upstream PhoneticSuggestion Engine:
     // Performs Chandra Bindu normalization ("c^ad" -> "চাঁদ"),

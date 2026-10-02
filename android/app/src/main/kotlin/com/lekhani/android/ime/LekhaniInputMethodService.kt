@@ -1408,7 +1408,10 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
-        // Selection mode active: ensure cursor bounds are known
+        // Resolution order for the selection anchor:
+        // 1. If onUpdateSelection has already given us fresh coords, use them directly.
+        // 2. Otherwise call getExtractedText (most editors) or fall back to getTextBeforeCursor length.
+        // This avoids anchor defaulting to 0 when the user opens Text Editor and taps Select immediately.
         if (currentSelStart < 0 || currentSelEnd < 0) {
             val extracted = try {
                 ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
@@ -1430,8 +1433,15 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         if (editorSelectionAnchor < 0) {
-            editorSelectionAnchor = if (currentSelEnd >= 0) currentSelEnd else currentSelStart.coerceAtLeast(0)
+            // Use the moving end of an existing selection as the anchor point,
+            // or the cursor position if no selection exists.
+            editorSelectionAnchor = when {
+                currentSelEnd >= 0 -> currentSelEnd
+                currentSelStart >= 0 -> currentSelStart
+                else -> 0  // genuine fallback only when both are unresolvable
+            }
         }
+
 
         when (keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT -> {
@@ -2945,10 +2955,15 @@ class LekhaniInputMethodService : InputMethodService() {
             inputVariation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
         )
         val isPassword = isTextPassword || isNumericPassword
-        val isPrivate = isPassword || noSuggestions || noPersonalizedLearning
+        // isPrivate: hides ALL suggestions (passwords, explicit TYPE_TEXT_FLAG_NO_SUGGESTIONS)
+        val isPrivate = isPassword || noSuggestions
+        // isLearningFrozen: stops auto-learning but still shows suggestions
+        // IME_FLAG_NO_PERSONALIZED_LEARNING is set by Chrome, Gmail, Telegram, Signal, etc.
+        // — it means "don't learn from this", NOT "hide suggestions".
+        val isLearningFrozen = isPrivate || noPersonalizedLearning
 
         isCurrentFieldPrivate = isPrivate
-        session.setPrivateField(isPrivate)
+        session.setPrivateField(isLearningFrozen)
 
         if (isPrivate) {
             clearCandidates()
