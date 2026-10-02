@@ -1,10 +1,11 @@
 # Lekhani Android ProGuard / R8 Rules
 
 # UniFFI native bindings & JNI
+-dontwarn com.lekhani.android.ffi.**
 -keep class com.lekhani.android.ffi.** { *; }
--keep interface com.lekhani.android.ffi.** { *; }
+-keep class com.lekhani.android.ffi.**$* { *; }
 -keepclassmembers class com.lekhani.android.ffi.** { *; }
--keepclassmembers interface com.lekhani.android.ffi.** { *; }
+-keepclassmembers class com.lekhani.android.ffi.**$* { *; }
 -keepclasseswithmembers class com.lekhani.android.ffi.** { *; }
 
 # Keep all classes with native methods
@@ -24,6 +25,8 @@
 -keepclassmembers class * extends com.sun.jna.Structure { *; }
 -keep class * implements com.sun.jna.Structure$ByValue { *; }
 -keep class * implements com.sun.jna.Structure$ByReference { *; }
+-keep class * extends com.sun.jna.ptr.ByReference { *; }
+-keepclassmembers class * extends com.sun.jna.ptr.ByReference { *; }
 
 # Lekhani Core Models & Preferences
 -keep class com.lekhani.android.model.** { *; }
