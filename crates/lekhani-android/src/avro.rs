@@ -186,6 +186,37 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("za", &["যা", "জা"][..]);
         m.insert("Za", &["যা", "্যা"][..]);
         m.insert("ya", &["য়া", "ইয়া"][..]);
+        m.insert("jao", &["যাও"][..]);
+        m.insert("jan", &["যান", "জান"][..]);
+        m.insert("konna", &["কন্যা"][..]);
+        m.insert("kanya", &["কন্যা"][..]);
+        m.insert("banya", &["বন্যা"][..]);
+        m.insert("bonna", &["বন্যা"][..]);
+        m.insert("dhonno", &["ধন্য"][..]);
+        m.insert("britto", &["বৃত্ত"][..]);
+        m.insert("ongko", &["অঙ্ক", "অংক"][..]);
+        m.insert("shonkha", &["সংখ্যা"][..]);
+        m.insert("shongkha", &["সংখ্যা"][..]);
+        m.insert("songkha", &["সংখ্যা"][..]);
+        m.insert("ghonta", &["ঘণ্টা", "ঘন্টা"][..]);
+        m.insert("ghonTa", &["ঘণ্টা", "ঘন্টা"][..]);
+        m.insert("kando", &["কাণ্ড", "কান্দ"][..]);
+        m.insert("kanDo", &["কাণ্ড"][..]);
+        m.insert("rong", &["রং", "রঙ"][..]);
+        m.insert("shoshto", &["ষষ্ঠ", "ষষ্ট"][..]);
+        m.insert("shoshTho", &["ষষ্ঠ"][..]);
+        m.insert("mrtto", &["মর্ত্য"][..]);
+        m.insert("mortyo", &["মর্ত্য"][..]);
+        m.insert("purno", &["পূর্ণ"][..]);
+        m.insert("porbo", &["পড়বো", "পরবো"][..]);
+        m.insert("bolbo", &["বলবো", "বলব"][..]);
+        m.insert("ticket", &["টিকেট", "টিকিট"][..]);
+        m.insert("bhalobashbo", &["ভালোবাসবো", "ভালোবাসব"][..]);
+        m.insert("valobashbo", &["ভালোবাসবো", "ভালোবাসব"][..]);
+        m.insert("shunbo", &["শুনবো", "শুনব"][..]);
+        m.insert("ashbo", &["আসবো", "আসব"][..]);
+        m.insert("korbo", &["করবো", "করব"][..]);
+        m.insert("jabo", &["যাবো", "যাব"][..]);
         m
     })
 }
@@ -201,6 +232,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
     let lower = input.to_lowercase();
     let db = crate::session::get_core_database();
+
+    let is_explicit_common = get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
 
     // -1. User-defined explicit autocorrect / shortcut rules
     if let Ok(uac) = db.user_autocorrect.read() {
@@ -224,6 +257,21 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
             candidate_memory.insert(input.to_string(), user_choice.clone());
             remembered_choice = Some(user_choice.clone());
+        }
+    }
+
+    // -1b. Bundled system autocorrect (only if no user choice override and not an explicit common word)
+    if remembered_choice.is_none() && !is_explicit_common {
+        if let Some(replacement) = db.autocorrect.get(input).or_else(|| db.autocorrect.get(&lower)) {
+            let primary = replacement.clone();
+            let mut candidates = vec![primary.clone()];
+            let parser = get_avro_parser();
+            let def = parser.convert(input);
+            if def != primary {
+                candidates.push(def);
+            }
+            append_prefix_matches(&primary, &mut candidates);
+            return (primary, candidates);
         }
     }
 
@@ -361,6 +409,12 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             let o_cand = candidates.remove(pos);
             candidates.insert(0, o_cand);
             selected_idx = 0;
+        } else if def.ends_with('ো') {
+            if let Some(pos) = candidates.iter().position(|c| c == &def) {
+                candidates.remove(pos);
+            }
+            candidates.insert(0, def.clone());
+            selected_idx = 0;
         }
     }
 
@@ -461,6 +515,15 @@ fn get_frequency_completions(prefix: &str, limit: usize) -> Vec<String> {
 mod tests {
     use super::*;
     use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn test_khabo() {
+        let (res, cands) = transliterate_avro("khabo");
+        assert_eq!(res, "খাবো");
+        assert!(cands.contains(&"খাবো".to_string()));
+        assert!(cands.contains(&"খাব".to_string()));
+    }
 
     #[test]
     #[serial]

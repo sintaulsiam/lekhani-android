@@ -288,6 +288,11 @@ class LekhaniInputMethodService : InputMethodService() {
                     val ok = session.loadUserLearned(f.absolutePath)
                     Log.i(TAG, "User learned dictionary loaded ($ok): ${f.absolutePath}")
                 }
+                val sysAcFile = File(filesDir, "dictionaries/autocorrect.json")
+                if (sysAcFile.exists()) {
+                    val ok = session.loadUserAutocorrect(sysAcFile.absolutePath)
+                    Log.i(TAG, "Bundled system autocorrect rules loaded ($ok): ${sysAcFile.absolutePath}")
+                }
                 val acFile = File(filesDir, "user_autocorrect.json")
                 if (acFile.exists()) {
                     val ok = session.loadUserAutocorrect(acFile.absolutePath)

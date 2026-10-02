@@ -1390,9 +1390,11 @@ impl AndroidLekhaniSession {
                     })
                 };
                 let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw, &words);
-                let chosen = if !has_candidate_memory && !words.is_empty() && candidates.len() > 1 {
-                    let scorer = get_context_scorer();
-                    candidates = scorer.rank_candidates(&words, &candidates);
+                let chosen = if !has_candidate_memory && candidates.len() > 1 {
+                    if !words.is_empty() {
+                        let scorer = get_context_scorer();
+                        candidates = scorer.rank_candidates(&words, &candidates);
+                    }
                     if let Some(common_list) = crate::avro::get_common_word_candidates(&raw) {
                         if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {
                             let cand = candidates.remove(pos);
