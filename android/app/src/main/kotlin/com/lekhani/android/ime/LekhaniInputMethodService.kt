@@ -2297,9 +2297,10 @@ class LekhaniInputMethodService : InputMethodService() {
             }
 
             val trimmedCommitted = text.trim()
+            val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
             val candidateOriginal = when {
-                originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
-                preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted -> preeditBeforeSpace
+                !isPhonetic && originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
+                preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted && preeditBeforeSpace != originalRaw -> preeditBeforeSpace
                 else -> null
             }
             val undo = if (candidateOriginal != null && candidateOriginal.isNotBlank()) {
