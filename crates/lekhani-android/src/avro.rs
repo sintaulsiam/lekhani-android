@@ -177,6 +177,86 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
+    let parser = get_avro_parser();
+    let def = parser.convert(input);
+
+    // For short inputs (1 or 2 characters), guarantee pure phonetic preedit fidelity
+    // so in-flight typing does not abruptly jump to multi-syllable shorthand words (e.g. "kn" -> "কেন").
+    // Shorthand and high-frequency completions are offered as candidate strip suggestions.
+    if input.chars().count() <= 2 {
+        let mut short_candidates = Vec::with_capacity(12);
+
+        // 1. Direct phonetic transliteration is always the primary preedit
+        let primary = if let Some(ref choice) = remembered_choice {
+            choice.clone()
+        } else {
+            def.clone()
+        };
+        short_candidates.push(primary.clone());
+
+        // 2. Shorthand & Common Contractions (offered as secondary suggestions)
+        if let Some(&words) = get_common_words().get(input).or_else(|| get_common_words().get(lower.as_str())) {
+            for &w in words {
+                if !short_candidates.iter().any(|c| c == w) {
+                    short_candidates.push(w.to_string());
+                }
+            }
+        }
+        if let Some(shorthand) = db.shorthand.get(input).or_else(|| db.shorthand.get(&lower)) {
+            if !short_candidates.iter().any(|c| c == shorthand) {
+                short_candidates.push(shorthand.clone());
+            }
+        }
+
+        // Common word prefixes (e.g. "kn" -> "kno" -> "কোনো", "কোন")
+        let common = get_common_words();
+        for (&k, &words) in common.iter() {
+            if k.starts_with(&lower) && k != lower {
+                for &w in words {
+                    if !short_candidates.iter().any(|c| c == w) {
+                        short_candidates.push(w.to_string());
+                    }
+                    if short_candidates.len() >= 6 {
+                        break;
+                    }
+                }
+            }
+            if short_candidates.len() >= 6 {
+                break;
+            }
+        }
+
+        // 3. High-frequency natural completions from CORE_BENGALI_FREQUENCIES
+        let freq_completions = get_frequency_completions(&primary, 8);
+        for word in freq_completions {
+            if !short_candidates.iter().any(|c| c == &word) {
+                short_candidates.push(word);
+            }
+            if short_candidates.len() >= 8 {
+                break;
+            }
+        }
+
+        // 4. Custom User Words
+        if let Ok(learner) = db.learner.read() {
+            for w in &learner.custom_user_words {
+                if w.starts_with(&primary) && !short_candidates.iter().any(|c| c == w) {
+                    short_candidates.push(w.clone());
+                }
+                if short_candidates.len() >= 8 {
+                    break;
+                }
+            }
+        }
+
+        // Ensure def is present
+        if !short_candidates.iter().any(|c| c == &def) {
+            short_candidates.push(def);
+        }
+
+        return (primary, short_candidates);
+    }
+
     // 1. Upstream PhoneticSuggestion Engine:
     // Performs Chandra Bindu normalization ("c^ad" -> "চাঁদ"),
     // Sanskrit and sound-law conjuncts ("sotyo" -> "সত্য", "mrittu" -> "মৃত্যু", "shuryo" -> "সূর্য"),
@@ -283,6 +363,22 @@ fn append_prefix_matches(primary: &str, candidates: &mut Vec<String>) {
             }
         }
     }
+}
+
+fn get_frequency_completions(prefix: &str, limit: usize) -> Vec<String> {
+    if prefix.is_empty() {
+        return Vec::new();
+    }
+    let mut results = Vec::with_capacity(limit);
+    for &(word, _freq) in lekhani_core::phonetic::database::CORE_BENGALI_FREQUENCIES {
+        if word.starts_with(prefix) && word != prefix && !results.iter().any(|r| r == word) {
+            results.push(word.to_string());
+            if results.len() >= limit {
+                break;
+            }
+        }
+    }
+    results
 }
 
 #[cfg(test)]
@@ -440,5 +536,43 @@ mod tests {
         assert_eq!(bhalobasha, "ভালোবাসা", "bhalobasha should transliterate to ভালোবাসা");
         let (valobasha, _) = transliterate_avro("valobasha");
         assert_eq!(valobasha, "ভালোবাসা", "valobasha should transliterate to ভালোবাসা");
+    }
+
+    #[test]
+    #[serial]
+    fn test_avro_short_input_preedit_and_candidates() {
+        // 1. Single character 'k'
+        let (k_pre, k_cands) = transliterate_avro("k");
+        assert_eq!(k_pre, "ক");
+        assert!(k_cands.contains(&"ক".to_string()));
+        assert!(k_cands.contains(&"কি".to_string()) || k_cands.contains(&"কী".to_string()));
+        assert!(k_cands.contains(&"কে".to_string()));
+        assert!(!k_cands.contains(&"কংশ".to_string()));
+        assert!(!k_cands.contains(&"খহ".to_string()));
+
+        // 2. Two characters 'kn' -> preedit is 'কন', candidates offer 'কেন' (shorthand)
+        let (kn_pre, kn_cands) = transliterate_avro("kn");
+        assert_eq!(kn_pre, "কন");
+        assert!(kn_cands.contains(&"কন".to_string()));
+        assert!(kn_cands.contains(&"কেন".to_string()));
+
+        // 3. Two characters 'am' -> preedit is 'আম', candidates offer 'আমি', 'আমার', 'আমাদের'
+        let (am_pre, am_cands) = transliterate_avro("am");
+        assert_eq!(am_pre, "আম");
+        assert!(am_cands.contains(&"আম".to_string()));
+        assert!(am_cands.contains(&"আমি".to_string()));
+        assert!(am_cands.contains(&"আমার".to_string()));
+        assert!(am_cands.contains(&"আমাদের".to_string()));
+        assert!(!am_cands.contains(&"আমআম".to_string()));
+
+        // 4. Single character 'b' -> preedit is 'ব', candidates offer 'বা', 'বই', 'বাংলা'
+        let (b_pre, b_cands) = transliterate_avro("b");
+        assert_eq!(b_pre, "ব");
+        assert!(b_cands.contains(&"বা".to_string()) || b_cands.contains(&"বই".to_string()));
+
+        // 5. Three characters 'ami' -> full transliteration to 'আমি'
+        let (ami_pre, ami_cands) = transliterate_avro("ami");
+        assert_eq!(ami_pre, "আমি");
+        assert!(ami_cands.contains(&"আমি".to_string()));
     }
 }
