@@ -306,12 +306,7 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         // Restore the user's last-used layout from Device Protected Storage.
-        val enabledList = getEnabledLayouts()
-        val savedLayout = devicePrefs.getString(PREF_LAYOUT, null)
-            ?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
-            ?.takeIf { enabledList.contains(it) }
-            ?: (if (enabledList.contains(LayoutRegistry.DEFAULT_ACTIVE_LAYOUT)) LayoutRegistry.DEFAULT_ACTIVE_LAYOUT else enabledList.firstOrNull())
-            ?: LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
+        val savedLayout = getSavedLayout()
         session.setLayout(savedLayout)
         Log.i(TAG, "Lekhani IME created; layout = $savedLayout")
 
@@ -468,6 +463,13 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.applyTheme(activeTheme)
         keyboardView?.setGboardKarsActive(false)
         keyboardView?.enabledLayoutsCount = getEnabledLayouts().size
+        // Self-healing synchronization: Ensure keyboardView's layout matches session layout
+        val curLayout = session.getLayout()
+        if (!isNumericMode && !isNumericFieldMode && !isPhoneDialpadMode) {
+            if (keyboardView?.currentLayoutType != curLayout) {
+                keyboardView?.setLayout(LayoutRegistry.get(curLayout), curLayout, shifted = false)
+            }
+        }
         feedbackManager.updateCache()
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
         session.setAutoLearnEnabled(keyboardPrefs.autoLearnWordsEnabled)
@@ -1405,6 +1407,8 @@ class LekhaniInputMethodService : InputMethodService() {
         isPhoneDialpadMode = false
         val currentLayoutType = previousLayoutBeforeNumeric ?: session.getLayout()
         previousLayoutBeforeNumeric = null
+        session.setLayout(currentLayoutType)
+        emojiSearchSession?.setLayout(currentLayoutType)
         keyboardView?.setLayout(LayoutRegistry.get(currentLayoutType), currentLayoutType, shifted = false)
         keyboardView?.setGboardKarsActive(false)
         updateCandidatesVisibility()
@@ -1652,6 +1656,15 @@ class LekhaniInputMethodService : InputMethodService() {
     fun getEnabledLayouts(): List<LekhaniLayoutType> {
         val saved = devicePrefs.getString(LayoutRegistry.PREF_ENABLED_LAYOUTS, null)
         return LayoutRegistry.parseEnabledLayouts(saved)
+    }
+
+    fun getSavedLayout(): LekhaniLayoutType {
+        val enabledList = getEnabledLayouts()
+        return devicePrefs.getString(PREF_LAYOUT, null)
+            ?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
+            ?.takeIf { enabledList.contains(it) }
+            ?: (if (enabledList.contains(LayoutRegistry.DEFAULT_ACTIVE_LAYOUT)) LayoutRegistry.DEFAULT_ACTIVE_LAYOUT else enabledList.firstOrNull())
+            ?: LayoutRegistry.DEFAULT_ACTIVE_LAYOUT
     }
 
     private fun cycleLayout(direction: Int = 1) {
@@ -2428,7 +2441,7 @@ class LekhaniInputMethodService : InputMethodService() {
     /**
      * Switches the active layout. Persists the choice to Device Protected Storage.
      */
-    fun switchLayout(layout: LekhaniLayoutType) {
+    fun switchLayout(layout: LekhaniLayoutType, persist: Boolean = true) {
         // Finalize and seal any active composing text in the target editor before switching layouts
         // to prevent setComposingText in the new layout from wiping out the previously typed word!
         currentInputConnection?.finishComposingText()
@@ -2450,10 +2463,12 @@ class LekhaniInputMethodService : InputMethodService() {
         if (layout == LekhaniLayoutType.ENGLISH) {
             ensureEnglishDictionaryLoaded()
         }
-        devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()
+        if (persist) {
+            devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()
+        }
         refreshSurroundingContext()
         updateAutoCaps()
-        Log.i(TAG, "Layout switched to $layout")
+        Log.i(TAG, "Layout switched to $layout (persist=$persist)")
     }
 
     private fun updateGboardDynamicRow(keyToken: String) {
@@ -3095,18 +3110,18 @@ class LekhaniInputMethodService : InputMethodService() {
 
         if (isPassword) {
             // Auto-switch to English QWERTY for passwords and preserve the previous layout
+            if (previousLayoutBeforePassword == null && session.getLayout() != LekhaniLayoutType.ENGLISH) {
+                previousLayoutBeforePassword = session.getLayout()
+            }
             if (session.getLayout() != LekhaniLayoutType.ENGLISH) {
-                if (previousLayoutBeforePassword == null) {
-                    previousLayoutBeforePassword = session.getLayout()
-                }
-                switchLayout(LekhaniLayoutType.ENGLISH)
+                switchLayout(LekhaniLayoutType.ENGLISH, persist = false)
             }
         } else {
             // Restore previous layout if returning from a password field
             previousLayoutBeforePassword?.let { restoreLayout ->
                 previousLayoutBeforePassword = null
                 if (session.getLayout() != restoreLayout) {
-                    switchLayout(restoreLayout)
+                    switchLayout(restoreLayout, persist = false)
                 }
             }
         }

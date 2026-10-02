@@ -428,13 +428,15 @@ impl AndroidLekhaniSession {
     /// Called on every `onStartInput()`.
     ///
     /// When `is_private` is `true` (password fields, incognito text areas):
-    /// - Automatically switches to English QWERTY.
     /// - Freezes dictionary learning and clipboard capture.
+    /// - Clears transient composing buffers.
+    ///
+    /// Note: Layout switching to English is managed by the Android IME layer (`switchLayout`),
+    /// preserving the user's layout preferences.
     pub fn set_private_field(&self, is_private: bool) {
         if let Ok(mut state) = self.state.lock() {
             state.is_private_field = is_private;
             if is_private {
-                state.layout = LekhaniLayoutType::English;
                 state.composing_buffer.clear();
             }
         }
@@ -1753,16 +1755,16 @@ mod tests {
     }
 
     #[test]
-    fn test_private_field_auto_switches_to_english() {
+    fn test_private_field_freezes_learning_without_mutating_layout() {
         let session = AndroidLekhaniSession::new();
         assert_eq!(session.get_layout(), LekhaniLayoutType::Probaho);
         session.set_private_field(true);
-        assert_eq!(session.get_layout(), LekhaniLayoutType::English);
+        // Privacy mode preserves active layout while marking field private
+        assert_eq!(session.get_layout(), LekhaniLayoutType::Probaho);
         assert!(session.is_private_field());
-        // Leaving the private field restores nothing automatically —
-        // Kotlin layer calls set_layout() with the user's preferred layout.
         session.set_private_field(false);
         assert!(!session.is_private_field());
+        assert_eq!(session.get_layout(), LekhaniLayoutType::Probaho);
     }
 
     #[test]

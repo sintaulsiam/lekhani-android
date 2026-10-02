@@ -2,6 +2,7 @@ package com.lekhani.android.ime
 
 import android.text.InputType
 import android.view.inputmethod.EditorInfo
+import com.lekhani.android.ffi.LekhaniLayoutType
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -90,6 +91,83 @@ class InputTypePolicyTest {
         )
         assertEquals(true, isLearningFrozen(info))
         assertEquals(false, isPrivateField(info))
+    }
+
+    @Test
+    fun `no-suggestions search field does not qualify as password field`() {
+        val info = editorInfoWith(
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        )
+        // Search fields must freeze learning without triggering English password auto-switch
+        assertEquals(false, isPrivateField(info))
+        assertEquals(true, isLearningFrozen(info))
+    }
+
+    @Test
+    fun `password policy auto-switch state machine restores previous layout`() {
+        var currentLayout = LekhaniLayoutType.AVRO
+        var previousLayoutBeforePassword: LekhaniLayoutType? = null
+        var persistedPreference = LekhaniLayoutType.AVRO
+
+        fun simulateSwitchLayout(layout: LekhaniLayoutType, persist: Boolean = true) {
+            currentLayout = layout
+            if (persist) {
+                persistedPreference = layout
+            }
+        }
+
+        fun simulateApplyPolicy(info: EditorInfo) {
+            val isPassword = isPrivateField(info)
+            if (isPassword) {
+                if (previousLayoutBeforePassword == null && currentLayout != LekhaniLayoutType.ENGLISH) {
+                    previousLayoutBeforePassword = currentLayout
+                }
+                if (currentLayout != LekhaniLayoutType.ENGLISH) {
+                    simulateSwitchLayout(LekhaniLayoutType.ENGLISH, persist = false)
+                }
+            } else {
+                previousLayoutBeforePassword?.let { restoreLayout ->
+                    previousLayoutBeforePassword = null
+                    if (currentLayout != restoreLayout) {
+                        simulateSwitchLayout(restoreLayout, persist = false)
+                    }
+                }
+            }
+        }
+
+        // 1. Initial state: Avro phonetic
+        assertEquals(LekhaniLayoutType.AVRO, currentLayout)
+        assertEquals(LekhaniLayoutType.AVRO, persistedPreference)
+
+        // 2. User focuses Chrome URL / search field (NO_SUGGESTIONS)
+        val searchInfo = editorInfoWith(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS)
+        simulateApplyPolicy(searchInfo)
+        // Must stay in Avro, must not switch layout
+        assertEquals(LekhaniLayoutType.AVRO, currentLayout)
+        assertEquals(LekhaniLayoutType.AVRO, persistedPreference)
+        assertEquals(null, previousLayoutBeforePassword)
+
+        // 3. User focuses Password field
+        val passwordInfo = editorInfoWith(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        simulateApplyPolicy(passwordInfo)
+        // Must switch to English, preserve previous layout, and NOT mutate persisted preference
+        assertEquals(LekhaniLayoutType.ENGLISH, currentLayout)
+        assertEquals(LekhaniLayoutType.AVRO, previousLayoutBeforePassword)
+        assertEquals(LekhaniLayoutType.AVRO, persistedPreference)
+
+        // 4. User focuses another password field (confirm password)
+        simulateApplyPolicy(passwordInfo)
+        assertEquals(LekhaniLayoutType.ENGLISH, currentLayout)
+        assertEquals(LekhaniLayoutType.AVRO, previousLayoutBeforePassword)
+        assertEquals(LekhaniLayoutType.AVRO, persistedPreference)
+
+        // 5. User leaves password field into normal field
+        val normalInfo = editorInfoWith(InputType.TYPE_CLASS_TEXT)
+        simulateApplyPolicy(normalInfo)
+        // Must restore Avro, clear snapshot, and persisted preference remains Avro
+        assertEquals(LekhaniLayoutType.AVRO, currentLayout)
+        assertEquals(null, previousLayoutBeforePassword)
+        assertEquals(LekhaniLayoutType.AVRO, persistedPreference)
     }
 
     @Test

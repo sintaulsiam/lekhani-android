@@ -249,6 +249,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private var isCapsLock: Boolean = false
     private var lastShiftTapTime: Long = 0L
 
+    val currentLayoutType: com.lekhani.android.ffi.LekhaniLayoutType
+        get() = layoutType
+
     private var enterActionIcon: EnterKeyResolver.ActionIcon = EnterKeyResolver.ActionIcon.NEWLINE
     private var fieldType: EnterKeyResolver.FieldType = EnterKeyResolver.FieldType.NORMAL
 
@@ -751,7 +754,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     fun setLayout(
         newLayout: KeyboardLayout,
-        newLayoutType: com.lekhani.android.ffi.LekhaniLayoutType = com.lekhani.android.ffi.LekhaniLayoutType.PROBAHO,
+        newLayoutType: com.lekhani.android.ffi.LekhaniLayoutType,
         shifted: Boolean = false,
     ) {
         layout = newLayout
