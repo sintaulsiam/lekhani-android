@@ -2232,6 +2232,9 @@ class LekhaniInputMethodService : InputMethodService() {
                     if (session.getLayout() == LekhaniLayoutType.ENGLISH) {
                         keyboardView?.setShifted(true)
                     }
+                    if (isNumericMode && !isNumericFieldMode) {
+                        restoreAlphaKeyboard()
+                    }
                     return
                 }
             }
@@ -2246,6 +2249,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 ?: candState?.items?.firstOrNull()?.text
             if (!topCandidate.isNullOrBlank() && !topCandidate.startsWith("=")) {
                 onCandidateSelected(topCandidate)
+                if (isNumericMode && !isNumericFieldMode) {
+                    restoreAlphaKeyboard()
+                }
                 return
             }
         }
@@ -2298,6 +2304,11 @@ class LekhaniInputMethodService : InputMethodService() {
         // After committing a word, refresh surrounding context for AI scorer
         refreshSurroundingContext()
         updateAutoCaps()
+
+        // Auto-return to letters from numbers/symbols on Spacebar (standard Gboard/iOS convention)
+        if (isNumericMode && !isNumericFieldMode) {
+            restoreAlphaKeyboard()
+        }
     }
 
     /**
