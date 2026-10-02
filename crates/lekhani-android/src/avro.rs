@@ -623,7 +623,10 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let mut remembered_choice: Option<String> = None;
     if !is_short_input {
         if let Ok(learner) = db.learner.read() {
-            if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
+            if let Some(error_override) = learner.lookup_input_error(input).or_else(|| learner.lookup_input_error(&lower)) {
+                candidate_memory.insert(input.to_string(), error_override.to_string());
+                remembered_choice = Some(error_override.to_string());
+            } else if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
                 candidate_memory.insert(input.to_string(), user_choice.clone());
                 remembered_choice = Some(user_choice.clone());
             }

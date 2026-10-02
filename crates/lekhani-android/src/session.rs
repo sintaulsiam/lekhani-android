@@ -53,6 +53,8 @@ pub fn clear_candidate_memory() {
     if let Ok(mut learner) = db.learner.write() {
         learner.candidate_memory.clear();
         learner.candidate_selection_counts.clear();
+        learner.input_error_map.clear();
+        learner.input_error_counts.clear();
         learner.dirty = true;
     }
 }
@@ -772,7 +774,8 @@ impl AndroidLekhaniSession {
                     } else {
                         let db = get_core_database();
                         db.learner.read().ok().is_some_and(|l| {
-                            l.candidate_memory.contains_key(&state.composing_buffer)
+                            l.lookup_input_error(&state.composing_buffer).is_some()
+                                || l.candidate_memory.contains_key(&state.composing_buffer)
                                 || l.candidate_memory.contains_key(&state.composing_buffer.to_lowercase())
                         })
                     }
@@ -1440,7 +1443,8 @@ impl AndroidLekhaniSession {
                     } else {
                         let db = get_core_database();
                         db.learner.read().ok().is_some_and(|l| {
-                            l.candidate_memory.contains_key(&raw)
+                            l.lookup_input_error(&raw).is_some()
+                                || l.candidate_memory.contains_key(&raw)
                                 || l.candidate_memory.contains_key(&raw.to_lowercase())
                         })
                     }
@@ -1573,6 +1577,7 @@ impl AndroidLekhaniSession {
                 // to prevent short ambiguous tokens like "oi", "k", "to", "na" from being rigidly hijacked!
                 if typed_buffer.chars().count() > 2 {
                     learner.record_candidate_selection(&typed_buffer, &normalized);
+                    learner.record_input_error(&typed_buffer, &normalized);
                 }
                 learner.observe_and_learn(&normalized, &db.trie);
                 if let Some(ref p) = prev_word {
@@ -2107,6 +2112,54 @@ mod tests {
         let db = get_core_database();
         let learner = db.learner.read().unwrap();
         assert!(!learner.candidate_memory.contains_key("secret"));
+    }
+
+    #[test]
+    #[serial]
+    fn test_personal_error_pattern_learning_session() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+        clear_candidate_memory();
+
+        // 1. Type typo "bhlao" and select "ভালো" (1st selection)
+        for ch in ["b", "h", "l", "a", "o"] {
+            let _ = session.process_key(ch.into()).unwrap();
+        }
+        let sel1 = session.select_candidate("ভালো".into()).unwrap();
+        assert_eq!(sel1.commit_text, Some("ভালো ".into()));
+
+        // Not pinned yet after 1 selection
+        {
+            let db = get_core_database();
+            let learner = db.learner.read().unwrap();
+            assert_eq!(learner.lookup_input_error("bhlao"), None);
+        }
+
+        // 2. Type typo "bhlao" and select "ভালো" again (2nd selection >= threshold)
+        for ch in ["b", "h", "l", "a", "o"] {
+            let _ = session.process_key(ch.into()).unwrap();
+        }
+        let sel2 = session.select_candidate("ভালো".into()).unwrap();
+        assert_eq!(sel2.commit_text, Some("ভালো ".into()));
+
+        // Now pinned!
+        {
+            let db = get_core_database();
+            let learner = db.learner.read().unwrap();
+            assert_eq!(learner.lookup_input_error("bhlao"), Some("ভালো"));
+        }
+
+        // 3. Typing "bhlao" now directly yields "ভালো" at candidate index 0
+        for ch in ["b", "h", "l", "a"] {
+            let _ = session.process_key(ch.into()).unwrap();
+        }
+        let res = session.process_key("o".into()).unwrap();
+        assert_eq!(res.preedit, "ভালো");
+        assert_eq!(res.candidates.first().map(|s| s.as_str()), Some("ভালো"));
+
+        // Spacebar directly commits the corrected word
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(space_res.commit_text, Some("ভালো ".into()));
     }
 
     #[test]
