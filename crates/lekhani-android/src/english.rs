@@ -122,6 +122,17 @@ pub fn set_test_english_trie(trie: PrefixTrie) {
     let _ = ENGLISH_TRIE.set(trie);
 }
 
+/// Returns true if the given token is a recognized word in the English dictionary (length >= 3).
+pub fn is_recognized_english_word(token: &str) -> bool {
+    if token.chars().count() < 3 || !token.is_ascii() {
+        return false;
+    }
+    let lower = token.to_lowercase();
+    get_english_trie()
+        .map(|trie| trie.contains_exact(&lower))
+        .unwrap_or(false)
+}
+
 /// Adjacent keys on standard QWERTY layout for fast proximity distance calculation.
 pub fn get_qwerty_adjacent_keys(c: char) -> &'static [char] {
     match c.to_ascii_lowercase() {

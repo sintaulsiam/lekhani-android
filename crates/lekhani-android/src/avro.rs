@@ -754,6 +754,15 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         candidates.push(def);
     }
 
+    // Bilingual loanword surfacing: if the input is recognized as a valid English word
+    // (e.g. "meeting", "office", "project", "class", "email"), surface the verbatim English word
+    if !is_short_input && crate::english::is_recognized_english_word(input) {
+        if !candidates.iter().any(|c| c.eq_ignore_ascii_case(input)) {
+            let insert_pos = candidates.len().min(1);
+            candidates.insert(insert_pos, input.to_string());
+        }
+    }
+
     let mut selected_idx = selected_idx;
 
     // 2. Ensure core common words are prioritized at the top of candidate list
