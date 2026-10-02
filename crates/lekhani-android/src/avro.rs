@@ -634,17 +634,10 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // -1b. Bundled system autocorrect (only if no user choice override and not an explicit common word)
+    let mut autocorrect_replacement: Option<String> = None;
     if remembered_choice.is_none() && !is_explicit_common {
         if let Some(replacement) = db.autocorrect.get(input).or_else(|| db.autocorrect.get(&lower)) {
-            let primary = replacement.clone();
-            let mut candidates = vec![primary.clone()];
-            let parser = get_avro_parser();
-            let def = parser.convert(input);
-            if def != primary {
-                candidates.push(def);
-            }
-            append_prefix_matches(&primary, &mut candidates);
-            return (primary, candidates);
+            autocorrect_replacement = Some(replacement.clone());
         }
     }
 
@@ -661,6 +654,13 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         // 1. Direct phonetic transliteration is always the primary preedit for short inputs
         let primary = def.clone();
         short_candidates.push(primary.clone());
+
+        // 2a. Short English words & Latin escape hatch (e.g. "ok", "hi", "fb", "id", "to", "no")
+        if crate::english::is_recognized_english_word(input) && !short_candidates.iter().any(|c| c.eq_ignore_ascii_case(input)) {
+            short_candidates.insert(1.min(short_candidates.len()), input.to_string());
+        } else if input.chars().all(|c| c.is_ascii_digit()) && !short_candidates.contains(&input.to_string()) {
+            short_candidates.insert(1.min(short_candidates.len()), input.to_string());
+        }
 
         // 2. Shorthand & Common Contractions (offered as secondary suggestions)
         if let Some(&words) = get_common_words().get(input).or_else(|| get_common_words().get(lower.as_str())) {
@@ -758,16 +758,41 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // Bilingual loanword surfacing: if the input is recognized as a valid English word
-    // (e.g. "meeting", "office", "project", "class", "email"), surface the verbatim English word
-    if !is_short_input
-        && crate::english::is_recognized_english_word(input)
+    // (e.g. "meeting", "office", "project", "class", "email", "ok", "hi"), surface the verbatim English word
+    if crate::english::is_recognized_english_word(input)
         && !candidates.iter().any(|c| c.eq_ignore_ascii_case(input))
     {
         let insert_pos = candidates.len().min(1);
         candidates.insert(insert_pos, input.to_string());
     }
 
+    // Capitalized / CamelCase / Code Token / Mixed Symbol Latin Escape Hatch (e.g. "Siam", "Figma", "ChatGPT", "myVar")
+    let is_code_or_mixed = input.chars().skip(1).any(|c| c.is_ascii_uppercase())
+        || input.contains('_')
+        || input.contains('-')
+        || input.contains('.');
+    if is_code_or_mixed && input.is_ascii() && !candidates.iter().any(|c| c == input) {
+        let insert_pos = candidates.len().min(1);
+        candidates.insert(insert_pos, input.to_string());
+    }
+
+    // Digits / Currency Symbols dual candidate surfacing (e.g. "1234" -> ["১২৩৪", "1234"], "$100" -> ["৳১০০", "$100"])
+    let is_numeric_or_currency = input.chars().all(|c| c.is_ascii_digit()) || input.starts_with('$');
+    if is_numeric_or_currency && !candidates.iter().any(|c| c == input) {
+        let insert_pos = candidates.len().min(1);
+        candidates.insert(insert_pos, input.to_string());
+    }
+
     let mut selected_idx = selected_idx;
+
+    // Apply deferred bundled system autocorrect if active
+    if let Some(ref replacement) = autocorrect_replacement {
+        if let Some(pos) = candidates.iter().position(|c| c == replacement) {
+            candidates.remove(pos);
+        }
+        candidates.insert(0, replacement.clone());
+        selected_idx = 0;
+    }
 
     // 2. Ensure core common words are prioritized at the top of candidate list
     let is_explicit_common = get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
@@ -822,21 +847,41 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
-    // 2c. Ensure def (deterministic Avro parser output) is present in candidates without overriding dictionary matches
-    if !def.is_empty() && !candidates.iter().any(|c| c == &def) {
-        candidates.insert(1.min(candidates.len()), def.clone());
+    // 2c. Ensure def (deterministic Avro parser output) is preserved in candidates as "Force Avro"
+    if !def.is_empty() && candidates.first() != Some(&def) {
+        if let Some(pos) = candidates.iter().position(|c| c == &def) {
+            candidates.remove(pos);
+        }
+        let target_idx = 1.min(candidates.len());
+        candidates.insert(target_idx, def.clone());
     }
 
-    // 2d. Exact case-sensitivity fidelity & Sentence-initial Titlecase smart promotion:
-    // If the user typed an uppercase Avro character ("OIUDGJNRSTYZ"):
-    // - If it's a mobile Titlecase (e.g. "Tomar", "Tumi") where the lowercase form is a valid
-    //   high-frequency dictionary word ("তোমার", "তুমি") but the uppercase form is non-existent
-    //   ("টোমার", "টুমি"), promote the valid word while retaining def as candidate.
-    // - Otherwise, prioritize def at candidate index 0 to honor desktop Avro muscle memory ("Daktar", "Dhaka", "poRa").
+    // 2d. Exact case-sensitivity fidelity, All-Caps normalization & Sentence-initial Titlecase smart promotion:
     let has_explicit_avro_case = input.chars().any(|c| {
         c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c)
     });
-    if has_explicit_avro_case && !def.is_empty() {
+    let is_all_caps = input.chars().count() >= 2 && input.chars().all(|c| c.is_ascii_uppercase());
+    if is_all_caps {
+        // All-Caps input (e.g. "AMI", "TUMI", "DESH"):
+        // Normalizing to lowercase avoids mangling retroflexes and dirgho-i/u.
+        let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
+            ac.clone()
+        } else if let Some(&words) = get_common_words().get(&lower.as_str()) {
+            words.first().copied().unwrap_or("").to_string()
+        } else {
+            parser.convert(&lower)
+        };
+        if !resolved_lower.is_empty() {
+            if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
+                candidates.remove(pos);
+            }
+            candidates.insert(0, resolved_lower);
+            if !def.is_empty() && !candidates.contains(&def) {
+                candidates.insert(1.min(candidates.len()), def.clone());
+            }
+            selected_idx = 0;
+        }
+    } else if has_explicit_avro_case && !def.is_empty() {
         let is_titlecase = input.chars().next().is_some_and(|c| c.is_ascii_uppercase())
             && input.chars().skip(1).all(|c| c.is_ascii_lowercase());
 
@@ -847,18 +892,30 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         } else {
             parser.convert(&lower)
         };
-        let def_in_dict = db.is_exact_dictionary_word(&def);
-        let lower_in_dict = db.is_exact_dictionary_word(&resolved_lower);
 
-        if is_titlecase && !def_in_dict && lower_in_dict {
-            if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
-                candidates.remove(pos);
+        if is_titlecase {
+            // For sentence-initial titlecase (e.g. "Din" -> দিন vs ডিন, "Tara" -> তারা vs টারা):
+            // Check if the lowercase variant is a common word or much higher frequency.
+            let is_common_lower = get_common_words().contains_key(&lower.as_str());
+            let freq_lower = get_word_frequency(resolved_lower.as_str());
+            let freq_def = get_word_frequency(def.as_str());
+
+            if is_common_lower || freq_lower >= freq_def * 3 || (!db.is_exact_dictionary_word(&def) && db.is_exact_dictionary_word(&resolved_lower)) {
+                if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
+                    candidates.remove(pos);
+                }
+                candidates.insert(0, resolved_lower);
+                if !candidates.iter().any(|c| c == &def) {
+                    candidates.insert(1.min(candidates.len()), def.clone());
+                }
+                selected_idx = 0;
+            } else {
+                if let Some(pos) = candidates.iter().position(|c| c == &def) {
+                    candidates.remove(pos);
+                }
+                candidates.insert(0, def.clone());
+                selected_idx = 0;
             }
-            candidates.insert(0, resolved_lower);
-            if !candidates.iter().any(|c| c == &def) {
-                candidates.insert(1.min(candidates.len()), def.clone());
-            }
-            selected_idx = 0;
         } else {
             if let Some(pos) = candidates.iter().position(|c| c == &def) {
                 candidates.remove(pos);
@@ -968,12 +1025,17 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
-    // If mistyped (not an explicit common word), place the top typo correction at candidate index 1
-    // (so UI strip has: 1st: Raw English, 2nd: Direct conversion, 3rd: Corrected word)
+    // If mistyped (not an explicit common word), place typo corrections AFTER def to preserve Force Avro at index 1
+    let insert_offset = if candidates.len() > 1 && candidates[1] == def {
+        2
+    } else {
+        1
+    };
     if !is_explicit_common && !typo_corrections.is_empty() {
         for (idx, corr) in typo_corrections.into_iter().enumerate() {
             if idx < 2 {
-                candidates.insert(1 + idx, corr);
+                let target = (insert_offset + idx).min(candidates.len());
+                candidates.insert(target, corr);
             } else {
                 candidates.push(corr);
             }
@@ -1035,6 +1097,14 @@ fn append_prefix_matches(primary: &str, candidates: &mut Vec<String>) {
             }
         }
     }
+}
+
+fn get_word_frequency(word: &str) -> u32 {
+    lekhani_core::phonetic::database::CORE_BENGALI_FREQUENCIES
+        .iter()
+        .find(|&&(w, _)| w == word)
+        .map(|&(_, f)| f)
+        .unwrap_or(0)
 }
 
 fn get_frequency_completions(prefix: &str, limit: usize) -> Vec<String> {
@@ -1120,14 +1190,16 @@ mod tests {
     fn test_qwerty_proximity_typo_correction() {
         // 's' is next to 'a' on QWERTY -> "smi" typo suggests "আমি"
         // index 0: direct conversion "শমি"
-        // index 1: typo auto-correction "আমি"
+        // index 1: Force Avro def "স্মি" is preserved
+        // index 2: typo auto-correction "আমি"
         let (pre_smi, cands_smi) = transliterate_avro("smi");
         assert_eq!(pre_smi, "শমি");
         assert_eq!(cands_smi.first().map(|s| s.as_str()), Some("শমি"));
-        assert_eq!(cands_smi.get(1).map(|s| s.as_str()), Some("আমি"));
+        assert_eq!(cands_smi.get(1).map(|s| s.as_str()), Some("স্মি"));
+        assert_eq!(cands_smi.get(2).map(|s| s.as_str()), Some("আমি"));
 
         // 'i' is next to 'o' on QWERTY -> "bhali" typo suggests "ভালো"
-        // index 0: direct conversion "ভালী"
+        // index 0: direct conversion "ভালি" (matching def)
         // index 1: typo auto-correction "ভালো"
         let (pre_bhali, cands_bhali) = transliterate_avro("bhali");
         assert_eq!(pre_bhali, "ভালি");

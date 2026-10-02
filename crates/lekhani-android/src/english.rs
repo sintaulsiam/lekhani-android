@@ -122,12 +122,24 @@ pub fn set_test_english_trie(trie: PrefixTrie) {
     let _ = ENGLISH_TRIE.set(trie);
 }
 
-/// Returns true if the given token is a recognized word in the English dictionary (length >= 3).
+pub const STATIC_SHORT_ENGLISH_WORDS: &[&str] = &[
+    "a", "i", "ok", "hi", "to", "no", "go", "in", "on", "at", "is", "am", "he", "me", "we", "fb",
+    "id", "ai", "pc", "tv", "so", "my", "by", "up", "it", "as", "or", "if", "do", "an", "us",
+    "ex", "vs", "app", "web", "api", "otp", "dev", "doc", "ui", "ux", "os", "ip",
+];
+
+/// Returns true if the given token is a recognized word in the English dictionary or common short words whitelist.
 pub fn is_recognized_english_word(token: &str) -> bool {
-    if token.chars().count() < 3 || !token.is_ascii() {
+    if token.is_empty() || !token.is_ascii() {
         return false;
     }
     let lower = token.to_lowercase();
+    if token.chars().count() < 3 {
+        return STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str());
+    }
+    if STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str()) {
+        return true;
+    }
     get_english_trie()
         .map(|trie| trie.contains_exact(&lower))
         .unwrap_or(false)

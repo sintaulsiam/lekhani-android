@@ -240,3 +240,86 @@ fn test_diagnose_avro_failures() {
     }
 }
 
+#[test]
+fn test_audit_bug_fixes_and_ux_primitives() {
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+
+    // ── Bug 1: Latin memory infection prevented ──────────────────────────────
+    // User types "bhalo" and selects Latin "bhalo" chip twice
+    for _ in 0..3 {
+        for c in "bhalo".chars() {
+            session.process_key(c.to_string()).unwrap();
+        }
+        session.select_candidate("bhalo".to_string()).unwrap();
+    }
+    // Typing "bhalo" and hitting space MUST commit Bengali "ভালো", not Latin "bhalo"!
+    for c in "bhalo".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    let res = session.handle_space().unwrap();
+    assert_eq!(res.commit_text.as_deref(), Some("ভালো "));
+
+    // ── Bug 3: Short English words unblocked ──────────────────────────────────
+    let (_, cands_ok) = lekhani_android::avro::transliterate_avro("ok");
+    assert!(cands_ok.iter().any(|c| c.eq_ignore_ascii_case("ok")), "cands_ok must contain 'ok': {:?}", cands_ok);
+
+    let (_, cands_hi) = lekhani_android::avro::transliterate_avro("hi");
+    assert!(cands_hi.iter().any(|c| c.eq_ignore_ascii_case("hi")), "cands_hi must contain 'hi': {:?}", cands_hi);
+
+    let (_, cands_fb) = lekhani_android::avro::transliterate_avro("fb");
+    assert!(cands_fb.iter().any(|c| c.eq_ignore_ascii_case("fb")), "cands_fb must contain 'fb': {:?}", cands_fb);
+
+    // ── Bug 5: Force Avro def preservation ────────────────────────────────────
+    let (pri_amr, cands_amr) = lekhani_android::avro::transliterate_avro("amr");
+    assert_eq!(pri_amr, "আমার");
+    assert_eq!(cands_amr.first().map(|s| s.as_str()), Some("আমার"));
+    assert_eq!(cands_amr.get(1).map(|s| s.as_str()), Some("আম্র"), "Force Avro def 'আম্র' must be at index 1: {:?}", cands_amr);
+
+    let (pri_apni, cands_apni) = lekhani_android::avro::transliterate_avro("apni");
+    assert_eq!(pri_apni, "আপনি");
+    assert_eq!(cands_apni.first().map(|s| s.as_str()), Some("আপনি"));
+    assert_eq!(cands_apni.get(1).map(|s| s.as_str()), Some("আপ্নি"), "Force Avro def 'আপ্নি' must be at index 1: {:?}", cands_apni);
+
+    // ── Bug 8: Backtick ZWNJ conjunct breaker ─────────────────────────────────
+    let (pri_ryab, _) = lekhani_android::avro::transliterate_avro("r`yab");
+    assert_eq!(pri_ryab, "র‍্যাব");
+
+    let (pri_kk, _) = lekhani_android::avro::transliterate_avro("k`k");
+    assert_eq!(pri_kk, "কক");
+
+    // ── Bug 9 & 10: Titlecase and All-Caps normalization ───────────────────────
+    let (pri_din, cands_din) = lekhani_android::avro::transliterate_avro("Din");
+    assert_eq!(pri_din, "দিন", "Din must prioritize 'দিন' over 'ডিন'");
+    assert!(cands_din.contains(&"ডিন".to_string()));
+
+    let (pri_tara, cands_tara) = lekhani_android::avro::transliterate_avro("Tara");
+    assert_eq!(pri_tara, "তারা", "Tara must prioritize 'তারা' over 'টারা'");
+    assert!(cands_tara.contains(&"টারা".to_string()));
+
+    let (pri_ami, _) = lekhani_android::avro::transliterate_avro("AMI");
+    assert_eq!(pri_ami, "আমি", "All-caps AMI must produce 'আমি'");
+
+    let (pri_tumi, _) = lekhani_android::avro::transliterate_avro("TUMI");
+    assert_eq!(pri_tumi, "তুমি", "All-caps TUMI must produce 'তুমি'");
+
+    // ── Bug 11: Dual digits & currency ───────────────────────────────────────
+    let (_, cands_num) = lekhani_android::avro::transliterate_avro("1234");
+    assert!(cands_num.contains(&"1234".to_string()), "Numerals must offer Latin '1234': {:?}", cands_num);
+    assert!(cands_num.contains(&"১২৩৪".to_string()));
+
+    let (_, cands_cur) = lekhani_android::avro::transliterate_avro("$100");
+    assert!(cands_cur.contains(&"$100".to_string()), "Currency must offer Latin '$100': {:?}", cands_cur);
+    assert!(cands_cur.contains(&"৳১০০".to_string()));
+
+    // ── WYSIWYG Spacebar commit with choice ──────────────────────────────────
+    session.reset();
+    for c in "amr".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    // Hitting spacebar with chosen "আম্র" (from Slot 2 on strip) commits "আম্র "!
+    let choice_res = session.handle_space_with_choice(Some("আম্র".to_string())).unwrap();
+    assert_eq!(choice_res.commit_text.as_deref(), Some("আম্র "));
+}
+
+

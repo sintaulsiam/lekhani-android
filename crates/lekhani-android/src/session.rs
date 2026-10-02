@@ -1418,9 +1418,18 @@ impl AndroidLekhaniSession {
     // ── Spacebar ─────────────────────────────────────────────────────────────
 
     /// Handle Spacebar tap: NFC-normalize and commit the current composing buffer.
-    /// Under Option B (Conservative spacebar), commits typed text verbatim without
-    /// forced autocorrect, followed by English or Bengali next-word predictions.
     pub fn handle_space(&self) -> Result<TypingResult, LekhaniError> {
+        self.handle_space_with_choice(None)
+    }
+
+    /// Handle Spacebar tap with an optional user-selected or active UI-highlighted candidate.
+    /// If `chosen_candidate` is provided (e.g. from the Android candidate strip),
+    /// commits that candidate directly, establishing 100% WYSIWYG synchronization between
+    /// the UI highlight and the spacebar commit.
+    pub fn handle_space_with_choice(
+        &self,
+        chosen_candidate: Option<String>,
+    ) -> Result<TypingResult, LekhaniError> {
         let mut state = self
             .state
             .lock()
@@ -1431,7 +1440,9 @@ impl AndroidLekhaniSession {
             // Reallocate the buffer to its pre-allocated capacity to avoid
             // the composing buffer shrinking to zero capacity after `take`.
             state.composing_buffer = String::with_capacity(64);
-            let mut normalized = if state.layout == LekhaniLayoutType::Avro {
+            let mut normalized = if let Some(ref cand) = chosen_candidate {
+                nfc_normalize(cand)
+            } else if state.layout == LekhaniLayoutType::Avro {
                 let words: Vec<&str> = if !state.surrounding_context.is_empty() {
                     state.surrounding_context.split_whitespace().collect()
                 } else {
@@ -1497,9 +1508,11 @@ impl AndroidLekhaniSession {
             if !state.is_private_field && state.auto_learn_enabled {
                 let db = get_core_database();
                 if let Ok(mut learner) = db.learner.write() {
-                    learner.observe_and_learn(&word, &db.trie);
-                    if let Some(ref p) = prev_word {
-                        learner.observe_committed_pair(p, &word);
+                    if !word.is_ascii() {
+                        learner.observe_and_learn(&word, &db.trie);
+                        if let Some(ref p) = prev_word {
+                            learner.observe_committed_pair(p, &word);
+                        }
                     }
                 }
                 state.last_commit_info =
@@ -1574,8 +1587,8 @@ impl AndroidLekhaniSession {
             let db = get_core_database();
             if let Ok(mut learner) = db.learner.write() {
                 // Only record candidate selection overrides for inputs > 2 characters
-                // to prevent short ambiguous tokens like "oi", "k", "to", "na" from being rigidly hijacked!
-                if typed_buffer.chars().count() > 2 {
+                // and non-ASCII candidates to prevent Latin/English selections from poisoning Bengali phonetic memory!
+                if typed_buffer.chars().count() > 2 && !normalized.is_ascii() && !typed_buffer.eq_ignore_ascii_case(&normalized) {
                     learner.record_candidate_selection(&typed_buffer, &normalized);
                     learner.record_input_error(&typed_buffer, &normalized);
                 }
