@@ -3263,18 +3263,18 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
         serviceScope.launch {
-            val contextText = withContext(Dispatchers.IO) {
+            val (contextText, afterText) = withContext(Dispatchers.IO) {
                 try {
                     kotlinx.coroutines.withTimeout(500L) {
-                        currentInputConnection
-                            ?.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)
-                            ?.toString()
-                            ?: ""
+                        val ic = currentInputConnection
+                        val before = ic?.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() ?: ""
+                        val after = ic?.getTextAfterCursor(64, 0)?.toString() ?: ""
+                        Pair(before, after)
                     }
                 } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
                     // Target app is unresponsive (e.g. Chromium WebView under heavy load);
                     // skip context update rather than blocking the IO dispatcher indefinitely.
-                    ""
+                    Pair("", "")
                 }
             }
             cachedSurroundingContext = contextText
@@ -3285,6 +3285,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 if (contextText.isNotEmpty()) {
                     session.setContext(contextText)
                 }
+                session.setRightContext(afterText)
                 // Asynchronous background next-word prediction: keep UI thread 120 FPS
                 if (preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && effectiveContext.isNotBlank()) {
                     val nextWords = try {

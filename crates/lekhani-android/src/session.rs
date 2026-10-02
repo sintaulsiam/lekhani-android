@@ -267,6 +267,9 @@ struct SessionState {
     /// Last ~256 chars before the cursor, obtained from `getTextBeforeCursor()`.
     /// Used by the AI layer for contextual homophone ranking.
     surrounding_context: String,
+    /// Characters immediately following the cursor (up to 64 chars) from `getTextAfterCursor()`.
+    /// Used by the AI layer for bi-directional context scoring.
+    right_context: String,
     /// Whether the session is currently in a secure/incognito field.
     /// When true: no learning, no clipboard capture, auto English layout.
     is_private_field: bool,
@@ -395,6 +398,7 @@ impl AndroidLekhaniSession {
                 layout: LekhaniLayoutType::Probaho,
                 composing_buffer: String::with_capacity(64),
                 surrounding_context: String::with_capacity(256),
+                right_context: String::with_capacity(64),
                 is_private_field: false,
                 auto_learn_enabled: true,
                 last_commit_info: None,
@@ -484,6 +488,24 @@ impl AndroidLekhaniSession {
                 state.surrounding_context = context[trim_at..].to_string();
             } else {
                 state.surrounding_context = context;
+            }
+        }
+    }
+
+    /// Provide the text after the cursor (from `getTextAfterCursor(64, 0)`)
+    /// for bi-directional contextual ranking in the AI scorer.
+    pub fn set_right_context(&self, context: String) {
+        if let Ok(mut state) = self.state.lock() {
+            let char_count = context.chars().count();
+            if char_count > 64 {
+                let trim_at = context
+                    .char_indices()
+                    .nth(64)
+                    .map(|(i, _)| i)
+                    .unwrap_or(context.len());
+                state.right_context = context[..trim_at].to_string();
+            } else {
+                state.right_context = context;
             }
         }
     }
@@ -721,7 +743,8 @@ impl AndroidLekhaniSession {
                     let count = get_context_words(&state.surrounding_context, &mut words_buf);
                     let words = &words_buf[..count];
                     let scorer = get_context_scorer();
-                    scorer.rank_candidates_in_place(words, &mut candidates);
+                    let right_word = state.right_context.split_whitespace().next();
+                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
                 }
 
                 let len = state.composing_buffer.graphemes(true).count() as u32;
@@ -756,7 +779,8 @@ impl AndroidLekhaniSession {
                 };
                 if !has_candidate_memory && count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
-                    scorer.rank_candidates_in_place(words, &mut candidates);
+                    let right_word = state.right_context.split_whitespace().next();
+                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
                     if let Some(common_list) = crate::avro::get_common_word_candidates(&state.composing_buffer) {
                         if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {
                             let cand = candidates.remove(pos);
@@ -882,7 +906,8 @@ impl AndroidLekhaniSession {
                     let count = get_context_words(&state.surrounding_context, &mut words_buf);
                     let words = &words_buf[..count];
                     let scorer = get_context_scorer();
-                    scorer.rank_candidates_in_place(words, &mut candidates);
+                    let right_word = state.right_context.split_whitespace().next();
+                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
                 }
 
                 let len = state.composing_buffer.graphemes(true).count() as u32;
@@ -926,7 +951,8 @@ impl AndroidLekhaniSession {
                     let count = get_context_words(&state.surrounding_context, &mut words_buf);
                     let words = &words_buf[..count];
                     let scorer = get_context_scorer();
-                    scorer.rank_candidates_in_place(words, &mut candidates);
+                    let right_word = state.right_context.split_whitespace().next();
+                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
                 }
                 let len = state.composing_buffer.graphemes(true).count() as u32;
                 Ok(TypingResult {
@@ -972,7 +998,8 @@ impl AndroidLekhaniSession {
                 let (_preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw_token, words);
                 if count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
-                    scorer.rank_candidates_in_place(words, &mut candidates);
+                    let right_word = state.right_context.split_whitespace().next();
+                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
                 }
 
                 if candidates.is_empty() {
@@ -1427,7 +1454,8 @@ impl AndroidLekhaniSession {
                 let chosen = if !has_candidate_memory && candidates.len() > 1 {
                     if !words.is_empty() {
                         let scorer = get_context_scorer();
-                        candidates = scorer.rank_candidates(&words, &candidates);
+                        let right_word = state.right_context.split_whitespace().next();
+                        candidates = scorer.rank_candidates_bidirectional(&words, right_word, &candidates);
                     }
                     if let Some(common_list) = crate::avro::get_common_word_candidates(&raw) {
                         if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {

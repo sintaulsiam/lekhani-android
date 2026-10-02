@@ -810,6 +810,8 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -910,6 +912,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_layout(`ptr`: Pointer,`layout`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_private_field(`ptr`: Pointer,`isPrivate`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_right_context(`ptr`: Pointer,`context`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_update_keyboard_geometry(`ptr`: Pointer,`configs`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1123,6 +1127,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_right_context(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_update_keyboard_geometry(
     ): Short
     fun uniffi_lekhani_android_checksum_method_asraudioprocessor_has_detected_speech(
@@ -1272,6 +1278,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field() != 19937.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_right_context() != 7954.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_update_keyboard_geometry() != 40694.toShort()) {
@@ -1885,6 +1894,12 @@ public interface AndroidLekhaniSessionInterface {
      * preserving the user's layout preferences.
      */
     fun `setPrivateField`(`isPrivate`: kotlin.Boolean)
+    
+    /**
+     * Provide the text after the cursor (from `getTextAfterCursor(64, 0)`)
+     * for bi-directional contextual ranking in the AI scorer.
+     */
+    fun `setRightContext`(`context`: kotlin.String)
     
     /**
      * Update keyboard geometry for spatial touch error correction.
@@ -2607,6 +2622,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_private_field(
         it, FfiConverterBoolean.lower(`isPrivate`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Provide the text after the cursor (from `getTextAfterCursor(64, 0)`)
+     * for bi-directional contextual ranking in the AI scorer.
+     */override fun `setRightContext`(`context`: kotlin.String)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_right_context(
+        it, FfiConverterString.lower(`context`),_status)
 }
     }
     
