@@ -423,8 +423,23 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         candidates.insert(1.min(candidates.len()), def.clone());
     }
 
+    // 2d. Exact case-sensitivity fidelity: if the user explicitly typed an uppercase
+    // Avro character (e.g. 'D', 'T', 'R', 'S', 'N', 'Z') and def is non-empty,
+    // prioritize def at candidate index 0 to honor desktop Avro muscle memory.
+    let has_explicit_avro_case = input.chars().any(|c| {
+        c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c)
+    });
+    if has_explicit_avro_case && !def.is_empty() {
+        if let Some(pos) = candidates.iter().position(|c| c == &def) {
+            candidates.remove(pos);
+        }
+        candidates.insert(0, def.clone());
+        selected_idx = 0;
+    }
+
     // 3. QWERTY adjacency auto-correction for fat-finger typos on touchscreen
-    let mut typo_corrections = Vec::new();
+    let mut common_typos = Vec::new();
+    let mut dict_typos = Vec::new();
     if lower.len() >= 3 {
         let chars: Vec<char> = lower.chars().collect();
         for (i, &ch) in chars.iter().enumerate() {
@@ -435,14 +450,29 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 if let Some(&words) = get_common_words().get(cand_key.as_str()) {
                     for &w in words {
                         let ws = w.to_string();
-                        if !candidates.contains(&ws) && !typo_corrections.contains(&ws) {
-                            typo_corrections.push(ws);
+                        if !candidates.contains(&ws) && !common_typos.contains(&ws) {
+                            common_typos.push(ws);
                         }
+                    }
+                } else if let Some(ac) = db.autocorrect.get(&cand_key) {
+                    if !candidates.contains(ac) && !common_typos.contains(ac) {
+                        common_typos.push(ac.clone());
+                    }
+                } else if dict_typos.len() < 3 {
+                    let conv = parser.convert(&cand_key);
+                    if !conv.is_empty()
+                        && db.is_exact_dictionary_word(&conv)
+                        && !candidates.contains(&conv)
+                        && !dict_typos.contains(&conv)
+                    {
+                        dict_typos.push(conv);
                     }
                 }
             }
         }
     }
+    let mut typo_corrections = common_typos;
+    typo_corrections.extend(dict_typos);
 
     // If mistyped (not an explicit common word), place the top typo correction at candidate index 1
     // (so UI strip has: 1st: Raw English, 2nd: Direct conversion, 3rd: Corrected word)
@@ -739,5 +769,43 @@ mod tests {
         let (ami_pre, ami_cands) = transliterate_avro("ami");
         assert_eq!(ami_pre, "আমি");
         assert!(ami_cands.contains(&"আমি".to_string()));
+    }
+
+    #[test]
+    #[serial]
+    fn test_advanced_phonetic_expansion() {
+        // 1. Lowercase retroflex expansion: "daktar" -> "ডাক্তার"
+        let (daktar, daktar_cands) = transliterate_avro("daktar");
+        assert_eq!(daktar, "ডাক্তার", "daktar should produce ডাক্তার");
+        assert!(daktar_cands.contains(&"ডাক্তার".to_string()));
+
+        // 2. Strict uppercase Avro muscle memory: "Daktar" -> "ডাক্তার", "poRa" -> "পড়া"
+        let (d_aktar, _) = transliterate_avro("Daktar");
+        assert_eq!(d_aktar, "ডাক্তার", "Daktar with capital D must prioritize ডাক্তার");
+
+        let (pora_upper, _) = transliterate_avro("poRa");
+        assert_eq!(pora_upper, "পড়া", "poRa with capital R must prioritize পড়া");
+
+        // 3. Agglutinative morphological suffixing: "bristite" -> "বৃষ্টিতে", "deshgulor" -> "দেশগুলোর"
+        let (bristite, bristite_cands) = transliterate_avro("bristite");
+        assert_eq!(bristite, "বৃষ্টিতে", "bristite should produce বৃষ্টিতে");
+        assert!(bristite_cands.contains(&"বৃষ্টিতে".to_string()));
+
+        let (deshgulor, deshgulor_cands) = transliterate_avro("deshgulor");
+        assert_eq!(deshgulor, "দেশগুলোর", "deshgulor should produce দেশগুলোর");
+        assert!(deshgulor_cands.contains(&"দেশগুলোর".to_string()));
+
+        // 4. Case-agnostic stops & sibilants: "thik" -> "ঠিক", "porikkha" -> "পরীক্ষা"
+        let (thik, thik_cands) = transliterate_avro("thik");
+        assert_eq!(thik, "ঠিক", "thik should produce ঠিক");
+        assert!(thik_cands.contains(&"ঠিক".to_string()));
+
+        let (porikkha, porikkha_cands) = transliterate_avro("porikkha");
+        assert_eq!(porikkha, "পরীক্ষা", "porikkha should produce পরীক্ষা");
+        assert!(porikkha_cands.contains(&"পরীক্ষা".to_string()));
+
+        // 5. Fat-finger QWERTY proximity recovery: "bhslo" ('s' next to 'a') -> offers "ভালো"
+        let (_, bhslo_cands) = transliterate_avro("bhslo");
+        assert!(bhslo_cands.contains(&"ভালো".to_string()), "bhslo must recover ভালো via QWERTY proximity");
     }
 }

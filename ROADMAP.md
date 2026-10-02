@@ -238,3 +238,19 @@
 - [ ] Latency profiling (< 3 ms keystroke-to-display, < 40 ms cold boot, < 35 MB RSS budget).
 - [ ] F-Droid reproducible build recipe and metadata submission.
 - [ ] Google Play Store listing with verified zero-data-collection privacy nutrition label.
+
+---
+
+## Phase 13: Next-Gen Phonetic Architecture & v2.0 Release
+- [x] **Algorithmic Case-Agnostic Phoneme Expansion**:
+  - Automatic phonetic lattice resolution for unshifted retroflex stops, nasals, sibilants, and flaps (`daktar` ➔ `ডাক্তার`, `thik` ➔ `ঠিক`, `porikkha` ➔ `পরীক্ষা`) eliminating mobile Shift friction.
+- [x] **Strict Desktop Avro Muscle Memory Preservation**:
+  - Explicit uppercase characters (`D`, `T`, `R`, `S`, `N`, `Z`) automatically prioritize exact deterministic conversion at candidate index 0 (`Daktar` ➔ `ডাক্তার`, `poRa` ➔ `পড়া`).
+- [x] **Agglutinative Morphology & Suffix Chaining**:
+  - Suffix and clitic Sandhi decomposition for inflected vocabulary (`bristite` ➔ `বৃষ্টিতে`, `deshgulor` ➔ `দেশগুলোর`).
+- [x] **Two-Tiered QWERTY Touch Adjacency Recovery**:
+  - Prioritizes high-frequency conversational candidates followed by full dictionary verification for fat-finger typo recovery (`bhslo` ➔ `ভালো`, `smi` ➔ `আমি`).
+- [ ] Offline Voice ASR On-Demand Model Downloader UI with zero network telemetry integrity.
+- [ ] Desktop / Samsung DeX hardware keyboard shortcut mappings (`Ctrl+A`, `Ctrl+C`, `Ctrl+V`, `Shift+Space`).
+- [ ] Final reproducible F-Droid recipe and Google Play Store packaging.
+
