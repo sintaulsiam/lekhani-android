@@ -531,6 +531,39 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let mut typo_corrections = common_typos;
     typo_corrections.extend(dict_typos);
 
+    // 3c. Implicit Chandra Bindu (nasalization) auto-inference:
+    // On mobile keyboards, '^' is buried in symbol sub-layers.
+    // When users type unnasalized Latin forms (e.g. "chad", "bash", "pac", "dat", "has", "kada", "faka", "badha"),
+    // synthesize the nasalized dictionary counterpart ("চাঁদ", "বাঁশ", "পাঁচ", "দাঁত", "হাঁস", "কাঁদা", "ফাঁকা", "বাঁধা").
+    if !input.contains('^') && lower.len() >= 3 && lower.len() <= 8 {
+        let chars: Vec<char> = lower.chars().collect();
+        for (i, &ch) in chars.iter().enumerate() {
+            if "aeiou".contains(ch) {
+                let mut with_caret = String::with_capacity(lower.len() + 1);
+                with_caret.push_str(&lower[..i]);
+                with_caret.push('^');
+                with_caret.push_str(&lower[i..]);
+                let conv = parser.convert(&with_caret);
+                if conv.contains('ঁ') && db.is_exact_dictionary_word(&conv) && !candidates.contains(&conv) {
+                    let insert_pos = 1.min(candidates.len());
+                    candidates.insert(insert_pos, conv);
+                }
+
+                // Also check 'ch' -> 'c' substitution with caret (e.g. "chad" -> "c^ad" -> "চাঁদ")
+                if lower.starts_with("ch") && i == 2 {
+                    let mut c_caret = String::with_capacity(lower.len());
+                    c_caret.push_str("c^");
+                    c_caret.push_str(&lower[2..]);
+                    let conv_c = parser.convert(&c_caret);
+                    if conv_c.contains('ঁ') && db.is_exact_dictionary_word(&conv_c) && !candidates.contains(&conv_c) {
+                        let insert_pos = 1.min(candidates.len());
+                        candidates.insert(insert_pos, conv_c);
+                    }
+                }
+            }
+        }
+    }
+
     // If mistyped (not an explicit common word), place the top typo correction at candidate index 1
     // (so UI strip has: 1st: Raw English, 2nd: Direct conversion, 3rd: Corrected word)
     if !is_explicit_common && !typo_corrections.is_empty() {
@@ -875,5 +908,25 @@ mod tests {
         // 7. 1-step adjacent letter transposition recovery: "bhlao" ('l' and 'a' swapped) -> offers "ভালো"
         let (_, bhlao_cands) = transliterate_avro("bhlao");
         assert!(bhlao_cands.contains(&"ভালো".to_string()), "bhlao must recover ভালো via transposition");
+
+        // 8. Implicit Chandra Bindu (nasalization) auto-inference: "chad" -> "চাঁদ", "bash" -> "বাঁশ", "dat" -> "দাঁত", "pac" -> "পাঁচ", "has" -> "হাঁস"
+        let (_, chad_cands) = transliterate_avro("chad");
+        assert!(chad_cands.contains(&"চাঁদ".to_string()), "chad should offer চাঁদ");
+
+        let (_, bash_cands) = transliterate_avro("bash");
+        assert!(bash_cands.contains(&"বাঁশ".to_string()), "bash should offer বাঁশ");
+
+        let (_, dat_cands) = transliterate_avro("dat");
+        assert!(dat_cands.contains(&"দাঁত".to_string()), "dat should offer দাঁত");
+
+        let (_, pac_cands) = transliterate_avro("pac");
+        assert!(pac_cands.contains(&"পাঁচ".to_string()), "pac should offer পাঁচ");
+
+        let (_, has_cands) = transliterate_avro("has");
+        assert!(has_cands.contains(&"হাঁস".to_string()), "has should offer হাঁস");
+
+        // 9. Multi-word fluid phrase segmentation: "kemonaso" -> "কেমন আছো"
+        let (_, kemonaso_cands) = transliterate_avro("kemonaso");
+        assert!(kemonaso_cands.iter().any(|c| c == "কেমন আছো" || c == "কেমন আছেন"), "kemonaso should offer segmented phrase");
     }
 }

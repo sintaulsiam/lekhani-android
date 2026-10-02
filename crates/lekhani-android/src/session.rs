@@ -187,6 +187,7 @@ pub fn get_phonetic_suggestion() -> &'static Mutex<lekhani_core::phonetic::Phone
         sugg.database = db.clone();
         sugg.ai_context = scorer.clone();
         sugg.ai_predictor = predictor.clone();
+        sugg.config.enable_word_segmentation = true;
 
         let layout_candidates = [
             std::path::Path::new("/data/data/com.lekhani.android/files/layouts/avrophonetic.json"),
