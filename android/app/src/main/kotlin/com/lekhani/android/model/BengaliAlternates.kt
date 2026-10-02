@@ -89,7 +89,7 @@ object BengaliAlternates {
         // ── Punctuation ─────────────────────────────────────────────────────────
         put("।", arrayOf("॥", ".", "?", "!"))
         put(",", arrayOf(";", "—", "।"))
-        put(".", arrayOf("...", "।", ",", "?"))
+        put(".", arrayOf("!", "?", ",", "...", "।"))
         put("?", arrayOf("!", "¿", "‽"))
         put("!", arrayOf("?", "¡"))
 

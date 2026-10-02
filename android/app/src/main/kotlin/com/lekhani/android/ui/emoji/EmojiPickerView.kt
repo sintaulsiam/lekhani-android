@@ -118,7 +118,8 @@ fun EmojiPickerView(
     val view = LocalView.current
     val coroutineScope = rememberCoroutineScope()
 
-    var selectedTabIdx by remember { mutableIntStateOf(1) } // 0: Recents, 1: Emojis, 2: Kaomoji, 3: Symbols
+    val initialTab = remember { if (recentsManager.getRecents().isNotEmpty()) 0 else 1 }
+    var selectedTabIdx by remember { mutableIntStateOf(initialTab) } // 0: Recents, 1: Emojis, 2: Kaomoji, 3: Symbols
     var skinToneTarget by remember { mutableStateOf<EmojiItem?>(null) }
     var defaultSkinToneIndex by remember { mutableIntStateOf(recentsManager.defaultSkinToneIndex) }
 

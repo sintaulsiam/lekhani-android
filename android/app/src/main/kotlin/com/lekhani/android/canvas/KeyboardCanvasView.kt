@@ -979,7 +979,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
         }
         val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
-            val numRow = if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH) englishDedicatedNumberRow else bengaliDedicatedNumberRow
+            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO)
+            val numRow = if (isEnglishDigits) englishDedicatedNumberRow else bengaliDedicatedNumberRow
             listOf(numRow) + baseRows
         } else {
             baseRows
@@ -1050,8 +1051,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val rowWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
                 val totalGaps = (row.size - 1) * keyMarginH
                 val isStandardCharRow = row.all { it.widthWeight == 1.0f }
+                val isDedicatedNumberRow = (showDedicatedNumberRow && !isNumberSymbolsActive() && rowIndex == 0)
 
                 val (rowSideInset, unitWidth) = when {
+                    // Dedicated Number Row: evenly spans full available width across all keys (no side margins)
+                    isDedicatedNumberRow -> {
+                        val w = (availableRowW - totalGaps) / rowWeight
+                        Pair(0f, w)
+                    }
                     // Numpad / Phone Dialpad: evenly distribute large keys across available width
                     isNumpad -> {
                         val w = (availableRowW - totalGaps) / rowWeight
@@ -1062,8 +1069,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         val w = (availableRowW - totalGaps) / rowWeight
                         Pair(0f, w)
                     }
-                    // Probhat Row 1 (9 keys below 12 keys): gentle 0.5-key QWERTY offset, keys expand naturally
-                    layoutType == com.lekhani.android.ffi.LekhaniLayoutType.PROBHAT && rowIndex == 1 -> {
+                    // Probhat 9-key row (া স ড ত গ হ জ ক ল): gentle 0.5-key QWERTY offset, keys expand naturally
+                    layoutType == com.lekhani.android.ffi.LekhaniLayoutType.PROBHAT && row.size == 9 -> {
                         val halfKeyOffset = standardUnitWidth * 0.5f
                         val contentW = availableRowW - 2f * halfKeyOffset
                         val w = (contentW - totalGaps) / rowWeight
@@ -1075,7 +1082,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         Pair(halfKeyOffset, standardUnitWidth)
                     }
                     // Probaho and 10-key home rows: elegant second row side padding like other layouts
-                    rowIndex == 1 && currentLayout.rows.size >= 3 -> {
+                    (rowIndex == 1 || (showDedicatedNumberRow && rowIndex == 2)) && currentLayout.rows.size >= 3 -> {
                         val halfKeyOffset = standardUnitWidth * 0.35f
                         val contentW = availableRowW - 2f * halfKeyOffset
                         val w = (contentW - totalGaps) / rowWeight
@@ -1145,7 +1152,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
         }
         val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
-            val numRow = if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH) englishDedicatedNumberRow else bengaliDedicatedNumberRow
+            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO)
+            val numRow = if (isEnglishDigits) englishDedicatedNumberRow else bengaliDedicatedNumberRow
             listOf(numRow) + baseRows
         } else {
             baseRows

@@ -209,6 +209,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var preeditShadow: String = ""
     private var currentSelStart: Int = -1
     private var currentSelEnd: Int = -1
+    private var editorSelectionAnchor: Int = -1
     private var isSwipeDeleteActive: Boolean = false
     private var swipeDeleteAnchorCursor: Int = -1
     private var activeSwipeDeletePreviewText: String = ""
@@ -422,10 +423,7 @@ class LekhaniInputMethodService : InputMethodService() {
         isSwipeDeleteActive = false
         swipeDeleteAnchorCursor = -1
         activeSwipeDeletePreviewText = ""
-        isNumericMode = false
-        isMoreSymbolsMode = false
-        isNumericFieldMode = false
-        isPhoneDialpadMode = false
+        editorSelectionAnchor = -1
         setInputViewMode(InputViewMode.KEYBOARD)
         applyInputTypePolicy(info)
         refreshSurroundingContext()
@@ -1239,17 +1237,20 @@ class LekhaniInputMethodService : InputMethodService() {
                                 onMoveHome = { select -> sendEditorNavKey(KeyEvent.KEYCODE_MOVE_HOME, select) },
                                 onMoveEnd = { select -> sendEditorNavKey(KeyEvent.KEYCODE_MOVE_END, select) },
                                 onSelectAll = {
+                                    editorSelectionAnchor = -1
                                     val ic = currentInputConnection ?: return@TextEditorSheetView
                                     if (!ic.performContextMenuAction(android.R.id.selectAll)) {
                                         sendEditorKeyWithMeta(KeyEvent.KEYCODE_A, KeyEvent.META_CTRL_ON)
                                     }
                                 },
                                 onCut = {
+                                    editorSelectionAnchor = -1
                                     val ic = currentInputConnection
                                     ic?.performContextMenuAction(android.R.id.cut)
                                     updateCandidatesVisibility()
                                 },
                                 onCopy = {
+                                    editorSelectionAnchor = -1
                                     val ic = currentInputConnection
                                     ic?.performContextMenuAction(android.R.id.copy)
                                     val end = maxOf(currentSelStart, currentSelEnd)
@@ -1259,13 +1260,17 @@ class LekhaniInputMethodService : InputMethodService() {
                                     updateCandidatesVisibility()
                                 },
                                 onPaste = {
+                                    editorSelectionAnchor = -1
                                     val ic = currentInputConnection
                                     ic?.performContextMenuAction(android.R.id.paste)
                                     updateCandidatesVisibility()
                                 },
                                 onBackspace = { onBackspace() },
                                 onEnter = { commitEnter() },
-                                onClose = { setInputViewMode(InputViewMode.KEYBOARD) },
+                                onClose = {
+                                    editorSelectionAnchor = -1
+                                    setInputViewMode(InputViewMode.KEYBOARD)
+                                },
                             )
                         }
                     }
@@ -1376,7 +1381,6 @@ class LekhaniInputMethodService : InputMethodService() {
             isMoreSymbolsMode -> NumberSymbolsLayout.moreSymbolsLayout
             isEnglish -> NumberSymbolsLayout.englishNumericLayout
             isBengaliDigitsMode -> NumberSymbolsLayout.bengaliNumericLayout
-            isNumericMode -> NumberSymbolsLayout.bengaliNumericLayout
             else -> NumberSymbolsLayout.numericLayout
         }
         keyboardView?.setLayout(layout, currentLayoutType, shifted = false)
@@ -1397,10 +1401,87 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun sendEditorNavKey(keyCode: Int, isShift: Boolean) {
-        if (isShift) {
-            sendEditorKeyWithMeta(keyCode, KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON)
-        } else {
+        val ic = currentInputConnection ?: return
+        if (!isShift) {
+            editorSelectionAnchor = -1
             sendDownUpKeyEvents(keyCode)
+            return
+        }
+
+        // Selection mode active: ensure cursor bounds are known
+        if (currentSelStart < 0 || currentSelEnd < 0) {
+            val extracted = try {
+                ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+            } catch (_: Exception) {
+                null
+            }
+            if (extracted != null) {
+                currentSelStart = extracted.selectionStart
+                currentSelEnd = extracted.selectionEnd
+            } else {
+                val beforeLen = try {
+                    ic.getTextBeforeCursor(10000, 0)?.length ?: 0
+                } catch (_: Exception) {
+                    0
+                }
+                currentSelStart = beforeLen
+                currentSelEnd = beforeLen
+            }
+        }
+
+        if (editorSelectionAnchor < 0) {
+            editorSelectionAnchor = if (currentSelEnd >= 0) currentSelEnd else currentSelStart.coerceAtLeast(0)
+        }
+
+        when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                val currentEnd = if (currentSelEnd >= 0) currentSelEnd else editorSelectionAnchor
+                val newEnd = (currentEnd - 1).coerceAtLeast(0)
+                currentSelEnd = newEnd
+                val selStart = minOf(editorSelectionAnchor, newEnd)
+                val selEnd = maxOf(editorSelectionAnchor, newEnd)
+                ic.setSelection(selStart, selEnd)
+            }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                val currentEnd = if (currentSelEnd >= 0) currentSelEnd else editorSelectionAnchor
+                val newEnd = currentEnd + 1
+                currentSelEnd = newEnd
+                val selStart = minOf(editorSelectionAnchor, newEnd)
+                val selEnd = maxOf(editorSelectionAnchor, newEnd)
+                ic.setSelection(selStart, selEnd)
+            }
+            KeyEvent.KEYCODE_MOVE_HOME -> {
+                val newEnd = 0
+                currentSelEnd = newEnd
+                val selStart = minOf(editorSelectionAnchor, newEnd)
+                val selEnd = maxOf(editorSelectionAnchor, newEnd)
+                ic.setSelection(selStart, selEnd)
+            }
+            KeyEvent.KEYCODE_MOVE_END -> {
+                val textAfter = try {
+                    ic.getTextAfterCursor(10000, 0)?.length ?: 0
+                } catch (_: Exception) {
+                    0
+                }
+                val currentEnd = if (currentSelEnd >= 0) currentSelEnd else editorSelectionAnchor
+                val newEnd = currentEnd + textAfter
+                currentSelEnd = newEnd
+                val selStart = minOf(editorSelectionAnchor, newEnd)
+                val selEnd = maxOf(editorSelectionAnchor, newEnd)
+                ic.setSelection(selStart, selEnd)
+            }
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                // Dispatch hardware Shift + Key sequence for vertical multiline selection
+                val now = android.os.SystemClock.uptimeMillis()
+                val meta = KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
+                ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_SHIFT_LEFT, 0, meta))
+                ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0, meta))
+                ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0, meta))
+                ic.sendKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SHIFT_LEFT, 0, 0))
+            }
+            else -> {
+                sendEditorKeyWithMeta(keyCode, KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON)
+            }
         }
     }
 
@@ -2921,10 +3002,7 @@ class LekhaniInputMethodService : InputMethodService() {
             }
             updateNumberSymbolsKeyboard()
         } else {
-            if (isPhoneDialpadMode || isNumericFieldMode) {
-                isPhoneDialpadMode = false
-                isNumericFieldMode = false
-                isNumericMode = false
+            if (isPhoneDialpadMode || isNumericFieldMode || isNumericMode || isMoreSymbolsMode) {
                 restoreAlphaKeyboard()
             }
         }
