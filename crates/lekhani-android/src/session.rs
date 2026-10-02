@@ -617,7 +617,25 @@ impl AndroidLekhaniSession {
                 std::mem::take(&mut state.composing_buffer)
             };
             state.composing_buffer = String::with_capacity(64);
-            committed.push_str(&key);
+
+            let punct_str: &str = if key == "." && state.layout != LekhaniLayoutType::English {
+                let last_char = committed
+                    .chars()
+                    .last()
+                    .or_else(|| state.surrounding_context.chars().last());
+                let is_digit = last_char
+                    .map(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c))
+                    .unwrap_or(false);
+                if is_digit {
+                    "."
+                } else {
+                    "।"
+                }
+            } else {
+                &key
+            };
+
+            committed.push_str(punct_str);
             state.append_to_context(&committed);
 
             let next_words = if state.layout == LekhaniLayoutType::English {
@@ -2157,5 +2175,41 @@ mod tests {
         assert!(!res.preedit.is_empty());
         // No crash is the primary assertion; candidate count ≥ 0
         let _ = res.candidates.len();
+    }
+
+    #[test]
+    #[serial]
+    fn test_avro_dot_converts_to_dari() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+
+        // 1. Typing "ami" + "." should commit "আমি।"
+        session.process_key("a".into()).unwrap();
+        session.process_key("m".into()).unwrap();
+        session.process_key("i".into()).unwrap();
+        let res = session.process_key(".".into()).unwrap();
+        assert_eq!(res.commit_text.as_deref(), Some("আমি।"));
+
+        // 2. Typing numbers e.g. "3" (converts to "৩") + "." should remain "৩." for decimal fractions
+        session.reset();
+        session.process_key("3".into()).unwrap();
+        let num_res = session.process_key(".".into()).unwrap();
+        assert_eq!(num_res.commit_text.as_deref(), Some("৩."));
+
+        // 3. Typing "." after space/committed word should commit "।"
+        session.reset();
+        session.set_context("আমি ভালো আছি ".into());
+        let dot_res = session.process_key(".".into()).unwrap();
+        assert_eq!(dot_res.commit_text.as_deref(), Some("।"));
+
+        // 4. In English layout, "." must stay "."
+        session.reset();
+        session.set_layout(LekhaniLayoutType::English);
+        session.process_key("t".into()).unwrap();
+        session.process_key("e".into()).unwrap();
+        session.process_key("s".into()).unwrap();
+        session.process_key("t".into()).unwrap();
+        let eng_res = session.process_key(".".into()).unwrap();
+        assert_eq!(eng_res.commit_text.as_deref(), Some("test."));
     }
 }
