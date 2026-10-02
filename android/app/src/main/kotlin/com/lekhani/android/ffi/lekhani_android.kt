@@ -812,6 +812,8 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -868,6 +870,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_backspace(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_space(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_space_with_choice(`ptr`: Pointer,`chosenCandidate`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_import_dictionary_json(`ptr`: Pointer,`jsonContent`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
@@ -1083,6 +1087,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space_with_choice(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_dictionary_json(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_raw_words(
@@ -1211,7 +1217,10 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_backspace() != 7915.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space() != 25565.toShort()) {
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space() != 16343.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space_with_choice() != 57776.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_import_dictionary_json() != 23372.toShort()) {
@@ -1761,10 +1770,16 @@ public interface AndroidLekhaniSessionInterface {
     
     /**
      * Handle Spacebar tap: NFC-normalize and commit the current composing buffer.
-     * Under Option B (Conservative spacebar), commits typed text verbatim without
-     * forced autocorrect, followed by English or Bengali next-word predictions.
      */
     fun `handleSpace`(): TypingResult
+    
+    /**
+     * Handle Spacebar tap with an optional user-selected or active UI-highlighted candidate.
+     * If `chosen_candidate` is provided (e.g. from the Android candidate strip),
+     * commits that candidate directly, establishing 100% WYSIWYG synchronization between
+     * the UI highlight and the spacebar commit.
+     */
+    fun `handleSpaceWithChoice`(`chosenCandidate`: kotlin.String?): TypingResult
     
     /**
      * Import learned dictionary from JSON.
@@ -2259,8 +2274,6 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     
     /**
      * Handle Spacebar tap: NFC-normalize and commit the current composing buffer.
-     * Under Option B (Conservative spacebar), commits typed text verbatim without
-     * forced autocorrect, followed by English or Bengali next-word predictions.
      */
     @Throws(LekhaniException::class)override fun `handleSpace`(): TypingResult {
             return FfiConverterTypeTypingResult.lift(
@@ -2268,6 +2281,25 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_handle_space(
         it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Handle Spacebar tap with an optional user-selected or active UI-highlighted candidate.
+     * If `chosen_candidate` is provided (e.g. from the Android candidate strip),
+     * commits that candidate directly, establishing 100% WYSIWYG synchronization between
+     * the UI highlight and the spacebar commit.
+     */
+    @Throws(LekhaniException::class)override fun `handleSpaceWithChoice`(`chosenCandidate`: kotlin.String?): TypingResult {
+            return FfiConverterTypeTypingResult.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_handle_space_with_choice(
+        it, FfiConverterOptionalString.lower(`chosenCandidate`),_status)
 }
     }
     )

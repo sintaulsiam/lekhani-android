@@ -797,7 +797,11 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
 
                 override fun onSpaceLongPress() {
-                    showQuickLayoutPicker()
+                    if (session.getLayout() == LekhaniLayoutType.AVRO && session.isComposing()) {
+                        commitForceAvro()
+                    } else {
+                        showQuickLayoutPicker()
+                    }
                 }
 
                 override fun onGlideGesture(keys: List<String>) {
@@ -2108,9 +2112,40 @@ class LekhaniInputMethodService : InputMethodService() {
         ensureCursorInComposingRegion(ic)
         isQuickChipDismissed = true
 
-        // Backspace does NOT revert a committed word — that is a destructive UX surprise,
-        // especially in Avro where the "original" text is raw Roman (e.g. "ami" → "আমি ").
-        // Undo is only available via the explicit Undo chip shown in the candidate strip.
+        // 0. Frictionless Backspace Undo:
+        // If Spacebar just performed an auto-substitution or word transformation,
+        // tapping Backspace within 2.5 seconds reverts the commit and restores the raw input / pre-edit!
+        val activeUndo = activeUndoInfo
+        if (activeUndo != null && !session.isComposing()) {
+            val textBefore = try { ic.getTextBeforeCursor(activeUndo.committedText.length + 2, 0)?.toString() } catch (_: Exception) { null }
+            if (textBefore != null && textBefore.endsWith(activeUndo.committedText)) {
+                ic.beginBatchEdit()
+                try {
+                    ic.deleteSurroundingText(activeUndo.committedText.length, 0)
+                    if (session.getLayout() == LekhaniLayoutType.AVRO && activeUndo.originalText.isNotBlank()) {
+                        rawInputBuffer.clear()
+                        session.reset()
+                        var lastRes: com.lekhani.android.ffi.TypingResult? = null
+                        for (ch in activeUndo.originalText) {
+                            rawInputBuffer.append(ch)
+                            lastRes = session.processKey(ch.toString())
+                        }
+                        if (lastRes != null) {
+                            setComposingTextSafe(ic, lastRes.preedit)
+                            publishCandidates(lastRes.candidates)
+                        }
+                    } else {
+                        ic.commitText(activeUndo.originalText, 1)
+                    }
+                } finally {
+                    ic.endBatchEdit()
+                }
+                clearUndo()
+                refreshSurroundingContext()
+                return
+            }
+        }
+
         clearUndo()
 
         // 1. If text is selected in the target app, delete the selection immediately.
@@ -2258,11 +2293,13 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         lastSpaceTapTime = now
 
+        val candState = _candidateState.value as? CandidateStripState.Candidates
+        val activePrimary = candState?.items?.firstOrNull { it.isPrimary }?.text
+
         // 0a. Spacebar Autocomplete:
         // If enabled and composing, autocomplete to the top suggestion on candidate strip
         if (keyboardPrefs.spacebarAutocompleteEnabled && session.isComposing()) {
-            val candState = _candidateState.value as? CandidateStripState.Candidates
-            val topCandidate = candState?.items?.firstOrNull { it.isPrimary }?.text
+            val topCandidate = activePrimary
                 ?: candState?.items?.firstOrNull()?.text
             if (!topCandidate.isNullOrBlank() && !topCandidate.startsWith("=")) {
                 onCandidateSelected(topCandidate)
@@ -2280,8 +2317,19 @@ class LekhaniInputMethodService : InputMethodService() {
         val preeditBeforeSpace = preeditShadow
         rawInputBuffer.clear()
 
+        val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
+        val chosenForSpace = if (isPhonetic && activePrimary != null && !activePrimary.startsWith("=")) {
+            activePrimary
+        } else {
+            null
+        }
+
         val result = try {
-            session.handleSpace()
+            if (chosenForSpace != null) {
+                session.handleSpaceWithChoice(chosenForSpace)
+            } else {
+                session.handleSpace()
+            }
         } catch (e: LekhaniException) {
             Log.e(TAG, "handleSpace error: $e")
             return
@@ -2297,9 +2345,8 @@ class LekhaniInputMethodService : InputMethodService() {
             }
 
             val trimmedCommitted = text.trim()
-            val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
             val candidateOriginal = when {
-                !isPhonetic && originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
+                originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
                 preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted && preeditBeforeSpace != originalRaw -> preeditBeforeSpace
                 else -> null
             }
@@ -2326,6 +2373,23 @@ class LekhaniInputMethodService : InputMethodService() {
         // Auto-return to letters from numbers/symbols on Spacebar (standard Gboard/iOS convention)
         if (isNumericMode && !isNumericFieldMode) {
             restoreAlphaKeyboard()
+        }
+    }
+
+    /**
+     * Commits the pure deterministic Avro transliteration (Slot 2 / Force Avro),
+     * bypassing all dictionary overrides, common words, and typo corrections.
+     */
+    private fun commitForceAvro() {
+        val candState = _candidateState.value as? CandidateStripState.Candidates
+        // In the Three-Track model: slot 0 = English escape hatch, slot 1 = AI primary, slot 2 = Force Avro def
+        val forceCand = candState?.items?.getOrNull(2)?.text
+            ?: candState?.items?.getOrNull(1)?.text
+            ?: preeditShadow
+        if (!forceCand.isNullOrBlank() && !forceCand.startsWith("=")) {
+            onCandidateSelected(forceCand)
+        } else {
+            onSpace()
         }
     }
 
@@ -2666,7 +2730,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
                 primaryIndex = when {
                     isCode || filtered.size <= 1 -> 0
-                    hasTypoCorrection -> 2  // Highlight 3rd place (the correction) when mistyped
+                    hasTypoCorrection && keyboardPrefs.spacebarAutocompleteEnabled -> 2  // Highlight 3rd place only when autocomplete is enabled
                     else -> 1              // Highlight 2nd place (direct conversion) normally
                 }
             } else {
@@ -2679,7 +2743,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     val prefixLen = minOf(2, minOf(direct.length, corr.length))
                     prefixLen > 0 && !corr.startsWith(direct.take(prefixLen)) && !direct.startsWith(corr.take(prefixLen))
                 }
-                primaryIndex = if (hasTypoCorrection) 1 else 0
+                primaryIndex = if (hasTypoCorrection && keyboardPrefs.spacebarAutocompleteEnabled) 1 else 0
             }
         }
 
