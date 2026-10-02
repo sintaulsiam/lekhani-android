@@ -81,6 +81,7 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("ekta", &["একটা"][..]);
         m.insert("kintu", &["কিন্তু"][..]);
         m.insert("tai", &["তাই"][..]);
+        m.insert("oi", &["ঐ", "ওই"][..]);
         m.insert("she", &["সে"][..]);
         m.insert("tar", &["তার"][..]);
         m.insert("tara", &["তারা"][..]);
@@ -588,13 +589,16 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
-    // 0. User candidate override memory
+    // 0. User candidate override memory (strictly for inputs > 2 characters)
+    let is_short_input = input.chars().count() <= 2;
     let mut candidate_memory = HashMap::new();
     let mut remembered_choice: Option<String> = None;
-    if let Ok(learner) = db.learner.read() {
-        if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
-            candidate_memory.insert(input.to_string(), user_choice.clone());
-            remembered_choice = Some(user_choice.clone());
+    if !is_short_input {
+        if let Ok(learner) = db.learner.read() {
+            if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
+                candidate_memory.insert(input.to_string(), user_choice.clone());
+                remembered_choice = Some(user_choice.clone());
+            }
         }
     }
 
@@ -617,17 +621,14 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let def = parser.convert(input);
 
     // For short inputs (1 or 2 characters), guarantee pure phonetic preedit fidelity
-    // so in-flight typing does not abruptly jump to multi-syllable shorthand words (e.g. "kn" -> "কেন").
+    // so in-flight typing does not abruptly jump to multi-syllable shorthand words (e.g. "kn" -> "কেন")
+    // and never gets hijacked by candidate taps (e.g. "oi" -> "ঐ" vs "ওই").
     // Shorthand and high-frequency completions are offered as candidate strip suggestions.
-    if input.chars().count() <= 2 {
+    if is_short_input {
         let mut short_candidates = Vec::with_capacity(12);
 
-        // 1. Direct phonetic transliteration is always the primary preedit
-        let primary = if let Some(ref choice) = remembered_choice {
-            choice.clone()
-        } else {
-            def.clone()
-        };
+        // 1. Direct phonetic transliteration is always the primary preedit for short inputs
+        let primary = def.clone();
         short_candidates.push(primary.clone());
 
         // 2. Shorthand & Common Contractions (offered as secondary suggestions)
@@ -1452,5 +1453,17 @@ mod tests {
 
         let (somossa, _) = transliterate_avro("somossa");
         assert_eq!(somossa, "সমস্যা");
+    }
+
+    #[test]
+    fn test_short_word_candidate_memory_immunity() {
+        let (oi_res, oi_cands) = transliterate_avro("oi");
+        assert_eq!(oi_res, "অই");
+        assert!(oi_cands.contains(&"ওই".to_string()));
+        assert!(oi_cands.contains(&"ঐ".to_string()));
+
+        let (k_res, k_cands) = transliterate_avro("k");
+        assert_eq!(k_res, "ক");
+        assert!(k_cands.contains(&"ক".to_string()));
     }
 }

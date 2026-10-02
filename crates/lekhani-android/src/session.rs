@@ -46,6 +46,17 @@ pub fn set_dictionary_directory(path: String) {
     let _ = CUSTOM_DICT_DIR.set(path);
 }
 
+/// Clear all candidate selection overrides and selection counts from persistent learner
+#[uniffi::export]
+pub fn clear_candidate_memory() {
+    let db = get_core_database();
+    if let Ok(mut learner) = db.learner.write() {
+        learner.candidate_memory.clear();
+        learner.candidate_selection_counts.clear();
+        learner.dirty = true;
+    }
+}
+
 pub fn get_custom_dict_dir() -> Option<&'static str> {
     CUSTOM_DICT_DIR.get().map(|s| s.as_str())
 }
@@ -731,11 +742,15 @@ impl AndroidLekhaniSession {
                 let words = &words_buf[..count];
                 let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, words);
                 let has_candidate_memory = {
-                    let db = get_core_database();
-                    db.learner.read().ok().is_some_and(|l| {
-                        l.candidate_memory.contains_key(&state.composing_buffer)
-                            || l.candidate_memory.contains_key(&state.composing_buffer.to_lowercase())
-                    })
+                    if state.composing_buffer.chars().count() <= 2 {
+                        false
+                    } else {
+                        let db = get_core_database();
+                        db.learner.read().ok().is_some_and(|l| {
+                            l.candidate_memory.contains_key(&state.composing_buffer)
+                                || l.candidate_memory.contains_key(&state.composing_buffer.to_lowercase())
+                        })
+                    }
                 };
                 if !has_candidate_memory && count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
@@ -1396,11 +1411,15 @@ impl AndroidLekhaniSession {
                     Vec::new()
                 };
                 let has_candidate_memory = {
-                    let db = get_core_database();
-                    db.learner.read().ok().is_some_and(|l| {
-                        l.candidate_memory.contains_key(&raw)
-                            || l.candidate_memory.contains_key(&raw.to_lowercase())
-                    })
+                    if raw.chars().count() <= 2 {
+                        false
+                    } else {
+                        let db = get_core_database();
+                        db.learner.read().ok().is_some_and(|l| {
+                            l.candidate_memory.contains_key(&raw)
+                                || l.candidate_memory.contains_key(&raw.to_lowercase())
+                        })
+                    }
                 };
                 let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw, &words);
                 let chosen = if !has_candidate_memory && candidates.len() > 1 {
@@ -1530,7 +1549,9 @@ impl AndroidLekhaniSession {
         if !state.is_private_field && state.auto_learn_enabled {
             let db = get_core_database();
             if let Ok(mut learner) = db.learner.write() {
-                if !typed_buffer.is_empty() {
+                // Only record candidate selection overrides for inputs > 2 characters
+                // to prevent short ambiguous tokens like "oi", "k", "to", "na" from being rigidly hijacked!
+                if typed_buffer.chars().count() > 2 {
                     learner.record_candidate_selection(&typed_buffer, &normalized);
                 }
                 learner.observe_and_learn(&normalized, &db.trie);
@@ -1956,23 +1977,52 @@ mod tests {
         let session = AndroidLekhaniSession::new();
         session.set_layout(LekhaniLayoutType::Avro);
 
-        // 1. Candidate selection records override and learns word
+        // 1. Candidate selection with frequency threshold:
+        // 1st selection (count = 1 < 2): protects against accidental fat-finger tap poisoning!
         let _ = session.process_key("k".into()).unwrap();
         let _ = session.process_key("o".into()).unwrap();
         let _ = session.process_key("r".into()).unwrap();
         let _ = session.process_key("m".into()).unwrap();
         let _ = session.process_key("o".into()).unwrap();
-        let sel = session.select_candidate("কৰ্ম".into()).unwrap();
-        assert_eq!(sel.commit_text, Some("কৰ্ম ".into()));
+        let sel1 = session.select_candidate("কৰ্ম".into()).unwrap();
+        assert_eq!(sel1.commit_text, Some("কৰ্ম ".into()));
 
         let db = get_core_database();
+        {
+            let learner = db.learner.read().unwrap();
+            // Single tap is NOT yet pinned to candidate_memory!
+            assert_eq!(learner.candidate_memory.get("kormo"), None);
+            assert_eq!(learner.candidate_selection_counts.get("kormo\tকৰ্ম"), Some(&1));
+        }
+
+        // 2nd selection (count = 2 >= 2): user explicitly confirms preference, now remembered!
+        let _ = session.process_key("k".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let _ = session.process_key("r".into()).unwrap();
+        let _ = session.process_key("m".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let sel2 = session.select_candidate("কৰ্ম".into()).unwrap();
+        assert_eq!(sel2.commit_text, Some("কৰ্ম ".into()));
+
         {
             let learner = db.learner.read().unwrap();
             assert_eq!(learner.candidate_memory.get("kormo"), Some(&"কৰ্ম".to_string()));
             assert!(learner.observed_counts.contains_key("কৰ্ম"));
         }
 
-        // Typing 'kormo' again must immediately yield user's remembered candidate as top-1
+        // Short token immunity: selecting "ঐ" for "oi" (length <= 2) must NEVER pin into candidate_memory
+        let _ = session.process_key("o".into()).unwrap();
+        let _ = session.process_key("i".into()).unwrap();
+        let _ = session.select_candidate("ঐ".into()).unwrap();
+        let _ = session.process_key("o".into()).unwrap();
+        let _ = session.process_key("i".into()).unwrap();
+        let _ = session.select_candidate("ঐ".into()).unwrap();
+        {
+            let learner = db.learner.read().unwrap();
+            assert_eq!(learner.candidate_memory.get("oi"), None);
+        }
+
+        // Typing 'kormo' again must yield user's remembered candidate as top-1
         let _ = session.process_key("k".into()).unwrap();
         let _ = session.process_key("o".into()).unwrap();
         let _ = session.process_key("r".into()).unwrap();
