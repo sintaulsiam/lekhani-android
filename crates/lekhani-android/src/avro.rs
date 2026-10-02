@@ -22,6 +22,34 @@ pub fn get_common_word_candidates(input: &str) -> Option<&'static [&'static str]
         .copied()
 }
 
+/// Prioritizes candidate matching static common words or data-driven phonetic overrides.
+/// Places the preferred candidate at position 0 without reallocating when possible.
+pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec<String>) {
+    if candidates.len() <= 1 {
+        return;
+    }
+    // 1. Check static common words (cold-start fallback)
+    if let Some(common_list) = get_common_word_candidates(input) {
+        if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {
+            let cand = candidates.remove(pos);
+            candidates.insert(0, cand);
+            return;
+        }
+    }
+    // 2. Check dynamic/bundled supervised phonetic overrides (phonetic_overrides.bin / json)
+    let lower = input.to_lowercase();
+    let db = crate::session::get_core_database();
+    if let Some(overrides) = db.lookup_override(input).or_else(|| db.lookup_override(&lower)) {
+        for (override_word, _score) in overrides {
+            if let Some(pos) = candidates.iter().position(|c| c == override_word) {
+                let cand = candidates.remove(pos);
+                candidates.insert(0, cand);
+                return;
+            }
+        }
+    }
+}
+
 fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]> {
     COMMON_WORDS.get_or_init(|| {
         let mut m = HashMap::new();
@@ -1016,6 +1044,14 @@ fn get_frequency_completions(prefix: &str, limit: usize) -> Vec<String> {
 mod tests {
     use super::*;
     use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn test_prioritize_common_or_override_candidate() {
+        let mut cands = vec!["অন্যকিছু".to_string(), "আমি".to_string()];
+        prioritize_common_or_override_candidate("ami", &mut cands);
+        assert_eq!(cands[0], "আমি");
+    }
 
     #[test]
     #[serial]

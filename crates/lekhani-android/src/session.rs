@@ -781,12 +781,7 @@ impl AndroidLekhaniSession {
                     let scorer = get_context_scorer();
                     let right_word = state.right_context.split_whitespace().next();
                     scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
-                    if let Some(common_list) = crate::avro::get_common_word_candidates(&state.composing_buffer) {
-                        if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {
-                            let cand = candidates.remove(pos);
-                            candidates.insert(0, cand);
-                        }
-                    }
+                    crate::avro::prioritize_common_or_override_candidate(&state.composing_buffer, &mut candidates);
                 }
                 let len = preedit.graphemes(true).count() as u32;
                 Ok(TypingResult {
@@ -1457,12 +1452,7 @@ impl AndroidLekhaniSession {
                         let right_word = state.right_context.split_whitespace().next();
                         candidates = scorer.rank_candidates_bidirectional(&words, right_word, &candidates);
                     }
-                    if let Some(common_list) = crate::avro::get_common_word_candidates(&raw) {
-                        if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {
-                            let cand = candidates.remove(pos);
-                            candidates.insert(0, cand);
-                        }
-                    }
+                    crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
                     if (raw.ends_with('o') || raw.ends_with('O'))
                         && preedit.ends_with('ো')
                         && candidates.contains(&preedit)
