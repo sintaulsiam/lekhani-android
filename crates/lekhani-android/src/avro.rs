@@ -217,6 +217,41 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("ashbo", &["আসবো", "আসব"][..]);
         m.insert("korbo", &["করবো", "করব"][..]);
         m.insert("jabo", &["যাবো", "যাব"][..]);
+
+        // Conversational single-letter standalone words & currency
+        m.insert("r", &["আর", "র"][..]);
+        m.insert("o", &["ও", "অ"][..]);
+        m.insert("e", &["এ"][..]);
+        m.insert("k", &["কে", "ক"][..]);
+        m.insert("b", &["বা", "ব"][..]);
+        m.insert("tk", &["৳", "টাকা", "তক"][..]);
+        m.insert("taka", &["টাকা", "৳"][..]);
+
+        // Khanda-Ta (ৎ) auto-words (resolving desktop Avro t` on mobile)
+        m.insert("biddut", &["বিদ্যুৎ"][..]);
+        m.insert("bidyut", &["বিদ্যুৎ"][..]);
+        m.insert("utshob", &["উৎসব"][..]);
+        m.insert("utsob", &["উৎসব"][..]);
+        m.insert("utshah", &["উৎসাহ"][..]);
+        m.insert("utshaho", &["উৎসাহ"][..]);
+        m.insert("hotat", &["হঠাৎ"][..]);
+        m.insert("hothat", &["হঠাৎ"][..]);
+        m.insert("jotshna", &["জ্যোৎস্না", "জোছনা"][..]);
+        m.insert("jotsna", &["জ্যোৎস্না", "জোছনা"][..]);
+
+        // Anusvara (ং) & Bisarga (ঃ) auto-words
+        m.insert("shongstha", &["সংস্থা"][..]);
+        m.insert("songstha", &["সংস্থা"][..]);
+        m.insert("shongram", &["সংগ্রাম"][..]);
+        m.insert("songram", &["সংগ্রাম"][..]);
+        m.insert("dukkho", &["দুঃখ"][..]);
+        m.insert("dukho", &["দুঃখ"][..]);
+        m.insert("shothik", &["সঠিক"][..]);
+        m.insert("sothik", &["সঠিক"][..]);
+        m.insert("bissho", &["বিশ্ব"][..]);
+        m.insert("bishsho", &["বিশ্ব"][..]);
+        m.insert("ryab", &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}"][..]);
+        m.insert("rab", &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}", "রব"][..]);
         m
     })
 }
@@ -229,6 +264,16 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     if input.is_empty() {
         return (String::new(), Vec::new());
     }
+
+    // Soft apostrophe escape: mobile users type ' as a consonant/vowel separator (e.g. k'kh -> k`kh -> কখ)
+    let escaped_storage: String;
+    let effective_input = if input.contains('\'') {
+        escaped_storage = input.replace('\'', "`");
+        escaped_storage.as_str()
+    } else {
+        input
+    };
+    let input = effective_input;
 
     let lower = input.to_lowercase();
     let db = crate::session::get_core_database();
@@ -928,5 +973,41 @@ mod tests {
         // 9. Multi-word fluid phrase segmentation: "kemonaso" -> "কেমন আছো"
         let (_, kemonaso_cands) = transliterate_avro("kemonaso");
         assert!(kemonaso_cands.iter().any(|c| c == "কেমন আছো" || c == "কেমন আছেন"), "kemonaso should offer segmented phrase");
+
+        // 10. Standalone chat words: "r" -> offers "আর" alongside "র"
+        let (_, r_cands) = transliterate_avro("r");
+        assert!(r_cands.contains(&"আর".to_string()), "r should offer আর as candidate");
+
+        // 11. Khanda-Ta (ৎ) auto-words: "biddut" -> "বিদ্যুৎ", "utshob" -> "উৎসব", "hotat" -> "হঠাৎ"
+        let (biddut, _) = transliterate_avro("biddut");
+        assert_eq!(biddut, "বিদ্যুৎ", "biddut should produce বিদ্যুৎ");
+
+        let (utshob, _) = transliterate_avro("utshob");
+        assert_eq!(utshob, "উৎসব", "utshob should produce উৎসব");
+
+        let (hotat, _) = transliterate_avro("hotat");
+        assert_eq!(hotat, "হঠাৎ", "hotat should produce হঠাৎ");
+
+        // 12. Bisarga (ঃ) & Anusvara (ং): "dukkho" -> "দুঃখ", "shongstha" -> "সংস্থা"
+        let (dukkho, _) = transliterate_avro("dukkho");
+        assert_eq!(dukkho, "দুঃখ", "dukkho should produce দুঃখ");
+
+        let (shongstha, _) = transliterate_avro("shongstha");
+        assert_eq!(shongstha, "সংস্থা", "shongstha should produce সংস্থা");
+
+        // 13. Currency symbols: "tk" -> offers "৳"
+        let (_, tk_cands) = transliterate_avro("tk");
+        assert!(tk_cands.contains(&"৳".to_string()), "tk should offer ৳ as candidate");
+
+        // 14. Soft apostrophe escape: "k'kh" -> "কখ", while "kkh" -> "ক্ষ"
+        let (k_kh, _) = transliterate_avro("k'kh");
+        assert_eq!(k_kh, "কখ", "k'kh must escape conjunct and produce কখ");
+
+        let (kkh, _) = transliterate_avro("kkh");
+        assert_eq!(kkh, "ক্ষ", "kkh without escape must produce ক্ষ");
+
+        // 15. ZWJ Ya-phala with Ra: "ryab" -> "র‍্যাব"
+        let (ryab, _) = transliterate_avro("ryab");
+        assert_eq!(ryab, "\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}", "ryab should produce র‍্যাব");
     }
 }

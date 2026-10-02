@@ -197,6 +197,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var lastCopiedText: String? = null
     private var lastCopiedTime: Long = 0L
     private var isQuickChipDismissed: Boolean = false
+    private var lastAutoDariCommitTime: Long = 0L
 
     // ── WebView / Chromium composing shadow buffer ─────────────────────────────
 
@@ -2001,11 +2002,52 @@ class LekhaniInputMethodService : InputMethodService() {
                     } else {
                         "$text "
                     }
+                } else if (text == "।") {
+                    val before = try { ic.getTextBeforeCursor(4, 0)?.toString() } catch (_: Exception) { null }
+                    if (before != null && (before.endsWith("।। ") || before.endsWith("।।"))) {
+                        // 3rd dot typed in succession -> convert to ellipsis "… "
+                        ic.beginBatchEdit()
+                        try {
+                            val delLen = if (before.endsWith("।। ")) 3 else 2
+                            ic.deleteSurroundingText(delLen, 0)
+                            ic.commitText("… ", 1)
+                            preeditShadow = ""
+                            rawInputBuffer.clear()
+                            lastAutoDariCommitTime = 0L
+                        } finally {
+                            ic.endBatchEdit()
+                        }
+                        updateAutoCaps()
+                        return
+                    } else if (before != null && (before.endsWith("। ") || before.endsWith("।"))) {
+                        // 2nd dot typed in succession -> convert to Double Dari "।। "
+                        ic.beginBatchEdit()
+                        try {
+                            val delLen = if (before.endsWith("। ")) 2 else 1
+                            ic.deleteSurroundingText(delLen, 0)
+                            ic.commitText("।। ", 1)
+                            preeditShadow = ""
+                            rawInputBuffer.clear()
+                            lastAutoDariCommitTime = 0L
+                        } finally {
+                            ic.endBatchEdit()
+                        }
+                        updateAutoCaps()
+                        return
+                    } else {
+                        "$text "
+                    }
                 } else {
                     "$text "
                 }
             } else {
                 text
+            }
+
+            if (text == "।") {
+                lastAutoDariCommitTime = android.os.SystemClock.uptimeMillis()
+            } else {
+                lastAutoDariCommitTime = 0L
             }
 
             ic.beginBatchEdit()
@@ -2119,6 +2161,20 @@ class LekhaniInputMethodService : InputMethodService() {
      * (e.g. 'লকে' + backspace leaves 'লক') rather than deleting entire [consonant + vowel kar] clusters.
      */
     private fun handleScriptAwareBackspace(ic: InputConnection) {
+        // Smart Reversion: If user typed '.' which auto-converted to '। ',
+        // tapping Backspace within 2.5 seconds reverts '। ' back to '.'
+        if (lastAutoDariCommitTime > 0 && (android.os.SystemClock.uptimeMillis() - lastAutoDariCommitTime <= 2500)) {
+            val textBeforeDari = try { ic.getTextBeforeCursor(3, 0)?.toString() } catch (_: Exception) { null }
+            if (textBeforeDari != null && (textBeforeDari.endsWith("। ") || textBeforeDari.endsWith("।"))) {
+                val delLen = if (textBeforeDari.endsWith("। ")) 2 else 1
+                ic.deleteSurroundingText(delLen, 0)
+                ic.commitText(".", 1)
+                lastAutoDariCommitTime = 0L
+                return
+            }
+        }
+        lastAutoDariCommitTime = 0L
+
         val textBefore = try {
             ic.getTextBeforeCursor(4, 0)?.toString()
         } catch (_: Exception) {
