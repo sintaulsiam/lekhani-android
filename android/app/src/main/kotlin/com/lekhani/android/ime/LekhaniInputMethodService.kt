@@ -2563,8 +2563,36 @@ class LekhaniInputMethodService : InputMethodService() {
                 filtered.remove(rawInput)
                 filtered.add(0, rawInput)
                 val isCode = keyboardPrefs.codeShieldEnabled && SmartAssistant.isCodeToken(rawInput)
-                primaryIndex = if (isCode || filtered.size <= 1) 0 else 1
                 verbatimIndex = 0
+
+                // 1st place: Raw English input (filtered[0])
+                // 2nd place: Direct transliteration (filtered[1])
+                // 3rd place: Corrected word if mistyped (filtered[2])
+                val hasTypoCorrection = filtered.size >= 3 && run {
+                    val direct = filtered[1]
+                    val corr = filtered[2]
+                    // If candidate at 3rd place does not start with the root of the direct conversion,
+                    // it is a QWERTY fat-finger typo auto-correction (e.g. "krmon" -> direct "ক্রমন", corr "কেমন")
+                    val prefixLen = minOf(2, minOf(direct.length, corr.length))
+                    prefixLen > 0 && !corr.startsWith(direct.take(prefixLen)) && !direct.startsWith(corr.take(prefixLen))
+                }
+
+                primaryIndex = when {
+                    isCode || filtered.size <= 1 -> 0
+                    hasTypoCorrection -> 2  // Highlight 3rd place (the correction) when mistyped
+                    else -> 1              // Highlight 2nd place (direct conversion) normally
+                }
+            } else {
+                // If English preview disabled:
+                // 1st place: Direct conversion (filtered[0])
+                // 2nd place: Corrected word if mistyped (filtered[1])
+                val hasTypoCorrection = filtered.size >= 2 && run {
+                    val direct = filtered[0]
+                    val corr = filtered[1]
+                    val prefixLen = minOf(2, minOf(direct.length, corr.length))
+                    prefixLen > 0 && !corr.startsWith(direct.take(prefixLen)) && !direct.startsWith(corr.take(prefixLen))
+                }
+                primaryIndex = if (hasTypoCorrection) 1 else 0
             }
         }
 
