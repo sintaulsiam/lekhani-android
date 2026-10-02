@@ -710,7 +710,7 @@ impl AndroidLekhaniSession {
                     0
                 };
                 let words = &words_buf[..count];
-                let (mut preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, words);
+                let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, words);
                 let has_candidate_memory = {
                     let db = get_core_database();
                     db.learner.read().ok().is_some_and(|l| {
@@ -726,9 +726,6 @@ impl AndroidLekhaniSession {
                             let cand = candidates.remove(pos);
                             candidates.insert(0, cand);
                         }
-                    }
-                    if let Some(top) = candidates.first() {
-                        preedit = top.clone();
                     }
                 }
                 let len = preedit.graphemes(true).count() as u32;
@@ -1266,13 +1263,10 @@ impl AndroidLekhaniSession {
                     } else {
                         Vec::new()
                     };
-                    let (mut preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, &words);
+                    let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, &words);
                     if !words.is_empty() && candidates.len() > 1 {
                         let scorer = get_context_scorer();
                         candidates = scorer.rank_candidates(&words, &candidates);
-                        if let Some(top) = candidates.first() {
-                            preedit = top.clone();
-                        }
                     }
                     let len = preedit.graphemes(true).count() as u32;
                     Ok(TypingResult {
@@ -1772,7 +1766,8 @@ mod tests {
         let _ = session.process_key("o".into()).unwrap();
         let _ = session.process_key("r".into()).unwrap();
         let res_book = session.process_key("a".into()).unwrap();
-        assert_eq!(res_book.preedit, "পড়া");
+        // In-flight preedit strictly equals the typed phonetic rule, while candidate strip has AI homophone rank
+        assert_eq!(res_book.preedit, "পরা");
         assert_eq!(res_book.candidates.first().map(|s| s.as_str()), Some("পড়া"));
         let commit_book = session.handle_space().unwrap();
         assert_eq!(commit_book.commit_text, Some("পড়া ".into()));
@@ -1801,7 +1796,10 @@ mod tests {
         session2.process_key("r".into()).unwrap();
         let res_cont = session2.process_key("a".into()).unwrap();
         println!("Continuous boi -> pora: preedit={}, candidates={:?}", res_cont.preedit, res_cont.candidates);
-        assert_eq!(res_cont.preedit, "পড়া");
+        assert_eq!(res_cont.preedit, "পরা");
+        assert_eq!(res_cont.candidates.first().map(|s| s.as_str()), Some("পড়া"));
+        let commit_cont = session2.handle_space().unwrap();
+        assert_eq!(commit_cont.commit_text, Some("পড়া ".into()));
 
         // 4. Continuous typing: "shirt" -> [space] -> "pora"
         let session3 = AndroidLekhaniSession::new();
