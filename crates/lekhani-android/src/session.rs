@@ -596,7 +596,7 @@ impl AndroidLekhaniSession {
             || key == "॥"
             || key == ","
             || key == ";"
-            || key == ":"
+            || (key == ":" && state.layout != LekhaniLayoutType::Avro)
             || key == "?"
             || key == "!"
             || key == "."
@@ -721,6 +721,12 @@ impl AndroidLekhaniSession {
                 if !has_candidate_memory && count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     scorer.rank_candidates_in_place(words, &mut candidates);
+                    if let Some(common_list) = crate::avro::get_common_word_candidates(&state.composing_buffer) {
+                        if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {
+                            let cand = candidates.remove(pos);
+                            candidates.insert(0, cand);
+                        }
+                    }
                     if let Some(top) = candidates.first() {
                         preedit = top.clone();
                     }
@@ -1383,12 +1389,29 @@ impl AndroidLekhaniSession {
                             || l.candidate_memory.contains_key(&raw.to_lowercase())
                     })
                 };
-                let (_, mut candidates) = crate::avro::transliterate_avro_with_context(&raw, &words);
-                if !has_candidate_memory && !words.is_empty() && candidates.len() > 1 {
+                let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw, &words);
+                let chosen = if !has_candidate_memory && !words.is_empty() && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     candidates = scorer.rank_candidates(&words, &candidates);
-                }
-                let chosen = candidates.first().map(|s| s.as_str()).unwrap_or(&raw);
+                    if let Some(common_list) = crate::avro::get_common_word_candidates(&raw) {
+                        if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {
+                            let cand = candidates.remove(pos);
+                            candidates.insert(0, cand);
+                        }
+                    }
+                    if (raw.ends_with('o') || raw.ends_with('O'))
+                        && preedit.ends_with('ো')
+                        && candidates.contains(&preedit)
+                    {
+                        &preedit
+                    } else {
+                        candidates.first().map(|s| s.as_str()).unwrap_or(&raw)
+                    }
+                } else if !preedit.is_empty() {
+                    &preedit
+                } else {
+                    candidates.first().map(|s| s.as_str()).unwrap_or(&raw)
+                };
                 nfc_normalize(chosen)
             } else {
                 let db = get_core_database();

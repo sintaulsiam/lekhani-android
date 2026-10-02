@@ -206,7 +206,7 @@ fn run_comprehensive_typing_simulation() {
             println!("  Acceptable:      {:?}", tc.acceptable);
             println!("  Final Preedit:   '{}'", preedit);
             println!("  Committed Space: '{}'", committed);
-            println!("  Top Candidates:  {:?}", &candidates.iter().take(5).collect::<Vec<_>>());
+            println!("  Top Candidates:  {:?}", candidates.iter().take(5).collect::<Vec<_>>());
             print!("  Keystroke Steps: ");
             for (ch, pr, _) in steps {
                 print!("['{}' -> '{}'] ", ch, pr);

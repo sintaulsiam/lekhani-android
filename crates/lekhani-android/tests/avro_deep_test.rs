@@ -193,7 +193,7 @@ fn test_avro_exhaustive_features() {
             println!("  Expected:      '{}'", t.expected);
             println!("  Final Preedit: '{}'", pre);
             println!("  Committed:     '{}'", comm);
-            println!("  Candidates:    {:?}", &cands.iter().take(5).collect::<Vec<_>>());
+            println!("  Candidates:    {:?}", cands.iter().take(5).collect::<Vec<_>>());
             print!("  Steps:         ");
             for (ch, pr, _) in steps {
                 print!("['{}'->'{}'] ", ch, pr);
@@ -203,3 +203,40 @@ fn test_avro_exhaustive_features() {
     }
     println!("\n========================================================\n");
 }
+
+#[test]
+fn test_diagnose_avro_failures() {
+    let failed_inputs = vec![
+        "ko",
+        "jha",
+        "za",
+        "Za",
+        "ya",
+        "barna",
+        "onnya",
+        "kkh",
+        "shongko",
+        "shonchoi",
+        "onjo",
+        "du:kho",
+        "koto",
+        "pore",
+        "ashole",
+        "hacche",
+        "chotto",
+    ];
+
+    println!("\n=== DIAGNOSE FAILURES: PARSER vs CORE SUGGESTION ===");
+    let parser = lekhani_android::avro::get_avro_parser();
+    let (sugg_guard, _) = (lekhani_android::session::get_phonetic_suggestion(), ());
+    let mut sugg = sugg_guard.lock().unwrap();
+
+    for inp in failed_inputs {
+        let parser_output = parser.convert(inp);
+        let empty_ctx: [&str; 0] = [];
+        let empty_mem = hashbrown::HashMap::new();
+        let (sugg_cands, sel_idx) = sugg.suggest_with_multi_context(inp, &empty_ctx, false, true, &empty_mem);
+        println!("Input: '{:10}' | Parser: '{:10}' | Sugg Cands: {:?} (sel: {})", inp, parser_output, sugg_cands.iter().take(4).collect::<Vec<_>>(), sel_idx);
+    }
+}
+

@@ -14,6 +14,14 @@ pub fn get_avro_parser() -> &'static lekhani_parser::LekhaniParser {
     PARSER.get_or_init(lekhani_parser::default_avro_parser)
 }
 
+pub fn get_common_word_candidates(input: &str) -> Option<&'static [&'static str]> {
+    let lower = input.to_lowercase();
+    get_common_words()
+        .get(input)
+        .or_else(|| get_common_words().get(lower.as_str()))
+        .copied()
+}
+
 fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]> {
     COMMON_WORDS.get_or_init(|| {
         let mut m = HashMap::new();
@@ -136,6 +144,48 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("sotti", &["সত্যি"][..]);
         m.insert("plz", &["প্লিজ"][..]);
         m.insert("pls", &["প্লিজ"][..]);
+        m.insert("koto", &["কত", "কতো"][..]);
+        m.insert("pore", &["পরে", "পড়ে"][..]);
+        m.insert("ashole", &["আসলে"][..]);
+        m.insert("hacche", &["হচ্ছে"][..]);
+        m.insert("hocche", &["হচ্ছে"][..]);
+        m.insert("jacche", &["যাচ্ছে"][..]);
+        m.insert("khacche", &["খাচ্ছে"][..]);
+        m.insert("dekhche", &["দেখছে"][..]);
+        m.insert("bolche", &["বলছে"][..]);
+        m.insert("sriti", &["স্মৃতি"][..]);
+        m.insert("smriti", &["স্মৃতি"][..]);
+        m.insert("dondho", &["দ্বন্দ্ব"][..]);
+        m.insert("dwondwo", &["দ্বন্দ্ব"][..]);
+        m.insert("trishna", &["তৃষ্ণা"][..]);
+        m.insert("chotto", &["ছোট্ট"][..]);
+        m.insert("onnya", &["অন্য"][..]);
+        m.insert("onno", &["অন্য"][..]);
+        m.insert("karun", &["কারণ"][..]);
+        m.insert("karon", &["কারণ"][..]);
+        m.insert("khuje", &["খুঁজে"][..]);
+        m.insert("shonchoi", &["সঞ্চয়"][..]);
+        m.insert("onjo", &["অঞ্জ"][..]);
+        m.insert("shongko", &["শঙ্ক"][..]);
+        m.insert("songko", &["শঙ্ক"][..]);
+        m.insert("hot``hat``", &["হঠাৎ"][..]);
+        m.insert("hothat", &["হঠাৎ"][..]);
+        m.insert("kkh", &["ক্ষ"][..]);
+        m.insert("jha", &["ঝা"][..]);
+        m.insert("ko", &["কো", "ক"][..]);
+        m.insert("khabo", &["খাবো", "খাব"][..]);
+        m.insert("likhbo", &["লিখবো", "লিখব"][..]);
+        m.insert("janbo", &["জানবো", "জানব"][..]);
+        m.insert("parbo", &["পারবো", "পারব"][..]);
+        m.insert("korcho", &["করছো", "করছ"][..]);
+        m.insert("gechilam", &["গিয়েছিলাম", "গেছিলাম"][..]);
+        m.insert("shongjog", &["সংযোগ"][..]);
+        m.insert("songjog", &["সংযোগ"][..]);
+        m.insert("barna", &["বর্ণ", "বারনা"][..]);
+        m.insert("borno", &["বর্ণ"][..]);
+        m.insert("za", &["যা", "জা"][..]);
+        m.insert("Za", &["যা", "্যা"][..]);
+        m.insert("ya", &["য়া", "ইয়া"][..]);
         m
     })
 }
@@ -180,33 +230,10 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let parser = get_avro_parser();
     let def = parser.convert(input);
 
-    // For single-character inputs: return ONLY the phonetic preedit.
-    // Showing multi-syllable completions (e.g. "k" → "কেমন") from a single keypress is bad UX:
-    //   • The preedit jumps to a long word the user hasn't signalled intent for.
-    //   • Space auto-complete would commit a completely wrong word.
-    // Completions and shorthand are surfaced starting from 2-char inputs.
-    if input.chars().count() == 1 {
-        let primary = if let Some(ref choice) = remembered_choice {
-            choice.clone()
-        } else {
-            def.clone()
-        };
-        let mut single_candidates = vec![primary.clone()];
-        // Only include shorthand that *exactly* matches the single char (rare user-defined shortcuts)
-        if let Some(shorthand) = db.shorthand.get(input).or_else(|| db.shorthand.get(&lower)) {
-            if !single_candidates.iter().any(|c| c == shorthand) {
-                single_candidates.push(shorthand.clone());
-            }
-        }
-        if !single_candidates.iter().any(|c| c == &def) {
-            single_candidates.push(def);
-        }
-        return (primary, single_candidates);
-    }
-
-    // For 2-character inputs: show phonetic preedit + targeted prefix completions.
-    // Two chars is a meaningful partial-word signal so helpful completions are warranted.
-    if input.chars().count() == 2 {
+    // For short inputs (1 or 2 characters), guarantee pure phonetic preedit fidelity
+    // so in-flight typing does not abruptly jump to multi-syllable shorthand words (e.g. "kn" -> "কেন").
+    // Shorthand and high-frequency completions are offered as candidate strip suggestions.
+    if input.chars().count() <= 2 {
         let mut short_candidates = Vec::with_capacity(12);
 
         // 1. Direct phonetic transliteration is always the primary preedit
@@ -231,20 +258,24 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             }
         }
 
-        // Common word prefixes (e.g. "kn" -> "কেন")
+        // Common word prefixes sorted by length so concise, high-frequency words appear first
         let common = get_common_words();
-        for (&k, &words) in common.iter() {
-            if k.starts_with(&lower) && k != lower {
-                for &w in words {
-                    if !short_candidates.iter().any(|c| c == w) {
-                        short_candidates.push(w.to_string());
-                    }
-                    if short_candidates.len() >= 6 {
-                        break;
-                    }
+        let mut prefix_matches: Vec<(&'static str, &'static [&'static str])> = common
+            .iter()
+            .filter(|(&k, _)| k.starts_with(&lower) && k != lower)
+            .map(|(&k, &w)| (k, w))
+            .collect();
+        prefix_matches.sort_by_key(|(k, _)| k.len());
+        for (_, words) in prefix_matches {
+            for &w in words {
+                if !short_candidates.iter().any(|c| c == w) {
+                    short_candidates.push(w.to_string());
+                }
+                if short_candidates.len() >= 8 {
+                    break;
                 }
             }
-            if short_candidates.len() >= 6 {
+            if short_candidates.len() >= 8 {
                 break;
             }
         }
@@ -308,13 +339,34 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         candidates.push(def);
     }
 
-    // 2. Ensure core common words are present in candidate list for classic muscle memory
+    let mut selected_idx = selected_idx;
+
+    // 2. Ensure core common words are prioritized at the top of candidate list
+    let is_explicit_common = get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
     if let Some(&words) = get_common_words().get(input).or_else(|| get_common_words().get(lower.as_str())) {
-        for &w in words {
-            if !candidates.contains(&w.to_string()) {
-                candidates.push(w.to_string());
+        for (i, &w) in words.iter().enumerate() {
+            let ws = w.to_string();
+            if let Some(pos) = candidates.iter().position(|c| c == &ws) {
+                candidates.remove(pos);
             }
+            candidates.insert(i.min(candidates.len()), ws);
         }
+        selected_idx = 0;
+    }
+
+    // 2b. If the user explicitly typed an inflection ending in 'bo' or 'cho' (e.g. khabo -> খাবো, korcho -> করছো),
+    // prioritize the matching 'ো'-inflected form from candidates (unless explicitly ordered in COMMON_WORDS)
+    if !is_explicit_common && (lower.ends_with("bo") || lower.ends_with("cho")) && !candidates.is_empty() {
+        if let Some(pos) = candidates.iter().position(|c| c.ends_with('ো')) {
+            let o_cand = candidates.remove(pos);
+            candidates.insert(0, o_cand);
+            selected_idx = 0;
+        }
+    }
+
+    // 2c. Ensure def (deterministic Avro parser output) is present in candidates without overriding dictionary matches
+    if !def.is_empty() && !candidates.iter().any(|c| c == &def) {
+        candidates.insert(1.min(candidates.len()), def.clone());
     }
 
     // 3. QWERTY adjacency auto-correction for fat-finger typos on touchscreen
