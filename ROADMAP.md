@@ -248,8 +248,17 @@
   - Explicit uppercase characters (`D`, `T`, `R`, `S`, `N`, `Z`) automatically prioritize exact deterministic conversion at candidate index 0 (`Daktar` ➔ `ডাক্তার`, `poRa` ➔ `পড়া`).
 - [x] **Agglutinative Morphology & Suffix Chaining**:
   - Suffix and clitic Sandhi decomposition for inflected vocabulary (`bristite` ➔ `বৃষ্টিতে`, `deshgulor` ➔ `দেশগুলোর`).
-- [x] **Two-Tiered QWERTY Touch Adjacency Recovery**:
-  - Prioritizes high-frequency conversational candidates followed by full dictionary verification for fat-finger typo recovery (`bhslo` ➔ `ভালো`, `smi` ➔ `আমি`).
+- [x] **Pure Avro Guarantee & Three-Track Candidate Strip Architecture**:
+  - Center-anchored direct conversion (Slot 1) with non-intrusive English escape hatch (Slot 0) and pure deterministic Avro fallback (Slot 2) ensuring users can write anything (dialects, proper nouns, Sanskrit roots, loanwords).
+  - Explicit Spacebar long-press `commitForceAvro()` bypassing overrides.
+- [x] **Frictionless Backspace Undo**:
+  - Tapping Backspace within 2.5 seconds of a Spacebar auto-substitution seamlessly reverts the committed text and restores the active composing state without data loss.
+- [x] **Phonetic & Morphological Bug Fixes**:
+  - Full support for official Avro backtick conjunct breakers (`r`y` ➔ `র‍্যাব`, `k`k` ➔ `কক`).
+  - Short English vocabulary unblocking (`ok`, `hi`, `fb`, `id`, `no`, `go`, `to`, `app`, `api`, `otp`) in Avro mode.
+  - Sentence-initial Titlecase smart frequency promotion (`Din` ➔ `দিন` over rare `ডিন`, `Tara` ➔ `তারা` over `টারা`).
+  - Dual Bengali/Latin numeral and currency conversion (`1234` ➔ `১২৩৪` & `1234`, `$100` ➔ `৳১০০` & `$100`).
+  - Autonomous error-pattern memory shielded from Latin/ASCII candidate pollution.
 - [ ] Offline Voice ASR On-Demand Model Downloader UI with zero network telemetry integrity.
 - [ ] Desktop / Samsung DeX hardware keyboard shortcut mappings (`Ctrl+A`, `Ctrl+C`, `Ctrl+V`, `Shift+Space`).
 - [ ] Final reproducible F-Droid recipe and Google Play Store packaging.
