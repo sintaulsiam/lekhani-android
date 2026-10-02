@@ -245,6 +245,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private var layout: KeyboardLayout? = null
     private var layoutType: com.lekhani.android.ffi.LekhaniLayoutType = com.lekhani.android.ffi.LekhaniLayoutType.PROBAHO
     private var isShifted: Boolean = false
+    private var isCapsLock: Boolean = false
+    private var lastShiftTapTime: Long = 0L
+
+    val isShiftLocked: Boolean
+        get() = isCapsLock
 
     /**
      * A resolved key pairs a [Key] with its computed pixel [RectF].
@@ -745,6 +750,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         layout = newLayout
         layoutType = newLayoutType
         isShifted = shifted
+        isCapsLock = false
         isGboardKarsActive = false
         gboardActiveConsonant = ""
         pressedKeyIndex = -1
@@ -760,6 +766,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     fun setShifted(shifted: Boolean) {
+        if (!shifted) {
+            isCapsLock = false
+        }
         if (isShifted != shifted) {
             isShifted = shifted
             accessibilityHelper.invalidateRoot()
@@ -768,7 +777,22 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     fun toggleShift(): Boolean {
-        isShifted = !isShifted
+        val now = android.os.SystemClock.uptimeMillis()
+        if (isCapsLock) {
+            isCapsLock = false
+            isShifted = false
+        } else if (isShifted) {
+            // Double-tap shift within 500ms activates Caps Lock
+            if (now - lastShiftTapTime <= 500) {
+                isCapsLock = true
+                isShifted = true
+            } else {
+                isShifted = false
+            }
+        } else {
+            isShifted = true
+        }
+        lastShiftTapTime = now
         accessibilityHelper.invalidateRoot()
         invalidate()
         return isShifted
@@ -1263,7 +1287,17 @@ class KeyboardCanvasView @JvmOverloads constructor(
         vectorIconPath.lineTo(cx - halfW, cy - totalHalfH + headH)
         vectorIconPath.close()
 
-        if (isShifted || isLocked) {
+        if (isLocked) {
+            fillPaint.color = activeTheme.accentColor
+            canvas.drawPath(vectorIconPath, fillPaint)
+            // Underline bar under the arrow to indicate locked state
+            val barY = cy + totalHalfH + size * 0.14f
+            val oldStrokeWidth = strokePaint.strokeWidth
+            strokePaint.color = activeTheme.accentColor
+            strokePaint.strokeWidth = size * 0.12f
+            canvas.drawLine(cx - halfW * 0.75f, barY, cx + halfW * 0.75f, barY, strokePaint)
+            strokePaint.strokeWidth = oldStrokeWidth
+        } else if (isShifted) {
             fillPaint.color = activeTheme.accentColor
             canvas.drawPath(vectorIconPath, fillPaint)
         } else {
@@ -1508,7 +1542,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 KeyAction.Shift -> {
                     val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
-                    drawVectorShift(canvas, cx, drawBounds.centerY(), iconSize, isShifted, false, vectorIconStrokePaint, vectorIconFillPaint)
+                    drawVectorShift(canvas, cx, drawBounds.centerY(), iconSize, isShifted, isCapsLock, vectorIconStrokePaint, vectorIconFillPaint)
                 }
                 KeyAction.Enter -> {
                     val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
@@ -2215,8 +2249,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyListener?.onKey(key, action)
         keyListener?.onKeyWithTouch(key, action, touchStartX, touchStartY)
 
-        // Auto-release shift after one character (one-shot shift)
-        if (isShifted && action !is KeyAction.Shift) {
+        // Auto-release shift after one character (one-shot shift), unless Caps Lock is active
+        if (isShifted && !isCapsLock && action !is KeyAction.Shift) {
             isShifted = false
             invalidate()
         }
@@ -2283,7 +2317,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
             KeyAction.Space -> "স্পেসবার (Spacebar)"
             KeyAction.Backspace -> "ব্যাকস্পেস (Backspace)"
             KeyAction.Enter -> "এন্টার (Enter)"
-            KeyAction.Shift -> if (shifted) "শিফট সক্রিয় (Shift Active)" else "শিফট (Shift)"
+            KeyAction.Shift -> when {
+                isCapsLock -> "ক্যাপস লক সক্রিয় (Caps Lock Active)"
+                shifted -> "শিফট সক্রিয় (Shift Active)"
+                else -> "শিফট (Shift)"
+            }
             KeyAction.SwitchNumeric -> "সংখ্যা ও প্রতীক (Numbers and symbols)"
             KeyAction.SwitchMoreSymbols -> "অতিরিক্ত প্রতীক (More symbols)"
             KeyAction.SwitchAlpha -> "বর্ণমালা (Alphabet)"

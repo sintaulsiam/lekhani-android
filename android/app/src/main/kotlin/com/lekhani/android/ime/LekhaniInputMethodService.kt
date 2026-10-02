@@ -467,6 +467,7 @@ class LekhaniInputMethodService : InputMethodService() {
         session.setAutoLearnEnabled(keyboardPrefs.autoLearnWordsEnabled)
         updateCandidatesVisibility()
         checkAndShowQuickChip()
+        updateAutoCaps()
     }
 
     override fun onWindowHidden() {
@@ -532,6 +533,7 @@ class LekhaniInputMethodService : InputMethodService() {
             // Finalize any stale composing span in editor and refresh surrounding context.
             currentInputConnection?.finishComposingText()
             refreshSurroundingContext()
+            updateAutoCaps()
         }
 
         // Contextual Text Selection Toolbar shown whenever text is highlighted
@@ -1529,6 +1531,7 @@ class LekhaniInputMethodService : InputMethodService() {
         session.reset()
         keyboardView?.setShifted(false)
         keyboardView?.setGboardKarsActive(false)
+        updateAutoCaps()
     }
 
     fun getEnabledLayouts(): List<LekhaniLayoutType> {
@@ -1872,7 +1875,7 @@ class LekhaniInputMethodService : InputMethodService() {
         updateGboardDynamicRow(keyToken)
 
         result.commitText?.let { text ->
-            val isPunctuation = text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',', '.')
+            val isPunctuation = !isUrlOrEmailOrNumericField() && text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',', '.')
             val finalText = if (isPunctuation) {
                 if (text == ",") {
                     val before = try { ic.getTextBeforeCursor(1, 0)?.toString() } catch (_: Exception) { null }
@@ -1903,9 +1906,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 ic.endBatchEdit()
             }
 
-            if (session.getLayout() == LekhaniLayoutType.ENGLISH && text.length == 1 && text[0] in listOf('.', '?', '!')) {
-                keyboardView?.setShifted(true)
-            }
+            updateAutoCaps()
 
             // Publish next-word candidates immediately if the engine returned them,
             // so the strip cross-fades instead of collapsing then re-expanding (jitter fix).
@@ -1991,6 +1992,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.setGboardKarsActive(false)
             }
             clearCandidates()
+            updateAutoCaps()
         }
     }
 
@@ -2037,7 +2039,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // 0. Double-tap space shortcut: insert Bengali Dāṛi ("। ") or English period (". ")
         val now = android.os.SystemClock.uptimeMillis()
-        if (keyboardPrefs.doubleSpaceDariEnabled && !session.isComposing() && (now - lastSpaceTapTime <= 450)) {
+        if (keyboardPrefs.doubleSpaceDariEnabled && !session.isComposing() && !isUrlOrEmailOrNumericField() && (now - lastSpaceTapTime <= 450)) {
             val textBefore = try { ic.getTextBeforeCursor(6, 0)?.toString() } catch (_: Exception) { null }
             if (textBefore != null && textBefore.endsWith(" ") && textBefore.length >= 2) {
                 val prevChar = textBefore[textBefore.length - 2]
@@ -2122,6 +2124,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // After committing a word, refresh surrounding context for AI scorer
         refreshSurroundingContext()
+        updateAutoCaps()
     }
 
     /**
@@ -2260,6 +2263,7 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         devicePrefs.edit().putString(PREF_LAYOUT, layout.name).apply()
         refreshSurroundingContext()
+        updateAutoCaps()
         Log.i(TAG, "Layout switched to $layout")
     }
 
@@ -2923,6 +2927,85 @@ class LekhaniInputMethodService : InputMethodService() {
                 restoreAlphaKeyboard()
             }
         }
+    }
+
+    fun isUrlOrEmailOrNumericField(): Boolean {
+        if (isNumericMode || isNumericFieldMode || isPhoneDialpadMode) return true
+        val info = currentInputEditorInfo ?: return false
+        val inputClass = info.inputType and InputType.TYPE_MASK_CLASS
+        if (inputClass == InputType.TYPE_CLASS_NUMBER ||
+            inputClass == InputType.TYPE_CLASS_PHONE ||
+            inputClass == InputType.TYPE_CLASS_DATETIME) {
+            return true
+        }
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        return variation == InputType.TYPE_TEXT_VARIATION_URI ||
+               variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
+               variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS ||
+               variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+               variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+               variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
+               variation == InputType.TYPE_TEXT_VARIATION_FILTER
+    }
+
+    /**
+     * Dynamically updates the Shift state for the English layout based on cursor position,
+     * sentence boundaries (including Bengali Dari '।'), and editor capitalization flags.
+     */
+    fun updateAutoCaps() {
+        if (session.getLayout() != LekhaniLayoutType.ENGLISH) return
+        val kv = keyboardView ?: return
+        if (kv.isShiftLocked) return
+        val ic = currentInputConnection ?: return
+        val info = currentInputEditorInfo ?: return
+        val inputType = info.inputType
+        val inputClass = inputType and InputType.TYPE_MASK_CLASS
+        if (inputClass != InputType.TYPE_CLASS_TEXT) {
+            kv.setShifted(false)
+            return
+        }
+
+        val variation = inputType and InputType.TYPE_MASK_VARIATION
+        if (variation == InputType.TYPE_TEXT_VARIATION_URI ||
+            variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
+            variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS ||
+            variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+            variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+            variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
+            variation == InputType.TYPE_TEXT_VARIATION_FILTER) {
+            kv.setShifted(false)
+            return
+        }
+
+        var reqModes = 0
+        if ((inputType and InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS) != 0) {
+            reqModes = reqModes or android.text.TextUtils.CAP_MODE_CHARACTERS
+        }
+        if ((inputType and InputType.TYPE_TEXT_FLAG_CAP_WORDS) != 0) {
+            reqModes = reqModes or android.text.TextUtils.CAP_MODE_WORDS
+        }
+        if ((inputType and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES) != 0) {
+            reqModes = reqModes or android.text.TextUtils.CAP_MODE_SENTENCES
+        }
+        if (reqModes == 0) {
+            reqModes = android.text.TextUtils.CAP_MODE_SENTENCES
+        }
+
+        var shouldShift = try {
+            ic.getCursorCapsMode(reqModes) != 0
+        } catch (_: Exception) {
+            false
+        }
+
+        // Support Bengali Dari ('।') as sentence terminator for English
+        if (!shouldShift) {
+            val textBefore = try { ic.getTextBeforeCursor(4, 0)?.toString() } catch (_: Exception) { null }
+            if (textBefore != null && (textBefore.endsWith("। ") || textBefore.endsWith("।\n") || textBefore == "।")) {
+                shouldShift = true
+            }
+        }
+
+        kv.setShifted(shouldShift)
     }
 
     /**

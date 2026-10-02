@@ -102,4 +102,57 @@ class InputTypePolicyTest {
         val info = editorInfoWith(InputType.TYPE_NULL)
         assertEquals(false, isPrivateField(info))
     }
+
+    // ── URL, Email & Numeric Field Policy ─────────────────────────────────────
+
+    private fun isUrlOrEmailOrNumeric(info: EditorInfo): Boolean {
+        val inputClass = info.inputType and InputType.TYPE_MASK_CLASS
+        if (inputClass == InputType.TYPE_CLASS_NUMBER ||
+            inputClass == InputType.TYPE_CLASS_PHONE ||
+            inputClass == InputType.TYPE_CLASS_DATETIME) {
+            return true
+        }
+        val variation = info.inputType and InputType.TYPE_MASK_VARIATION
+        return variation == InputType.TYPE_TEXT_VARIATION_URI ||
+               variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
+               variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS ||
+               variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+               variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+               variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
+               variation == InputType.TYPE_TEXT_VARIATION_FILTER
+    }
+
+    @Test
+    fun `URI field suppresses punctuation auto spacing`() {
+        val info = editorInfoWith(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        assertEquals(true, isUrlOrEmailOrNumeric(info))
+    }
+
+    @Test
+    fun `Email field suppresses punctuation auto spacing`() {
+        val info = editorInfoWith(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
+        assertEquals(true, isUrlOrEmailOrNumeric(info))
+    }
+
+    @Test
+    fun `Web Email field suppresses punctuation auto spacing`() {
+        val info = editorInfoWith(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS)
+        assertEquals(true, isUrlOrEmailOrNumeric(info))
+    }
+
+    @Test
+    fun `Phone and Number fields suppress punctuation auto spacing`() {
+        val phoneInfo = editorInfoWith(InputType.TYPE_CLASS_PHONE)
+        val numInfo = editorInfoWith(InputType.TYPE_CLASS_NUMBER)
+        assertEquals(true, isUrlOrEmailOrNumeric(phoneInfo))
+        assertEquals(true, isUrlOrEmailOrNumeric(numInfo))
+    }
+
+    @Test
+    fun `Normal text field does not suppress punctuation auto spacing`() {
+        val normalInfo = editorInfoWith(InputType.TYPE_CLASS_TEXT)
+        val multilineInfo = editorInfoWith(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE)
+        assertEquals(false, isUrlOrEmailOrNumeric(normalInfo))
+        assertEquals(false, isUrlOrEmailOrNumeric(multilineInfo))
+    }
 }

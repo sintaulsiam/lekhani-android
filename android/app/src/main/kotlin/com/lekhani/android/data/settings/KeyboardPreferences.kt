@@ -191,7 +191,7 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_CODE_SHIELD_ENABLED, value).apply()
 
     var doubleSpaceDariEnabled: Boolean
-        get() = prefs.getBoolean(KEY_DOUBLE_SPACE_DARI_ENABLED, false)
+        get() = prefs.getBoolean(KEY_DOUBLE_SPACE_DARI_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_DOUBLE_SPACE_DARI_ENABLED, value).apply()
 
     var spacebarAutocompleteEnabled: Boolean
