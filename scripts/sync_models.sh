@@ -28,6 +28,8 @@ SYNC_FILES=(
     "dictionary.json"
     "autocorrect.json"
     "suffix.json"
+    "phonetic_overrides.json"
+    "phonetic_overrides.bin"
 )
 
 echo "╔══════════════════════════════════════════════════════════════════╗"

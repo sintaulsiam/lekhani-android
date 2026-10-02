@@ -28,7 +28,9 @@ object LekhaniAssetInstaller {
         "bengali_vocab.bin",
         "bengali_gru.bin",
         "autocorrect.json",
-        "suffix.json"
+        "suffix.json",
+        "phonetic_overrides.json",
+        "phonetic_overrides.bin"
     )
 
     private val BUNDLED_LAYOUTS = listOf(
