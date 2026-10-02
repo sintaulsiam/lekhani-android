@@ -424,6 +424,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // 3. QWERTY adjacency auto-correction for fat-finger typos on touchscreen
+    let mut typo_corrections = Vec::new();
     if lower.len() >= 3 {
         let chars: Vec<char> = lower.chars().collect();
         for (i, &ch) in chars.iter().enumerate() {
@@ -433,12 +434,29 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 let cand_key: String = sub.into_iter().collect();
                 if let Some(&words) = get_common_words().get(cand_key.as_str()) {
                     for &w in words {
-                        if !candidates.contains(&w.to_string()) {
-                            candidates.push(w.to_string());
+                        let ws = w.to_string();
+                        if !candidates.contains(&ws) && !typo_corrections.contains(&ws) {
+                            typo_corrections.push(ws);
                         }
                     }
                 }
             }
+        }
+    }
+
+    // If mistyped (not an explicit common word), place the top typo correction at candidate index 1
+    // (so UI strip has: 1st: Raw English, 2nd: Direct conversion, 3rd: Corrected word)
+    if !is_explicit_common && !typo_corrections.is_empty() {
+        for (idx, corr) in typo_corrections.into_iter().enumerate() {
+            if idx < 2 {
+                candidates.insert(1 + idx, corr);
+            } else {
+                candidates.push(corr);
+            }
+        }
+    } else {
+        for corr in typo_corrections {
+            candidates.push(corr);
         }
     }
 
@@ -569,12 +587,20 @@ mod tests {
     #[serial]
     fn test_qwerty_proximity_typo_correction() {
         // 's' is next to 'a' on QWERTY -> "smi" typo suggests "আমি"
-        let (_, cands_smi) = transliterate_avro("smi");
-        assert!(cands_smi.contains(&"আমি".to_string()));
+        // index 0: direct conversion "শমি"
+        // index 1: typo auto-correction "আমি"
+        let (pre_smi, cands_smi) = transliterate_avro("smi");
+        assert_eq!(pre_smi, "শমি");
+        assert_eq!(cands_smi.first().map(|s| s.as_str()), Some("শমি"));
+        assert_eq!(cands_smi.get(1).map(|s| s.as_str()), Some("আমি"));
 
         // 'i' is next to 'o' on QWERTY -> "bhali" typo suggests "ভালো"
-        let (_, cands_bhali) = transliterate_avro("bhali");
-        assert!(cands_bhali.contains(&"ভালো".to_string()));
+        // index 0: direct conversion "ভালী"
+        // index 1: typo auto-correction "ভালো"
+        let (pre_bhali, cands_bhali) = transliterate_avro("bhali");
+        assert_eq!(pre_bhali, "ভালি");
+        assert_eq!(cands_bhali.first().map(|s| s.as_str()), Some("ভালি"));
+        assert_eq!(cands_bhali.get(1).map(|s| s.as_str()), Some("ভালো"));
     }
 
     #[test]
