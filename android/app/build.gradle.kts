@@ -82,14 +82,16 @@ android {
 
     sourceSets {
         getByName("main") {
-            assets.srcDirs(
-                "src/main/assets",
-                file("${rootDir.parentFile}/data")
-            )
+            // Assets are maintained in src/main/assets — populated by the copyLekhaniAssets task.
+            // We do NOT use srcDirs to pull in the entire root data/ directory; that would bundle
+            // icons, JSON source files, dev-only models, and v1 fallback binaries into the APK.
+            assets.srcDir("src/main/assets")
         }
     }
 
     androidResources {
+        // Prevent aapt2 from compressing binary model and JSON files — they are read as raw
+        // byte streams by the Rust engine and must remain uncompressed for mmap-like access.
         noCompress += listOf("bin", "json")
     }
 
@@ -142,8 +144,91 @@ val cargoBuild = tasks.register<Exec>("cargoBuild") {
     }
 }
 
+// ── Lekhani Asset Staging ──────────────────────────────────────────────────────────────────────
+//
+// The canonical source of all runtime data files is the lekhani-engine repository's data/
+// directory. This task copies ONLY the files the Android app actually loads at runtime into
+// src/main/assets, making that directory the one true staging area for the APK asset pipeline.
+//
+// Files intentionally excluded from the APK:
+//   ✗ icons/**                – Desktop/web UI only; Android uses res/drawable
+//   ✗ phonetic_overrides.json – 1.8 MB JSON fallback; .bin is always present in prod
+//   ✗ bengali_gru.bin         – GRU v1 fallback; engine picks v2 first, v1 unreachable
+//   ✗ bengali_vocab.bin       – Paired with v1 GRU; same reasoning
+//   ✗ neural_weights.json     – Dev-only JSON path in get_neural_predictor(); never used in prod
+//   ✗ neural_vocab.json       – Paired with dev JSON pair; same reasoning
+//   ✗ neural_weights_v2.json  – Not referenced anywhere in the codebase
+//
+val engineDataDir = file("${rootDir.parentFile.parentFile}/lekhani-engine/data")
+
+/** Files loaded at runtime from the dictionaries/ asset folder. */
+val RUNTIME_DICTIONARIES = listOf(
+    "dictionary.bin",          // 5.0 MB – PrefixTrie; primary path
+    "dictionary.json",         // 4.1 MB – JSON source; cold-install fallback only
+    "bengali_lm.bin",          // 5.1 MB – N-gram language model
+    "english_lm.bin",          //  40 KB – English N-gram LM
+    "bengali_gru_v2.bin",      // 592 KB – GRU neural predictor weights (v2, preferred)
+    "bengali_vocab_v2.json",   //  68 KB – BPE vocabulary for gru_v2
+    "phonetic_overrides.bin",  // 916 KB – Supervised phonetic overrides (binary)
+    "autocorrect.json",        //  72 KB – Autocorrect rules
+    "suffix.json",             //  24 KB – Morphological suffixes
+    "rank_weights_v2.json",    //   4 KB – Perceptron rank weights
+    "english_dict.bin"         // 996 KB – English prefix trie for QWERTY mode
+)
+
+/** Fixed layout JSON files used by the engine session. */
+val RUNTIME_LAYOUTS = listOf(
+    "avrophonetic.json",
+    "Avro_Easy.json",
+    "Borno.json",
+    "Munir_Optima.json",
+    "National_Jatiya.json",
+    "Probhat.json",
+    "Unijoy.json"
+)
+
+val copyLekhaniAssets = tasks.register<Copy>("copyLekhaniAssets") {
+    description = "Stages runtime-only data files from lekhani-engine/data/ into src/main/assets."
+    group = "lekhani"
+
+    // Primary source: lekhani-engine is the single source of truth for shared data files.
+    // Fallback: if lekhani-engine is not checked out alongside lekhani-android, use
+    // the local data/ directory in this repo (kept in sync manually).
+    val engineSource = if (engineDataDir.isDirectory) engineDataDir else file("${rootDir.parentFile}/data")
+
+    // Android-specific source: files that only exist in lekhani-android (e.g., English models).
+    // The engine repo does not include these — they are Android-platform-specific assets.
+    val androidSource = file("${rootDir.parentFile}/data")
+
+    // Layer 1: shared files from lekhani-engine (or local fallback)
+    from(file("${engineSource}/dictionaries")) {
+        include(RUNTIME_DICTIONARIES)
+        into("dictionaries")
+    }
+    from(file("${engineSource}/layouts")) {
+        include(RUNTIME_LAYOUTS)
+        into("layouts")
+    }
+    // Layer 2: Android-only files that lekhani-engine does not have.
+    // Only active when lekhani-engine is the primary source (avoids double-copying in fallback mode).
+    if (engineDataDir.isDirectory && androidSource.isDirectory) {
+        from(file("${androidSource}/dictionaries")) {
+            include(
+                "english_dict.bin",  // 996 KB – English PrefixTrie, Android-only
+                "english_lm.bin"     //  40 KB – English N-gram LM, Android-only
+            )
+            into("dictionaries")
+        }
+    }
+
+    // Destination is the canonical assets staging dir
+    into(file("src/main/assets"))
+
+    outputs.dir(file("src/main/assets"))
+}
+
 tasks.named("preBuild").configure {
-    dependsOn(cargoBuild)
+    dependsOn(cargoBuild, copyLekhaniAssets)
 }
 
 kotlin {

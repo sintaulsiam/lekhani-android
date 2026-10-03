@@ -1802,19 +1802,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 KeyAction.SwitchNumeric -> {
                     canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
-                    if (key.longPressAction == KeyAction.SwitchNumpad) {
-                        val miniSize = 10f * density
-                        val hx = drawBounds.right - 8f * density
-                        val hy = drawBounds.top + 9f * density
-                        drawMiniVectorDialpad(canvas, hx, hy, miniSize, hintPaint)
-                    } else {
-                        val hint = key.displayHint(isShifted)
-                        if (hint != null) {
-                            val hintX = drawBounds.right - 5f * density
-                            val hintY = drawBounds.top + 13f * density
-                            canvas.drawText(hint, hintX, hintY, hintPaint)
-                        }
-                    }
+                    // No secondary hint icon — the ?123 label is self-explanatory.
+                    // Long-press numpad is discoverable without a hint glyph (matches Gboard/SwiftKey convention).
                 }
                 KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits -> {
                     canvas.drawText(labelText, cx, cySmall, labelPaintSmall)

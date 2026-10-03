@@ -38,6 +38,12 @@ app/src/main/jniLibs/
 # Committing them causes spurious diffs on every Rust change.
 app/src/main/java/com/lekhani/android/ffi/lekhani_android.kt
 
+# ─── Generated asset staging ──────────────────────────────────────────────────
+# src/main/assets/ is populated by the copyLekhaniAssets Gradle task at build time.
+# Source of truth: lekhani-engine/data/ (shared) and lekhani-android/data/ (Android-only).
+# Never commit staged assets — they are binary blobs that belong in the source data/ dirs.
+app/src/main/assets/
+
 # ─── OS noise ─────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
