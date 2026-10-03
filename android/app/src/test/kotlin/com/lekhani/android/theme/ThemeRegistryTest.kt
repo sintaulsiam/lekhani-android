@@ -12,7 +12,7 @@ class ThemeRegistryTest {
     fun testPresetThemesIntegrity() {
         val presets = ThemeRegistry.PRESET_THEMES
         assertTrue(presets.isNotEmpty())
-        assertEquals(23, presets.size)
+        assertEquals(33, presets.size)
 
         val flowTeal = presets.find { it.id == ThemeRegistry.ID_FLOW_TEAL }
         assertNotNull(flowTeal)
@@ -60,11 +60,58 @@ class ThemeRegistryTest {
         assertNotNull(cyberpunk)
         assertEquals(ThemeCategory.NEON, cyberpunk!!.category)
 
+        // New Aesthetic themes
+        val duskRose = presets.find { it.id == ThemeRegistry.ID_DUSK_ROSE }
+        assertNotNull(duskRose)
+        assertEquals(ThemeCategory.AESTHETIC, duskRose!!.category)
+        assertTrue(duskRose.isDark)
+
+        val champagne = presets.find { it.id == ThemeRegistry.ID_CHAMPAGNE_LUXURY }
+        assertNotNull(champagne)
+        assertEquals(ThemeCategory.AESTHETIC, champagne!!.category)
+
+        val iceCrystal = presets.find { it.id == ThemeRegistry.ID_ICE_CRYSTAL }
+        assertNotNull(iceCrystal)
+        assertEquals(ThemeCategory.AESTHETIC, iceCrystal!!.category)
+        assertFalse(iceCrystal.isDark)
+
+        // Dynamic RGB Chroma themes
         val chromaThemes = presets.filter { it.category == ThemeCategory.RGB_CHROMA }
-        assertEquals(5, chromaThemes.size)
+        assertEquals(11, chromaThemes.size)
         for (ct in chromaThemes) {
             assertTrue("Chroma theme ${ct.id} must have isRgbChroma = true", ct.isRgbChroma)
             assertTrue("Chroma theme ${ct.id} must have non-NONE chromaMode", ct.chromaMode != ChromaMode.NONE)
+        }
+
+        val ocean = presets.find { it.id == ThemeRegistry.ID_OCEAN_ABYSS }
+        assertNotNull(ocean)
+        assertEquals(ChromaMode.OCEAN_ABYSS, ocean!!.chromaMode)
+
+        val vaporwave = presets.find { it.id == ThemeRegistry.ID_VAPORWAVE_DREAM }
+        assertNotNull(vaporwave)
+        assertEquals(ChromaMode.VAPORWAVE_SYNTH, vaporwave!!.chromaMode)
+
+        val sakuraGlow = presets.find { it.id == ThemeRegistry.ID_SAKURA_GLOW }
+        assertNotNull(sakuraGlow)
+        assertEquals(ChromaMode.SAKURA_GLOW, sakuraGlow!!.chromaMode)
+
+        val magma = presets.find { it.id == ThemeRegistry.ID_MAGMA_EMBER }
+        assertNotNull(magma)
+        assertEquals(ChromaMode.MAGMA_EMBER, magma!!.chromaMode)
+    }
+
+    @Test
+    fun testThemeChromaUtilsCalculations() {
+        val outHsv = FloatArray(3)
+        for (mode in ChromaMode.values()) {
+            val duration = ThemeChromaUtils.getCycleDuration(mode)
+            assertTrue(duration > 0)
+
+            val color = ThemeChromaUtils.getColor(mode, 1000L, 0.5f, outHsv)
+            assertTrue("Color must be non-zero ARGB", color != 0)
+
+            val phaseColor = ThemeChromaUtils.getColorAtPhase(mode, 0.5f, 0.5f)
+            assertTrue("Phase color must be non-zero ARGB", phaseColor != 0)
         }
     }
 

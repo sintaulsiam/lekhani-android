@@ -99,6 +99,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.theme.KeyboardTheme
+import com.lekhani.android.theme.ThemeChromaUtils
 import com.lekhani.android.theme.ThemeRegistry
 import kotlinx.coroutines.flow.StateFlow
 
@@ -427,6 +428,29 @@ fun CandidateStripView(
                     }
                 }
             }
+        }
+
+        if (theme.isRgbChroma) {
+            val infiniteTransition = rememberInfiniteTransition(label = "StripChroma")
+            val phase by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 3600, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "StripChromaPhase"
+            )
+            val c0 = Color(ThemeChromaUtils.getColorAtPhase(theme.chromaMode, phase, 0f))
+            val c1 = Color(ThemeChromaUtils.getColorAtPhase(theme.chromaMode, phase, 0.5f))
+            val c2 = Color(ThemeChromaUtils.getColorAtPhase(theme.chromaMode, phase, 1f))
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(1.5.dp)
+                    .background(Brush.horizontalGradient(listOf(c0, c1, c2)))
+            )
         }
     }
 }
@@ -818,7 +842,21 @@ private fun CandidatePill(
         append(", long-press to remove from suggestions")
     }
 
-    val primaryBg = Color(theme.accentColor)
+    val liveChromaColor = if (theme.isRgbChroma && item.isPrimary) {
+        val infiniteTransition = rememberInfiniteTransition(label = "PillChroma")
+        val phase by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 3600, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "PillChromaPhase"
+        )
+        Color(ThemeChromaUtils.getColorAtPhase(theme.chromaMode, phase, 0.5f))
+    } else null
+
+    val primaryBg = liveChromaColor ?: Color(theme.accentColor)
     val lum = (primaryBg.red * 0.299f + primaryBg.green * 0.587f + primaryBg.blue * 0.114f)
     val primaryText = if (lum > 0.5f) Color(0xFF000000) else Color(0xFFFFFFFF)
 
@@ -826,9 +864,11 @@ private fun CandidatePill(
     val secondaryBg = Color(theme.keyNormalColor)
     val normalText = Color(theme.labelColor)
 
-    val pillBorder = if (item.isVerbatimPreview) {
-        BorderStroke(1.dp, Color(theme.labelColor).copy(alpha = 0.28f))
-    } else null
+    val pillBorder = when {
+        item.isVerbatimPreview -> BorderStroke(1.dp, Color(theme.labelColor).copy(alpha = 0.28f))
+        theme.isRgbChroma && item.isPrimary -> BorderStroke(1.2.dp, primaryBg.copy(alpha = 0.85f))
+        else -> null
+    }
 
     Box(
         modifier = Modifier

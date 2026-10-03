@@ -103,20 +103,34 @@
   - StateFlow reactive sync updating the active toolbar instantaneously upon customization.
 
 ## 9. Themes & Personalization
-- **Decoupled App vs Keyboard Theme**: Control the settings app appearance (`System Default`, `Force Light`, `Force Dark`, or `Match Keyboard Theme`) independently from the active keyboard layout theme.
-- **11 Curated Keyboard Presets**:
-  - Material You Dynamic Color (wallpaper adaptive)
-  - Light Clean & Dark Sleek
-  - Deep OLED Pure Black (energy-saving true black)
-  - Classic Avro Blue & Cyber Indigo
-  - Sakura Dusk (soft floral twilight)
-  - Forest Emerald (deep woodland greens)
-  - Nordic Frost (crisp arctic cyan & slate)
-  - Sunset Amber (warm dusk gradient)
-  - Mocha Latte (comforting warm espresso & beige)
-- **Custom Theme Studio & Engine**:
+- **Decoupled App vs Keyboard Theme**: Control the settings app appearance (`System Default`, `Force Light`, `Force Dark`, `Dynamic Material You`, or `Match Keyboard Theme`) independently from the active keyboard layout theme.
+- **33 Curated Aesthetic & Dynamic Keyboard Presets**:
+  - **11 Dynamic RGB Chroma (120 FPS Real-time Flow)**:
+    - *RGB Chroma Flow* (Continuous 360° chromatic wave)
+    - *Aurora Borealis* (Emerald teal -> cyan -> polar violet wave)
+    - *Sunset Horizon* (Golden amber -> fiery coral -> dusk magenta wave)
+    - *Cosmic Nebula* (Deep indigo -> laser violet -> hot pink wave)
+    - *Matrix Pulse* (Phosphor lime -> cyber aqua wave)
+    - *Ocean Abyss* (Bioluminescent deep sapphire -> cyan -> aquamarine wave)
+    - *Vaporwave Dream* (Electric cyan -> laser violet -> hot magenta wave)
+    - *Sakura Flow* (Delicate pastel cherry blossom -> rose quartz -> peach shimmer)
+    - *Magma Ember* (Volcanic molten ruby -> fiery blood orange -> gold ember)
+    - *Celestial Amethyst* (Mystic orchid -> shimmering lilac -> starlight rose)
+    - *Enchanted Jade* (Phosphorescent firefly lime -> lush woodland jade)
+  - **10 Aesthetic & Pastel Presets**:
+    - *Sakura Blossom*, *Lavender Haze*, *Matcha Mint*, *Peach Sorbet*, *Nordic Frost*, *Mocha Latte*, *Dusk Rose*, *Midnight Botanical*, *Champagne Luxury*, *Ice Crystal*
+  - **6 Neon & Cyber Presets**:
+    - *Cyberpunk Neon*, *Matrix Terminal*, *Tokyo Midnight*, *Solar Flare*, *Synthwave '84*, *Deep Violet*
+  - **4 Classic & Modern Presets**:
+    - *Flow Teal*, *OLED Pure Black*, *Classic Blue*, *Daylight Paper*
+  - **2 High Contrast & Nature Presets**:
+    - *High Contrast Yellow*, *Forest Emerald*
+  - **Material You Dynamic Color**: Android 12+ wallpaper-adaptive system color extraction.
+- **Custom Theme Studio & Chroma Engine**:
   - Full creation, duplication, editing, and deletion workflow for user-defined themes.
-  - Interactive mini-keyboard preview canvas dynamically updating as colors are picked.
+  - Interactive mini-keyboard preview canvas dynamically rendering live 120 FPS Chroma animations as options are adjusted.
+  - Custom RGB Dynamic Chroma builder: toggle dynamic Chroma on any user-created theme and pick from any of the 11 chromatic wave patterns.
+  - Dynamic candidate strip illumination: synchronized chromatic border and candidate highlights.
   - Precise hex and curated palette swatches for Background, Key Background, Text, Accent, Candidate Strip, and Key Borders.
   - Built-in WCAG 2.1 AA luminance contrast checker warning users when foreground and background combinations drop below 4.5:1 ratio.
   - Zero-cloud local persistence via JSON in Device Protected Storage.

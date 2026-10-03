@@ -27,6 +27,20 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.Animation
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Switch
+import com.lekhani.android.theme.ChromaMode
+import com.lekhani.android.theme.ThemeCategory
+import com.lekhani.android.theme.ThemeChromaUtils
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -69,6 +83,20 @@ fun ThemeEditorDialog(
     var accentColor by remember { mutableIntStateOf(initialTheme.accentColor) }
     var spaceColor by remember { mutableIntStateOf(initialTheme.keySpaceColor) }
     var activeColorTarget by remember { mutableStateOf(ColorTarget.BACKGROUND) }
+    var isRgbChroma by remember { mutableStateOf(initialTheme.isRgbChroma) }
+    var chromaMode by remember { mutableStateOf(if (initialTheme.chromaMode != ChromaMode.NONE) initialTheme.chromaMode else ChromaMode.RAINBOW_FLOW) }
+
+    // Dynamic Chroma continuous phase animation for preview
+    val infiniteTransition = rememberInfiniteTransition(label = "DialogChroma")
+    val phase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "DialogChromaPhase"
+    )
 
     // WCAG 2.1 Luminance Contrast Ratio
     val textContrast = remember(labelColor, keyColor) {
@@ -141,7 +169,11 @@ fun ThemeEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(bgColor)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    border = if (isRgbChroma) {
+                        androidx.compose.foundation.BorderStroke(1.5.dp, Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, 0.5f)))
+                    } else {
+                        androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    }
                 ) {
                     Column(
                         modifier = Modifier
@@ -154,13 +186,23 @@ fun ThemeEditorDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল").forEach { char ->
+                            val r1 = listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল")
+                            r1.forEachIndexed { colIdx, char ->
+                                val xRatio = colIdx.toFloat() / (r1.size - 1).toFloat()
+                                val borderModifier = if (isRgbChroma) {
+                                    Modifier.border(
+                                        1.4.dp,
+                                        Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, xRatio)),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                } else Modifier
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(28.dp)
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(keyColor)),
+                                        .background(Color(keyColor))
+                                        .then(borderModifier),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(char, color = Color(labelColor), fontSize = 12.sp)
@@ -173,13 +215,23 @@ fun ThemeEditorDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক").forEach { char ->
+                            val r2 = listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক")
+                            r2.forEachIndexed { colIdx, char ->
+                                val xRatio = colIdx.toFloat() / (r2.size - 1).toFloat()
+                                val borderModifier = if (isRgbChroma) {
+                                    Modifier.border(
+                                        1.4.dp,
+                                        Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, xRatio)),
+                                        RoundedCornerShape(6.dp)
+                                    )
+                                } else Modifier
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(28.dp)
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(keyColor)),
+                                        .background(Color(keyColor))
+                                        .then(borderModifier),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(char, color = Color(labelColor), fontSize = 12.sp)
@@ -192,12 +244,26 @@ fun ThemeEditorDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            val shiftBorderModifier = if (isRgbChroma) {
+                                Modifier.border(1.4.dp, Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, 0f)), RoundedCornerShape(6.dp))
+                            } else Modifier
+                            val spaceBorderModifier = if (isRgbChroma) {
+                                Modifier.border(1.4.dp, Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, 0.5f)), RoundedCornerShape(6.dp))
+                            } else Modifier
+                            val hasantaBorderModifier = if (isRgbChroma) {
+                                Modifier.border(1.4.dp, Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, 0.75f)), RoundedCornerShape(6.dp))
+                            } else Modifier
+                            val enterBorderModifier = if (isRgbChroma) {
+                                Modifier.border(1.4.dp, Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, 1.0f)), RoundedCornerShape(6.dp))
+                            } else Modifier
+
                             Box(
                                 modifier = Modifier
                                     .weight(1.3f)
                                     .height(28.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(keyColor)),
+                                    .background(Color(keyColor))
+                                    .then(shiftBorderModifier),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text("?123", color = Color(labelColor), fontSize = 10.sp)
@@ -207,7 +273,8 @@ fun ThemeEditorDialog(
                                     .weight(3.5f)
                                     .height(28.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(spaceColor)),
+                                    .background(Color(spaceColor))
+                                    .then(spaceBorderModifier),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(if (isEnglish) "Space" else "স্পেস", color = Color(labelColor), fontSize = 10.sp)
@@ -217,7 +284,8 @@ fun ThemeEditorDialog(
                                     .weight(1f)
                                     .height(28.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(accentColor).copy(alpha = 0.35f)),
+                                    .background(Color(accentColor).copy(alpha = 0.35f))
+                                    .then(hasantaBorderModifier),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text("্", color = Color(accentColor), fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -227,7 +295,8 @@ fun ThemeEditorDialog(
                                     .weight(1.3f)
                                     .height(28.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(accentColor)),
+                                    .background(Color(accentColor))
+                                    .then(enterBorderModifier),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text("↵", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -303,6 +372,94 @@ fun ThemeEditorDialog(
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ── Dynamic RGB Chroma Settings ───────────────────────────────
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Animation,
+                                    contentDescription = null,
+                                    tint = if (isRgbChroma) Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, 0.5f)) else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = if (isEnglish) "120 FPS Dynamic RGB Chroma" else "১২০ এফপিএস আরজিবি ডাইনামিক ক্রোমা",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Live dynamic chromatic lighting wave" else "কীবোর্ডে লাইভ কালার-শিফটিং অ্যানিমেশন",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = isRgbChroma,
+                                onCheckedChange = { isRgbChroma = it }
+                            )
+                        }
+
+                        if (isRgbChroma) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = if (isEnglish) "Chroma Animation Mode" else "ক্রোমা অ্যানিমেশন প্যাটার্ন",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                ChromaMode.values().filter { it != ChromaMode.NONE }.forEach { mode ->
+                                    val isSelected = chromaMode == mode
+                                    val modePreviewColor = Color(ThemeChromaUtils.getColorAtPhase(mode, phase, 0.5f))
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { chromaMode = mode },
+                                        leadingIcon = {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .clip(CircleShape)
+                                                    .background(modePreviewColor)
+                                            )
+                                        },
+                                        label = {
+                                            Text(if (isEnglish) mode.titleEnglish else mode.titleBengali)
+                                        },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -452,7 +609,7 @@ fun ThemeEditorDialog(
                                 keyShiftColor = keyColor,
                                 keySpaceColor = spaceColor,
                                 keyHasantaColor = accentColor,
-                                keyBorderColor = if (isDark) 0x33FFFFFF else 0x22000000,
+                                keyBorderColor = if (isRgbChroma) 0xFF00E5FF.toInt() else if (isDark) 0x33FFFFFF else 0x22000000,
                                 labelColor = labelColor,
                                 labelDimColor = if (isDark) 0xFFA0AEC0.toInt() else 0xFF718096.toInt(),
                                 accentColor = accentColor,
@@ -460,7 +617,10 @@ fun ThemeEditorDialog(
                                 glideStrokeColor = accentColor,
                                 glideGlowColor = (accentColor and 0x00FFFFFF) or 0x40000000,
                                 isDark = isDark,
-                                isCustom = true
+                                isCustom = true,
+                                isRgbChroma = isRgbChroma,
+                                chromaMode = if (isRgbChroma) chromaMode else ChromaMode.NONE,
+                                category = if (isRgbChroma) ThemeCategory.RGB_CHROMA else ThemeCategory.CUSTOM,
                             )
                             onSave(finalTheme)
                         },

@@ -87,6 +87,7 @@ import com.lekhani.android.theme.ChromaMode
 import com.lekhani.android.theme.CustomThemeManager
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeCategory
+import com.lekhani.android.theme.ThemeChromaUtils
 import com.lekhani.android.theme.ThemeRegistry
 
 /**
@@ -106,46 +107,7 @@ fun ThemeCategory.getIcon(): ImageVector = when (this) {
  * Computes dynamic color transitions for Chroma preview elements in Compose.
  */
 private fun computeChromaComposeColor(mode: ChromaMode, phase: Float, xRatio: Float = 0.5f): Color {
-    val hsv = FloatArray(3)
-    when (mode) {
-        ChromaMode.RAINBOW_FLOW -> {
-            val hue = (phase * 360f + xRatio * 180f) % 360f
-            hsv[0] = hue
-            hsv[1] = 0.90f
-            hsv[2] = 1.0f
-        }
-        ChromaMode.AURORA_BOREALIS -> {
-            val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
-            hsv[0] = 150f + wave * (280f - 150f)
-            hsv[1] = 0.88f
-            hsv[2] = 1.0f
-        }
-        ChromaMode.SUNSET_HORIZON -> {
-            val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
-            val h = 315f + wave * 80f
-            hsv[0] = if (h >= 360f) h - 360f else h
-            hsv[1] = 0.92f
-            hsv[2] = 1.0f
-        }
-        ChromaMode.COSMIC_NEBULA -> {
-            val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
-            hsv[0] = 230f + wave * (340f - 230f)
-            hsv[1] = 0.88f
-            hsv[2] = 1.0f
-        }
-        ChromaMode.MATRIX_PULSE -> {
-            val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
-            hsv[0] = 115f + wave * (175f - 115f)
-            hsv[1] = 0.95f
-            hsv[2] = 1.0f
-        }
-        ChromaMode.NONE -> {
-            hsv[0] = 0f
-            hsv[1] = 0f
-            hsv[2] = 1.0f
-        }
-    }
-    return Color(android.graphics.Color.HSVToColor(hsv))
+    return Color(ThemeChromaUtils.getColorAtPhase(mode, phase, xRatio))
 }
 
 /**

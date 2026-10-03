@@ -60,7 +60,7 @@ Lekhani Android provides a responsive, privacy-respecting Bengali typing experie
   <img src="docs/screenshots/settings_about.png" width="31%" alt="About & Privacy" />
 </p>
 
-- **Theme Studio**: Custom color palettes, dark/OLED modes, key borders, and live keyboard preview.
+- **Theme Studio & Dynamic Chroma**: 33 curated presets across 5 aesthetic categories, 11 real-time 120 FPS chromatic wave themes, custom wallpaper backgrounds, and full user theme creation.
 - **Preferences**: Haptic feedback, key press audio, popup hints, spacebar gestures, and layout switcher order.
 - **Text Editor / D-Pad**: Dedicated cursor control panel with character/word navigation, text selection toggle, and clipboard actions.
 - **Clipboard Vault**: Local, ephemeral clipboard manager with pin support and configurable auto-clear retention.

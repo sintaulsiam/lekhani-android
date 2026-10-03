@@ -30,6 +30,7 @@ import com.lekhani.android.model.KeyboardLayout
 import com.lekhani.android.ime.EnterKeyResolver
 import com.lekhani.android.theme.ChromaMode
 import com.lekhani.android.theme.KeyboardTheme
+import com.lekhani.android.theme.ThemeChromaUtils
 import com.lekhani.android.theme.ThemeRegistry
 
 /**
@@ -306,54 +307,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * Reuses pre-allocated [rgbHsv] for zero allocations inside the 120 FPS hot path.
      */
     private fun getChromaColor(mode: ChromaMode, now: Long, xRatio: Float = 0.5f): Int {
-        val cycleDuration = when (mode) {
-            ChromaMode.RAINBOW_FLOW -> 3600L
-            ChromaMode.AURORA_BOREALIS -> 4200L
-            ChromaMode.SUNSET_HORIZON -> 4000L
-            ChromaMode.COSMIC_NEBULA -> 3800L
-            ChromaMode.MATRIX_PULSE -> 2800L
-            ChromaMode.NONE -> 3600L
-        }
-        val phase = ((now % cycleDuration).toFloat() / cycleDuration.toFloat())
-        when (mode) {
-            ChromaMode.RAINBOW_FLOW -> {
-                val hue = (phase * 360f + xRatio * 180f) % 360f
-                rgbHsv[0] = hue
-                rgbHsv[1] = 0.90f
-                rgbHsv[2] = 1.0f
-            }
-            ChromaMode.AURORA_BOREALIS -> {
-                val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
-                rgbHsv[0] = 150f + wave * (280f - 150f)
-                rgbHsv[1] = 0.88f
-                rgbHsv[2] = 1.0f
-            }
-            ChromaMode.SUNSET_HORIZON -> {
-                val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
-                val h = 315f + wave * 80f
-                rgbHsv[0] = if (h >= 360f) h - 360f else h
-                rgbHsv[1] = 0.92f
-                rgbHsv[2] = 1.0f
-            }
-            ChromaMode.COSMIC_NEBULA -> {
-                val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
-                rgbHsv[0] = 230f + wave * (340f - 230f)
-                rgbHsv[1] = 0.88f
-                rgbHsv[2] = 1.0f
-            }
-            ChromaMode.MATRIX_PULSE -> {
-                val wave = (kotlin.math.sin((phase * 2.0 * Math.PI) + (xRatio * Math.PI)).toFloat() + 1f) * 0.5f
-                rgbHsv[0] = 115f + wave * (175f - 115f)
-                rgbHsv[1] = 0.95f
-                rgbHsv[2] = 1.0f
-            }
-            ChromaMode.NONE -> {
-                rgbHsv[0] = 0f
-                rgbHsv[1] = 0f
-                rgbHsv[2] = 1f
-            }
-        }
-        return Color.HSVToColor(rgbHsv)
+        return ThemeChromaUtils.getColor(mode, now, xRatio, rgbHsv)
     }
 
     // Key labels
@@ -1624,6 +1578,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
             homeRowAccentPaint.color = centerChromaColor
             keyGlowPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(centerChromaColor, 0x80)
             spaceSlideThumbPaint.color = centerChromaColor
+            glideStrokePaint.color = centerChromaColor
+            glideDotPaint.color = centerChromaColor
             postInvalidateOnAnimation()
         }
         // Use the cached density — never call resources.displayMetrics in onDraw (120 FPS hot path)
