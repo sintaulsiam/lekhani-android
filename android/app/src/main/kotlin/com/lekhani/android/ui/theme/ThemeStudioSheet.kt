@@ -389,12 +389,12 @@ fun ThemeStudioSheet(
                         label = {
                             val title = when (cat) {
                                 ThemeCategory.ALL -> if (isEnglish) "All" else "সব"
-                                ThemeCategory.RGB_CHROMA -> if (isEnglish) "Chroma 🌈" else "ক্রোমা 🌈"
-                                ThemeCategory.NEON -> if (isEnglish) "Neon ⚡" else "নিওন ⚡"
-                                ThemeCategory.AESTHETIC -> if (isEnglish) "Aesthetic 🌸" else "এসথেটিক 🌸"
-                                ThemeCategory.CLASSIC -> if (isEnglish) "Classic 🏛️" else "ক্লাসিক 🏛️"
-                                ThemeCategory.CONTRAST_NATURE -> if (isEnglish) "Nature 🌿" else "প্রকৃতি 🌿"
-                                ThemeCategory.CUSTOM -> if (isEnglish) "Custom 🛠️" else "কাস্টম 🛠️"
+                                ThemeCategory.RGB_CHROMA -> if (isEnglish) "Chroma" else "ক্রোমা"
+                                ThemeCategory.NEON -> if (isEnglish) "Neon" else "নিওন"
+                                ThemeCategory.AESTHETIC -> if (isEnglish) "Aesthetic" else "এসথেটিক"
+                                ThemeCategory.CLASSIC -> if (isEnglish) "Classic" else "ক্লাসিক"
+                                ThemeCategory.CONTRAST_NATURE -> if (isEnglish) "Nature" else "প্রকৃতি"
+                                ThemeCategory.CUSTOM -> if (isEnglish) "Custom" else "কাস্টম"
                             }
                             Text(title, fontSize = 11.5.sp)
                         },

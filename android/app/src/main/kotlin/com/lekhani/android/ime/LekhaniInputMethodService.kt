@@ -47,6 +47,12 @@ import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.ffi.LekhaniException
 import com.lekhani.android.model.Key
 import com.lekhani.android.model.KeyAction
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.lekhani.android.model.LayoutRegistry
 import com.lekhani.android.theme.ThemeRegistry
 import com.lekhani.android.ui.LekhaniSettingsActivity
@@ -1732,7 +1738,7 @@ class LekhaniInputMethodService : InputMethodService() {
             val isEnglish = keyboardPrefs.uiLanguage == "en"
             val msg = if (isEnglish) "Microphone permission required for voice typing"
                       else "ভয়েস টাইপিংয়ের জন্য মাইক্রোফোন অনুমতি প্রয়োজন"
-            showNotice(msg, "🎙️")
+            showNotice(msg, Icons.Filled.Mic)
             return
         }
 
@@ -2983,7 +2989,7 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyboardPreferences.ToolbarTool.VOICE -> {
                 if (!audioManager.hasRecordPermission()) {
                     val msg = if (keyboardPrefs.uiLanguage == "en") "Microphone permission required. Please enable in App Settings." else "মাইক্রোফোন পারমিশন প্রয়োজন। দয়া করে সেটিংসে চালু করুন।"
-                    showNotice(msg, "🎙️")
+                    showNotice(msg, Icons.Filled.Mic)
                     return
                 }
                 
@@ -3304,7 +3310,7 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.applyTheme(nextTheme)
         val isEng = keyboardPrefs.uiLanguage == "en"
         val themeName = if (isEng) nextTheme.nameEnglish else nextTheme.nameBengali
-        showNotice("🎨 $themeName", "✨", 1500L)
+        showNotice(themeName, Icons.Filled.Palette, 1500L)
     }
 
     /**
@@ -3491,7 +3497,7 @@ class LekhaniInputMethodService : InputMethodService() {
     /**
      * Shows a brief in-strip notification or error banner.
      */
-    private fun showNotice(message: String, icon: String = "⚠️", durationMs: Long = 3500L) {
+    private fun showNotice(message: String, icon: ImageVector? = Icons.Filled.Warning, durationMs: Long = 3500L) {
         _candidateState.value = CandidateStripState.Notice(
             message = message,
             icon = icon,

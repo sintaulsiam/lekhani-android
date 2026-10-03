@@ -1,5 +1,7 @@
 package com.lekhani.android.ui.candidate
 
+import androidx.compose.ui.graphics.vector.ImageVector
+
 /**
  * CandidateItem — a single entry in the horizontal candidate strip.
  *
@@ -100,7 +102,7 @@ sealed class CandidateStripState {
      */
     data class Notice(
         val message: String,
-        val icon: String = "⚠️",
+        val icon: ImageVector? = null,
         val onDismiss: () -> Unit = {},
     ) : CandidateStripState()
 }

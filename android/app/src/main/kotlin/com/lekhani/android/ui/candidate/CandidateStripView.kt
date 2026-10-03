@@ -362,11 +362,16 @@ fun CandidateStripView(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Text(
-                                    text = noticeState.icon,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
+                                if (noticeState.icon != null) {
+                                    Icon(
+                                        imageVector = noticeState.icon,
+                                        contentDescription = null,
+                                        tint = Color(theme.accentColor),
+                                        modifier = Modifier
+                                            .size(18.dp)
+                                            .padding(end = 8.dp)
+                                    )
+                                }
                                 Text(
                                     text = noticeState.message,
                                     color = Color(theme.labelColor),
