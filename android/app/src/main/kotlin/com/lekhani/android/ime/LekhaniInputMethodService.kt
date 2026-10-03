@@ -2882,33 +2882,15 @@ class LekhaniInputMethodService : InputMethodService() {
                 verbatimIndex = 0
 
                 // 1st place: Raw English input (filtered[0])
-                // 2nd place: Direct transliteration (filtered[1])
-                // 3rd place: Corrected word if mistyped (filtered[2])
-                val hasTypoCorrection = filtered.size >= 3 && run {
-                    val direct = filtered[1]
-                    val corr = filtered[2]
-                    // If candidate at 3rd place does not start with the root of the direct conversion,
-                    // it is a QWERTY fat-finger typo auto-correction (e.g. "krmon" -> direct "ক্রমন", corr "কেমন")
-                    val prefixLen = minOf(2, minOf(direct.length, corr.length))
-                    prefixLen > 0 && !corr.startsWith(direct.take(prefixLen)) && !direct.startsWith(corr.take(prefixLen))
-                }
-
+                // 2nd place: Authoritative Bengali candidate ranked by Rust engine (filtered[1])
                 primaryIndex = when {
                     isCode || filtered.size <= 1 -> 0
-                    hasTypoCorrection && keyboardPrefs.spacebarAutocompleteEnabled -> 2  // Highlight 3rd place only when autocomplete is enabled
-                    else -> 1              // Highlight 2nd place (direct conversion) normally
+                    else -> 1 // Always highlight Rust's top-ranked recommendation
                 }
             } else {
                 // If English preview disabled:
-                // 1st place: Direct conversion (filtered[0])
-                // 2nd place: Corrected word if mistyped (filtered[1])
-                val hasTypoCorrection = filtered.size >= 2 && run {
-                    val direct = filtered[0]
-                    val corr = filtered[1]
-                    val prefixLen = minOf(2, minOf(direct.length, corr.length))
-                    prefixLen > 0 && !corr.startsWith(direct.take(prefixLen)) && !direct.startsWith(corr.take(prefixLen))
-                }
-                primaryIndex = if (hasTypoCorrection && keyboardPrefs.spacebarAutocompleteEnabled) 1 else 0
+                // 1st place: Authoritative Bengali candidate ranked by Rust engine (filtered[0])
+                primaryIndex = 0
             }
         }
 

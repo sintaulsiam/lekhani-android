@@ -224,6 +224,7 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("barna", &["বর্ণ", "বারনা"][..]);
         m.insert("borno", &["বর্ণ"][..]);
         m.insert("za", &["যা", "জা"][..]);
+        m.insert("ja", &["যা", "জা"][..]);
         m.insert("Za", &["যা", "্যা"][..]);
         m.insert("ya", &["য়া", "ইয়া"][..]);
         m.insert("jao", &["যাও"][..]);
@@ -1039,7 +1040,29 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
-    // If mistyped (not an explicit common word), place typo corrections AFTER def to preserve Force Avro at index 1
+    // If mistyped (not an explicit common word), check if the current primary candidate is a non-dictionary word
+    // while the top typo correction is a high-confidence dictionary or common word.
+    let should_promote_typo = !is_explicit_common
+        && !input.contains('`')
+        && !input.contains('\'')
+        && input.chars().count() >= 3
+        && !typo_corrections.is_empty()
+        && typo_corrections[0].chars().count() >= 2
+        && candidates.first().map(|c| !db.is_exact_dictionary_word(c) && get_word_frequency(c) == 0).unwrap_or(false)
+        && (db.is_exact_dictionary_word(&typo_corrections[0]) || get_common_words().values().any(|ws| ws.contains(&typo_corrections[0].as_str())));
+
+    if should_promote_typo {
+        let best_typo = typo_corrections.remove(0);
+        if let Some(pos) = candidates.iter().position(|c| c == &best_typo) {
+            candidates.remove(pos);
+        }
+        candidates.insert(0, best_typo);
+        if !def.is_empty() && !candidates.contains(&def) {
+            candidates.insert(1.min(candidates.len()), def.clone());
+        }
+    }
+
+    // If mistyped (not an explicit common word), place remaining typo corrections AFTER def to preserve Force Avro at index 1
     let insert_offset = if candidates.len() > 1 && candidates[1] == def {
         2
     } else {

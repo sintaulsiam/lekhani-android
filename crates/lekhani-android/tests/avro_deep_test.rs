@@ -417,5 +417,63 @@ fn test_contextual_homophone_disambiguation_matrix() {
     assert_eq!(res4.commit_text.as_deref(), Some("ভাত "));
 }
 
+#[test]
+#[serial]
+fn test_homophone_and_authoritative_candidate_ranking() {
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+
+    // Test cases where candidate 0 must be the authoritative common word
+    // and candidate 1 is the literal or homophone alternative.
+    let cases: &[(&str, &str, Option<&str>)] = &[
+        ("shob", "সব", Some("শব")),
+        ("bari", "বাড়ি", Some("বারি")),
+        ("gari", "গাড়ি", Some("গারি")),
+        ("hotat", "হঠাৎ", Some("হতাত")),
+        ("sriti", "স্মৃতি", Some("সৃতি")),
+        ("dondho", "দ্বন্দ্ব", Some("দন্ধ")),
+        ("kkh", "ক্ষ", None),
+        ("karon", "কারণ", Some("কারন")),
+    ];
+
+    for &(input, expected_first, expected_second) in cases {
+        session.reset();
+        let mut last_candidates = Vec::new();
+        for ch in input.chars() {
+            let res = session.process_key(ch.to_string()).unwrap();
+            last_candidates = res.candidates;
+        }
+
+        assert_eq!(
+            last_candidates.first().map(|s| s.as_str()),
+            Some(expected_first),
+            "For input '{}', candidate[0] must be '{}', got: {:?}",
+            input,
+            expected_first,
+            last_candidates
+        );
+
+        if let Some(second) = expected_second {
+            assert!(
+                last_candidates.contains(&second.to_string()),
+                "For input '{}', candidates must contain '{}', got: {:?}",
+                input,
+                second,
+                last_candidates
+            );
+        }
+
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(
+            space_res.commit_text.as_deref(),
+            Some(&format!("{} ", expected_first)[..]),
+            "Spacebar for '{}' must commit '{} '",
+            input,
+            expected_first
+        );
+    }
+}
+
+
 
 

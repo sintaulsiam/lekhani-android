@@ -37,11 +37,11 @@ class HomophoneAnnotatorTest {
 
     @Test
     fun `known homophone pairs are correctly annotated`() {
-        val candidates = listOf("পড়া", "পরা", "বাংলা", "বাঙলা")
+        val candidates = listOf("পড়া", "পরা", "বাংলা", "বাঙলা")
         val result = HomophoneAnnotator.annotate(candidates)
 
         assertEquals("পরা", result[0].homophones)
-        assertEquals("পড়া", result[1].homophones)
+        assertEquals("পড়া", result[1].homophones)
         assertEquals("বাঙলা", result[2].homophones)
         assertEquals("বাংলা", result[3].homophones)
     }
@@ -58,13 +58,13 @@ class HomophoneAnnotatorTest {
 
     @Test
     fun `verb and colloquial homophones are identified`() {
-        val candidates = listOf("খাব", "যাব", "করব", "ধরব", "করে", "করি")
+        val candidates = listOf("সব", "শব", "বাড়ি", "বারি", "করে", "করি")
         val result = HomophoneAnnotator.annotate(candidates)
 
-        assertEquals("যাব", result[0].homophones)
-        assertEquals("খাব", result[1].homophones)
-        assertEquals("ধরব", result[2].homophones)
-        assertEquals("করব", result[3].homophones)
+        assertEquals("শব", result[0].homophones)
+        assertEquals("সব", result[1].homophones)
+        assertEquals("বারি", result[2].homophones)
+        assertEquals("বাড়ি", result[3].homophones)
         assertEquals("করি", result[4].homophones)
         assertEquals("করে", result[5].homophones)
     }

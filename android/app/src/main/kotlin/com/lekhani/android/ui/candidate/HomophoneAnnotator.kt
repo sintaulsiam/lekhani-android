@@ -26,27 +26,54 @@ object HomophoneAnnotator {
      * might plausibly rank first incorrectly.
      */
     private val pairs: HashMap<String, String> = hashMapOf(
-        // Verb homophones (most common confusion category)
-        "পড়া"      to "পরা",       // to read/fall  ↔  to wear
-        "পরা"      to "পড়া",
-        "বলা"      to "বলা",       // identical — context-disambiguated; not in map
-        "শোনা"     to "শোনা",
-        "খাওয়া"    to "খাওয়া",
-        // Motion / auxiliary homophones
-        "যাওয়া"    to "জাওয়া",    // to go (standard) ↔ dialectal form
-        "জাওয়া"    to "যাওয়া",
-        // Colloquial suffix pairs (kortei style — FEATURES.md §2)
-        "খাব"      to "যাব",       // will eat ↔ will go (both end in -আব sound)
-        "যাব"      to "খাব",
-        "করব"      to "ধরব",
-        "ধরব"      to "করব",
-        // Standard homophone noun pairs
+        // Verb & inflection homophones
+        "পড়া"      to "পরা",       // to read/fall  ↔  to wear
+        "পরা"      to "পড়া",
+        "পড়ি"      to "পরি",       // I read        ↔  I wear / fairy
+        "পরি"      to "পড়ি",
+        "পড়ে"      to "পরে",       // reads / falls ↔  later / after
+        "পরে"      to "পড়ে",
+        "পড়ব"      to "পরব",       // will read     ↔  will wear
+        "পরব"      to "পড়ব",
+        // Nouns & homophones with phonetic divergence
+        "সব"       to "শব",        // all / every   ↔  corpse
+        "শব"       to "সব",
+        "বাড়ি"     to "বারি",      // house / home  ↔  water
+        "বারি"     to "বাড়ি",
+        "গাড়ি"     to "গারি",      // vehicle / car ↔  inflected root
+        "গারি"     to "গাড়ি",
+        "কোনো"     to "কোন",       // any / some    ↔  which / corner
+        "কোন"      to "কোনো",
+        "ভালো"     to "ভাল",       // good / fine   ↔  forehead / good
+        "ভাল"      to "ভালো",
+        "সোনা"     to "শোনা",      // gold          ↔  to listen / hear
+        "শোনা"     to "সোনা",
+        "দিন"      to "দীন",       // day           ↔  poor / humble
+        "দীন"      to "দিন",
+        "কুল"      to "কূল",       // berry / clan  ↔  shore / bank
+        "কূল"      to "কুল",
+        "নীল"      to "নিল",       // blue          ↔  took
+        "নিল"      to "নীল",
+        "কী"       to "কি",        // what (long)   ↔  interrogative (short)
+        "কি"       to "কী",
+        "ধনী"      to "ধ্বনি",     // wealthy       ↔  sound / voice
+        "ধ্বনি"     to "ধনী",
+        // Chandra Bindu (nasalization) pairs
+        "কাঁচা"    to "কাচা",      // raw / unwashed
+        "কাচা"     to "কাঁচা",
+        "বাঁধা"    to "বাধা",      // tied / bound  ↔  obstacle
+        "বাধা"     to "বাঁধা",
+        "হাঁস"     to "হাস",       // duck          ↔  laugh
+        "হাস"      to "হাঁস",
+        "চাঁদ"     to "চাদ",       // moon
+        "চাদ"      to "চাঁদ",
+        "কাঁটা"    to "কাটা",      // thorn         ↔  cut
+        "কাটা"     to "কাঁটা",
+        // Standard homophone noun & dialectal pairs
         "বাংলা"    to "বাঙলা",     // preferred spelling ↔ alternate romanisation
         "বাঙলা"    to "বাংলা",
-        "আলো"      to "আলা",       // light ↔ hollow/skilled (dialectal)
-        "আলা"      to "আলো",
-        "মাথা"     to "মাথ",
-        "মাথ"      to "মাথা",
+        "যাওয়া"    to "জাওয়া",    // to go (standard) ↔ dialectal form
+        "জাওয়া"    to "যাওয়া",
         // Kar confusion (common phonetic IME error)
         "করে"      to "করি",       // does/by doing ↔ I do (1st person)
         "করি"      to "করে",

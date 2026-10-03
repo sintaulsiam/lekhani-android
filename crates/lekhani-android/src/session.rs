@@ -1660,14 +1660,7 @@ impl AndroidLekhaniSession {
                         candidates = scorer.rank_candidates_bidirectional(&context_words, right_word, &candidates);
                     }
                     crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
-                    if (raw.ends_with('o') || raw.ends_with('O'))
-                        && preedit.ends_with('ো')
-                        && candidates.contains(&preedit)
-                    {
-                        &preedit
-                    } else {
-                        candidates.first().map(|s| s.as_str()).unwrap_or(&raw)
-                    }
+                    candidates.first().map(|s| s.as_str()).unwrap_or(&raw)
                 } else if !preedit.is_empty() {
                     &preedit
                 } else {
