@@ -2256,21 +2256,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 ic.beginBatchEdit()
                 try {
                     ic.deleteSurroundingText(activeUndo.committedText.length, 0)
-                    if (session.getLayout() == LekhaniLayoutType.AVRO && activeUndo.originalText.isNotBlank()) {
-                        rawInputBuffer.clear()
-                        session.reset()
-                        var lastRes: com.lekhani.android.ffi.TypingResult? = null
-                        for (ch in activeUndo.originalText) {
-                            rawInputBuffer.append(ch)
-                            lastRes = session.processKey(ch.toString())
-                        }
-                        if (lastRes != null) {
-                            setComposingTextSafe(ic, lastRes.preedit)
-                            publishCandidates(lastRes.candidates)
-                        }
-                    } else {
-                        ic.commitText(activeUndo.originalText, 1)
-                    }
+                    ic.commitText(activeUndo.originalText, 1)
                 } finally {
                     ic.endBatchEdit()
                 }
@@ -2479,7 +2465,9 @@ class LekhaniInputMethodService : InputMethodService() {
             }
 
             val trimmedCommitted = text.trim()
+            val isAvro = session.getLayout() == LekhaniLayoutType.AVRO
             val candidateOriginal = when {
+                isAvro -> null // Avro phonetic transliteration to Bengali is normal typing, not an autocorrection mistake
                 originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
                 preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted && preeditBeforeSpace != originalRaw -> preeditBeforeSpace
                 else -> null
@@ -3307,8 +3295,8 @@ class LekhaniInputMethodService : InputMethodService() {
             clearCandidates()
         }
 
-        if (isPassword) {
-            // Auto-switch to English QWERTY for passwords and preserve the previous layout
+        if (isTextPassword) {
+            // Auto-switch to English QWERTY for text passwords and preserve the previous layout
             if (previousLayoutBeforePassword == null && session.getLayout() != LekhaniLayoutType.ENGLISH) {
                 previousLayoutBeforePassword = session.getLayout()
             }
@@ -3328,13 +3316,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val isPhone = inputClass == InputType.TYPE_CLASS_PHONE
         val isNumeric = inputClass == InputType.TYPE_CLASS_NUMBER || inputClass == InputType.TYPE_CLASS_DATETIME
 
-        val isSearchOrFilter = (inputClass == InputType.TYPE_CLASS_TEXT) ||
-            inputVariation == InputType.TYPE_TEXT_VARIATION_FILTER ||
-            (info.imeOptions and EditorInfo.IME_MASK_ACTION) == EditorInfo.IME_ACTION_SEARCH
-
-        val shouldAutoSwitchNumpad = keyboardPrefs.autoSwitchNumpad &&
-            (isPhone || isNumeric) &&
-            !isSearchOrFilter
+        val shouldAutoSwitchNumpad = keyboardPrefs.autoSwitchNumpad && (isPhone || isNumeric)
 
         if (shouldAutoSwitchNumpad && isPhone) {
             isPhoneDialpadMode = true
@@ -3345,7 +3327,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 previousLayoutBeforeNumeric = session.getLayout()
             }
             updateNumberSymbolsKeyboard()
-        } else if (shouldAutoSwitchNumpad && isNumeric && !isNumericPassword) {
+        } else if (shouldAutoSwitchNumpad && isNumeric) {
             isNumericFieldMode = true
             isPhoneDialpadMode = false
             isNumericMode = true

@@ -54,7 +54,7 @@ object NumberSymbolsLayout {
                 widthWeight = 1.3f, contentDesc = "Alphabet",
             ),
             Key(
-                label = "🔢", shiftedLabel = "🔢",
+                label = "", shiftedLabel = "",
                 action = KeyAction.SwitchNumpad, shiftedAction = KeyAction.SwitchNumpad,
                 widthWeight = 1.0f, contentDesc = "Number PIN pad",
             ),
@@ -117,7 +117,7 @@ object NumberSymbolsLayout {
                 widthWeight = 1.3f, contentDesc = "Alphabet",
             ),
             Key(
-                label = "🔢", shiftedLabel = "🔢",
+                label = "", shiftedLabel = "",
                 action = KeyAction.SwitchNumpad, shiftedAction = KeyAction.SwitchNumpad,
                 widthWeight = 1.0f, contentDesc = "Number PIN pad",
             ),
@@ -188,7 +188,7 @@ object NumberSymbolsLayout {
                 widthWeight = 1.3f, contentDesc = "Alphabet",
             ),
             Key(
-                label = "🔢", shiftedLabel = "🔢",
+                label = "", shiftedLabel = "",
                 action = KeyAction.SwitchNumpad, shiftedAction = KeyAction.SwitchNumpad,
                 widthWeight = 1.0f, contentDesc = "Number PIN pad",
             ),

@@ -74,7 +74,7 @@ object ProbahLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "?123", hintLabel = "🔢",
+                label = "?123", shiftedLabel = "?123",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 longPressAction = KeyAction.SwitchNumpad,
                 widthWeight = 1.4f,

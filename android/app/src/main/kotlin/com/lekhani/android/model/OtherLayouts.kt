@@ -55,7 +55,7 @@ object EnglishQwertyLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "?123", hintLabel = "🔢",
+                label = "?123", shiftedLabel = "?123",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 longPressAction = KeyAction.SwitchNumpad,
                 widthWeight = 1.4f, contentDesc = "Numbers and symbols, long press for number pad",
@@ -188,7 +188,7 @@ object NationalLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "?123", hintLabel = "🔢",
+                label = "?123", shiftedLabel = "?123",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 longPressAction = KeyAction.SwitchNumpad,
                 widthWeight = 1.4f, contentDesc = "Numbers and symbols, long press for number pad",
@@ -270,7 +270,7 @@ object ProbhatLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?123", shiftedLabel = "?123", hintLabel = "🔢",
+                label = "?123", shiftedLabel = "?123",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 longPressAction = KeyAction.SwitchNumpad,
                 widthWeight = 1.4f, contentDesc = "Numbers and symbols, long press for number pad",
@@ -417,7 +417,7 @@ object GboardBengaliLayout {
         ),
         spacebarRow = listOf(
             Key(
-                label = "?১২৩", shiftedLabel = "?১২৩", hintLabel = "🔢",
+                label = "?১২৩", shiftedLabel = "?১২৩",
                 action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
                 longPressAction = KeyAction.SwitchNumpad,
                 widthWeight = 1.4f, contentDesc = "Numbers and symbols, long press for number pad",

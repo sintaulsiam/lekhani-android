@@ -217,21 +217,21 @@ class NumberSymbolsLayoutTest {
         assertNotNull("Bengali Numpad PIN pad must have ?123 key to switch to symbols", bnSymbolKey)
         assertEquals("?123", bnSymbolKey?.label)
 
-        // From Symbol mode -> Numpad PIN switch key (🔢)
+        // From Symbol mode -> Numpad PIN switch key (SwitchNumpad)
         val numeric = NumberSymbolsLayout.numericLayout
         val pinKey = numeric.spacebarRow.find { it.action == KeyAction.SwitchNumpad }
-        assertNotNull("Numeric layout must have 🔢 key to switch to PIN pad", pinKey)
-        assertEquals("🔢", pinKey?.label)
+        assertNotNull("Numeric layout must have SwitchNumpad key to switch to PIN pad", pinKey)
+        assertEquals(KeyAction.SwitchNumpad, pinKey?.action)
 
         val englishNumeric = NumberSymbolsLayout.englishNumericLayout
         val engPinKey = englishNumeric.spacebarRow.find { it.action == KeyAction.SwitchNumpad }
-        assertNotNull("English numeric layout must have 🔢 key to switch to PIN pad", engPinKey)
-        assertEquals("🔢", engPinKey?.label)
+        assertNotNull("English numeric layout must have SwitchNumpad key to switch to PIN pad", engPinKey)
+        assertEquals(KeyAction.SwitchNumpad, engPinKey?.action)
 
         val bengaliNumeric = NumberSymbolsLayout.bengaliNumericLayout
         val bnPinKey = bengaliNumeric.spacebarRow.find { it.action == KeyAction.SwitchNumpad }
-        assertNotNull("Bengali numeric layout must have 🔢 key to switch to PIN pad", bnPinKey)
-        assertEquals("🔢", bnPinKey?.label)
+        assertNotNull("Bengali numeric layout must have SwitchNumpad key to switch to PIN pad", bnPinKey)
+        assertEquals(KeyAction.SwitchNumpad, bnPinKey?.action)
     }
 
     @Test
@@ -245,11 +245,6 @@ class NumberSymbolsLayoutTest {
                 "${layout.name} ?123 key must have SwitchNumpad as longPressAction",
                 KeyAction.SwitchNumpad,
                 numSwitchKey?.longPressAction,
-            )
-            assertEquals(
-                "${layout.name} ?123 key must have 🔢 hint label",
-                "🔢",
-                numSwitchKey?.hintLabel,
             )
         }
     }

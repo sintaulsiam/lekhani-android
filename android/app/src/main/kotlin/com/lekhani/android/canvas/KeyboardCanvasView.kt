@@ -1552,6 +1552,48 @@ class KeyboardCanvasView @JvmOverloads constructor(
         canvas.drawArc(scratchRect, 25f, 130f, false, strokePaint)
     }
 
+    private fun drawVectorNumpad(canvas: Canvas, cx: Float, cy: Float, size: Float, fillPaint: Paint) {
+        val dotRadius = (size * 0.085f).coerceAtLeast(1.5f)
+        val spacingX = size * 0.28f
+        val spacingY = size * 0.24f
+
+        // Row 1 (top): 3 keypad dots
+        canvas.drawCircle(cx - spacingX, cy - 1.5f * spacingY, dotRadius, fillPaint)
+        canvas.drawCircle(cx, cy - 1.5f * spacingY, dotRadius, fillPaint)
+        canvas.drawCircle(cx + spacingX, cy - 1.5f * spacingY, dotRadius, fillPaint)
+
+        // Row 2 (upper middle): 3 keypad dots
+        canvas.drawCircle(cx - spacingX, cy - 0.5f * spacingY, dotRadius, fillPaint)
+        canvas.drawCircle(cx, cy - 0.5f * spacingY, dotRadius, fillPaint)
+        canvas.drawCircle(cx + spacingX, cy - 0.5f * spacingY, dotRadius, fillPaint)
+
+        // Row 3 (lower middle): 3 keypad dots
+        canvas.drawCircle(cx - spacingX, cy + 0.5f * spacingY, dotRadius, fillPaint)
+        canvas.drawCircle(cx, cy + 0.5f * spacingY, dotRadius, fillPaint)
+        canvas.drawCircle(cx + spacingX, cy + 0.5f * spacingY, dotRadius, fillPaint)
+
+        // Row 4 (bottom): 1 centered dot (classic 0 key on dialpad)
+        canvas.drawCircle(cx, cy + 1.5f * spacingY, dotRadius, fillPaint)
+    }
+
+    private fun drawMiniVectorDialpad(canvas: Canvas, cx: Float, cy: Float, size: Float, paint: Paint) {
+        val dotRadius = (size * 0.09f).coerceAtLeast(1.0f)
+        val spX = size * 0.32f
+        val spY = size * 0.30f
+
+        canvas.drawCircle(cx - spX, cy - spY, dotRadius, paint)
+        canvas.drawCircle(cx, cy - spY, dotRadius, paint)
+        canvas.drawCircle(cx + spX, cy - spY, dotRadius, paint)
+
+        canvas.drawCircle(cx - spX, cy, dotRadius, paint)
+        canvas.drawCircle(cx, cy, dotRadius, paint)
+        canvas.drawCircle(cx + spX, cy, dotRadius, paint)
+
+        canvas.drawCircle(cx - spX, cy + spY, dotRadius, paint)
+        canvas.drawCircle(cx, cy + spY, dotRadius, paint)
+        canvas.drawCircle(cx + spX, cy + spY, dotRadius, paint)
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (!isThemeApplied) {
@@ -1747,6 +1789,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
                     drawVectorSmiley(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
                 }
+                KeyAction.SwitchNumpad -> {
+                    val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
+                    drawVectorNumpad(canvas, cx, drawBounds.centerY(), iconSize, vectorIconFillPaint)
+                }
                 KeyAction.Space -> {
                     if (spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH && enabledLayoutsCount > 1 && !isSpaceCursorMoving) {
                         canvas.drawText("‹   $labelText   ›", cx, cySmall, labelPaintSmall)
@@ -1754,7 +1800,23 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
                     }
                 }
-                KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.SwitchNumpad, KeyAction.ToggleBengaliDigits -> {
+                KeyAction.SwitchNumeric -> {
+                    canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
+                    if (key.longPressAction == KeyAction.SwitchNumpad) {
+                        val miniSize = 10f * density
+                        val hx = drawBounds.right - 8f * density
+                        val hy = drawBounds.top + 9f * density
+                        drawMiniVectorDialpad(canvas, hx, hy, miniSize, hintPaint)
+                    } else {
+                        val hint = key.displayHint(isShifted)
+                        if (hint != null) {
+                            val hintX = drawBounds.right - 5f * density
+                            val hintY = drawBounds.top + 13f * density
+                            canvas.drawText(hint, hintX, hintY, hintPaint)
+                        }
+                    }
+                }
+                KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits -> {
                     canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
                     val hint = key.displayHint(isShifted)
                     if (hint != null) {
