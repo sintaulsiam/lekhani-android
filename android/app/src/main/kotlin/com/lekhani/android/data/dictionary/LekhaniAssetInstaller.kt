@@ -45,13 +45,9 @@ object LekhaniAssetInstaller {
     )
 
     private val BUNDLED_LAYOUTS = listOf(
-        "Avro_Easy.json",
         "avrophonetic.json",
-        "Borno.json",
-        "Munir_Optima.json",
         "National_Jatiya.json",
-        "Probhat.json",
-        "Unijoy.json"
+        "Probhat.json"
     )
 
     /**
@@ -79,12 +75,8 @@ object LekhaniAssetInstaller {
                     targetDir.mkdirs()
                 }
 
-                // Combine dynamic list (if available) with explicit bundled file list
-                val filesToUnpack = LinkedHashSet<String>()
-                try {
-                    context.assets.list(subDir)?.let { filesToUnpack.addAll(it) }
-                } catch (_: IOException) {}
-                filesToUnpack.addAll(defaultFiles)
+                // Strict whitelist: only install explicitly declared files
+                val filesToUnpack = defaultFiles
 
                 for (assetName in filesToUnpack) {
                     val targetFile = File(targetDir, assetName)

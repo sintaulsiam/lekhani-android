@@ -179,12 +179,8 @@ val RUNTIME_DICTIONARIES = listOf(
 /** Fixed layout JSON files used by the engine session. */
 val RUNTIME_LAYOUTS = listOf(
     "avrophonetic.json",
-    "Avro_Easy.json",
-    "Borno.json",
-    "Munir_Optima.json",
     "National_Jatiya.json",
-    "Probhat.json",
-    "Unijoy.json"
+    "Probhat.json"
 )
 
 val copyLekhaniAssets = tasks.register<Copy>("copyLekhaniAssets") {
