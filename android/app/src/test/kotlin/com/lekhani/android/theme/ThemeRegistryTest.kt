@@ -12,7 +12,7 @@ class ThemeRegistryTest {
     fun testPresetThemesIntegrity() {
         val presets = ThemeRegistry.PRESET_THEMES
         assertTrue(presets.isNotEmpty())
-        assertEquals(38, presets.size)
+        assertEquals(42, presets.size)
 
         val flowTeal = presets.find { it.id == ThemeRegistry.ID_FLOW_TEAL }
         assertNotNull(flowTeal)
@@ -60,6 +60,11 @@ class ThemeRegistryTest {
         assertNotNull(cyberpunk)
         assertEquals(ThemeCategory.NEON, cyberpunk!!.category)
 
+        val crimsonVoid = presets.find { it.id == ThemeRegistry.ID_CRIMSON_VOID }
+        assertNotNull(crimsonVoid)
+        assertEquals(ThemeCategory.NEON, crimsonVoid!!.category)
+        assertTrue(crimsonVoid.isDark)
+
         // New Aesthetic themes
         val duskRose = presets.find { it.id == ThemeRegistry.ID_DUSK_ROSE }
         assertNotNull(duskRose)
@@ -70,6 +75,11 @@ class ThemeRegistryTest {
         assertNotNull(champagne)
         assertEquals(ThemeCategory.AESTHETIC, champagne!!.category)
 
+        val obsidianMarble = presets.find { it.id == ThemeRegistry.ID_OBSIDIAN_MARBLE }
+        assertNotNull(obsidianMarble)
+        assertEquals(ThemeCategory.AESTHETIC, obsidianMarble!!.category)
+        assertTrue(obsidianMarble.isDark)
+
         val iceCrystal = presets.find { it.id == ThemeRegistry.ID_ICE_CRYSTAL }
         assertNotNull(iceCrystal)
         assertEquals(ThemeCategory.AESTHETIC, iceCrystal!!.category)
@@ -77,7 +87,7 @@ class ThemeRegistryTest {
 
         // Dynamic RGB Chroma themes
         val chromaThemes = presets.filter { it.category == ThemeCategory.RGB_CHROMA }
-        assertEquals(16, chromaThemes.size)
+        assertEquals(18, chromaThemes.size)
         for (ct in chromaThemes) {
             assertTrue("Chroma theme ${ct.id} must have isRgbChroma = true", ct.isRgbChroma)
             assertTrue("Chroma theme ${ct.id} must have non-NONE chromaMode", ct.chromaMode != ChromaMode.NONE)
@@ -98,6 +108,16 @@ class ThemeRegistryTest {
         val magma = presets.find { it.id == ThemeRegistry.ID_MAGMA_EMBER }
         assertNotNull(magma)
         assertEquals(ChromaMode.MAGMA_EMBER, magma!!.chromaMode)
+
+        val bioluminescence = presets.find { it.id == ThemeRegistry.ID_BIOLUMINESCENCE }
+        assertNotNull(bioluminescence)
+        assertEquals(ChromaMode.BIOLUMINESCENCE, bioluminescence!!.chromaMode)
+        assertEquals(ChromaStyle.AMBIENT_BREATHE, bioluminescence.chromaStyle)
+
+        val glitchStatic = presets.find { it.id == ThemeRegistry.ID_GLITCH_STATIC }
+        assertNotNull(glitchStatic)
+        assertEquals(ChromaMode.GLITCH_STATIC, glitchStatic!!.chromaMode)
+        assertEquals(ChromaStyle.FULL_BORDER, glitchStatic.chromaStyle)
 
         // New Distinct Dynamic Design Themes
         val midnightPrism = presets.find { it.id == ThemeRegistry.ID_MIDNIGHT_PRISM }
@@ -125,10 +145,10 @@ class ThemeRegistryTest {
         assertEquals(ChromaMode.NORDIC_AURORA, nordicLights!!.chromaMode)
         assertEquals(ChromaStyle.AMBIENT_BREATHE, nordicLights.chromaStyle)
 
-        // Toolbar Quick Theme Switcher (Strictly maximum 5 flagship themes across all categories)
+        // Toolbar Quick Theme Switcher (Flagship themes across categories)
         val quickThemes = ThemeRegistry.QUICK_TOOLBAR_THEME_IDS
-        assertTrue("Quick toolbar themes must not exceed 5", quickThemes.size <= 5)
-        assertEquals(5, quickThemes.size)
+        assertTrue("Quick toolbar themes must not exceed 6", quickThemes.size <= 6)
+        assertEquals(6, quickThemes.size)
         for (qId in quickThemes) {
             assertTrue("Quick theme $qId must exist in PRESET_THEMES", presets.any { it.id == qId })
         }

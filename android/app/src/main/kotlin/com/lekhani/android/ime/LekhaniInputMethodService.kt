@@ -3308,9 +3308,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val nextTheme = ThemeRegistry.resolveTheme(this, nextId)
         _themeFlow.value = nextTheme
         keyboardView?.applyTheme(nextTheme)
-        val isEng = keyboardPrefs.uiLanguage == "en"
-        val themeName = if (isEng) nextTheme.nameEnglish else nextTheme.nameBengali
-        showNotice(themeName, Icons.Filled.Palette, 1500L)
+        keyboardView?.let { feedbackManager.onKeyFeedback(it) }
     }
 
     /**

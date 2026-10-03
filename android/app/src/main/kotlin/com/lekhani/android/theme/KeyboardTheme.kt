@@ -11,9 +11,9 @@ import android.os.Build
 enum class ThemeCategory(val titleBengali: String, val titleEnglish: String) {
     ALL("সব থিম", "All Themes"),
     CLASSIC("ক্লাসিক ও মডার্ন", "Classic & Modern"),
-    RGB_CHROMA("আরজিবি ডাইনামিক", "RGB & Dynamic"),
-    NEON("নিওন ও সাইবার", "Neon & Cyber"),
     AESTHETIC("এসথেটিক পেস্টেল", "Aesthetic & Pastel"),
+    NEON("নিওন ও সাইবার", "Neon & Cyber"),
+    RGB_CHROMA("আরজিবি ডাইনামিক", "RGB & Dynamic"),
     CONTRAST_NATURE("কনট্রাস্ট ও প্রকৃতি", "Contrast & Nature"),
     CUSTOM("কাস্টম", "Custom");
 }
@@ -39,7 +39,9 @@ enum class ChromaMode(val titleBengali: String, val titleEnglish: String) {
     ELECTRIC_CYBER("ইলেকট্রিক সাইবার", "Electric Cyber"),
     SOLAR_GOLD("সোলার গোল্ড", "Solar Gold"),
     FROST_NEBULA("ফ্রস্ট নেবুলা", "Frost Nebula"),
-    NORDIC_AURORA("নর্ডিক অরোরা", "Nordic Aurora");
+    NORDIC_AURORA("নর্ডিক অরোরা", "Nordic Aurora"),
+    BIOLUMINESCENCE("বায়োলুমিনেসেন্স", "Bioluminescence"),
+    GLITCH_STATIC("গ্লিচ স্ট্যাটিক", "Glitch Static");
 }
 
 /**
@@ -173,6 +175,7 @@ object ThemeRegistry {
     const val ID_SOLAR_FLARE = "solar_flare"
     const val ID_SYNTHWAVE_84 = "synthwave_84"
     const val ID_CYBER_INDIGO = "cyber_indigo"
+    const val ID_CRIMSON_VOID = "crimson_void"
 
     // Aesthetic & Pastel IDs
     const val ID_SAKURA_BLOSSOM = "sakura_blossom"
@@ -184,6 +187,7 @@ object ThemeRegistry {
     const val ID_DUSK_ROSE = "dusk_rose"
     const val ID_MIDNIGHT_BOTANICAL = "midnight_botanical"
     const val ID_CHAMPAGNE_LUXURY = "champagne_luxury"
+    const val ID_OBSIDIAN_MARBLE = "obsidian_marble"
     const val ID_ICE_CRYSTAL = "ice_crystal"
 
     // RGB & Dynamic Chroma IDs
@@ -203,6 +207,8 @@ object ThemeRegistry {
     const val ID_FROST_NEBULA = "frost_nebula"
     const val ID_SOLAR_ECLIPSE = "solar_eclipse"
     const val ID_NORDIC_LIGHTS = "nordic_lights"
+    const val ID_BIOLUMINESCENCE = "bioluminescence"
+    const val ID_GLITCH_STATIC = "glitch_static"
 
     // High Contrast & Nature IDs
     const val ID_HIGH_CONTRAST = "high_contrast"
@@ -405,13 +411,33 @@ object ThemeRegistry {
         keyShiftColor = 0xFF120D24.toInt(),
         keySpaceColor = 0xFF251B47.toInt(),
         keyHasantaColor = 0xFF3B1D66.toInt(),
-        keyBorderColor = 0xFF3A2D5C.toInt(),
+        keyBorderColor = 0xFF5C3D8F.toInt(),
         labelColor = 0xFFF5EEFF.toInt(),
         labelDimColor = 0xFFA996C8.toInt(),
         accentColor = 0xFFB388FF.toInt(),
         rippleColor = 0x40B388FF.toInt(),
         glideStrokeColor = 0xFF7C4DFF.toInt(),
         glideGlowColor = 0x407C4DFF.toInt(),
+        isDark = true,
+        category = ThemeCategory.NEON,
+    )
+
+    val THEME_CRIMSON_VOID = KeyboardTheme(
+        id = ID_CRIMSON_VOID,
+        nameBengali = "ক্রিমসন ভয়েড",
+        nameEnglish = "Crimson Void",
+        backgroundColor = 0xFF080204.toInt(),
+        keyNormalColor = 0xFF180509.toInt(),
+        keyShiftColor = 0xFF100306.toInt(),
+        keySpaceColor = 0xFF22070D.toInt(),
+        keyHasantaColor = 0xFF420914.toInt(),
+        keyBorderColor = 0xFFFF1744.toInt(),
+        labelColor = 0xFFFFF0F2.toInt(),
+        labelDimColor = 0xFFFF8A9E.toInt(),
+        accentColor = 0xFFFF1744.toInt(),
+        rippleColor = 0x40FF1744.toInt(),
+        glideStrokeColor = 0xFFFF5252.toInt(),
+        glideGlowColor = 0x50FF1744.toInt(),
         isDark = true,
         category = ThemeCategory.NEON,
     )
@@ -594,6 +620,26 @@ object ThemeRegistry {
         rippleColor = 0x40D4AF37.toInt(),
         glideStrokeColor = 0xFFE5C158.toInt(),
         glideGlowColor = 0x50D4AF37.toInt(),
+        isDark = true,
+        category = ThemeCategory.AESTHETIC,
+    )
+
+    val THEME_OBSIDIAN_MARBLE = KeyboardTheme(
+        id = ID_OBSIDIAN_MARBLE,
+        nameBengali = "অবসিডিয়ান মার্বেল",
+        nameEnglish = "Obsidian Marble",
+        backgroundColor = 0xFF0E1012.toInt(),
+        keyNormalColor = 0xFF191B20.toInt(),
+        keyShiftColor = 0xFF131518.toInt(),
+        keySpaceColor = 0xFF21242A.toInt(),
+        keyHasantaColor = 0xFF352F22.toInt(),
+        keyBorderColor = 0xFF363A42.toInt(),
+        labelColor = 0xFFF2EFE9.toInt(),
+        labelDimColor = 0xFFD4AF37.toInt(),
+        accentColor = 0xFFD4AF37.toInt(),
+        rippleColor = 0x40D4AF37.toInt(),
+        glideStrokeColor = 0xFFE0BC5C.toInt(),
+        glideGlowColor = 0x40D4AF37.toInt(),
         isDark = true,
         category = ThemeCategory.AESTHETIC,
     )
@@ -978,6 +1024,52 @@ object ThemeRegistry {
         category = ThemeCategory.RGB_CHROMA,
     )
 
+    val THEME_BIOLUMINESCENCE = KeyboardTheme(
+        id = ID_BIOLUMINESCENCE,
+        nameBengali = "বায়োলুমিনেসেন্স",
+        nameEnglish = "Bioluminescence",
+        backgroundColor = 0xFF02060C.toInt(),
+        keyNormalColor = 0xFF071220.toInt(),
+        keyShiftColor = 0xFF040A12.toInt(),
+        keySpaceColor = 0xFF0C1B30.toInt(),
+        keyHasantaColor = 0xFF0A3048.toInt(),
+        keyBorderColor = 0xFF00E5C8.toInt(),
+        labelColor = 0xFFE6FFFA.toInt(),
+        labelDimColor = 0xFF38BDF8.toInt(),
+        accentColor = 0xFF00E5C8.toInt(),
+        rippleColor = 0x4000E5C8.toInt(),
+        glideStrokeColor = 0xFF818CF8.toInt(),
+        glideGlowColor = 0x5000E5C8.toInt(),
+        isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.BIOLUMINESCENCE,
+        chromaStyle = ChromaStyle.AMBIENT_BREATHE,
+        category = ThemeCategory.RGB_CHROMA,
+    )
+
+    val THEME_GLITCH_STATIC = KeyboardTheme(
+        id = ID_GLITCH_STATIC,
+        nameBengali = "গ্লিচ স্ট্যাটিক",
+        nameEnglish = "Glitch Static",
+        backgroundColor = 0xFF0A0C14.toInt(),
+        keyNormalColor = 0xFF141824.toInt(),
+        keyShiftColor = 0xFF0E101A.toInt(),
+        keySpaceColor = 0xFF1B2030.toInt(),
+        keyHasantaColor = 0xFF2A2045.toInt(),
+        keyBorderColor = 0xFF00E5FF.toInt(),
+        labelColor = 0xFFFFFFFF.toInt(),
+        labelDimColor = 0xFFFF007F.toInt(),
+        accentColor = 0xFF00E5FF.toInt(),
+        rippleColor = 0x50FF007F.toInt(),
+        glideStrokeColor = 0xFFFFE600.toInt(),
+        glideGlowColor = 0x6000E5FF.toInt(),
+        isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.GLITCH_STATIC,
+        chromaStyle = ChromaStyle.FULL_BORDER,
+        category = ThemeCategory.RGB_CHROMA,
+    )
+
     // ── 5. Contrast & Nature ──────────────────────────────────────────────────
 
     val THEME_HIGH_CONTRAST = KeyboardTheme(
@@ -1024,49 +1116,53 @@ object ThemeRegistry {
      * All built-in preset themes ordered categorically.
      */
     val PRESET_THEMES: List<KeyboardTheme> = listOf(
-        // Classic & Modern
+        // Classic & Modern  (dark→light order)
         THEME_FLOW_TEAL,
         THEME_OLED_BLACK,
         THEME_AVRO_BLUE,
         THEME_DAYLIGHT_LIGHT,
 
-        // RGB Chroma & Dynamic
-        THEME_RGB_CHROMA_FLOW,
-        THEME_AURORA_BOREALIS,
-        THEME_MIDNIGHT_PRISM,
-        THEME_ELECTRIC_CYBER,
-        THEME_FROST_NEBULA,
-        THEME_SOLAR_ECLIPSE,
-        THEME_NORDIC_LIGHTS,
-        THEME_SUNSET_HORIZON,
-        THEME_COSMIC_NEBULA,
-        THEME_MATRIX_PULSE,
-        THEME_OCEAN_ABYSS,
-        THEME_VAPORWAVE_DREAM,
-        THEME_SAKURA_GLOW,
-        THEME_MAGMA_EMBER,
-        THEME_CELESTIAL_AMETHYST,
-        THEME_ENCHANTED_JADE,
-
-        // Neon & Cyber
-        THEME_CYBERPUNK_NEON,
-        THEME_MATRIX_GREEN,
-        THEME_TOKYO_MIDNIGHT,
-        THEME_SOLAR_FLARE,
-        THEME_SYNTHWAVE_84,
-        THEME_CYBER_INDIGO,
-
-        // Aesthetic & Pastel
+        // Aesthetic & Pastel  (warm dark → cool dark → light)
         THEME_SAKURA_BLOSSOM,
-        THEME_LAVENDER_HAZE,
-        THEME_MATCHA_MINT,
-        THEME_PEACH_SORBET,
-        THEME_NORDIC_FROST,
-        THEME_MOCHA_LATTE,
         THEME_DUSK_ROSE,
+        THEME_LAVENDER_HAZE,
+        THEME_PEACH_SORBET,
         THEME_MIDNIGHT_BOTANICAL,
         THEME_CHAMPAGNE_LUXURY,
+        THEME_OBSIDIAN_MARBLE,
+        THEME_MATCHA_MINT,
+        THEME_NORDIC_FROST,
         THEME_ICE_CRYSTAL,
+        THEME_MOCHA_LATTE,
+
+        // Neon & Cyber  (purple-cyber first, then electric, then fire)
+        THEME_CYBERPUNK_NEON,
+        THEME_SYNTHWAVE_84,
+        THEME_TOKYO_MIDNIGHT,
+        THEME_CYBER_INDIGO,
+        THEME_MATRIX_GREEN,
+        THEME_SOLAR_FLARE,
+        THEME_CRIMSON_VOID,
+
+        // RGB Chroma & Dynamic  (most accessible first, most intense last)
+        THEME_RGB_CHROMA_FLOW,
+        THEME_AURORA_BOREALIS,
+        THEME_NORDIC_LIGHTS,
+        THEME_OCEAN_ABYSS,
+        THEME_BIOLUMINESCENCE,
+        THEME_FROST_NEBULA,
+        THEME_MIDNIGHT_PRISM,
+        THEME_ELECTRIC_CYBER,
+        THEME_COSMIC_NEBULA,
+        THEME_CELESTIAL_AMETHYST,
+        THEME_ENCHANTED_JADE,
+        THEME_MATRIX_PULSE,
+        THEME_VAPORWAVE_DREAM,
+        THEME_GLITCH_STATIC,
+        THEME_SAKURA_GLOW,
+        THEME_SUNSET_HORIZON,
+        THEME_MAGMA_EMBER,
+        THEME_SOLAR_ECLIPSE,
 
         // Contrast & Nature
         THEME_HIGH_CONTRAST,
@@ -1074,19 +1170,17 @@ object ThemeRegistry {
     )
 
     /**
-     * Top 5 flagship themes across all categories for fast cycling via toolbar button.
-     * 1. Classic flagship: Flow Teal (Lekhani signature dark teal)
-     * 2. Minimal flagship: OLED Pure Black (pitch-black minimalist)
-     * 3. Clean Dynamic flagship: Midnight Prism (borderless obsidian, prismatic diamond dynamic accents)
-     * 4. Ambient Dynamic flagship: Aurora Borealis (flowing emerald-cyan ambient glow)
-     * 5. Neon/Cyber flagship: Cyberpunk Neon (vibrant futuristic electric cyber)
+     * 6 flagship themes for fast cycling via toolbar button.
+     * Spread: dark solid → light solid → ambient chroma → rainbow chroma → warm fire chroma → neon
+     * No names announced — the visual change is the feedback.
      */
     val QUICK_TOOLBAR_THEME_IDS: List<String> = listOf(
-        ID_FLOW_TEAL,
-        ID_OLED_BLACK,
-        ID_MIDNIGHT_PRISM,
-        ID_AURORA_BOREALIS,
-        ID_CYBERPUNK_NEON,
+        ID_FLOW_TEAL,            // 1. Dark signature teal (most recognisable)
+        ID_DAYLIGHT_LIGHT,       // 2. Light — the only light in the cycle
+        ID_AURORA_BOREALIS,      // 3. Ambient breathe chroma (cool, calm)
+        ID_MAGMA_EMBER,          // 4. Warm fire chroma (contrast to aurora)
+        ID_OLED_BLACK,           // 5. Pure OLED black (minimalist)
+        ID_CYBERPUNK_NEON,       // 6. High-contrast neon (energetic)
     )
 
     /**

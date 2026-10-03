@@ -31,6 +31,8 @@ object ThemeChromaUtils {
         ChromaMode.SOLAR_GOLD -> 4400L
         ChromaMode.FROST_NEBULA -> 4200L
         ChromaMode.NORDIC_AURORA -> 4600L
+        ChromaMode.BIOLUMINESCENCE -> 4200L
+        ChromaMode.GLITCH_STATIC -> 2200L
         ChromaMode.NONE -> 3600L
     }
 
@@ -150,6 +152,25 @@ object ThemeChromaUtils {
                 val wave = (sin((phase * 2.0 * PI) + (xRatio * PI)).toFloat() + 1f) * 0.5f
                 hsv[0] = 145f + wave * (270f - 145f)
                 hsv[1] = 0.85f
+                hsv[2] = 1.0f
+            }
+            ChromaMode.BIOLUMINESCENCE -> {
+                // Phosphorescent deep sea: ethereal cyan (168°) -> marine teal (190°) -> abyssal electric violet (265°)
+                val wave = (sin((phase * 2.0 * PI) + (xRatio * PI)).toFloat() + 1f) * 0.5f
+                hsv[0] = 168f + wave * (265f - 168f)
+                hsv[1] = 0.85f
+                hsv[2] = 1.0f
+            }
+            ChromaMode.GLITCH_STATIC -> {
+                // Rapid cyber chromatic glitch: snaps across electric cyan (180°), laser magenta (320°), and radioactive yellow (55°)
+                val step = ((phase * 8f + xRatio * 2f).toInt() % 4)
+                hsv[0] = when (step) {
+                    0 -> 180f // Electric cyan
+                    1 -> 320f // Hot laser magenta
+                    2 -> 55f  // Radioactive neon yellow
+                    else -> 210f // High-voltage blue
+                }
+                hsv[1] = 0.95f
                 hsv[2] = 1.0f
             }
             ChromaMode.NONE -> {
