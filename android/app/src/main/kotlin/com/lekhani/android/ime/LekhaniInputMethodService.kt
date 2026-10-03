@@ -555,15 +555,18 @@ class LekhaniInputMethodService : InputMethodService() {
                 preeditShadow = ""
                 rawInputBuffer.clear()
                 activeInspectedWord = null
-                clearCandidates()
                 clearUndo()
                 refreshSurroundingContext()
-                currentInputConnection?.let { updateAvroStripForWordAtCursor(it) }
+                val isAvro = session.getLayout() == LekhaniLayoutType.AVRO && !isCurrentFieldPrivate
+                if (!isAvro) {
+                    clearCandidates()
+                } else {
+                    currentInputConnection?.let { updateAvroStripForWordAtCursor(it) }
+                }
             }
         } else if (newSelStart == newSelEnd && newSelStart >= 0) {
             // User tapped somewhere in text to reposition the cursor while idle.
             // Respect the user's intended cursor position without hijacking or resetting it.
-            currentInputConnection?.finishComposingText()
             refreshSurroundingContext()
             updateAutoCaps()
             currentInputConnection?.let { updateAvroStripForWordAtCursor(it) }
@@ -2344,11 +2347,14 @@ class LekhaniInputMethodService : InputMethodService() {
             if (session.getLayout() == LekhaniLayoutType.GBOARD) {
                 keyboardView?.setGboardKarsActive(false)
             }
-            clearCandidates()
+            val isAvro = session.getLayout() == LekhaniLayoutType.AVRO && !isCurrentFieldPrivate
+            if (!isAvro) {
+                clearCandidates()
+            }
             updateAutoCaps()
 
             // Update candidate strip with English preview & alternatives for word at cursor in Avro mode
-            if (session.getLayout() == LekhaniLayoutType.AVRO && !isCurrentFieldPrivate) {
+            if (isAvro) {
                 updateAvroStripForWordAtCursor(ic)
             }
         }
@@ -2647,13 +2653,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 if (inspected.charsBeforeCursor > 0 || inspected.charsAfterCursor > 0) {
                     ic.deleteSurroundingText(inspected.charsBeforeCursor, inspected.charsAfterCursor)
                 }
-                ic.commitText(actualCandidate, 1)
+                val textToCommit = if (inspected.hasTrailingSpace) "$actualCandidate " else actualCandidate
+                ic.commitText(textToCommit, 1)
                 preeditShadow = ""
             } finally {
                 ic.endBatchEdit()
             }
             if (session.getLayout() == LekhaniLayoutType.AVRO && inspected.rawEnglish.isNotBlank()) {
-                avroHistory.record(actualCandidate, inspected.rawEnglish, withSpace = false)
+                avroHistory.record(actualCandidate, inspected.rawEnglish, withSpace = inspected.hasTrailingSpace)
             }
             clearCandidates()
             refreshSurroundingContext()
@@ -3608,6 +3615,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val charsBeforeCursor: Int,
         val charsAfterCursor: Int,
         val rawEnglish: String,
+        val hasTrailingSpace: Boolean = false,
     )
 
     /**
@@ -3655,7 +3663,27 @@ class LekhaniInputMethodService : InputMethodService() {
             j++
         }
 
-        val totalWordLen = beforeWordCount + afterWordCount
+        var totalWordLen = beforeWordCount + afterWordCount
+        var trailingSpace = false
+
+        // Trailing single-space inspection:
+        // When cursor is immediately after a single space following a word (e.g. "ভালো |"),
+        // inspect the preceding word so the strip doesn't abruptly collapse or flicker.
+        if (totalWordLen == 0 && before.endsWith(" ") && !before.endsWith("  ") && (after.isEmpty() || after.startsWith(" ") || !isWordChar(after[0]))) {
+            var k = before.length - 2
+            var spaceWordLen = 0
+            while (k >= 0 && isWordChar(before[k])) {
+                spaceWordLen++
+                k--
+            }
+            if (spaceWordLen > 0) {
+                beforeWordCount = spaceWordLen
+                afterWordCount = 0
+                totalWordLen = spaceWordLen
+                trailingSpace = true
+            }
+        }
+
         if (totalWordLen == 0) {
             if (activeInspectedWord != null || _candidateState.value is CandidateStripState.Candidates) {
                 activeInspectedWord = null
@@ -3664,7 +3692,11 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
-        val word = before.substring(before.length - beforeWordCount) + after.substring(0, afterWordCount)
+        val word = if (trailingSpace) {
+            before.substring(before.length - 1 - beforeWordCount, before.length - 1)
+        } else {
+            before.substring(before.length - beforeWordCount) + after.substring(0, afterWordCount)
+        }
         val isBengali = AvroReverseTransliterator.isBengaliWord(word)
         val isAsciiWord = !isBengali && word.isNotEmpty() && word.all { it in 'a'..'z' || it in 'A'..'Z' }
         if (!isBengali && !isAsciiWord) {
@@ -3688,11 +3720,27 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
+        val effectiveCharsBefore = if (trailingSpace) beforeWordCount + 1 else beforeWordCount
+
+        // Zero-allocation & zero-flicker deduplication:
+        // If the user is navigating within or over the same word, just update cursor offsets
+        // without re-querying the engine or triggering Compose recomposition.
+        val prevInspected = activeInspectedWord
+        if (prevInspected != null && prevInspected.word == word && prevInspected.rawEnglish == rawEnglish) {
+            activeInspectedWord = prevInspected.copy(
+                charsBeforeCursor = effectiveCharsBefore,
+                charsAfterCursor = afterWordCount,
+                hasTrailingSpace = trailingSpace
+            )
+            return
+        }
+
         activeInspectedWord = InspectedWord(
             word = word,
-            charsBeforeCursor = beforeWordCount,
+            charsBeforeCursor = effectiveCharsBefore,
             charsAfterCursor = afterWordCount,
-            rawEnglish = rawEnglish
+            rawEnglish = rawEnglish,
+            hasTrailingSpace = trailingSpace
         )
 
         // Query candidate suggestions from the Avro engine via wordInspectionSession
@@ -3741,8 +3789,11 @@ class LekhaniInputMethodService : InputMethodService() {
             verbatimIdx = verbatimIdx
         )
 
-        _candidateState.value = CandidateStripState.Candidates(annotated)
-        updateCandidatesVisibility()
+        val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
+        if (curItems != annotated) {
+            _candidateState.value = CandidateStripState.Candidates(annotated)
+            updateCandidatesVisibility()
+        }
     }
 
     // Constants

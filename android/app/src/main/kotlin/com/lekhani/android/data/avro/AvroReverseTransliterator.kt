@@ -122,12 +122,66 @@ object AvroReverseTransliterator {
             // 3. Consonants & modifiers
             val cons = CONSONANT_MAP[c]
             if (cons != null) {
-                sb.append(cons)
                 val next = if (i + 1 < len) bengaliWord[i + 1] else null
+                val nextNext = if (i + 2 < len) bengaliWord[i + 2] else null
+
+                // Special conjuncts:
+                // 3a. ক্ষ (Ksh) -> canonical Avro "kkh"
+                if (c == 'ক' && next == '্' && nextNext == 'ষ') {
+                    sb.append("kkh")
+                    val afterConj = if (i + 3 < len) bengaliWord[i + 3] else null
+                    if (afterConj != null && CONSONANT_MAP.containsKey(afterConj) && afterConj != 'ং' && afterConj != 'ঃ' && afterConj != 'ঁ') {
+                        sb.append("o")
+                    }
+                    i += 3
+                    continue
+                }
+
+                // 3b. জ্ঞ (Gya) -> canonical Avro "gg"
+                if (c == 'জ' && next == '্' && nextNext == 'ঞ') {
+                    sb.append("gg")
+                    val afterConj = if (i + 3 < len) bengaliWord[i + 3] else null
+                    if (afterConj != null && CONSONANT_MAP.containsKey(afterConj) && afterConj != 'ং' && afterConj != 'ঃ' && afterConj != 'ঁ') {
+                        sb.append("o")
+                    }
+                    i += 3
+                    continue
+                }
+
+                // 3c. ঞ্চ/ঞ্ছ/ঞ্জ/ঞ্ঝ -> "n" + consonant (nc, nch, nj, njh)
+                if (c == 'ঞ' && next == '্' && (nextNext == 'চ' || nextNext == 'ছ' || nextNext == 'জ' || nextNext == 'ঝ')) {
+                    sb.append("n")
+                    i += 2 // skip ঞ and ্, so next consonant processes normally
+                    continue
+                }
+
+                // 3d. Ya-phala (consonant + ্ + য) -> cons + "y"
+                if (next == '্' && nextNext == 'য') {
+                    sb.append(cons).append("y")
+                    val afterYa = if (i + 3 < len) bengaliWord[i + 3] else null
+                    if (afterYa != null && CONSONANT_MAP.containsKey(afterYa) && afterYa != 'ং' && afterYa != 'ঃ' && afterYa != 'ঁ') {
+                        sb.append("o")
+                    }
+                    i += 3
+                    continue
+                }
+
+                // 3e. Ba-phala (consonant + ্ + ব) -> cons + "w"
+                if (next == '্' && nextNext == 'ব') {
+                    sb.append(cons).append("w")
+                    val afterBa = if (i + 3 < len) bengaliWord[i + 3] else null
+                    if (afterBa != null && CONSONANT_MAP.containsKey(afterBa) && afterBa != 'ং' && afterBa != 'ঃ' && afterBa != 'ঁ') {
+                        sb.append("o")
+                    }
+                    i += 3
+                    continue
+                }
+
+                sb.append(cons)
 
                 if (next == '্') {
                     // Hasanta link (conjunct)
-                    if (i + 2 < len && CONSONANT_MAP.containsKey(bengaliWord[i + 2])) {
+                    if (nextNext != null && CONSONANT_MAP.containsKey(nextNext)) {
                         // Consonant cluster: skip hasanta so next consonant attaches directly
                         i += 2
                         continue

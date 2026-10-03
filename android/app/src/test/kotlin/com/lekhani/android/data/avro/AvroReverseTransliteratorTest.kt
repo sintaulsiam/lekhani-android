@@ -30,6 +30,17 @@ class AvroReverseTransliteratorTest {
         assertEquals("Dhaka", AvroReverseTransliterator.bengaliToAvro("ঢাকা"))
         assertEquals("kolkata", AvroReverseTransliterator.bengaliToAvro("কল্কাতা"))
         assertEquals("kolokata", AvroReverseTransliterator.bengaliToAvro("কলকাতা"))
+        // Conjunct & phala reverse transliterations
+        assertEquals("dhonyobad", AvroReverseTransliterator.bengaliToAvro("ধন্যবাদ"))
+        assertEquals("konya", AvroReverseTransliterator.bengaliToAvro("কন্যা"))
+        assertEquals("bonya", AvroReverseTransliterator.bengaliToAvro("বন্যা"))
+        assertEquals("byokti", AvroReverseTransliterator.bengaliToAvro("ব্যক্তি"))
+        assertEquals("kkhoma", AvroReverseTransliterator.bengaliToAvro("ক্ষমা"))
+        assertEquals("shikkha", AvroReverseTransliterator.bengaliToAvro("শিক্ষা"))
+        assertEquals("ggan", AvroReverseTransliterator.bengaliToAvro("জ্ঞান"))
+        assertEquals("oncol", AvroReverseTransliterator.bengaliToAvro("অঞ্চল"))
+        assertEquals("swagotom", AvroReverseTransliterator.bengaliToAvro("স্বাগতম"))
+        assertEquals("bishwas", AvroReverseTransliterator.bengaliToAvro("বিশ্বাস"))
     }
 
     @Test
