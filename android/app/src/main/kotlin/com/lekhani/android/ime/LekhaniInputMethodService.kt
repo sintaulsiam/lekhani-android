@@ -359,13 +359,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 if (clip != null && clip.itemCount > 0) {
                     val item = clip.getItemAt(0)
                     val text = item?.text?.toString() ?: item?.coerceToText(this@LekhaniInputMethodService)?.toString()
-                    if (!text.isNullOrBlank()) {
-                        if (text != lastCopiedText) {
-                            lastCopiedText = text
+                    if (LekhaniClipboardStore.isValidClipText(text)) {
+                        val trimmed = text!!.trim()
+                        if (trimmed != lastCopiedText) {
+                            lastCopiedText = trimmed
                             lastCopiedTime = System.currentTimeMillis()
                             isQuickChipDismissed = false
                         }
-                        clipboardStore.addClip(text)
+                        clipboardStore.addClip(trimmed)
                     }
                 }
             }
@@ -379,6 +380,7 @@ class LekhaniInputMethodService : InputMethodService() {
         if (session.isComposing() || preeditShadow.isNotEmpty()) return
 
         val text = lastCopiedText ?: return
+        if (!LekhaniClipboardStore.isValidClipText(text)) return
         val ageMs = System.currentTimeMillis() - lastCopiedTime
         if (ageMs in 0..120_000) {
             val isEng = session.getLayout() == LekhaniLayoutType.ENGLISH

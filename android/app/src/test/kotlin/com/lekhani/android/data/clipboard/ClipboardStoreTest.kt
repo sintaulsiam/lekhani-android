@@ -155,4 +155,22 @@ class ClipboardStoreTest {
         assertTrue(edited.isSensitive)
         assertTrue(edited.isPinned)
     }
+
+    @Test
+    fun `isValidClipText rejects null, literal null, undefined, blank, and invisible junk`() {
+        assertFalse(LekhaniClipboardStore.isValidClipText(null))
+        assertFalse(LekhaniClipboardStore.isValidClipText(""))
+        assertFalse(LekhaniClipboardStore.isValidClipText("   "))
+        assertFalse(LekhaniClipboardStore.isValidClipText("null"))
+        assertFalse(LekhaniClipboardStore.isValidClipText("Null"))
+        assertFalse(LekhaniClipboardStore.isValidClipText("NULL"))
+        assertFalse(LekhaniClipboardStore.isValidClipText("  null  "))
+        assertFalse(LekhaniClipboardStore.isValidClipText("undefined"))
+        assertFalse(LekhaniClipboardStore.isValidClipText("\u200B\u200C\u200D\uFEFF"))
+
+        assertTrue(LekhaniClipboardStore.isValidClipText("Hello World"))
+        assertTrue(LekhaniClipboardStore.isValidClipText("বাংলা"))
+        assertTrue(LekhaniClipboardStore.isValidClipText("12345"))
+        assertTrue(LekhaniClipboardStore.isValidClipText("null hypothesis")) // valid phrase containing the word null
+    }
 }

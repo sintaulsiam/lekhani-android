@@ -131,10 +131,12 @@ class LekhaniClipboardStore(context: Context) {
                 while (!seenIds.add(id)) {
                     id = nextId()
                 }
+                val text = obj.optString("text", "")
+                if (!isValidClipText(text)) continue
                 list.add(
                     ClipItem(
                         id = id,
-                        text = obj.getString("text"),
+                        text = text.trim(),
                         timestamp = obj.getLong("timestamp"),
                         isPinned = obj.optBoolean("isPinned", false),
                         isSaved = obj.optBoolean("isSaved", false),
@@ -188,10 +190,12 @@ class LekhaniClipboardStore(context: Context) {
                     while (!seenItemIds.add(itemId)) {
                         itemId = nextId()
                     }
+                    val itemText = itemObj.optString("text", "")
+                    if (!isValidClipText(itemText)) continue
                     items.add(
                         ClipItem(
                             id = itemId,
-                            text = itemObj.getString("text"),
+                            text = itemText.trim(),
                             timestamp = itemObj.getLong("timestamp"),
                             isPinned = itemObj.optBoolean("isPinned", false),
                             isSaved = itemObj.optBoolean("isSaved", false),
@@ -248,9 +252,9 @@ class LekhaniClipboardStore(context: Context) {
      * Detects sensitive content (OTP or passwords) and excludes duplicates.
      */
     @Synchronized
-    fun addClip(text: String, isSaved: Boolean = false) {
-        val trimmed = text.trim()
-        if (trimmed.isEmpty()) return
+    fun addClip(text: String?, isSaved: Boolean = false) {
+        if (!isValidClipText(text)) return
+        val trimmed = text!!.trim()
 
         val isSensitive = detectSensitiveContent(trimmed)
         val id = nextId()
@@ -292,8 +296,8 @@ class LekhaniClipboardStore(context: Context) {
      */
     @Synchronized
     fun editClip(id: Long, newText: String) {
+        if (!isValidClipText(newText)) return
         val trimmed = newText.trim()
-        if (trimmed.isEmpty()) return
         val isSensitive = detectSensitiveContent(trimmed)
         val updated = _clips.value.map {
             if (it.id == id) {
@@ -513,5 +517,19 @@ class LekhaniClipboardStore(context: Context) {
         val URL_REGEX = Regex(
             """(?i)\b(?:https?://|ftp://|www\.)[^\s<>"'{}|\\^`]+|\b[a-zA-Z0-9.-]+\.(?:com|org|net|edu|gov|io|ai|co|bd|dev|app|me|info|xyz|site|online)(?:/[^\s<>"'{}|\\^`]*)?"""
         )
+
+        /**
+         * Validates if text is meaningful clipboard content.
+         * Rejects null, blank, literal "null", "undefined", or zero-width-only junk.
+         */
+        fun isValidClipText(text: String?): Boolean {
+            if (text == null) return false
+            val trimmed = text.trim()
+            if (trimmed.isEmpty()) return false
+            if (trimmed.equals("null", ignoreCase = true) || trimmed.equals("undefined", ignoreCase = true)) return false
+            val visibleChars = trimmed.filter { it > ' ' && it != '\u200B' && it != '\u200C' && it != '\u200D' && it != '\uFEFF' }
+            if (visibleChars.isEmpty()) return false
+            return true
+        }
     }
 }
