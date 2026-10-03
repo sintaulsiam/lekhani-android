@@ -36,10 +36,23 @@ class AudioStreamingManager(
     private val context: Context,
     private val audioProcessor: AsrAudioProcessor = AsrAudioProcessor(),
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
-) {
+) : OfflineAsrEngine {
 
     private val _voiceState = MutableStateFlow<VoiceTypingState>(VoiceTypingState.Idle)
-    val voiceState: StateFlow<VoiceTypingState> = _voiceState.asStateFlow()
+    override val state: StateFlow<VoiceTypingState> = _voiceState.asStateFlow()
+    val voiceState: StateFlow<VoiceTypingState> get() = state
+
+    override fun isModelReady(): Boolean = true
+
+    override fun startListening() {
+        startStreaming {}
+    }
+
+    override fun stopListening(): String = stopStreaming()
+
+    override fun cancel() {
+        cancelStreaming()
+    }
 
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
@@ -218,7 +231,7 @@ class AudioStreamingManager(
     }
 
     /** Releases all audio resources and cancels background coroutines on IME destroy. */
-    fun release() {
+    override fun release() {
         cancelStreaming()
         coroutineScope.cancel()
     }
