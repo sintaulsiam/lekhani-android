@@ -374,4 +374,48 @@ fn test_typo_recovery_always_surfaces() {
     }
 }
 
+#[test]
+#[serial]
+fn test_contextual_homophone_disambiguation_matrix() {
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+
+    // 1. "বই" (book) -> "pora" should rank "পড়া" higher than "পরা"
+    session.reset();
+    session.set_context("বই ".into());
+    for c in "pora".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    let res1 = session.handle_space().unwrap();
+    assert_eq!(res1.commit_text.as_deref(), Some("পড়া "));
+
+    // 2. "জামা" (shirt/clothes) -> "pora" should rank "পরা" higher than "পড়া"
+    session.reset();
+    session.set_context("জামা ".into());
+    for c in "pora".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    let res2 = session.handle_space().unwrap();
+    assert_eq!(res2.commit_text.as_deref(), Some("পরা "));
+
+    // 3. "আমার" -> "matha" should rank "মাথা"
+    session.reset();
+    session.set_context("আমার ".into());
+    for c in "matha".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    let res3 = session.handle_space().unwrap();
+    assert_eq!(res3.commit_text.as_deref(), Some("মাথা "));
+
+    // 4. "গরম" -> "bhat" should rank "ভাত"
+    session.reset();
+    session.set_context("গরম ".into());
+    for c in "bhat".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    let res4 = session.handle_space().unwrap();
+    assert_eq!(res4.commit_text.as_deref(), Some("ভাত "));
+}
+
+
 
