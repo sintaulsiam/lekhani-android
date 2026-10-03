@@ -141,54 +141,52 @@ pub fn get_neural_predictor() -> &'static lekhani_neural::NeuralContextPredictor
         }
 
         for dir in &search_dirs {
-            if vocab_opt.is_none() {
-                // v2: Bengali-first BPE vocabulary (preferred)
-                let p_v2 = dir.join("bengali_vocab_v2.json");
-                if p_v2.exists() {
-                    if let Ok(v) = BpeVocabulary::load_json(&p_v2) {
+            // 1. Check for v2 pair (bengali_gru_v2.bin + bengali_vocab_v2.json)
+            let p_model_v2 = dir.join("bengali_gru_v2.bin");
+            let p_vocab_v2 = dir.join("bengali_vocab_v2.json");
+            if p_model_v2.exists() && p_vocab_v2.exists() {
+                if let (Ok(m), Ok(v)) = (
+                    MicroGruModel::load_binary(&p_model_v2),
+                    BpeVocabulary::load_json(&p_vocab_v2),
+                ) {
+                    if m.vocab_size() == v.len() {
+                        model_opt = Some(Arc::new(m));
                         vocab_opt = Some(Arc::new(v));
-                    }
-                }
-                if vocab_opt.is_none() {
-                    let p_bin = dir.join("bengali_vocab.bin");
-                    if p_bin.exists() {
-                        if let Ok(v) = BpeVocabulary::load_binary(&p_bin) {
-                            vocab_opt = Some(Arc::new(v));
-                        }
-                    } else {
-                        let p_json = dir.join("neural_vocab.json");
-                        if p_json.exists() {
-                            if let Ok(v) = BpeVocabulary::load_json(&p_json) {
-                                vocab_opt = Some(Arc::new(v));
-                            }
-                        }
+                        break;
                     }
                 }
             }
 
-            if model_opt.is_none() {
-                let p_bin_v2 = dir.join("bengali_gru_v2.bin");
-                let p_bin = dir.join("bengali_gru.bin");
-                if p_bin_v2.exists() {
-                    if let Ok(m) = MicroGruModel::load_binary(&p_bin_v2) {
+            // 2. Check for v1 binary pair (bengali_gru.bin + bengali_vocab.bin)
+            let p_model_v1 = dir.join("bengali_gru.bin");
+            let p_vocab_v1 = dir.join("bengali_vocab.bin");
+            if p_model_v1.exists() && p_vocab_v1.exists() {
+                if let (Ok(m), Ok(v)) = (
+                    MicroGruModel::load_binary(&p_model_v1),
+                    BpeVocabulary::load_binary(&p_vocab_v1),
+                ) {
+                    if m.vocab_size() == v.len() {
                         model_opt = Some(Arc::new(m));
-                    }
-                } else if p_bin.exists() {
-                    if let Ok(m) = MicroGruModel::load_binary(&p_bin) {
-                        model_opt = Some(Arc::new(m));
-                    }
-                } else {
-                    let p_json = dir.join("neural_weights.json");
-                    if p_json.exists() {
-                        if let Ok(m) = MicroGruModel::load_json(&p_json) {
-                            model_opt = Some(Arc::new(m));
-                        }
+                        vocab_opt = Some(Arc::new(v));
+                        break;
                     }
                 }
             }
 
-            if vocab_opt.is_some() && model_opt.is_some() {
-                break;
+            // 3. Check for JSON development pair (neural_weights.json + neural_vocab.json)
+            let p_model_json = dir.join("neural_weights.json");
+            let p_vocab_json = dir.join("neural_vocab.json");
+            if p_model_json.exists() && p_vocab_json.exists() {
+                if let (Ok(m), Ok(v)) = (
+                    MicroGruModel::load_json(&p_model_json),
+                    BpeVocabulary::load_json(&p_vocab_json),
+                ) {
+                    if m.vocab_size() == v.len() {
+                        model_opt = Some(Arc::new(m));
+                        vocab_opt = Some(Arc::new(v));
+                        break;
+                    }
+                }
             }
         }
 
@@ -2493,5 +2491,14 @@ mod tests {
         // "আমি গান " followed by "gai" should rank "গাই" top
         assert_eq!(res3.candidates.first().map(|s| s.as_str()), Some("গাই"));
     }
+
+    #[test]
+    #[serial]
+    fn test_neural_predictor_loads_matched_pair() {
+        let neural = get_neural_predictor();
+        let cands = neural.predict_candidates("আমি ভাত", 3);
+        assert!(!cands.is_empty(), "Neural predictor should return predictions from matched model");
+    }
 }
+
 
