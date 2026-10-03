@@ -266,24 +266,22 @@ class LekhaniInputMethodService : InputMethodService() {
         imeLifecycleOwner.onCreate()
         imeLifecycleOwner.onResume()
 
-        // Unpack bundled offline dictionaries and layouts to application storage
-        try {
-            LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
-            val dictDir = File(filesDir, "dictionaries")
-            if (dictDir.exists()) {
-                try {
-                    com.lekhani.android.ffi.setDictionaryDirectory(dictDir.absolutePath)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to set custom dictionary dir: ${e.message}")
-                }
-            }
-            ensureEnglishDictionaryLoaded()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error installing offline assets: ${e.message}")
-        }
-
-        // Load user-learned vocabulary & bigrams and custom autocorrect from private storage
+        // Unpack bundled offline dictionaries and load models asynchronously off the main thread
         serviceScope.launch(Dispatchers.IO) {
+            try {
+                LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
+                val dictDir = File(filesDir, "dictionaries")
+                if (dictDir.exists()) {
+                    try {
+                        com.lekhani.android.ffi.setDictionaryDirectory(dictDir.absolutePath)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to set custom dictionary dir: ${e.message}")
+                    }
+                }
+                ensureEnglishDictionaryLoaded()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error installing offline assets: ${e.message}")
+            }
             try {
                 val f = File(filesDir, "user_learned.bin")
                 session.setLearnerAutosavePath(f.absolutePath)
@@ -2852,24 +2850,30 @@ class LekhaniInputMethodService : InputMethodService() {
         // 3. Dynamic Date & Time Suggestions
         val isEng = session.getLayout() == LekhaniLayoutType.ENGLISH
         val topCandidate = filtered.getOrNull(primaryIndex) ?: filtered.firstOrNull() ?: ""
-        if (SmartAssistant.isDateQuery(rawInput) || SmartAssistant.isDateQuery(topCandidate)) {
-            val dateStr = SmartAssistant.getFormattedDate(!isEng)
-            if (!filtered.contains(dateStr)) filtered.add(dateStr)
-        }
-        if (SmartAssistant.isTimeQuery(rawInput) || SmartAssistant.isTimeQuery(topCandidate)) {
-            val timeStr = SmartAssistant.getFormattedTime(!isEng)
-            if (!filtered.contains(timeStr)) filtered.add(timeStr)
+        if (rawInput.length >= 3 || topCandidate.length >= 3) {
+            if (SmartAssistant.isDateQuery(rawInput) || SmartAssistant.isDateQuery(topCandidate)) {
+                val dateStr = SmartAssistant.getFormattedDate(!isEng)
+                if (!filtered.contains(dateStr)) filtered.add(dateStr)
+            }
+            if (SmartAssistant.isTimeQuery(rawInput) || SmartAssistant.isTimeQuery(topCandidate)) {
+                val timeStr = SmartAssistant.getFormattedTime(!isEng)
+                if (!filtered.contains(timeStr)) filtered.add(timeStr)
+            }
         }
 
-        // 4. Inline Contextual Emojis: Gboard-style trailing suggestions
-        val contextualEmojis = mutableListOf<String>()
-        contextualEmojis.addAll(EmojiData.findContextualEmojis(rawInput, 2))
-        if (topCandidate.isNotEmpty() && contextualEmojis.size < 2) {
-            contextualEmojis.addAll(EmojiData.findContextualEmojis(topCandidate, 2 - contextualEmojis.size))
-        }
-        for (emoji in contextualEmojis.distinct()) {
-            if (!filtered.contains(emoji)) {
-                filtered.add(emoji)
+        // 4. Inline Contextual Emojis: Gboard-style trailing suggestions (only when token length >= 2)
+        if (rawInput.length >= 2 || topCandidate.length >= 2) {
+            val contextualEmojis = mutableListOf<String>()
+            if (rawInput.length >= 2) {
+                contextualEmojis.addAll(EmojiData.findContextualEmojis(rawInput, 2))
+            }
+            if (topCandidate.length >= 2 && contextualEmojis.size < 2) {
+                contextualEmojis.addAll(EmojiData.findContextualEmojis(topCandidate, 2 - contextualEmojis.size))
+            }
+            for (emoji in contextualEmojis.distinct()) {
+                if (!filtered.contains(emoji)) {
+                    filtered.add(emoji)
+                }
             }
         }
 

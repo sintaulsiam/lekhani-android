@@ -1223,8 +1223,9 @@ object EmojiData {
     /** Check if a given string is a recognized emoji glyph */
     fun isEmoji(str: String): Boolean {
         if (str.isEmpty()) return false
-        if (allEmojiCharSet.contains(str)) return true
         val cp = str.codePointAt(0)
+        if (cp < 0x2000) return false
+        if (allEmojiCharSet.contains(str)) return true
         return (cp in 0x1F300..0x1FAFF) || (cp in 0x2600..0x27BF) || (cp in 0x1F600..0x1F64F)
     }
 
