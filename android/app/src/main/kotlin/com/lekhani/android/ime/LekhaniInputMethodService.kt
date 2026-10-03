@@ -239,6 +239,13 @@ class LekhaniInputMethodService : InputMethodService() {
     private var lastSpaceTapTime: Long = 0L
 
     /**
+     * Set to `true` immediately after a word is committed (space, candidate tap, backspace-undo).
+     * Prevents [refreshSurroundingContext] from flashing next-word predictions onto the strip
+     * before the user begins typing the next word. Cleared on the first keystroke of a new word.
+     */
+    @Volatile private var suppressNextWordAfterCommit: Boolean = false
+
+    /**
      * Last cached surrounding text for use in word-count scan during swipe-to-delete.
      * Updated asynchronously by [refreshSurroundingContext] — avoids blocking the main thread
      * with a synchronous `getTextBeforeCursor()` Binder IPC call in [handleSwipeDelete].
@@ -445,6 +452,7 @@ class LekhaniInputMethodService : InputMethodService() {
         swipeDeleteAnchorCursor = -1
         activeSwipeDeletePreviewText = ""
         editorSelectionAnchor = -1
+        suppressNextWordAfterCommit = false
         setInputViewMode(InputViewMode.KEYBOARD)
         applyInputTypePolicy(info)
         updateEnterActionAndFieldType(info)
@@ -2123,6 +2131,8 @@ class LekhaniInputMethodService : InputMethodService() {
      * that is unavoidable at the Android layer).
      */
     fun onKey(keyToken: String) {
+        // User is now typing the next word — safe to show next-word predictions again.
+        suppressNextWordAfterCommit = false
         clearUndo()
         isQuickChipDismissed = true
         val ic = currentInputConnection ?: return
@@ -2538,6 +2548,9 @@ class LekhaniInputMethodService : InputMethodService() {
             } else {
                 clearCandidates()
             }
+            // Suppress next-word predictions from landing on the strip until
+            // the user actually types the first character of the next word.
+            suppressNextWordAfterCommit = true
         }
 
         // After committing a word, refresh surrounding context for AI scorer
@@ -2698,6 +2711,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 publishCandidates(result.candidates)
             } else {
                 clearCandidates()
+                // Prevent next-word predictions from flashing onto the strip before
+                // the user begins typing the next word after tapping a candidate.
+                suppressNextWordAfterCommit = true
             }
         }
 
@@ -3565,8 +3581,12 @@ class LekhaniInputMethodService : InputMethodService() {
                     session.setContext(contextText)
                 }
                 session.setRightContext(afterText)
-                // Asynchronous background next-word prediction: keep UI thread 120 FPS
-                if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && effectiveContext.isNotBlank()) {
+                // Asynchronous background next-word prediction: keep UI thread 120 FPS.
+                // suppressNextWordAfterCommit is set when a word is committed via space/tap.
+                // It is cleared on the first keystroke of the next word, preventing the
+                // "post-space flash" where predictions briefly overwrite the empty strip.
+                if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() &&
+                    effectiveContext.isNotBlank() && !suppressNextWordAfterCommit) {
                     val nextWords = try {
                         session.predictNextWords(5u)
                     } catch (_: Exception) {
@@ -3574,7 +3594,8 @@ class LekhaniInputMethodService : InputMethodService() {
                     }
                     if (nextWords.isNotEmpty()) {
                         withContext(Dispatchers.Main) {
-                            if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && activeInspectedWord == null) {
+                            if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() &&
+                                activeInspectedWord == null && !suppressNextWordAfterCommit) {
                                 if (_candidateState.value !is CandidateStripState.Undo) {
                                     publishCandidates(nextWords)
                                 }
@@ -3660,6 +3681,12 @@ class LekhaniInputMethodService : InputMethodService() {
         if (session.getLayout() != LekhaniLayoutType.AVRO) return
         if (isCurrentFieldPrivate) return
         if (session.isComposing() || preeditShadow.isNotEmpty()) return
+        // After a word commit (space / candidate tap), the strip must stay clean
+        // until the user starts typing the next word. Bail out to prevent the
+        // trailing-space inspection from re-showing the previous word's English
+        // preview ("Sonar" flash) and the internal next-word paths from firing
+        // a second time while refreshSurroundingContext is already suppressed.
+        if (suppressNextWordAfterCommit) return
 
         val curState = _candidateState.value
         if (curState is CandidateStripState.Selection ||
