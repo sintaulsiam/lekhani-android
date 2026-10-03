@@ -2673,9 +2673,9 @@ class LekhaniInputMethodService : InputMethodService() {
             if (session.getLayout() == LekhaniLayoutType.AVRO && inspected.rawEnglish.isNotBlank()) {
                 avroHistory.record(actualCandidate, inspected.rawEnglish, withSpace = inspected.hasTrailingSpace)
             }
-            clearCandidates()
             refreshSurroundingContext()
             updateAutoCaps()
+            updateAvroStripForWordAtCursor(ic)
             return
         }
 
@@ -3710,6 +3710,27 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         if (totalWordLen == 0) {
+            val trimmedBefore = before.trimEnd()
+            if (trimmedBefore.isNotEmpty()) {
+                // The cursor is on a space, between words, or at the end of text.
+                // Fetch next-word predictions for the preceding text so the strip NEVER strobes/collapses!
+                session.setContext(trimmedBefore)
+                val nextWords = try {
+                    session.predictNextWords(5u)
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                if (nextWords.isNotEmpty()) {
+                    activeInspectedWord = null
+                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = -1, verbatimIdx = -1)
+                    val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
+                    if (curItems != annotated) {
+                        _candidateState.value = CandidateStripState.Candidates(annotated)
+                        updateCandidatesVisibility()
+                    }
+                    return
+                }
+            }
             if (activeInspectedWord != null || _candidateState.value is CandidateStripState.Candidates) {
                 activeInspectedWord = null
                 clearCandidates()
@@ -3725,6 +3746,21 @@ class LekhaniInputMethodService : InputMethodService() {
         val isBengali = AvroReverseTransliterator.isBengaliWord(word)
         val isAsciiWord = !isBengali && word.isNotEmpty() && word.all { it in 'a'..'z' || it in 'A'..'Z' }
         if (!isBengali && !isAsciiWord) {
+            val trimmedBefore = before.trimEnd()
+            if (trimmedBefore.isNotEmpty()) {
+                session.setContext(trimmedBefore)
+                val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
+                if (nextWords.isNotEmpty()) {
+                    activeInspectedWord = null
+                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = -1, verbatimIdx = -1)
+                    val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
+                    if (curItems != annotated) {
+                        _candidateState.value = CandidateStripState.Candidates(annotated)
+                        updateCandidatesVisibility()
+                    }
+                    return
+                }
+            }
             if (activeInspectedWord != null) {
                 activeInspectedWord = null
                 clearCandidates()
@@ -3738,6 +3774,21 @@ class LekhaniInputMethodService : InputMethodService() {
             word
         }
         if (rawEnglish.isBlank()) {
+            val trimmedBefore = before.trimEnd()
+            if (trimmedBefore.isNotEmpty()) {
+                session.setContext(trimmedBefore)
+                val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
+                if (nextWords.isNotEmpty()) {
+                    activeInspectedWord = null
+                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = -1, verbatimIdx = -1)
+                    val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
+                    if (curItems != annotated) {
+                        _candidateState.value = CandidateStripState.Candidates(annotated)
+                        updateCandidatesVisibility()
+                    }
+                    return
+                }
+            }
             if (activeInspectedWord != null) {
                 activeInspectedWord = null
                 clearCandidates()
@@ -3745,13 +3796,16 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
+        // Format English preview token in clean Title Case (e.g. "Amar", "Sonar", "Bangla") matching Gboard
+        val formattedEnglish = rawEnglish.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+
         val effectiveCharsBefore = if (trailingSpace) beforeWordCount + 1 else beforeWordCount
 
         // Zero-allocation & zero-flicker deduplication:
         // If the user is navigating within or over the same word, just update cursor offsets
         // without re-querying the engine or triggering Compose recomposition.
         val prevInspected = activeInspectedWord
-        if (prevInspected != null && prevInspected.word == word && prevInspected.rawEnglish == rawEnglish) {
+        if (prevInspected != null && prevInspected.word == word && prevInspected.rawEnglish == formattedEnglish) {
             activeInspectedWord = prevInspected.copy(
                 charsBeforeCursor = effectiveCharsBefore,
                 charsAfterCursor = afterWordCount,
@@ -3764,7 +3818,7 @@ class LekhaniInputMethodService : InputMethodService() {
             word = word,
             charsBeforeCursor = effectiveCharsBefore,
             charsAfterCursor = afterWordCount,
-            rawEnglish = rawEnglish,
+            rawEnglish = formattedEnglish,
             hasTrailingSpace = trailingSpace
         )
 
@@ -3784,20 +3838,17 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         // Build candidate list:
-        // Slot 0: rawEnglish preview (e.g. "sonar") with isVerbatimPreview = true
-        // Slot 1: primary candidate (the word currently in document, or top engine result)
-        // Slot 2+: alternative suggestions
+        // Slot 0: formattedEnglish preview (e.g. "Sonar", "Amar", "Bangla") with isVerbatimPreview = true
+        // Slot 1: primary candidate (the word currently in document, e.g. "সোনার", "আমার", "বাংলা")
+        // Slot 2+: alternative suggestions (e.g. "অমর", "বাংলার")
         val displayCandidates = mutableListOf<String>()
         if (keyboardPrefs.avroShowEnglishPreview) {
-            displayCandidates.add(rawEnglish)
+            displayCandidates.add(formattedEnglish)
         }
 
         val primaryCandidate = if (isBengali) word else (candidatesList.firstOrNull() ?: word)
         if (!displayCandidates.contains(primaryCandidate)) {
             displayCandidates.add(primaryCandidate)
-        }
-        if (isBengali && !displayCandidates.contains(word)) {
-            displayCandidates.add(word)
         }
         for (cand in candidatesList) {
             if (!displayCandidates.contains(cand) && !blacklist.isBlacklisted(cand)) {
