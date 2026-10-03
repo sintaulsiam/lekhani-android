@@ -22,6 +22,7 @@ lekhani-parser = { workspace = true }
 lekhani-ai = { workspace = true }
 lekhani-core = { workspace = true }
 lekhani-neural = { workspace = true }
+edit-distance = { workspace = true }
 
 [dev-dependencies]
 serial_test = "3"

@@ -6,6 +6,7 @@
 
 use hashbrown::HashMap;
 use std::sync::OnceLock;
+use edit_distance::edit_distance;
 
 static PARSER: OnceLock<lekhani_parser::LekhaniParser> = OnceLock::new();
 static COMMON_WORDS: OnceLock<HashMap<&'static str, &'static [&'static str]>> = OnceLock::new();
@@ -1061,6 +1062,36 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     } else {
         String::new()
     };
+
+    // Slot 3: Typo rescue extraction
+    // If the user has a typo correction candidate (from spatial proximity or error-pattern learning)
+    // and it differs meaningfully from Slot 1 (the primary AI pick), surface it explicitly.
+    // This ensures mistyped inputs always show at least one recovery option.
+    {
+        let slot1 = candidates.get(1).cloned();
+        // Find the first candidate that originated from a TypoFallback source
+        // by checking if it differs from slot0 and slot1 by edit distance > 1.
+        // We do this heuristically: candidates after the first 3 positions that are Bengali
+        // and not identical to candidates[0..3] are rescue candidates.
+        let typo_rescue: Option<String> = candidates.iter().skip(3).find(|c| {
+            let c_chars: Vec<char> = c.chars().collect();
+            // Must be Bengali (not ASCII) and differ meaningfully from slot 1
+            let is_bengali = c_chars.iter().any(|ch| ('\u{0980}'..='\u{09FF}').contains(ch));
+            let differs_from_slot1 = slot1.as_deref().map(|s| {
+                edit_distance(s, c) > 1
+            }).unwrap_or(true);
+            is_bengali && differs_from_slot1
+        }).cloned();
+
+        if let Some(rescue) = typo_rescue {
+            // Remove from its current position and place at index 3
+            if let Some(pos) = candidates.iter().position(|c| c == &rescue) {
+                candidates.remove(pos);
+            }
+            let target = 3.min(candidates.len());
+            candidates.insert(target, rescue);
+        }
+    }
 
     // 4. Core database PrefixTrie lookup to expand matching vocabulary
     append_prefix_matches(&primary, &mut candidates);

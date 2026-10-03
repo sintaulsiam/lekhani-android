@@ -326,4 +326,52 @@ fn test_audit_bug_fixes_and_ux_primitives() {
     assert_eq!(choice_res.commit_text.as_deref(), Some("আম্র "));
 }
 
+#[test]
+#[serial]
+fn test_typo_recovery_always_surfaces() {
+    // Verify that typo/proximity corrections appear within the first 5 candidates.
+    // Users who mistype common words must see the recovery suggestion without scrolling.
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+
+    struct Case {
+        input: &'static str,
+        expected_in_top5: &'static str,
+    }
+    let cases = [
+        // "bhlao" is a common mistyping of "bhalo" (ভালো)
+        Case {
+            input: "bhlao",
+            expected_in_top5: "ভালো",
+        },
+        // "ammi" is a near-miss for "ami" (আমি)
+        Case {
+            input: "ammi",
+            expected_in_top5: "আমি",
+        },
+        // "tomi" is a common mistype for "tumi" (তুমি)
+        Case {
+            input: "tomi",
+            expected_in_top5: "তুমি",
+        },
+    ];
+
+    for case in &cases {
+        session.reset();
+        let mut last_candidates = Vec::new();
+        for ch in case.input.chars() {
+            let res = session.process_key(ch.to_string()).unwrap();
+            last_candidates = res.candidates;
+        }
+        let found = last_candidates.iter().take(5).any(|c| c == case.expected_in_top5);
+        assert!(
+            found,
+            "Expected '{}' in top-5 candidates for input '{}', got: {:?}",
+            case.expected_in_top5,
+            case.input,
+            &last_candidates[..last_candidates.len().min(5)]
+        );
+    }
+}
+
 

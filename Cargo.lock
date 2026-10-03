@@ -465,6 +465,7 @@ dependencies = [
 name = "lekhani-android"
 version = "0.2.0"
 dependencies = [
+ "edit-distance",
  "hashbrown",
  "lekhani-ai",
  "lekhani-core",
