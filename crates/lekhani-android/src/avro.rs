@@ -656,10 +656,12 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         let primary = def.clone();
         short_candidates.push(primary.clone());
 
-        // 2a. Short English words & Latin escape hatch (e.g. "ok", "hi", "fb", "id", "to", "no")
-        if crate::english::is_recognized_english_word(input) && !short_candidates.iter().any(|c| c.eq_ignore_ascii_case(input)) {
-            short_candidates.insert(1.min(short_candidates.len()), input.to_string());
-        } else if input.chars().all(|c| c.is_ascii_digit()) && !short_candidates.contains(&input.to_string()) {
+        // 2a. Short English words, digits & Latin escape hatch (e.g. "ok", "hi", "fb", "id", "to", "no")
+        let is_passthrough = (crate::english::is_recognized_english_word(input)
+            && !short_candidates.iter().any(|c| c.eq_ignore_ascii_case(input)))
+            || (input.chars().all(|c| c.is_ascii_digit())
+                && !short_candidates.contains(&input.to_string()));
+        if is_passthrough {
             short_candidates.insert(1.min(short_candidates.len()), input.to_string());
         }
 
