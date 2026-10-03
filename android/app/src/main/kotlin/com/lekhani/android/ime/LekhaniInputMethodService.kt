@@ -1069,7 +1069,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     updateNumberSymbolsKeyboard()
                     return
                 }
-                KeyAction.CursorLeft, KeyAction.CursorRight, KeyAction.Tab -> return
+                KeyAction.CursorLeft, KeyAction.CursorRight, KeyAction.Tab, KeyAction.ToggleGboardVowels -> return
             }
         }
 
@@ -1133,6 +1133,10 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyAction.CursorLeft -> handleCursorMove(-1)
             KeyAction.CursorRight -> handleCursorMove(1)
             KeyAction.Tab -> sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
+            KeyAction.ToggleGboardVowels -> {
+                val current = keyboardView?.isGboardKarsActive ?: false
+                keyboardView?.setGboardKarsActive(!current, consonant = "")
+            }
         }
     }
 
@@ -2331,8 +2335,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 preeditShadow = ""
                 rawInputBuffer.clear()
                 clearCandidates()
+                if (session.getLayout() == LekhaniLayoutType.GBOARD) {
+                    keyboardView?.setGboardKarsActive(false)
+                }
             } else {
                 publishCandidates(result.candidates)
+                if (session.getLayout() == LekhaniLayoutType.GBOARD) {
+                    updateGboardDynamicRowOnBackspace(result.preedit)
+                }
             }
         } else {
             rawInputBuffer.clear()
@@ -2345,7 +2355,8 @@ class LekhaniInputMethodService : InputMethodService() {
             // 4. Script-aware character & emoji backspace (never destroys whole word or duplicates letters)
             handleScriptAwareBackspace(ic)
             if (session.getLayout() == LekhaniLayoutType.GBOARD) {
-                keyboardView?.setGboardKarsActive(false)
+                val before = try { ic.getTextBeforeCursor(2, 0)?.toString() } catch (_: Exception) { null }
+                updateGboardDynamicRowOnBackspace(before)
             }
             val isAvro = session.getLayout() == LekhaniLayoutType.AVRO && !isCurrentFieldPrivate
             if (!isAvro) {
@@ -2731,10 +2742,24 @@ class LekhaniInputMethodService : InputMethodService() {
         if (session.getLayout() != LekhaniLayoutType.GBOARD) return
         if (keyToken.isEmpty()) return
         val ch = keyToken[0]
-        val isConsonant = (ch in '\u0995'..'\u09B9') || (ch in '\u09DC'..'\u09DF') || ch == '\u09CE' || ch == '\u09CD'
-        val isKarOrVowel = (ch in '\u09BE'..'\u09CC') || (ch in '\u0985'..'\u0994') || keyToken.contains("\u09CD\u09AF") || keyToken.contains("\u09CD\u09AC") || keyToken.contains("\u09CD\u09B0")
+        val isConsonant = (ch in '\u0995'..'\u09B9') || (ch in '\u09DC'..'\u09DF') || ch == '\u09CE'
         if (isConsonant) {
             keyboardView?.setGboardKarsActive(true, consonant = keyToken)
+        } else {
+            keyboardView?.setGboardKarsActive(false, consonant = "")
+        }
+    }
+
+    private fun updateGboardDynamicRowOnBackspace(trailingText: String?) {
+        if (session.getLayout() != LekhaniLayoutType.GBOARD) return
+        if (trailingText.isNullOrEmpty()) {
+            keyboardView?.setGboardKarsActive(false, consonant = "")
+            return
+        }
+        val lastChar = trailingText.last()
+        val isConsonant = (lastChar in '\u0995'..'\u09B9') || (lastChar in '\u09DC'..'\u09DF') || lastChar == '\u09CE'
+        if (isConsonant) {
+            keyboardView?.setGboardKarsActive(true, consonant = lastChar.toString())
         } else {
             keyboardView?.setGboardKarsActive(false, consonant = "")
         }

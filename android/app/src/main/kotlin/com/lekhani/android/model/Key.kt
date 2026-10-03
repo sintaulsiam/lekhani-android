@@ -40,6 +40,8 @@ sealed class KeyAction {
     data object CursorRight : KeyAction()
     /** Insert Tab character / event */
     data object Tab : KeyAction()
+    /** Toggle Gboard dynamic kars layer back to independent vowels layer */
+    data object ToggleGboardVowels : KeyAction()
 }
 
 /**

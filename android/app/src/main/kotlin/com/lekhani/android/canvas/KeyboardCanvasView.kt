@@ -267,7 +267,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * A resolved key pairs a [Key] with its computed pixel [RectF].
      * Pre-allocated as a flat list in [onSizeChanged]; never re-allocated in draw/touch.
      */
-    private data class ResolvedKey(val key: Key, val bounds: RectF)
+    private data class ResolvedKey(var key: Key, val bounds: RectF)
 
     /** Flat list of all keys with pixel bounds. Rebuilt only in [onSizeChanged]. */
     private val resolvedKeys = ArrayList<ResolvedKey>(50)
@@ -417,8 +417,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     keyListener?.onKey(key, longAction)
                 }
                 else -> {
+                    val actionToken = (key.action as? KeyAction.Character)?.token
                     val rawChar = key.displayLabel(isShifted)
-                    val alts = com.lekhani.android.model.BengaliAlternates.getAlternates(rawChar)
+                    val alts = (actionToken?.let { com.lekhani.android.model.BengaliAlternates.getAlternates(it) })
+                        ?: com.lekhani.android.model.BengaliAlternates.getAlternates(rawChar)
                     if (!alts.isNullOrEmpty()) {
                         showAlternatePopup(resolvedKeys[pressedKeyIndex], alts)
                     } else {
@@ -689,8 +691,26 @@ class KeyboardCanvasView @JvmOverloads constructor(
             gboardActiveConsonant = consonant
             if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
                 if (width > 0 && height > 0) {
-                    computeKeyBounds()
-                    invalidate()
+                    val isDedicatedNumberRow = showDedicatedNumberRow && !isNumberSymbolsActive()
+                    val row0StartIndex = if (isDedicatedNumberRow) 10 else 0
+                    val row4StartIndex = if (isDedicatedNumberRow) 51 else 41
+                    val newRow0 = if (active) com.lekhani.android.model.GboardBengaliLayout.getDynamicVowelsRow(consonant) else com.lekhani.android.model.GboardBengaliLayout.vowelsRow
+                    val newRow4 = if (active) com.lekhani.android.model.GboardBengaliLayout.getDynamicRow5(consonant) else layout?.rows?.getOrNull(4)
+
+                    if (newRow4 != null &&
+                        resolvedKeys.size > row4StartIndex + 10 &&
+                        newRow0.size == 11 &&
+                        newRow4.size == 11
+                    ) {
+                        for (i in 0 until 11) {
+                            resolvedKeys[row0StartIndex + i].key = newRow0[i]
+                            resolvedKeys[row4StartIndex + i].key = newRow4[i]
+                        }
+                        invalidate()
+                    } else {
+                        computeKeyBounds()
+                        invalidate()
+                    }
                 }
             }
         }

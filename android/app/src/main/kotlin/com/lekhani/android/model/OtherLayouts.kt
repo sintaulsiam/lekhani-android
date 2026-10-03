@@ -316,71 +316,100 @@ object ProbhatLayout {
  */
 object GboardBengaliLayout {
 
-    // Default independent vowels for Row 1
+    // Default independent vowels for Row 1 (11 independent vowels)
     val vowelsRow: List<Key> = listOf(
         Ch("অ", "অ"), Ch("আ", "আ"), Ch("ই", "ই"), Ch("ঈ", "ঈ"),
-        Ch("উ", "উ"), Ch("ঊ", "ঊ"), Ch("এ", "এ"), Ch("ঐ", "ঐ"),
-        Ch("ও", "ও"), Ch("ঔ", "ঔ"),
+        Ch("উ", "উ"), Ch("ঊ", "ঊ"), Ch("ঋ", "ঋ"), Ch("এ", "এ"),
+        Ch("ঐ", "ঐ"), Ch("ও", "ও"), Ch("ঔ", "ঔ"),
     )
+
+    private val emptyDynamicVowelsRow: List<Key> = listOf(
+        Key(label = "া", action = KeyAction.Character("া")),
+        Key(label = "ি", action = KeyAction.Character("ি")),
+        Key(label = "ী", action = KeyAction.Character("ী")),
+        Key(label = "ু", action = KeyAction.Character("ু")),
+        Key(label = "ূ", action = KeyAction.Character("ূ")),
+        Key(label = "ৃ", action = KeyAction.Character("ৃ")),
+        Key(label = "ে", action = KeyAction.Character("ে")),
+        Key(label = "ৈ", action = KeyAction.Character("ৈ")),
+        Key(label = "ো", action = KeyAction.Character("ো")),
+        Key(label = "ৌ", action = KeyAction.Character("ৌ")),
+        Key(
+            label = "অ",
+            action = KeyAction.ToggleGboardVowels,
+            longPressAction = KeyAction.Character("অ"),
+            contentDesc = "Independent vowels",
+        ),
+    )
+
+    private val dynamicVowelsCache = java.util.concurrent.ConcurrentHashMap<String, List<Key>>()
 
     // Dynamic vowel kars for Row 1 (activated immediately after typing any consonant)
     // If an active consonant is present (e.g. 'ম'), renders as 'মা', 'মি', 'মী'..., emitting the kar token on press
     fun getDynamicVowelsRow(activeConsonant: String = ""): List<Key> {
         val c = activeConsonant
-        if (c.isEmpty()) {
-            return listOf(
-                Key(label = "া", action = KeyAction.Character("া")),
-                Key(label = "ি", action = KeyAction.Character("ি")),
-                Key(label = "ী", action = KeyAction.Character("ী")),
-                Key(label = "ু", action = KeyAction.Character("ু")),
-                Key(label = "ূ", action = KeyAction.Character("ূ")),
-                Key(label = "ৃ", action = KeyAction.Character("ৃ")),
-                Key(label = "ে", action = KeyAction.Character("ে")),
-                Key(label = "ৈ", action = KeyAction.Character("ৈ")),
-                Key(label = "ো", action = KeyAction.Character("ো")),
-                Key(label = "ৌ", action = KeyAction.Character("ৌ")),
+        if (c.isEmpty()) return emptyDynamicVowelsRow
+        return dynamicVowelsCache.computeIfAbsent(c) {
+            listOf(
+                Key(label = "$c\u09BE", action = KeyAction.Character("\u09BE"), contentDesc = "$c-kar A"),
+                Key(label = "$c\u09BF", action = KeyAction.Character("\u09BF"), contentDesc = "$c-kar I"),
+                Key(label = "$c\u09C0", action = KeyAction.Character("\u09C0"), contentDesc = "$c-kar II"),
+                Key(label = "$c\u09C1", action = KeyAction.Character("\u09C1"), contentDesc = "$c-kar U"),
+                Key(label = "$c\u09C2", action = KeyAction.Character("\u09C2"), contentDesc = "$c-kar UU"),
+                Key(label = "$c\u09C3", action = KeyAction.Character("\u09C3"), contentDesc = "$c-kar R"),
+                Key(label = "$c\u09C7", action = KeyAction.Character("\u09C7"), contentDesc = "$c-kar E"),
+                Key(label = "$c\u09C8", action = KeyAction.Character("\u09C8"), contentDesc = "$c-kar AI"),
+                Key(label = "$c\u09CB", action = KeyAction.Character("\u09CB"), contentDesc = "$c-kar O"),
+                Key(label = "$c\u09CC", action = KeyAction.Character("\u09CC"), contentDesc = "$c-kar OU"),
+                Key(
+                    label = "অ",
+                    action = KeyAction.ToggleGboardVowels,
+                    longPressAction = KeyAction.Character("অ"),
+                    contentDesc = "Independent vowels, long press for A",
+                ),
             )
         }
-        return listOf(
-            Key(label = "$c\u09BE", action = KeyAction.Character("\u09BE"), contentDesc = "$c-kar A"),
-            Key(label = "$c\u09BF", action = KeyAction.Character("\u09BF"), contentDesc = "$c-kar I"),
-            Key(label = "$c\u09C0", action = KeyAction.Character("\u09C0"), contentDesc = "$c-kar II"),
-            Key(label = "$c\u09C1", action = KeyAction.Character("\u09C1"), contentDesc = "$c-kar U"),
-            Key(label = "$c\u09C2", action = KeyAction.Character("\u09C2"), contentDesc = "$c-kar UU"),
-            Key(label = "$c\u09C3", action = KeyAction.Character("\u09C3"), contentDesc = "$c-kar R"),
-            Key(label = "$c\u09C7", action = KeyAction.Character("\u09C7"), contentDesc = "$c-kar E"),
-            Key(label = "$c\u09C8", action = KeyAction.Character("\u09C8"), contentDesc = "$c-kar AI"),
-            Key(label = "$c\u09CB", action = KeyAction.Character("\u09CB"), contentDesc = "$c-kar O"),
-            Key(label = "$c\u09CC", action = KeyAction.Character("\u09CC"), contentDesc = "$c-kar OU"),
-        )
     }
 
-    // Dynamic Row 5 for Gboard: converts phalas to active consonant ligatures (e.g. 'ম্য', 'ম্ব', 'ম্র')
+    private val dynamicRow5Cache = java.util.concurrent.ConcurrentHashMap<String, List<Key>>()
+
+    // Dynamic Row 5 for Gboard: preserves Hasanta (্) while offering contextual phalas and modifiers
     fun getDynamicRow5(activeConsonant: String = ""): List<Key> {
         val c = activeConsonant
-        val jaPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09AF" else "◌্য"
-        val baPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09AC" else "◌্ব"
-        val roPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09B0" else "◌্র"
+        return dynamicRow5Cache.computeIfAbsent(c) {
+            val jaPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09AF" else "◌্য"
+            val roPhalaLabel = if (c.isNotEmpty()) "$c\u09CD\u09B0" else "◌্র"
 
-        return listOf(
-            Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ঢ়", hint = "ঢ়"),
-            Ch("য়", "য়"), Ch("ৎ", "ৎ"),
-            Key(label = jaPhalaLabel, action = KeyAction.Character("\u09CD\u09AF"), contentDesc = "Ya-phala"),
-            Key(label = baPhalaLabel, action = KeyAction.Character("\u09CD\u09AC"), contentDesc = "Ba-phala"),
-            Key(label = roPhalaLabel, action = KeyAction.Character("\u09CD\u09B0"), contentDesc = "Ra-phala"),
-            Ch("ং", "ঁ", hint = "ঁ", desc = "Anusvara, hint Chandrabindu"),
-            Key(
-                label = "⌫", shiftedLabel = "⌫",
-                action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
-                widthWeight = 1.0f, contentDesc = "Backspace",
-            ),
-        )
+            listOf(
+                Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ড়"), Ch("ঢ়", "ঢ়"),
+                Ch("য়", "য়"), Ch("ৎ", "ৎ"),
+                Ch("্", "্", desc = "Hasanta conjunct key"),
+                Key(
+                    label = jaPhalaLabel,
+                    action = KeyAction.Character("\u09CD\u09AF"),
+                    hintLabel = if (c.isNotEmpty()) "$c\u09CD\u09AC" else "◌্ব",
+                    longPressAction = KeyAction.Character("\u09CD\u09AC"),
+                    contentDesc = "Ya-phala, long press Ba-phala",
+                ),
+                Key(
+                    label = roPhalaLabel,
+                    action = KeyAction.Character("\u09CD\u09B0"),
+                    contentDesc = "Ra-phala",
+                ),
+                Ch("ং", "ঁ", hint = "ঁ", desc = "Anusvara, hint Chandrabindu"),
+                Key(
+                    label = "⌫", shiftedLabel = "⌫",
+                    action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
+                    widthWeight = 1.0f, contentDesc = "Backspace",
+                ),
+            )
+        }
     }
 
     val layout: KeyboardLayout = KeyboardLayout(
         name = "জি-বোর্ড বাংলা",
         rows = listOf(
-            // Row 1 (10 keys: Dynamic Vowels অ..ঔ / Kars া..ৌ)
+            // Row 1 (11 keys: Dynamic Vowels অ..ঔ / Kars া..ৌ)
             vowelsRow,
             // Row 2 (10 keys: ক খ গ ঘ ঙ চ ছ জ ঝ ঞ)
             listOf(
@@ -400,12 +429,12 @@ object GboardBengaliLayout {
                 Ch("ম", "ম"), Ch("য", "য"), Ch("র", "র"), Ch("ল", "ল"),
                 Ch("শ", "শ"), Ch("ষ", "ষ"),
             ),
-            // Row 5 (10 keys: স হ ড়/ঢ় য় ৎ ্ ং ঃ ঁ ⌫)
+            // Row 5 (11 keys: স হ ড় ঢ় য় ৎ ্ ং ঃ ঁ ⌫)
             listOf(
-                Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ঢ়", hint = "ঢ়"),
+                Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ড়"), Ch("ঢ়", "ঢ়"),
                 Ch("য়", "য়"), Ch("ৎ", "ৎ"),
                 Ch("্", "্", desc = "Hasanta conjunct key"),
-                Ch("ং", "ঁ", hint = "ঁ", desc = "Anusvara, hint Chandrabindu"),
+                Ch("ং", "ং", desc = "Anusvara"),
                 Ch("ঃ", "ঃ", desc = "Visarga"),
                 Ch("ঁ", "ঁ", desc = "Chandrabindu"),
                 Key(

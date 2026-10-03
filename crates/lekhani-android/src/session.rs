@@ -1082,12 +1082,27 @@ impl AndroidLekhaniSession {
                 state.composing_buffer.push_str(&key);
                 let mut candidates = Vec::new();
                 let db = get_core_database();
-                let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
-                if !prefix_matches.is_empty() {
-                    candidates.push(state.composing_buffer.clone());
-                    for (word, _) in prefix_matches {
-                        if !candidates.iter().any(|c| c == word) {
-                            candidates.push(word.to_string());
+                if key == "্" {
+                    let chars: Vec<char> = state.composing_buffer.chars().collect();
+                    let hasanta_pos = chars.len().wrapping_sub(1);
+                    if hasanta_pos > 0 {
+                        let base_consonant = chars[hasanta_pos - 1];
+                        candidates = get_conjunct_suggestions(base_consonant);
+                    } else if let Some(base_consonant) = state.surrounding_context.chars().last() {
+                        if is_bengali_consonant_or_modifier(base_consonant) {
+                            candidates = get_conjunct_suggestions(base_consonant);
+                        }
+                    }
+                }
+
+                if candidates.is_empty() {
+                    let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
+                    if !prefix_matches.is_empty() {
+                        candidates.push(state.composing_buffer.clone());
+                        for (word, _) in prefix_matches {
+                            if !candidates.iter().any(|c| c == word) {
+                                candidates.push(word.to_string());
+                            }
                         }
                     }
                 }
@@ -2192,6 +2207,26 @@ mod tests {
         let _ = session.process_key("্".into()).unwrap();
         let res = session.process_key("ত".into()).unwrap();
         assert_eq!(res.preedit, "ক্ত");
+    }
+
+    #[test]
+    fn test_gboard_conjunct_suggestions_on_hasanta() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Gboard);
+
+        let _ = session.process_key("ক".into()).unwrap();
+        let res = session.process_key("্".into()).unwrap();
+        assert_eq!(res.preedit, "ক্");
+        // Verify conjunct suggestions are surfaced
+        assert!(!res.candidates.is_empty());
+        assert!(res.candidates.contains(&"ক্ষ".to_string()));
+        assert!(res.candidates.contains(&"ক্ত".to_string()));
+        assert!(res.candidates.contains(&"ক্র".to_string()));
+        assert!(res.candidates.contains(&"ক্ল".to_string()));
+
+        // Continue typing to form conjunct directly
+        let res2 = session.process_key("ষ".into()).unwrap();
+        assert_eq!(res2.preedit, "ক্ষ");
     }
 
     #[test]
