@@ -814,6 +814,10 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -915,6 +919,8 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_layout(`ptr`: Pointer,`layout`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_learner_autosave_path(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_private_field(`ptr`: Pointer,`isPrivate`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_right_context(`ptr`: Pointer,`context`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -938,6 +944,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_func_clear_candidate_memory(uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_func_set_dictionary_directory(`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_func_set_learner_autosave_path(`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun ffi_lekhani_android_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -1055,6 +1063,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_func_set_dictionary_directory(
     ): Short
+    fun uniffi_lekhani_android_checksum_func_set_learner_autosave_path(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_add_autocorrect_rule(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word(
@@ -1131,6 +1141,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_layout(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_learner_autosave_path(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_right_context(
@@ -1170,6 +1182,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_func_set_dictionary_directory() != 78.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_func_set_learner_autosave_path() != 24916.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_add_autocorrect_rule() != 17446.toShort()) {
@@ -1284,6 +1299,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_layout() != 8577.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_learner_autosave_path() != 10443.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field() != 19937.toShort()) {
@@ -1897,6 +1915,11 @@ public interface AndroidLekhaniSessionInterface {
      * Clears the composing buffer to prevent carry-over across layout boundaries.
      */
     fun `setLayout`(`layout`: LekhaniLayoutType)
+    
+    /**
+     * Sets an explicit file path for auto-saving learner data on finish/destroy.
+     */
+    fun `setLearnerAutosavePath`(`path`: kotlin.String)
     
     /**
      * Called on every `onStartInput()`.
@@ -2633,6 +2656,20 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_layout(
         it, FfiConverterTypeLekhaniLayoutType.lower(`layout`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Sets an explicit file path for auto-saving learner data on finish/destroy.
+     */override fun `setLearnerAutosavePath`(`path`: kotlin.String)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_learner_autosave_path(
+        it, FfiConverterString.lower(`path`),_status)
 }
     }
     
@@ -3629,6 +3666,17 @@ public object FfiConverterMapStringString: FfiConverterRustBuffer<Map<kotlin.Str
         = 
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_func_set_dictionary_directory(
+        FfiConverterString.lower(`path`),_status)
+}
+    
+    
+
+        /**
+         * Sets an explicit file path for auto-saving learner data on finish/destroy.
+         */ fun `setLearnerAutosavePath`(`path`: kotlin.String)
+        = 
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_func_set_learner_autosave_path(
         FfiConverterString.lower(`path`),_status)
 }
     

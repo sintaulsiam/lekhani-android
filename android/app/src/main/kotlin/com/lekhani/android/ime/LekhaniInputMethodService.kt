@@ -285,6 +285,7 @@ class LekhaniInputMethodService : InputMethodService() {
         serviceScope.launch(Dispatchers.IO) {
             try {
                 val f = File(filesDir, "user_learned.bin")
+                session.setLearnerAutosavePath(f.absolutePath)
                 if (f.exists()) {
                     val ok = session.loadUserLearned(f.absolutePath)
                     Log.i(TAG, "User learned dictionary loaded ($ok): ${f.absolutePath}")

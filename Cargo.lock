@@ -495,6 +495,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tracing",
+ "unicode-segmentation",
 ]
 
 [[package]]
