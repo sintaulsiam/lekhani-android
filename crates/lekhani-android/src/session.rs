@@ -132,16 +132,25 @@ pub fn get_neural_predictor() -> &'static lekhani_neural::NeuralContextPredictor
 
         for dir in &search_dirs {
             if vocab_opt.is_none() {
-                let p_bin = dir.join("bengali_vocab.bin");
-                if p_bin.exists() {
-                    if let Ok(v) = BpeVocabulary::load_binary(&p_bin) {
+                // v2: Bengali-first BPE vocabulary (preferred)
+                let p_v2 = dir.join("bengali_vocab_v2.json");
+                if p_v2.exists() {
+                    if let Ok(v) = BpeVocabulary::load_json(&p_v2) {
                         vocab_opt = Some(Arc::new(v));
                     }
-                } else {
-                    let p_json = dir.join("neural_vocab.json");
-                    if p_json.exists() {
-                        if let Ok(v) = BpeVocabulary::load_json(&p_json) {
+                }
+                if vocab_opt.is_none() {
+                    let p_bin = dir.join("bengali_vocab.bin");
+                    if p_bin.exists() {
+                        if let Ok(v) = BpeVocabulary::load_binary(&p_bin) {
                             vocab_opt = Some(Arc::new(v));
+                        }
+                    } else {
+                        let p_json = dir.join("neural_vocab.json");
+                        if p_json.exists() {
+                            if let Ok(v) = BpeVocabulary::load_json(&p_json) {
+                                vocab_opt = Some(Arc::new(v));
+                            }
                         }
                     }
                 }
