@@ -530,9 +530,11 @@ class LekhaniInputMethodService : InputMethodService() {
         if (session.isComposing() || preeditShadow.isNotEmpty()) {
             val hasComposingSpan = candidatesStart >= 0 && candidatesEnd >= 0
             val cursorOutsideSpan = hasComposingSpan && (newSelStart < candidatesStart || newSelEnd > candidatesEnd)
+            val cursorMovedInsideSpan = hasComposingSpan && (newSelStart != candidatesEnd || newSelEnd != candidatesEnd)
             val hasSelectionRange = newSelStart != newSelEnd && newSelStart >= 0 && newSelEnd >= 0
+            val cursorMovedWithoutSpan = !hasComposingSpan && (newSelStart != oldSelStart)
 
-            if (cursorOutsideSpan || hasSelectionRange) {
+            if (cursorOutsideSpan || cursorMovedInsideSpan || hasSelectionRange || cursorMovedWithoutSpan) {
                 // User manually tapped away from the composing region or highlighted text.
                 // Finalize active composing text so it stays in place as committed text.
                 currentInputConnection?.finishComposingText()
@@ -541,35 +543,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 rawInputBuffer.clear()
                 clearCandidates()
                 clearUndo()
-
-                val isAvro = session.getLayout() == LekhaniLayoutType.AVRO
-                val ic = currentInputConnection
-                var recomposed = false
-                if (isAvro && !isCurrentFieldPrivate && !hasSelectionRange && ic != null &&
-                    currentMode == InputViewMode.KEYBOARD && !isNumericMode && !isPhoneDialpadMode) {
-                    recomposed = recomposeAvroWordAtCursor(ic, triggerBackspace = false)
-                }
-
-                if (!recomposed) {
-                    refreshSurroundingContext()
-                }
+                refreshSurroundingContext()
             }
         } else if (newSelStart == newSelEnd && newSelStart >= 0) {
             // User tapped somewhere in text to reposition the cursor while idle.
-            val isAvro = session.getLayout() == LekhaniLayoutType.AVRO
-            val ic = currentInputConnection
-            var recomposed = false
-            if (isAvro && !isCurrentFieldPrivate && ic != null &&
-                currentMode == InputViewMode.KEYBOARD && !isNumericMode && !isPhoneDialpadMode) {
-                recomposed = recomposeAvroWordAtCursor(ic, triggerBackspace = false)
-            }
-
-            if (!recomposed) {
-                // Finalize any stale composing span in editor and refresh surrounding context.
-                currentInputConnection?.finishComposingText()
-                refreshSurroundingContext()
-                updateAutoCaps()
-            }
+            // Respect the user's intended cursor position without hijacking or resetting it.
+            currentInputConnection?.finishComposingText()
+            refreshSurroundingContext()
+            updateAutoCaps()
         }
 
         // Contextual Text Selection Toolbar shown whenever text is highlighted
@@ -2339,21 +2320,11 @@ class LekhaniInputMethodService : InputMethodService() {
             // Avro Recomposition on Backspace:
             // When user writes a word and presses backspace:
             // - If preceded by a space (e.g. after Space commit), delete the space and re-engage the word into composing.
-            // - If directly on a committed Bengali word, recompose and delete the last English character.
+            // - If directly at the end of a committed Bengali word, recompose and delete the last English character.
             val isAvro = session.getLayout() == LekhaniLayoutType.AVRO
             if (isAvro && !isCurrentFieldPrivate) {
-                val textBefore = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null }
-                if (textBefore != null && textBefore.isNotEmpty()) {
-                    if (textBefore.endsWith(" ")) {
-                        ic.deleteSurroundingText(1, 0)
-                        if (recomposeAvroWordAtCursor(ic, triggerBackspace = false)) {
-                            return
-                        }
-                    } else {
-                        if (recomposeAvroWordAtCursor(ic, triggerBackspace = true)) {
-                            return
-                        }
-                    }
+                if (recomposeAvroWordOnBackspace(ic)) {
+                    return
                 }
             }
 
@@ -3579,38 +3550,6 @@ class LekhaniInputMethodService : InputMethodService() {
 
     // ── Avro Dynamic Word Recomposition ────────────────────────────────────────
 
-    /**
-     * Finds the contiguous Bengali word around the current cursor position.
-     */
-    private fun getWordAtCursor(ic: InputConnection): WordAtCursor? {
-        val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null } ?: ""
-        val after = try { ic.getTextAfterCursor(64, 0)?.toString() } catch (_: Exception) { null } ?: ""
-
-        var beforeIdx = before.length - 1
-        while (beforeIdx >= 0 && isWordChar(before[beforeIdx])) {
-            beforeIdx--
-        }
-        val wordBefore = before.substring(beforeIdx + 1)
-
-        var afterIdx = 0
-        while (afterIdx < after.length && isWordChar(after[afterIdx])) {
-            afterIdx++
-        }
-        val wordAfter = after.substring(0, afterIdx)
-
-        val fullWord = wordBefore + wordAfter
-        if (fullWord.isEmpty() || !AvroReverseTransliterator.isBengaliWord(fullWord)) {
-            return null
-        }
-        return WordAtCursor(
-            word = fullWord,
-            wordBefore = wordBefore,
-            wordAfter = wordAfter,
-            startOffset = -wordBefore.length,
-            endOffset = wordAfter.length
-        )
-    }
-
     private fun isWordChar(c: Char): Boolean {
         if (c.isWhitespace()) return false
         if (c == '।' || c == '॥' || c == ',' || c == '.' || c == '?' || c == '!' ||
@@ -3624,73 +3563,81 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     /**
-     * Recomposes a committed Bengali word at the cursor back into active Avro composing mode,
-     * restoring its English representation to Slot 0 of the candidate strip.
+     * Handles dynamic Bengali word recomposition on Backspace in Avro phonetic mode.
      *
-     * @param ic The active InputConnection.
-     * @param triggerBackspace If true, automatically removes the trailing English character,
-     *                         simulating a phonetic backspace on the committed word.
+     * Scenarios handled cleanly and atomically:
+     * 1. Preceded by trailing space (e.g. after space commit "আমার "):
+     *    Deletes the trailing space and re-engages the word "আমার" back into active composing
+     *    with raw English "amar" at Slot 0 of candidates.
+     * 2. Directly at the end of a committed Bengali word (e.g. "আমার|"):
+     *    Performs atomic phonetic backspace (e.g. "amar" -> "ama" -> "আমা"), leaving
+     *    the recomposed prefix in active composing state without duplicate characters or cursor jumps.
+     * 3. Cursor inside a word (e.g. "আ|মার"):
+     *    Returns false so [handleScriptAwareBackspace] performs an atomic in-place deletion
+     *    of the preceding character without disrupting the remaining word.
+     *
      * @return true if a word was successfully recomposed into active composing state.
      */
-    private fun recomposeAvroWordAtCursor(ic: InputConnection, triggerBackspace: Boolean = false): Boolean {
+    private fun recomposeAvroWordOnBackspace(ic: InputConnection): Boolean {
         if (session.getLayout() != LekhaniLayoutType.AVRO) return false
         if (isCurrentFieldPrivate) return false
 
-        val wordInfo = getWordAtCursor(ic) ?: return false
-        val fullWord = wordInfo.word
+        val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null } ?: ""
+        if (before.isEmpty()) return false
 
-        // Avoid redundant re-entry if already composing this exact word
-        if (session.isComposing() && preeditShadow == fullWord && !triggerBackspace) return true
+        val after = try { ic.getTextAfterCursor(16, 0)?.toString() } catch (_: Exception) { null } ?: ""
+        // If cursor is strictly inside a word (has word character immediately after cursor),
+        // do not recompose from the end: allow handleScriptAwareBackspace to perform an in-place delete.
+        if (after.isNotEmpty() && isWordChar(after[0])) {
+            return false
+        }
 
-        val rawEnglish = avroHistory.get(fullWord) ?: AvroReverseTransliterator.bengaliToAvro(fullWord)
+        var trailingSpaces = 0
+        var idx = before.length - 1
+        while (idx >= 0 && before[idx] == ' ') {
+            trailingSpaces++
+            idx--
+        }
+        // If user typed multiple spaces (e.g. 2+ spaces), backspace should simply delete one space at a time
+        if (trailingSpaces > 1) {
+            return false
+        }
+
+        val wordEndIdx = idx + 1
+        while (idx >= 0 && isWordChar(before[idx])) {
+            idx--
+        }
+        val word = before.substring(idx + 1, wordEndIdx)
+        if (word.isEmpty() || !AvroReverseTransliterator.isBengaliWord(word)) {
+            return false
+        }
+
+        val rawEnglish = avroHistory.get(word) ?: AvroReverseTransliterator.bengaliToAvro(word)
         if (rawEnglish.isBlank()) return false
+
+        val triggerBackspace = (trailingSpaces == 0)
+        val replayString = if (triggerBackspace) {
+            if (rawEnglish.length > 1) rawEnglish.substring(0, rawEnglish.length - 1) else ""
+        } else {
+            rawEnglish
+        }
+        val charsToDeleteBefore = word.length + trailingSpaces
 
         isRecomposingAvro = true
         try {
-            var cursorStart = currentSelStart
-            if (cursorStart < 0) {
-                cursorStart = try {
-                    ic.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)?.selectionEnd ?: -1
-                } catch (_: Exception) { -1 }
-            }
-
-            val start = if (cursorStart >= 0) cursorStart + wordInfo.startOffset else -1
-            val end = if (cursorStart >= 0) cursorStart + wordInfo.endOffset else -1
-
-            var regionSet = false
-            if (start >= 0 && end >= start) {
-                regionSet = try {
-                    ic.setComposingRegion(start, end)
-                } catch (_: Exception) {
-                    false
-                }
-            }
-
-            if (!regionSet) {
-                ic.beginBatchEdit()
-                try {
-                    ic.deleteSurroundingText(wordInfo.wordBefore.length, wordInfo.wordAfter.length)
-                    ic.setComposingText(fullWord, 1)
-                } finally {
-                    ic.endBatchEdit()
-                }
-            }
-
             session.reset()
             rawInputBuffer.setLength(0)
 
-            val replayString = if (triggerBackspace && rawEnglish.length > 1) {
-                rawEnglish.substring(0, rawEnglish.length - 1)
-            } else if (triggerBackspace && rawEnglish.length <= 1) {
-                ""
-            } else {
-                rawEnglish
-            }
-
             if (replayString.isEmpty()) {
-                setComposingTextSafe(ic, "")
-                rawInputBuffer.clear()
+                ic.beginBatchEdit()
+                try {
+                    ic.deleteSurroundingText(charsToDeleteBefore, 0)
+                    preeditShadow = ""
+                } finally {
+                    ic.endBatchEdit()
+                }
                 clearCandidates()
+                updateAutoCaps()
                 return true
             }
 
@@ -3700,11 +3647,24 @@ class LekhaniInputMethodService : InputMethodService() {
                 lastResult = session.processKey(ch.toString())
             }
 
+            val newPreedit = lastResult?.preedit ?: ""
+            ic.beginBatchEdit()
+            try {
+                ic.deleteSurroundingText(charsToDeleteBefore, 0)
+                if (newPreedit.isNotEmpty()) {
+                    ic.setComposingText(newPreedit, 1)
+                    preeditShadow = newPreedit
+                } else {
+                    preeditShadow = ""
+                }
+            } finally {
+                ic.endBatchEdit()
+            }
+
             if (lastResult != null) {
-                setComposingTextSafe(ic, lastResult.preedit)
-                preeditShadow = lastResult.preedit
                 publishCandidates(lastResult.candidates)
             }
+            updateAutoCaps()
             return true
         } catch (e: Exception) {
             Log.e(TAG, "Error recomposing Avro word: ${e.message}")
@@ -3713,14 +3673,6 @@ class LekhaniInputMethodService : InputMethodService() {
             isRecomposingAvro = false
         }
     }
-
-    private data class WordAtCursor(
-        val word: String,
-        val wordBefore: String,
-        val wordAfter: String,
-        val startOffset: Int,
-        val endOffset: Int
-    )
 
     // Constants
 
