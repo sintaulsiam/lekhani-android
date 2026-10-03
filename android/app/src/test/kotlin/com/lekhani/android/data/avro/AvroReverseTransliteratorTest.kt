@@ -129,14 +129,63 @@ class AvroReverseTransliteratorTest {
     }
 
     @Test
-    fun testInsideWordCursorBackspacePreservation() {
-        // If cursor is manually placed inside "আ|মার", textAfter has 'ম'
-        val after = "মার"
-        fun isWordChar(c: Char): Boolean = !c.isWhitespace() && c !in listOf('।', ',', '.', '?', '!')
+    fun testCursorPlacementInMiddleOfWordGboardStyle() {
+        // Simulating cursor placed inside "আমার সো|নার বাংলা"
+        val before = "আমার সো"
+        val after = "নার বাংলা"
 
-        // Recomposition must NOT trigger when cursor is inside a word
-        val isInsideWord = after.isNotEmpty() && isWordChar(after[0])
-        assertTrue(isInsideWord)
+        fun isWordChar(c: Char): Boolean {
+            if (c.isWhitespace()) return false
+            if (c in listOf('।', '॥', ',', '.', '?', '!', ';', ':', '"', '\'', '(', ')')) return false
+            return true
+        }
+
+        var beforeWordCount = 0
+        var i = before.length - 1
+        while (i >= 0 && isWordChar(before[i])) {
+            beforeWordCount++
+            i--
+        }
+
+        var afterWordCount = 0
+        var j = 0
+        while (j < after.length && isWordChar(after[j])) {
+            afterWordCount++
+            j++
+        }
+
+        val word = before.substring(before.length - beforeWordCount) + after.substring(0, afterWordCount)
+        assertEquals("সোনার", word)
+        assertEquals(2, beforeWordCount)
+        assertEquals(3, afterWordCount)
+        assertEquals("sonar", AvroReverseTransliterator.bengaliToAvro(word))
+
+        // Simulating candidate selection replacement:
+        // deleteSurroundingText(beforeWordCount, afterWordCount) removes exactly "সোনার"
+        val reconstructedBefore = before.substring(0, before.length - beforeWordCount)
+        val reconstructedAfter = after.substring(afterWordCount)
+        val replacedDocument = reconstructedBefore + "সুনার" + reconstructedAfter
+        assertEquals("আমার সুনার বাংলা", replacedDocument)
+    }
+
+    @Test
+    fun testAtomicBackspaceAmarLeavesAamaWithoutDuplication() {
+        // Document has committed "আমার"
+        var doc = "আমার"
+        assertEquals(4, doc.length)
+
+        // Script-aware backspace deletes last char 'র' (1 char)
+        doc = doc.substring(0, doc.length - 1)
+        assertEquals("আমা", doc)
+
+        // Word at cursor is now "আমা"
+        val englishPreview = AvroReverseTransliterator.bengaliToAvro(doc)
+        assertEquals("ama", englishPreview)
+
+        // Verify that doc was never wiped or prepended into "আআমার"
+        assertFalse(doc.contains("আআমার"))
+        assertEquals("আমা", doc)
     }
 }
+
 
