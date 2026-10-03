@@ -448,8 +448,12 @@ pub fn decode_english_glide_with_trie(
         return Vec::new();
     }
 
-    let start_char = path_chars[0];
-    let end_char = *path_chars.last().unwrap();
+    let Some(&start_char) = path_chars.first() else {
+        return Vec::new();
+    };
+    let Some(&end_char) = path_chars.last() else {
+        return Vec::new();
+    };
 
     let mut start_keys = vec![start_char];
     for &adj in get_qwerty_adjacent_keys(start_char) {

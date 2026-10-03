@@ -551,7 +551,7 @@ impl AndroidLekhaniSession {
             } else {
                 state.surrounding_context = context;
             }
-            state.surrounding_context_len = state.surrounding_context.len();
+            state.surrounding_context_len = state.surrounding_context.chars().count();
         }
     }
 
@@ -1121,8 +1121,22 @@ impl AndroidLekhaniSession {
             _ => {
                 // Bengali fixed layouts (Probaho, Probhat, National, Gboard)
                 // Use grapheme sequence matching heuristic to recover single glide words
-                let start_key = &keys[0];
-                let end_key = keys.last().unwrap();
+                let Some(start_key) = keys.first() else {
+                    return Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    });
+                };
+                let Some(end_key) = keys.last() else {
+                    return Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    });
+                };
                 let db = get_core_database();
                 let entries = db.trie.find_prefix_entries(start_key, 250);
                 let mut scored: Vec<(String, i64)> = Vec::new();
@@ -2466,7 +2480,7 @@ mod tests {
         session.set_context("আজকে আমি ভাত খাব ".into());
         session.set_right_context("না".into());
 
-        assert_eq!(session.state.lock().unwrap().surrounding_context_len, "আজকে আমি ভাত খাব ".len());
+        assert_eq!(session.state.lock().unwrap().surrounding_context_len, "আজকে আমি ভাত খাব ".chars().count());
         assert_eq!(session.state.lock().unwrap().right_context, "না");
 
         session.reset();
