@@ -22,6 +22,8 @@ sealed class KeyAction {
     data object SwitchMoreSymbols : KeyAction()
     /** Return from number/symbol mode to the active letter layout */
     data object SwitchAlpha : KeyAction()
+    /** Switch directly to the dedicated 4-column Number PIN Pad layer */
+    data object SwitchNumpad : KeyAction()
     /** Toggle between English digits (1..0) and Bengali digits (১..০) */
     data object ToggleBengaliDigits : KeyAction()
     /** Cycle to the next enabled layout (Globe key) */

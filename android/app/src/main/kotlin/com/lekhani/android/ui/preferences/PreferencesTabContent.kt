@@ -98,6 +98,7 @@ fun PreferencesTabContent(
     var doubleSpaceDari by remember { mutableStateOf(prefs.doubleSpaceDariEnabled) }
     var codeShield by remember { mutableStateOf(prefs.codeShieldEnabled) }
     var avroShowEnglishPreview by remember { mutableStateOf(prefs.avroShowEnglishPreview) }
+    var avroNumeralsBengali by remember { mutableStateOf(prefs.avroNumeralsBengali) }
     var showDedicatedNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
     var autoSwitchNumpad by remember { mutableStateOf(prefs.autoSwitchNumpad) }
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
@@ -397,6 +398,34 @@ fun PreferencesTabContent(
                         onCheckedChange = {
                             avroShowEnglishPreview = it
                             prefs.avroShowEnglishPreview = it
+                        }
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                // Avro Bengali Numerals Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = if (isEnglish) "Avro Bengali Numerals" else "অভ্র বাংলা সংখ্যা",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Type Bengali numerals (১, ২, ৩) instead of English (1, 2, 3) in Avro" else "অভ্র মোডে ইংরেজি সংখ্যার বদলে ডিফল্ট হিসেবে বাংলা সংখ্যা (১, ২, ৩) লিখবে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = avroNumeralsBengali,
+                        onCheckedChange = {
+                            avroNumeralsBengali = it
+                            prefs.avroNumeralsBengali = it
                         }
                     )
                 }

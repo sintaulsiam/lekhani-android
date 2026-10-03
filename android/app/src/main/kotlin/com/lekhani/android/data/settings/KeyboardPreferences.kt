@@ -84,8 +84,12 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_SHOW_DEDICATED_NUMBER_ROW, value).apply()
 
     var autoSwitchNumpad: Boolean
-        get() = prefs.getBoolean(KEY_AUTO_SWITCH_NUMPAD, false)
+        get() = prefs.getBoolean(KEY_AUTO_SWITCH_NUMPAD, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_SWITCH_NUMPAD, value).apply()
+
+    var avroNumeralsBengali: Boolean
+        get() = prefs.getBoolean(KEY_AVRO_NUMERALS_BENGALI, false)
+        set(value) = prefs.edit().putBoolean(KEY_AVRO_NUMERALS_BENGALI, value).apply()
 
     var showHomeRowAccents: Boolean
         get() = prefs.getBoolean(KEY_SHOW_HOMEROW_ACCENTS, false)
@@ -333,6 +337,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_GLIDE_TYPING_ENABLED = "glide_typing_enabled"
         const val KEY_CODE_SHIELD_ENABLED = "code_shield_enabled"
         const val KEY_AVRO_SHOW_ENGLISH_PREVIEW = "avro_show_english_preview"
+        const val KEY_AVRO_NUMERALS_BENGALI = "avro_numerals_bengali"
         const val KEY_DOUBLE_SPACE_DARI_ENABLED = "double_space_dari_enabled"
         const val KEY_SPACEBAR_AUTOCOMPLETE_ENABLED = "spacebar_autocomplete_enabled"
         const val KEY_AUTO_LEARN_WORDS_ENABLED = "auto_learn_words_enabled"
@@ -362,6 +367,7 @@ class KeyboardPreferences private constructor(context: Context) {
         val DEFAULT_TOOL_LIST = listOf(
             ToolbarTool.VOICE,
             ToolbarTool.CLIPBOARD,
+            ToolbarTool.NUMPAD,
             ToolbarTool.EMOJI,
             ToolbarTool.TEXT_EDITOR,
             ToolbarTool.THEME,
@@ -371,7 +377,6 @@ class KeyboardPreferences private constructor(context: Context) {
         val DEFAULT_TOOLBAR = DEFAULT_TOOL_LIST.joinToString(",") { it.name }
 
         val DEFAULT_VAULT_LIST = listOf(
-            ToolbarTool.NUMPAD,
             ToolbarTool.RESIZE,
             ToolbarTool.ONE_HANDED,
             ToolbarTool.FLOATING,

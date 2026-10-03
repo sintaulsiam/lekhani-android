@@ -779,11 +779,12 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         candidates.insert(insert_pos, input.to_string());
     }
 
-    // Capitalized / CamelCase / Code Token / Mixed Symbol Latin Escape Hatch (e.g. "Siam", "Figma", "ChatGPT", "myVar")
+    // Capitalized / CamelCase / Code Token / Mixed Symbol / Alphanumeric Latin Escape Hatch (e.g. "Siam", "Figma", "ChatGPT", "myVar", "covid19", "350tk")
     let is_code_or_mixed = input.chars().skip(1).any(|c| c.is_ascii_uppercase())
         || input.contains('_')
         || input.contains('-')
-        || input.contains('.');
+        || input.contains('.')
+        || (input.chars().any(|c| c.is_ascii_digit()) && input.chars().any(|c| c.is_alphabetic()));
     if is_code_or_mixed && input.is_ascii() && !candidates.iter().any(|c| c == input) {
         let insert_pos = candidates.len().min(1);
         candidates.insert(insert_pos, input.to_string());

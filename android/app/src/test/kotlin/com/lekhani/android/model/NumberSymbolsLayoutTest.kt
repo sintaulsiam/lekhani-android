@@ -35,10 +35,11 @@ class NumberSymbolsLayoutTest {
         assertEquals(KeyAction.SwitchMoreSymbols, row3[0].action)
         assertEquals(KeyAction.Backspace, row3.last().action)
 
-        // Spacebar row: ABC, ১২৩, Comma, Space, Period, Enter
+        // Spacebar row: ABC, 🔢, ১২৩, Space, Period, Enter
         val spaceRow = layout.spacebarRow
         assertEquals(KeyAction.SwitchAlpha, spaceRow[0].action)
-        assertEquals(KeyAction.ToggleBengaliDigits, spaceRow[1].action)
+        assertEquals(KeyAction.SwitchNumpad, spaceRow[1].action)
+        assertEquals(KeyAction.ToggleBengaliDigits, spaceRow[2].action)
         assertEquals(KeyAction.Space, spaceRow[3].action)
     }
 
@@ -201,5 +202,55 @@ class NumberSymbolsLayoutTest {
         assertNotNull(toggleKey)
         assertEquals("123", toggleKey?.label)
         assertTrue(bengaliNumpad.spacebarRow.any { it.action == KeyAction.Space })
+    }
+
+    @Test
+    fun testNumpadBidirectionalNavigation() {
+        // From Numpad -> Symbol mode switch key (?123)
+        val numpad = NumberSymbolsLayout.numpadPinLayout
+        val symbolKey = numpad.spacebarRow.find { it.action == KeyAction.SwitchNumeric }
+        assertNotNull("Numpad PIN pad must have ?123 key to switch to symbols", symbolKey)
+        assertEquals("?123", symbolKey?.label)
+
+        val bengaliNumpad = NumberSymbolsLayout.bengaliNumpadPinLayout
+        val bnSymbolKey = bengaliNumpad.spacebarRow.find { it.action == KeyAction.SwitchNumeric }
+        assertNotNull("Bengali Numpad PIN pad must have ?123 key to switch to symbols", bnSymbolKey)
+        assertEquals("?123", bnSymbolKey?.label)
+
+        // From Symbol mode -> Numpad PIN switch key (🔢)
+        val numeric = NumberSymbolsLayout.numericLayout
+        val pinKey = numeric.spacebarRow.find { it.action == KeyAction.SwitchNumpad }
+        assertNotNull("Numeric layout must have 🔢 key to switch to PIN pad", pinKey)
+        assertEquals("🔢", pinKey?.label)
+
+        val englishNumeric = NumberSymbolsLayout.englishNumericLayout
+        val engPinKey = englishNumeric.spacebarRow.find { it.action == KeyAction.SwitchNumpad }
+        assertNotNull("English numeric layout must have 🔢 key to switch to PIN pad", engPinKey)
+        assertEquals("🔢", engPinKey?.label)
+
+        val bengaliNumeric = NumberSymbolsLayout.bengaliNumericLayout
+        val bnPinKey = bengaliNumeric.spacebarRow.find { it.action == KeyAction.SwitchNumpad }
+        assertNotNull("Bengali numeric layout must have 🔢 key to switch to PIN pad", bnPinKey)
+        assertEquals("🔢", bnPinKey?.label)
+    }
+
+    @Test
+    fun testLayoutsHaveNumpadLongPressOnNumericKey() {
+        val layouts = LayoutRegistry.all.map { LayoutRegistry.get(it) }
+
+        for (layout in layouts) {
+            val numSwitchKey = layout.spacebarRow.find { it.action == KeyAction.SwitchNumeric }
+            assertNotNull("${layout.name} spacebar row must have ?123 key", numSwitchKey)
+            assertEquals(
+                "${layout.name} ?123 key must have SwitchNumpad as longPressAction",
+                KeyAction.SwitchNumpad,
+                numSwitchKey?.longPressAction,
+            )
+            assertEquals(
+                "${layout.name} ?123 key must have 🔢 hint label",
+                "🔢",
+                numSwitchKey?.hintLabel,
+            )
+        }
     }
 }

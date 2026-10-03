@@ -51,7 +51,12 @@ object NumberSymbolsLayout {
             Key(
                 label = "ABC", shiftedLabel = "ABC",
                 action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
-                widthWeight = 1.4f, contentDesc = "Alphabet",
+                widthWeight = 1.3f, contentDesc = "Alphabet",
+            ),
+            Key(
+                label = "🔢", shiftedLabel = "🔢",
+                action = KeyAction.SwitchNumpad, shiftedAction = KeyAction.SwitchNumpad,
+                widthWeight = 1.0f, contentDesc = "Number PIN pad",
             ),
             Key(
                 label = "১২৩", shiftedLabel = "১২৩",
@@ -59,14 +64,9 @@ object NumberSymbolsLayout {
                 widthWeight = 1.0f, contentDesc = "Bengali digits",
             ),
             Key(
-                label = ",", shiftedLabel = ",",
-                action = KeyAction.Character(","), shiftedAction = KeyAction.Character(","),
-                widthWeight = 1.0f, contentDesc = "Comma",
-            ),
-            Key(
                 label = "Space", shiftedLabel = "Space",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.2f, contentDesc = "Space",
+                widthWeight = 3.4f, contentDesc = "Space",
             ),
             Key(
                 label = ".", shiftedLabel = ".",
@@ -76,7 +76,7 @@ object NumberSymbolsLayout {
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 1.4f, contentDesc = "Enter",
+                widthWeight = 1.3f, contentDesc = "Enter",
             ),
         ),
     )
@@ -114,7 +114,12 @@ object NumberSymbolsLayout {
             Key(
                 label = "ABC", shiftedLabel = "ABC",
                 action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
-                widthWeight = 1.4f, contentDesc = "Alphabet",
+                widthWeight = 1.3f, contentDesc = "Alphabet",
+            ),
+            Key(
+                label = "🔢", shiftedLabel = "🔢",
+                action = KeyAction.SwitchNumpad, shiftedAction = KeyAction.SwitchNumpad,
+                widthWeight = 1.0f, contentDesc = "Number PIN pad",
             ),
             Key(
                 label = ",", shiftedLabel = ",",
@@ -124,7 +129,7 @@ object NumberSymbolsLayout {
             Key(
                 label = "Space", shiftedLabel = "Space",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.2f, contentDesc = "Space",
+                widthWeight = 3.4f, contentDesc = "Space",
             ),
             Key(
                 label = ".", shiftedLabel = ".",
@@ -134,7 +139,7 @@ object NumberSymbolsLayout {
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 1.4f, contentDesc = "Enter",
+                widthWeight = 1.3f, contentDesc = "Enter",
             ),
         ),
     )
@@ -180,7 +185,12 @@ object NumberSymbolsLayout {
             Key(
                 label = "ABC", shiftedLabel = "ABC",
                 action = KeyAction.SwitchAlpha, shiftedAction = KeyAction.SwitchAlpha,
-                widthWeight = 1.4f, contentDesc = "Alphabet",
+                widthWeight = 1.3f, contentDesc = "Alphabet",
+            ),
+            Key(
+                label = "🔢", shiftedLabel = "🔢",
+                action = KeyAction.SwitchNumpad, shiftedAction = KeyAction.SwitchNumpad,
+                widthWeight = 1.0f, contentDesc = "Number PIN pad",
             ),
             Key(
                 label = "123", shiftedLabel = "123",
@@ -188,14 +198,9 @@ object NumberSymbolsLayout {
                 widthWeight = 1.0f, contentDesc = "English digits",
             ),
             Key(
-                label = ",", shiftedLabel = ",",
-                action = KeyAction.Character(","), shiftedAction = KeyAction.Character(","),
-                widthWeight = 1.0f, contentDesc = "Comma",
-            ),
-            Key(
                 label = "স্পেস", shiftedLabel = "স্পেস",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
-                widthWeight = 4.2f, contentDesc = "Space",
+                widthWeight = 3.4f, contentDesc = "Space",
             ),
             Key(
                 label = ".", shiftedLabel = "।", hintLabel = "।",
@@ -206,7 +211,7 @@ object NumberSymbolsLayout {
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,
-                widthWeight = 1.4f, contentDesc = "Enter",
+                widthWeight = 1.3f, contentDesc = "Enter",
             ),
         ),
     )
@@ -403,9 +408,9 @@ object NumberSymbolsLayout {
                 widthWeight = 1.0f, contentDesc = "Switch to text keyboard",
             ),
             Key(
-                label = "(", shiftedLabel = "(",
-                action = KeyAction.Character("("), shiftedAction = KeyAction.Character("("),
-                widthWeight = 0.8f, contentDesc = "Open parenthesis",
+                label = "?123", shiftedLabel = "?123",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
+                widthWeight = 0.8f, contentDesc = "Switch to symbols",
             ),
             Key(
                 label = "Space", shiftedLabel = "Space",
@@ -473,9 +478,9 @@ object NumberSymbolsLayout {
                 widthWeight = 1.0f, contentDesc = "Switch to text keyboard",
             ),
             Key(
-                label = "৳", shiftedLabel = "৳",
-                action = KeyAction.Character("৳"), shiftedAction = KeyAction.Character("৳"),
-                widthWeight = 0.8f, contentDesc = "Taka",
+                label = "?123", shiftedLabel = "?123",
+                action = KeyAction.SwitchNumeric, shiftedAction = KeyAction.SwitchNumeric,
+                widthWeight = 0.8f, contentDesc = "Switch to symbols",
             ),
             Key(
                 label = "স্পেস", shiftedLabel = "স্পেস",

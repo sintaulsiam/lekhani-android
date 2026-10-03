@@ -1032,17 +1032,52 @@ class LekhaniInputMethodService : InputMethodService() {
                     setInputViewMode(InputViewMode.CLIPBOARD)
                     return
                 }
+                KeyAction.SwitchNumpad -> {
+                    setInputViewMode(InputViewMode.KEYBOARD)
+                    if (previousLayoutBeforeNumeric == null) {
+                        previousLayoutBeforeNumeric = session.getLayout()
+                    }
+                    isNumericFieldMode = true
+                    isPhoneDialpadMode = false
+                    isNumericMode = true
+                    isMoreSymbolsMode = false
+                    updateNumberSymbolsKeyboard()
+                    return
+                }
                 KeyAction.CursorLeft, KeyAction.CursorRight, KeyAction.Tab -> return
             }
         }
 
         when (action) {
-            is KeyAction.Character -> onKey(action.token)
+            is KeyAction.Character -> handleCharacterInput(key, action.token)
             KeyAction.Backspace    -> onBackspace()
             KeyAction.Space        -> onSpace()
             KeyAction.Enter        -> commitEnter()
             KeyAction.Shift        -> toggleShift()
+            KeyAction.SwitchNumpad -> {
+                if (isNumericFieldMode || isPhoneDialpadMode) {
+                    restoreAlphaKeyboard()
+                } else {
+                    if (previousLayoutBeforeNumeric == null) {
+                        previousLayoutBeforeNumeric = session.getLayout()
+                    }
+                    isNumericFieldMode = true
+                    isPhoneDialpadMode = false
+                    isNumericMode = true
+                    isMoreSymbolsMode = false
+                    setInputViewMode(InputViewMode.KEYBOARD)
+                    updateNumberSymbolsKeyboard()
+                }
+            }
             KeyAction.SwitchNumeric -> {
+                if (isNumericFieldMode || isPhoneDialpadMode) {
+                    isNumericFieldMode = false
+                    isPhoneDialpadMode = false
+                    isNumericMode = true
+                    isMoreSymbolsMode = false
+                    updateNumberSymbolsKeyboard()
+                    return
+                }
                 if (!isNumericMode) {
                     isNumericMode = true
                     isMoreSymbolsMode = false
@@ -1074,6 +1109,104 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyAction.CursorRight -> handleCursorMove(1)
             KeyAction.Tab -> sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
         }
+    }
+
+    private fun flushComposing(ic: InputConnection) {
+        if (session.isComposing() || preeditShadow.isNotEmpty()) {
+            ic.beginBatchEdit()
+            try {
+                ic.finishComposingText()
+                session.reset()
+                preeditShadow = ""
+                rawInputBuffer.clear()
+                clearCandidates()
+                clearUndo()
+            } finally {
+                ic.endBatchEdit()
+            }
+            val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null }
+            if (!before.isNullOrEmpty()) {
+                session.setContext(before)
+            }
+        }
+    }
+
+    private fun handleCharacterInput(key: Key, token: String) {
+        val ic = currentInputConnection ?: return
+        val isNumericActive = isNumericMode || isNumericFieldMode || isPhoneDialpadMode
+
+        if (isNumericActive) {
+            // When in numeric / numpad / symbol layer:
+            if (!isBengaliDigitsMode) {
+                // English digits mode (1, 2, 3...) or English symbol mode
+                if (token.length == 1 && token[0] in '0'..'9') {
+                    flushComposing(ic)
+                    ic.commitText(token, 1)
+                    val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null }
+                    if (!before.isNullOrEmpty()) {
+                        session.setContext(before)
+                    }
+                    updateAutoCaps()
+                    return
+                }
+            } else {
+                // Bengali digits mode (১, ২, ৩...)
+                if (token.length == 1 && token[0] in '0'..'9') {
+                    val bnDigit = ('\u09E6' + (token[0] - '0')).toString()
+                    flushComposing(ic)
+                    ic.commitText(bnDigit, 1)
+                    val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null }
+                    if (!before.isNullOrEmpty()) {
+                        session.setContext(before)
+                    }
+                    updateAutoCaps()
+                    return
+                }
+                if (token.length == 1 && token[0] in '\u09E6'..'\u09EF') {
+                    flushComposing(ic)
+                    ic.commitText(token, 1)
+                    val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null }
+                    if (!before.isNullOrEmpty()) {
+                        session.setContext(before)
+                    }
+                    updateAutoCaps()
+                    return
+                }
+            }
+        } else if (session.getLayout() == LekhaniLayoutType.AVRO) {
+            // On Avro layout:
+            val isDigit = token.length == 1 && token[0] in '0'..'9'
+            val isBengaliDigit = token.length == 1 && token[0] in '\u09E6'..'\u09EF'
+
+            if (isDigit) {
+                // Tapped on dedicated number row (1..0), or long-pressed q..p (hint 1..0)
+                val targetText = if (keyboardPrefs.avroNumeralsBengali) {
+                    ('\u09E6' + (token[0] - '0')).toString()
+                } else {
+                    token
+                }
+                flushComposing(ic)
+                ic.commitText(targetText, 1)
+                val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null }
+                if (!before.isNullOrEmpty()) {
+                    session.setContext(before)
+                }
+                updateAutoCaps()
+                return
+            } else if (isBengaliDigit) {
+                // Long-press on dedicated number row (hold 1 -> ১) or explicit Bengali numeral
+                flushComposing(ic)
+                ic.commitText(token, 1)
+                val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null }
+                if (!before.isNullOrEmpty()) {
+                    session.setContext(before)
+                }
+                updateAutoCaps()
+                return
+            }
+        }
+
+        onKey(token)
     }
 
     private fun crossfadeViewMode(activeView: View?, vararg otherViews: View?) {

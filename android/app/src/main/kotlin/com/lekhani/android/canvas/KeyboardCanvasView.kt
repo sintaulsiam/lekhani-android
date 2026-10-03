@@ -535,31 +535,33 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // ── Dedicated Number Row Definitions (10 keys) ──────────────────────────
     var showDedicatedNumberRow: Boolean = false
         private set
+    var avroNumeralsBengali: Boolean = false
+        private set
 
     private val bengaliDedicatedNumberRow = listOf(
-        Key("১", shiftedLabel = "1", hintLabel = "1", action = KeyAction.Character("১"), contentDesc = "Bengali digit 1"),
-        Key("২", shiftedLabel = "2", hintLabel = "2", action = KeyAction.Character("২"), contentDesc = "Bengali digit 2"),
-        Key("৩", shiftedLabel = "3", hintLabel = "3", action = KeyAction.Character("৩"), contentDesc = "Bengali digit 3"),
-        Key("৪", shiftedLabel = "4", hintLabel = "4", action = KeyAction.Character("৪"), contentDesc = "Bengali digit 4"),
-        Key("৫", shiftedLabel = "5", hintLabel = "5", action = KeyAction.Character("৫"), contentDesc = "Bengali digit 5"),
-        Key("৬", shiftedLabel = "6", hintLabel = "6", action = KeyAction.Character("৬"), contentDesc = "Bengali digit 6"),
-        Key("৭", shiftedLabel = "7", hintLabel = "7", action = KeyAction.Character("৭"), contentDesc = "Bengali digit 7"),
-        Key("৮", shiftedLabel = "8", hintLabel = "8", action = KeyAction.Character("৮"), contentDesc = "Bengali digit 8"),
-        Key("৯", shiftedLabel = "9", hintLabel = "9", action = KeyAction.Character("৯"), contentDesc = "Bengali digit 9"),
-        Key("০", shiftedLabel = "0", hintLabel = "0", action = KeyAction.Character("০"), contentDesc = "Bengali digit 0"),
+        Key("১", shiftedLabel = "1", hintLabel = "1", action = KeyAction.Character("১"), longPressAction = KeyAction.Character("1"), contentDesc = "Bengali digit 1, hold for English 1"),
+        Key("২", shiftedLabel = "2", hintLabel = "2", action = KeyAction.Character("২"), longPressAction = KeyAction.Character("2"), contentDesc = "Bengali digit 2, hold for English 2"),
+        Key("৩", shiftedLabel = "3", hintLabel = "3", action = KeyAction.Character("৩"), longPressAction = KeyAction.Character("3"), contentDesc = "Bengali digit 3, hold for English 3"),
+        Key("৪", shiftedLabel = "4", hintLabel = "4", action = KeyAction.Character("৪"), longPressAction = KeyAction.Character("4"), contentDesc = "Bengali digit 4, hold for English 4"),
+        Key("৫", shiftedLabel = "5", hintLabel = "5", action = KeyAction.Character("৫"), longPressAction = KeyAction.Character("5"), contentDesc = "Bengali digit 5, hold for English 5"),
+        Key("৬", shiftedLabel = "6", hintLabel = "6", action = KeyAction.Character("৬"), longPressAction = KeyAction.Character("6"), contentDesc = "Bengali digit 6, hold for English 6"),
+        Key("৭", shiftedLabel = "7", hintLabel = "7", action = KeyAction.Character("৭"), longPressAction = KeyAction.Character("7"), contentDesc = "Bengali digit 7, hold for English 7"),
+        Key("৮", shiftedLabel = "8", hintLabel = "8", action = KeyAction.Character("৮"), longPressAction = KeyAction.Character("8"), contentDesc = "Bengali digit 8, hold for English 8"),
+        Key("৯", shiftedLabel = "9", hintLabel = "9", action = KeyAction.Character("৯"), longPressAction = KeyAction.Character("9"), contentDesc = "Bengali digit 9, hold for English 9"),
+        Key("০", shiftedLabel = "0", hintLabel = "0", action = KeyAction.Character("০"), longPressAction = KeyAction.Character("0"), contentDesc = "Bengali digit 0, hold for English 0"),
     )
 
     private val englishDedicatedNumberRow = listOf(
-        Key("1", action = KeyAction.Character("1"), contentDesc = "Digit 1"),
-        Key("2", action = KeyAction.Character("2"), contentDesc = "Digit 2"),
-        Key("3", action = KeyAction.Character("3"), contentDesc = "Digit 3"),
-        Key("4", action = KeyAction.Character("4"), contentDesc = "Digit 4"),
-        Key("5", action = KeyAction.Character("5"), contentDesc = "Digit 5"),
-        Key("6", action = KeyAction.Character("6"), contentDesc = "Digit 6"),
-        Key("7", action = KeyAction.Character("7"), contentDesc = "Digit 7"),
-        Key("8", action = KeyAction.Character("8"), contentDesc = "Digit 8"),
-        Key("9", action = KeyAction.Character("9"), contentDesc = "Digit 9"),
-        Key("0", action = KeyAction.Character("0"), contentDesc = "Digit 0"),
+        Key("1", shiftedLabel = "১", hintLabel = "১", action = KeyAction.Character("1"), longPressAction = KeyAction.Character("১"), contentDesc = "Digit 1, hold for Bengali ১"),
+        Key("2", shiftedLabel = "২", hintLabel = "২", action = KeyAction.Character("2"), longPressAction = KeyAction.Character("২"), contentDesc = "Digit 2, hold for Bengali ২"),
+        Key("3", shiftedLabel = "৩", hintLabel = "৩", action = KeyAction.Character("3"), longPressAction = KeyAction.Character("৩"), contentDesc = "Digit 3, hold for Bengali ৩"),
+        Key("4", shiftedLabel = "৪", hintLabel = "৪", action = KeyAction.Character("4"), longPressAction = KeyAction.Character("৪"), contentDesc = "Digit 4, hold for Bengali ৪"),
+        Key("5", shiftedLabel = "৫", hintLabel = "৫", action = KeyAction.Character("5"), longPressAction = KeyAction.Character("৫"), contentDesc = "Digit 5, hold for Bengali ৫"),
+        Key("6", shiftedLabel = "৬", hintLabel = "৬", action = KeyAction.Character("6"), longPressAction = KeyAction.Character("৬"), contentDesc = "Digit 6, hold for Bengali ৬"),
+        Key("7", shiftedLabel = "৭", hintLabel = "৭", action = KeyAction.Character("7"), longPressAction = KeyAction.Character("৭"), contentDesc = "Digit 7, hold for Bengali ৭"),
+        Key("8", shiftedLabel = "৮", hintLabel = "৮", action = KeyAction.Character("8"), longPressAction = KeyAction.Character("৮"), contentDesc = "Digit 8, hold for Bengali ৮"),
+        Key("9", shiftedLabel = "৯", hintLabel = "৯", action = KeyAction.Character("9"), longPressAction = KeyAction.Character("৯"), contentDesc = "Digit 9, hold for Bengali ৯"),
+        Key("0", shiftedLabel = "০", hintLabel = "০", action = KeyAction.Character("0"), longPressAction = KeyAction.Character("০"), contentDesc = "Digit 0, hold for Bengali ০"),
     )
 
     private fun isNumberSymbolsActive(): Boolean =
@@ -613,6 +615,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.longPressDelayMs = prefs.longPressDelayMs
         this.showKeyBorders = prefs.showKeyBorders
         this.showDedicatedNumberRow = prefs.showDedicatedNumberRow
+        this.avroNumeralsBengali = prefs.avroNumeralsBengali
         this.heightScale = prefs.getHeightScaleForOrientation(resources.configuration.orientation)
         this.marginHDp = prefs.keyMarginH
         this.marginVDp = prefs.keyMarginV
@@ -1007,7 +1010,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
         }
         val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
-            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO)
+            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO && !avroNumeralsBengali))
             val numRow = if (isEnglishDigits) englishDedicatedNumberRow else bengaliDedicatedNumberRow
             listOf(numRow) + baseRows
         } else {
@@ -1180,7 +1183,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
         }
         val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
-            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO)
+            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO && !avroNumeralsBengali))
             val numRow = if (isEnglishDigits) englishDedicatedNumberRow else bengaliDedicatedNumberRow
             listOf(numRow) + baseRows
         } else {
@@ -1624,7 +1627,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             val bgPaint = when {
                 key.action == KeyAction.Backspace || key.action == KeyAction.Shift ||
                 key.action == KeyAction.SwitchNumeric || key.action == KeyAction.SwitchMoreSymbols ||
-                key.action == KeyAction.SwitchAlpha || key.action == KeyAction.ToggleBengaliDigits ||
+                key.action == KeyAction.SwitchAlpha || key.action == KeyAction.SwitchNumpad || key.action == KeyAction.ToggleBengaliDigits ||
                 key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
                 key.action == KeyAction.SwitchEmoji || key.action == KeyAction.SwitchClipboard ||
                 key.action == KeyAction.CursorLeft || key.action == KeyAction.CursorRight ||
@@ -1751,8 +1754,14 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
                     }
                 }
-                KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits -> {
+                KeyAction.SwitchNumeric, KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.SwitchNumpad, KeyAction.ToggleBengaliDigits -> {
                     canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
+                    val hint = key.displayHint(isShifted)
+                    if (hint != null) {
+                        val hintX = drawBounds.right - 5f * density
+                        val hintY = drawBounds.top + 13f * density
+                        canvas.drawText(hint, hintX, hintY, hintPaint)
+                    }
                 }
                 else -> {
                     canvas.drawText(labelText, cx, cy, labelPaint)
@@ -1828,7 +1837,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private fun isSpacebarKey(key: Key): Boolean =
         key.action == KeyAction.Space || key.action == KeyAction.SwitchNumeric ||
         key.action == KeyAction.SwitchMoreSymbols || key.action == KeyAction.SwitchAlpha ||
-        key.action == KeyAction.ToggleBengaliDigits ||
+        key.action == KeyAction.SwitchNumpad || key.action == KeyAction.ToggleBengaliDigits ||
         key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
         key.action == KeyAction.CursorLeft || key.action == KeyAction.CursorRight ||
         key.action == KeyAction.Tab
@@ -2507,6 +2516,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             KeyAction.SwitchNumeric -> "সংখ্যা ও প্রতীক (Numbers and symbols)"
             KeyAction.SwitchMoreSymbols -> "অতিরিক্ত প্রতীক (More symbols)"
             KeyAction.SwitchAlpha -> "বর্ণমালা (Alphabet)"
+            KeyAction.SwitchNumpad -> "নম্বর প্যাড (Number pad)"
             KeyAction.ToggleBengaliDigits -> "সংখ্যা পরিবর্তন (Toggle Digits)"
             KeyAction.SwitchLayout -> if (isBottomRowKeyEmoji) "ইমোজি (Emoji)" else "লেআউট পরিবর্তন (Switch Layout)"
             KeyAction.VoiceTyping -> "ভয়েস টাইপিং (Voice Typing)"
