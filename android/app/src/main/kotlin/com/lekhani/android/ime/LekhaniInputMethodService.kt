@@ -3035,7 +3035,20 @@ class LekhaniInputMethodService : InputMethodService() {
 
         if (!isSwipeDeleteActive) {
             isSwipeDeleteActive = true
-            swipeDeleteAnchorCursor = if (currentSelEnd >= 0) currentSelEnd else -1
+            swipeDeleteAnchorCursor = if (currentSelEnd >= 0) {
+                currentSelEnd
+            } else {
+                try {
+                    val extracted = ic?.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)
+                    if (extracted != null && extracted.selectionEnd >= 0) {
+                        extracted.selectionEnd
+                    } else {
+                        -1
+                    }
+                } catch (_: Exception) {
+                    -1
+                }
+            }
             // Capture fresh snapshot directly from InputConnection at the very start of the gesture
             activeSwipeSnapshotText = try {
                 ic?.getTextBeforeCursor(1024, 0)?.toString() ?: ""
