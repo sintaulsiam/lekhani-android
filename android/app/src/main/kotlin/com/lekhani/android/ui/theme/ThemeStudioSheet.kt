@@ -1,5 +1,6 @@
 package com.lekhani.android.ui.theme
 
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,6 +23,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,6 +48,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -82,7 +85,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -579,6 +584,7 @@ fun ThemeStudioSheet(
                         theme = theme,
                         isApplied = selectedThemeId == theme.id,
                         isEnglish = isEnglish,
+                        prefs = prefs,
                         onApply = {
                             view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                             selectedThemeId = theme.id
@@ -880,6 +886,7 @@ private fun ThemePreviewBottomBar(
     theme: KeyboardTheme,
     isApplied: Boolean,
     isEnglish: Boolean = false,
+    prefs: KeyboardPreferences,
     onApply: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -976,8 +983,8 @@ private fun ThemePreviewBottomBar(
                 }
             }
 
-            // Live interactive mini keyboard preview
-            LiveKeyboardMiniPreview(theme = theme, isEnglish = isEnglish)
+            // Live interactive mini keyboard preview (authentic 4-row layout)
+            LiveKeyboardMiniPreview(theme = theme, isEnglish = isEnglish, prefs = prefs)
 
             Spacer(modifier = Modifier.height(2.dp))
         }
@@ -986,16 +993,21 @@ private fun ThemePreviewBottomBar(
 
 
 /**
- * Interactive Live Keyboard Preview sandbox featuring:
- * - Candidate suggestion strip
- * - Real-time animated borders / accents for RGB Chroma themes
- * - Interactive test typing bar with haptic response
+ * Authentic Interactive Live Keyboard Miniature Sandbox:
+ * - Faithful 4-row mobile layout (10 top, 9 home, Shift + 7 letters + Backspace, Symbols + Hasanta + Spacebar + Enter)
+ * - Exact color matching: Backspace uses [keyShiftColor] with [labelColor] icon; Enter with [liveAccentColor]
+ * - Honors [showKeyBorders] preference for solid themes
+ * - Honors [ChromaStyle.CLEAN_MINIMAL] (borderless keys, glowing Space + Enter only)
+ * - Composites custom wallpaper bitmap + opacity behind keys
+ * - Authentic candidate strip with toolbar indicator + primary glowing candidate
  */
 @Composable
 private fun LiveKeyboardMiniPreview(
     theme: KeyboardTheme,
-    isEnglish: Boolean = false
+    isEnglish: Boolean = false,
+    prefs: KeyboardPreferences,
 ) {
+    val context = LocalContext.current
     val view = LocalView.current
     var testInput by remember { mutableStateOf("") }
 
@@ -1021,216 +1033,375 @@ private fun LiveKeyboardMiniPreview(
 
     val liveAccentColor = if (theme.isRgbChroma) animatedBorderColor else Color(theme.accentColor)
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundColor)),
-        border = BorderStroke(1.5.dp, liveAccentColor.copy(alpha = 0.85f))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-            // Interactive Text Test Strip + Clear
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(28.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(Color(theme.keyShiftColor))
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = if (testInput.isNotBlank()) testInput else (if (isEnglish) "Tap keys to test..." else "টাইপিং টেস্ট করুন..."),
-                    color = if (testInput.isNotBlank()) Color(theme.labelColor) else Color(theme.labelDimColor),
-                    fontSize = 11.5.sp,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-                if (testInput.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color(theme.keyNormalColor))
-                            .clickable { testInput = "" }
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                    ) {
-                        Text("Clear", fontSize = 9.5.sp, color = Color(theme.labelDimColor))
-                    }
+    // Load custom wallpaper if active in preferences
+    val wallpaperBitmap = remember(prefs.customWallpaperUri) {
+        if (prefs.customWallpaperUri.isNotBlank()) {
+            try {
+                val uri = Uri.parse(prefs.customWallpaperUri)
+                val stream = context.contentResolver.openInputStream(uri)
+                val opts = BitmapFactory.Options().apply { inSampleSize = 2 }
+                val bmp = BitmapFactory.decodeStream(stream, null, opts)
+                stream?.close()
+                bmp?.asImageBitmap()
+            } catch (_: Exception) {
+                null
+            }
+        } else null
+    }
+
+    // Border calculator matching KeyboardCanvasView exactly
+    fun getKeyBorder(xRatio: Float, isSpaceOrEnter: Boolean): BorderStroke? {
+        return if (theme.isRgbChroma) {
+            when (theme.chromaStyle) {
+                ChromaStyle.FULL_BORDER -> {
+                    val color = computeChromaComposeColor(theme.chromaMode, phase, xRatio)
+                    BorderStroke(1.dp, color)
+                }
+                ChromaStyle.AMBIENT_BREATHE -> {
+                    val color = computeChromaComposeColor(theme.chromaMode, phase, xRatio)
+                    BorderStroke(0.8.dp, color.copy(alpha = 0.65f))
+                }
+                ChromaStyle.CLEAN_MINIMAL -> {
+                    if (isSpaceOrEnter) {
+                        val color = computeChromaComposeColor(theme.chromaMode, phase, xRatio)
+                        BorderStroke(1.2.dp, color)
+                    } else null
                 }
             }
+        } else if (prefs.showKeyBorders) {
+            BorderStroke(0.8.dp, Color(theme.keyBorderColor).copy(alpha = 0.45f))
+        } else null
+    }
 
-            // Suggestions / Candidate Strip Preview
-            Row(
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundColor)),
+        border = BorderStroke(1.2.dp, liveAccentColor.copy(alpha = 0.8f))
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Background wallpaper layer
+            if (wallpaperBitmap != null) {
+                Image(
+                    bitmap = wallpaperBitmap,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alpha = prefs.wallpaperOpacity.coerceIn(0.1f, 1f),
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(12.dp))
+                )
+            }
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(24.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val suggestions = listOf("বাংলা", "লেখনী", "প্রবাহ")
-                suggestions.forEachIndexed { idx, word ->
-                    val isHighCandidate = idx == 0
+                // Interactive Text Test Strip + Clear
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(theme.keyShiftColor))
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = if (testInput.isNotBlank()) testInput else (if (isEnglish) "Tap keys to test..." else "টাইপিং টেস্ট করুন..."),
+                        color = if (testInput.isNotBlank()) Color(theme.labelColor) else Color(theme.labelDimColor),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (testInput.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(theme.keyNormalColor))
+                                .clickable { testInput = "" }
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Text("Clear", fontSize = 9.sp, color = Color(theme.labelDimColor))
+                        }
+                    }
+                }
+
+                // Candidate & Suggestion Strip (Authentic Lekhani Candidate Strip)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Toolbar indicator icon
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(theme.keyShiftColor).copy(alpha = 0.6f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.AutoAwesome,
+                            contentDescription = null,
+                            tint = Color(theme.labelDimColor).copy(alpha = 0.8f),
+                            modifier = Modifier.size(11.dp)
+                        )
+                    }
+
+                    // Primary center-glowing candidate
+                    val primaryBg = if (theme.isRgbChroma) animatedBorderColor else Color(theme.accentColor)
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(5.dp))
-                            .background(if (isHighCandidate) liveAccentColor else Color(theme.keyNormalColor))
+                            .background(primaryBg)
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                testInput += if (testInput.isEmpty()) word else " $word"
+                                testInput += if (testInput.isEmpty()) "বাংলা" else " বাংলা"
                             }
-                            .padding(horizontal = 7.dp, vertical = 3.dp),
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = word,
+                            text = "বাংলা",
                             fontSize = 10.5.sp,
-                            fontWeight = if (isHighCandidate) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isHighCandidate) (if (theme.isDark) Color.Black else Color.White) else Color(theme.labelColor)
+                            fontWeight = FontWeight.Bold,
+                            color = if (theme.isDark) Color.Black else Color.White
+                        )
+                    }
+
+                    // Secondary candidates
+                    listOf("লেখনী", "প্রবাহ").forEach { word ->
+                        val secBorder = getKeyBorder(0.5f, false)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(5.dp))
+                                .background(Color(theme.keyNormalColor))
+                                .then(if (secBorder != null) Modifier.border(secBorder.width, secBorder.brush, RoundedCornerShape(5.dp)) else Modifier)
+                                .clickable {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    testInput += if (testInput.isEmpty()) word else " $word"
+                                }
+                                .padding(horizontal = 7.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = word,
+                                fontSize = 10.5.sp,
+                                color = Color(theme.labelColor)
+                            )
+                        }
+                    }
+                }
+
+                // ── Row 1: Top Alpha Row (10 keys) ────────────────────────
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(2.5.dp)
+                ) {
+                    val r1Keys = listOf("আ", "ি", "ী", "ু", "ূ", "প", "ফ", "ব", "ভ", "ম")
+                    r1Keys.forEachIndexed { colIdx, ch ->
+                        val xRatio = colIdx / 9f
+                        val border = getKeyBorder(xRatio, false)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(24.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(theme.keyNormalColor))
+                                .then(if (border != null) Modifier.border(border.width, border.brush, RoundedCornerShape(4.dp)) else Modifier)
+                                .clickable {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    testInput += ch
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(ch, color = Color(theme.labelColor), fontSize = 10.5.sp)
+                        }
+                    }
+                }
+
+                // ── Row 2: Home Row (9 keys) ──────────────────────────────
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.5.dp)
+                ) {
+                    val r2Keys = listOf("অ", "া", "ে", "র", "ত", "থ", "দ", "ধ", "ন")
+                    r2Keys.forEachIndexed { colIdx, ch ->
+                        val xRatio = (colIdx + 0.5f) / 9f
+                        val border = getKeyBorder(xRatio, false)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(24.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(theme.keyNormalColor))
+                                .then(if (border != null) Modifier.border(border.width, border.brush, RoundedCornerShape(4.dp)) else Modifier)
+                                .clickable {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    testInput += ch
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(ch, color = Color(theme.labelColor), fontSize = 10.5.sp)
+                        }
+                    }
+                }
+
+                // ── Row 3: Shift, Alpha & Backspace (9 keys) ──────────────
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(2.5.dp)
+                ) {
+                    val shiftBorder = getKeyBorder(0f, false)
+                    // Shift
+                    Box(
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(theme.keyShiftColor))
+                            .then(if (shiftBorder != null) Modifier.border(shiftBorder.width, shiftBorder.brush, RoundedCornerShape(4.dp)) else Modifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("⇧", color = Color(theme.labelDimColor), fontSize = 10.5.sp)
+                    }
+
+                    val r3Keys = listOf("ক", "খ", "গ", "ঘ", "ঙ", "স", "হ")
+                    r3Keys.forEachIndexed { colIdx, ch ->
+                        val xRatio = (colIdx + 1.5f) / 9f
+                        val border = getKeyBorder(xRatio, false)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(24.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(theme.keyNormalColor))
+                                .then(if (border != null) Modifier.border(border.width, border.brush, RoundedCornerShape(4.dp)) else Modifier)
+                                .clickable {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    testInput += ch
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(ch, color = Color(theme.labelColor), fontSize = 10.5.sp)
+                        }
+                    }
+
+                    // Backspace — colored with keyShiftColor, NOT fake neon accent!
+                    val bsBorder = getKeyBorder(1f, false)
+                    Box(
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(theme.keyShiftColor))
+                            .then(if (bsBorder != null) Modifier.border(bsBorder.width, bsBorder.brush, RoundedCornerShape(4.dp)) else Modifier)
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                if (testInput.isNotEmpty()) testInput = testInput.dropLast(1)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Backspace,
+                            contentDescription = "Backspace",
+                            tint = Color(theme.labelColor),
+                            modifier = Modifier.size(12.dp)
                         )
                     }
                 }
-            }
 
-            val shouldDrawKeyBorder = when {
-                theme.isRgbChroma -> theme.chromaStyle != ChromaStyle.CLEAN_MINIMAL
-                else -> true
-            }
-            val borderWidth = if (theme.isRgbChroma && theme.chromaStyle == ChromaStyle.AMBIENT_BREATHE) 0.8.dp else 1.dp
-
-            // Row 1: Vowels / Consonants
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল").forEachIndexed { colIdx, ch ->
-                    val keyBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, colIdx / 7f) else animatedBorderColor
-                    val borderModifier = if (shouldDrawKeyBorder) Modifier.border(borderWidth, keyBorder, RoundedCornerShape(5.dp)) else Modifier
+                // ── Row 4: Symbols, Hasanta, Space & Enter ────────────────
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(2.5.dp)
+                ) {
+                    val symBorder = getKeyBorder(0f, false)
+                    // Symbols switch
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(26.dp)
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(Color(theme.keyNormalColor))
-                            .then(borderModifier)
+                            .weight(1.3f)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(theme.keyShiftColor))
+                            .then(if (symBorder != null) Modifier.border(symBorder.width, symBorder.brush, RoundedCornerShape(4.dp)) else Modifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("!#1", color = Color(theme.labelDimColor), fontSize = 9.sp)
+                    }
+
+                    // Hasanta
+                    val hasantaBorder = getKeyBorder(0.2f, false)
+                    Box(
+                        modifier = Modifier
+                            .weight(1.1f)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(theme.keyHasantaColor))
+                            .then(if (hasantaBorder != null) Modifier.border(hasantaBorder.width, hasantaBorder.brush, RoundedCornerShape(4.dp)) else Modifier)
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                testInput += ch
+                                testInput += "্"
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(ch, color = Color(theme.labelColor), fontSize = 11.sp)
+                        Text("্", color = liveAccentColor, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                     }
-                }
-            }
 
-            // Row 2: Home Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক").forEachIndexed { colIdx, ch ->
-                    val keyBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, colIdx / 7f) else animatedBorderColor
-                    val borderModifier = if (shouldDrawKeyBorder) Modifier.border(borderWidth, keyBorder, RoundedCornerShape(5.dp)) else Modifier
+                    // Spacebar
+                    val spaceBorder = getKeyBorder(0.5f, true)
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .height(26.dp)
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(Color(theme.keyNormalColor))
-                            .then(borderModifier)
+                            .weight(4.2f)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(theme.keySpaceColor))
+                            .then(if (spaceBorder != null) Modifier.border(spaceBorder.width, spaceBorder.brush, RoundedCornerShape(4.dp)) else Modifier)
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                testInput += ch
+                                testInput += " "
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(ch, color = Color(theme.labelColor), fontSize = 11.sp)
+                        Text(
+                            text = if (isEnglish) "Lekhani" else "বাংলা",
+                            color = Color(theme.labelDimColor),
+                            fontSize = 9.sp
+                        )
+                    }
+
+                    // Enter Key — authentic return key with liveAccentColor icon!
+                    val enterBorder = getKeyBorder(1f, true)
+                    Box(
+                        modifier = Modifier
+                            .weight(1.4f)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(theme.keyShiftColor))
+                            .then(if (enterBorder != null) Modifier.border(enterBorder.width, enterBorder.brush, RoundedCornerShape(4.dp)) else Modifier)
+                            .clickable {
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                testInput += "\n"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardReturn,
+                            contentDescription = "Enter",
+                            tint = liveAccentColor,
+                            modifier = Modifier.size(13.dp)
+                        )
                     }
                 }
-            }
-
-            // Row 3: Shift, Hasanta, Spacebar & Enter
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                val shiftBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 0f) else animatedBorderColor
-                val hasantaBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 0.25f) else animatedBorderColor
-                val spaceBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 0.5f) else animatedBorderColor
-                val enterBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 1.0f) else animatedBorderColor
-
-                Box(
-                    modifier = Modifier
-                        .weight(1.1f)
-                        .height(26.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(Color(theme.keyShiftColor))
-                        .border(1.dp, shiftBorder, RoundedCornerShape(5.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("⇧", color = Color(theme.labelDimColor), fontSize = 11.sp)
-                }
-                Box(
-                    modifier = Modifier
-                        .weight(0.9f)
-                        .height(26.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(Color(theme.keyHasantaColor))
-                        .border(1.dp, hasantaBorder, RoundedCornerShape(5.dp))
-                        .clickable {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            testInput += "্"
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("্", color = liveAccentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-                Box(
-                    modifier = Modifier
-                        .weight(3.8f)
-                        .height(26.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(Color(theme.keySpaceColor))
-                        .border(1.dp, spaceBorder, RoundedCornerShape(5.dp))
-                        .clickable {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            testInput += " "
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        if (isEnglish) "Space" else "স্পেস",
-                        color = Color(theme.labelDimColor),
-                        fontSize = 10.sp
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .weight(1.3f)
-                        .height(26.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(liveAccentColor)
-                        .border(1.dp, enterBorder, RoundedCornerShape(5.dp))
-                        .clickable {
-                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            if (testInput.isNotEmpty()) testInput = testInput.dropLast(1)
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Backspace,
-                        contentDescription = "Backspace",
-                        tint = if (theme.isDark) Color.Black else Color.White,
-                        modifier = Modifier.size(13.dp)
-                    )
-                }
-            }
-        }
-    }
+            } // end Column
+        } // end Box
+    } // end Card
 }
