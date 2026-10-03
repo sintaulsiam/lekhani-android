@@ -17,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -120,14 +121,17 @@ class AudioStreamingManager(
 
         recordingJob = coroutineScope.launch {
             val audioBuffer = ShortArray(CHUNK_SIZE_SAMPLES)
+            val reusableList = ArrayList<Short>(CHUNK_SIZE_SAMPLES)
 
             try {
                 while (isActive && audioRecord?.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                     val readSamples = record.read(audioBuffer, 0, audioBuffer.size)
                     if (readSamples > 0) {
-                        // Convert ShortArray to List<Short> for UniFFI FFI call without intermediate take() list
-                        val samplesList = List(readSamples) { audioBuffer[it] }
-                        val analysis = audioProcessor.processPcm(samplesList)
+                        reusableList.clear()
+                        for (i in 0 until readSamples) {
+                            reusableList.add(audioBuffer[i])
+                        }
+                        val analysis = audioProcessor.processPcm(reusableList)
 
                         _voiceState.value = VoiceTypingState.Listening(
                             rmsLevel = analysis.rmsLevel,
@@ -211,6 +215,12 @@ class AudioStreamingManager(
         } catch (_: Exception) {}
 
         _voiceState.value = VoiceTypingState.Idle
+    }
+
+    /** Releases all audio resources and cancels background coroutines on IME destroy. */
+    fun release() {
+        cancelStreaming()
+        coroutineScope.cancel()
     }
 
     companion object {

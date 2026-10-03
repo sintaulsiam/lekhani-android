@@ -94,6 +94,15 @@ sealed class CandidateStripState {
         val onDelete: () -> Unit,
         val onDeselect: () -> Unit = {},
     ) : CandidateStripState()
+
+    /**
+     * In-strip notification or error message (e.g. microphone permission denied).
+     */
+    data class Notice(
+        val message: String,
+        val icon: String = "⚠️",
+        val onDismiss: () -> Unit = {},
+    ) : CandidateStripState()
 }
 
 /**

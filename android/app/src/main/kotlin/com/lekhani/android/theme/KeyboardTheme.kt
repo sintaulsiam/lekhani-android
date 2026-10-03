@@ -687,6 +687,11 @@ object ThemeRegistry {
     )
 
     /**
+     * List of all preset theme IDs.
+     */
+    fun allPresetIds(): List<String> = PRESET_THEMES.map { it.id }
+
+    /**
      * Resolves a theme by its string [themeId], or extracts dynamic Material You
      * colors if [themeId] is [ID_MATERIAL_YOU] and the platform is Android 12+.
      */

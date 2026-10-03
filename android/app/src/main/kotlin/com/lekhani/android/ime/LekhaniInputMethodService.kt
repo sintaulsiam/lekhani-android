@@ -154,7 +154,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private val blacklist: CandidateBlacklist by lazy { CandidateBlacklist(this) }
 
     /** Audio streaming manager for 100% offline voice typing (Phase 5). */
-    private val audioManager: AudioStreamingManager by lazy { AudioStreamingManager(this) }
+    private val audioManager: AudioStreamingManager by lazy { AudioStreamingManager(this, coroutineScope = serviceScope) }
 
     // ── Input modes & auxiliary views (Phase 6) ──────────────────────────────
 
@@ -220,6 +220,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private val rawInputBuffer = StringBuilder()
     private var activeUndoInfo: UndoInfo? = null
     private var undoDismissJob: kotlinx.coroutines.Job? = null
+    private var refreshContextJob: kotlinx.coroutines.Job? = null
     private var lastSpaceTapTime: Long = 0L
 
     /**
@@ -397,7 +398,7 @@ class LekhaniInputMethodService : InputMethodService() {
             persistUserLearnedInternal(file)
         }
         imeLifecycleOwner.onDestroy()
-        audioManager.cancelStreaming()
+        audioManager.release()
         feedbackManager.release()
         clipboardView = null
         emojiPickerView = null
@@ -443,6 +444,8 @@ class LekhaniInputMethodService : InputMethodService() {
         isSwipeDeleteActive = false
         swipeDeleteAnchorCursor = -1
         activeSwipeDeletePreviewText = ""
+        previousLayoutBeforeNumeric = null
+        previousLayoutBeforePassword = null
         clearCandidates()
         persistUserLearnedAsync()
         super.onFinishInput()
@@ -1261,14 +1264,11 @@ class LekhaniInputMethodService : InputMethodService() {
                 candidateStripComposeView?.visibility = View.VISIBLE
                 emojiSearchQuery = initialQuery
                 emojiSearchRawQuery = initialQuery
-                // Reset the previous session before overwriting to avoid leaking the Rust
-                // Mutex-guarded state machine allocation at the FFI boundary.
-                val oldSession = emojiSearchSession
-                oldSession?.reset()
-                emojiSearchSession = null
-                emojiSearchSession = AndroidLekhaniSession().apply {
-                    setLayout(session.getLayout())
+                val searchSession = emojiSearchSession ?: AndroidLekhaniSession().also {
+                    emojiSearchSession = it
                 }
+                searchSession.reset()
+                searchSession.setLayout(session.getLayout())
                 updateEmojiSearchStrip()
             }
             InputViewMode.EMOJI -> {
@@ -1714,12 +1714,9 @@ class LekhaniInputMethodService : InputMethodService() {
         if (!audioManager.hasRecordPermission()) {
             Log.w(TAG, "RECORD_AUDIO permission not granted; cannot start voice typing")
             val isEnglish = keyboardPrefs.uiLanguage == "en"
-            android.widget.Toast.makeText(
-                this,
-                if (isEnglish) "Microphone permission required for voice typing"
-                else "ভয়েস টাইপিংয়ের জন্য মাইক্রোফোন অনুমতি প্রয়োজন",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+            val msg = if (isEnglish) "Microphone permission required for voice typing"
+                      else "ভয়েস টাইপিংয়ের জন্য মাইক্রোফোন অনুমতি প্রয়োজন"
+            showNotice(msg, "🎙️")
             return
         }
 
@@ -2669,12 +2666,9 @@ class LekhaniInputMethodService : InputMethodService() {
     private fun ensureEnglishDictionaryLoaded() {
         if (isEnglishDictLoaded) return
         val candidates = listOf(
-            java.io.File(filesDir, "dictionaries/english_dict.bin"),
-            java.io.File(applicationContext.filesDir, "dictionaries/english_dict.bin"),
-            java.io.File(createDeviceProtectedStorageContext().filesDir, "dictionaries/english_dict.bin"),
-            java.io.File("/data/user_de/0/com.lekhani.android/files/dictionaries/english_dict.bin"),
-            java.io.File("/data/user/0/com.lekhani.android/files/dictionaries/english_dict.bin"),
-            java.io.File("/data/data/com.lekhani.android/files/dictionaries/english_dict.bin"),
+            File(filesDir, "dictionaries/english_dict.bin"),
+            File(applicationContext.filesDir, "dictionaries/english_dict.bin"),
+            File(createDeviceProtectedStorageContext().filesDir, "dictionaries/english_dict.bin"),
         )
         for (f in candidates) {
             if (f.exists() && f.length() > 0) {
@@ -2685,22 +2679,6 @@ class LekhaniInputMethodService : InputMethodService() {
                     return
                 }
             }
-        }
-        // Force install if missing
-        try {
-            LekhaniAssetInstaller.installAssetsIfNeeded(applicationContext)
-            for (f in candidates) {
-                if (f.exists() && f.length() > 0) {
-                    val ok = session.loadEnglishDictionary(f.absolutePath)
-                    if (ok) {
-                        isEnglishDictLoaded = true
-                        Log.i(TAG, "English dictionary loaded after asset install from ${f.absolutePath}")
-                        return
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error installing assets for English dict: ${e.message}")
         }
         Log.w(TAG, "English dictionary file not found or failed to load")
     }
@@ -2936,7 +2914,7 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyboardPreferences.ToolbarTool.VOICE -> {
                 if (!audioManager.hasRecordPermission()) {
                     val msg = if (keyboardPrefs.uiLanguage == "en") "Microphone permission required. Please enable in App Settings." else "মাইক্রোফোন পারমিশন প্রয়োজন। দয়া করে সেটিংসে চালু করুন।"
-                    android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show()
+                    showNotice(msg, "🎙️")
                     return
                 }
                 
@@ -3234,15 +3212,7 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun cycleTheme() {
-        val themeIds = listOf(
-            ThemeRegistry.ID_FLOW_TEAL,
-            ThemeRegistry.ID_OLED_BLACK,
-            ThemeRegistry.ID_RGB_CHROMA_FLOW,
-            ThemeRegistry.ID_AURORA_BOREALIS,
-            ThemeRegistry.ID_CYBERPUNK_NEON,
-            ThemeRegistry.ID_SAKURA_BLOSSOM,
-            ThemeRegistry.ID_DAYLIGHT_LIGHT,
-        )
+        val themeIds = ThemeRegistry.allPresetIds()
         val curId = keyboardPrefs.themeId
         val idx = themeIds.indexOf(curId)
         val nextId = if (idx == -1 || idx == themeIds.lastIndex) themeIds.first() else themeIds[idx + 1]
@@ -3302,6 +3272,7 @@ class LekhaniInputMethodService : InputMethodService() {
             // Restore previous layout if returning from a password field
             previousLayoutBeforePassword?.let { restoreLayout ->
                 previousLayoutBeforePassword = null
+                restoreAlphaKeyboard()
                 if (session.getLayout() != restoreLayout) {
                     switchLayout(restoreLayout, persist = false)
                 }
@@ -3432,12 +3403,40 @@ class LekhaniInputMethodService : InputMethodService() {
      * getTextBeforeCursor, then switch to Default for the Rust call) so the
      * main thread is never blocked.
      */
+    /**
+     * Shows a brief in-strip notification or error banner.
+     */
+    private fun showNotice(message: String, icon: String = "⚠️", durationMs: Long = 3500L) {
+        _candidateState.value = CandidateStripState.Notice(
+            message = message,
+            icon = icon,
+            onDismiss = {
+                _candidateState.value = CandidateStripState.Empty
+                updateCandidatesVisibility()
+            }
+        )
+        updateCandidatesVisibility()
+        serviceScope.launch {
+            kotlinx.coroutines.delay(durationMs)
+            if (_candidateState.value is CandidateStripState.Notice) {
+                _candidateState.value = CandidateStripState.Empty
+                updateCandidatesVisibility()
+            }
+        }
+    }
+
     private fun refreshSurroundingContext() {
-        if (isCurrentFieldPrivate) {
-            clearCandidates()
+        if (isCurrentFieldPrivate || (currentMode != InputViewMode.KEYBOARD && currentMode != InputViewMode.EMOJI_SEARCH)) {
+            if (isCurrentFieldPrivate) {
+                clearCandidates()
+            }
             return
         }
-        serviceScope.launch {
+        refreshContextJob?.cancel()
+        refreshContextJob = serviceScope.launch {
+            kotlinx.coroutines.delay(120L)
+            if (isCurrentFieldPrivate || (currentMode != InputViewMode.KEYBOARD && currentMode != InputViewMode.EMOJI_SEARCH)) return@launch
+
             val (contextText, afterText) = withContext(Dispatchers.IO) {
                 try {
                     kotlinx.coroutines.withTimeout(500L) {
@@ -3462,7 +3461,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
                 session.setRightContext(afterText)
                 // Asynchronous background next-word prediction: keep UI thread 120 FPS
-                if (preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && effectiveContext.isNotBlank()) {
+                if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && effectiveContext.isNotBlank()) {
                     val nextWords = try {
                         session.predictNextWords(5u)
                     } catch (_: Exception) {
@@ -3470,7 +3469,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     }
                     if (nextWords.isNotEmpty()) {
                         withContext(Dispatchers.Main) {
-                            if (preeditShadow.isEmpty() && rawInputBuffer.isEmpty()) {
+                            if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty()) {
                                 if (_candidateState.value !is CandidateStripState.Undo) {
                                     publishCandidates(nextWords)
                                 }

@@ -187,6 +187,7 @@ fun CandidateStripView(
             .background(Color(theme.backgroundColor)),
     ) {
         val displayMode = when {
+            state is CandidateStripState.Notice -> 7
             state is CandidateStripState.EmojiSearch -> 0
             state is CandidateStripState.SwipeDeletePreview -> 5
             state is CandidateStripState.Selection -> 6
@@ -344,6 +345,50 @@ fun CandidateStripView(
                             theme = theme,
                             isEnglish = isEnglish,
                         )
+                    }
+                }
+                7 -> {
+                    val noticeState = state as? CandidateStripState.Notice
+                    if (noticeState != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = noticeState.icon,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = noticeState.message,
+                                    color = Color(theme.labelColor),
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .clickable { noticeState.onDismiss() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss",
+                                    tint = Color(theme.labelDimColor),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     }
                 }
                 else -> {
