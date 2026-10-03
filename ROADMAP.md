@@ -263,3 +263,21 @@
 - [ ] Desktop / Samsung DeX hardware keyboard shortcut mappings (`Ctrl+A`, `Ctrl+C`, `Ctrl+V`, `Shift+Space`).
 - [ ] Final reproducible F-Droid recipe and Google Play Store packaging.
 
+---
+
+## Phase 14: Next-Gen AI, Ranking & Suggestion Architecture (Completed)
+- [x] **Pre-Trained Ranking Perceptron & Warm-Started Weights**:
+  - Offline supervised perceptron training on 3,149 phonetic override preference pairs (`pretrain_rank_weights`).
+  - Warm-started `rank_weights_v2.json` shipped in assets and loaded via `AutonomousLearner::load_pretrained_rank_weights` without overwriting user-adapted weights.
+- [x] **Context-Adaptive Neural Semantic Blending**:
+  - Dynamic blending weight `compute_neural_alpha` in `lekhani-neural` based on N-gram LM confidence and context length (alpha range 0.1 to 0.65).
+  - High confidence keeps N-gram dominant while low confidence / cold context leverages neural semantic diversity.
+  - Zero-contention non-blocking `try_read()` on `AutonomousLearner` in hot-path database queries to eliminate recursive rwlock deadlocks.
+- [x] **Typo Recovery Surface Rate & Slot 3 Rescue**:
+  - Reduced `TypoFallback` source penalty from -4200 to -1800 so typo recoveries score above the noise floor.
+  - Slot 3 typo rescue candidate extraction in `avro.rs` ensuring common mistypings (`bhlao`, `ammi`, `tomi`) always surface in the candidate strip.
+  - Comprehensive unit test `test_typo_recovery_always_surfaces` in `avro_deep_test.rs`.
+- [x] **Bengali-First Neural BPE Vocabulary**:
+  - `build_vocab.py` training script using HuggingFace Tokenizers with NFC normalizer.
+  - Built 99.7% Bengali-first `bengali_vocab_v2.json` and priority loading in `AndroidLekhaniSession::get_neural_predictor()`.
+
