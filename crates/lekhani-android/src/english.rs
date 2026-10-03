@@ -45,7 +45,7 @@ pub fn get_english_lm() -> Option<&'static lekhani_ai::LanguageModel> {
         return Some(lm);
     }
     if let Some(custom_dir) = crate::session::get_custom_dict_dir() {
-        let bin_path = std::path::Path::new(custom_dir).join("english_lm.bin");
+        let bin_path = std::path::Path::new(&custom_dir).join("english_lm.bin");
         if bin_path.exists() {
             let mut lm = lekhani_ai::LanguageModel::new();
             if lm.load_binary_file(&bin_path).is_ok() {
@@ -84,7 +84,7 @@ pub fn get_english_trie() -> Option<&'static PrefixTrie> {
         return Some(trie);
     }
     if let Some(custom_dir) = crate::session::get_custom_dict_dir() {
-        let bin_path = std::path::Path::new(custom_dir).join("english_dict.bin");
+        let bin_path = std::path::Path::new(&custom_dir).join("english_dict.bin");
         if bin_path.exists() {
             if let Ok(bytes) = std::fs::read(&bin_path) {
                 if let Ok(trie) = PrefixTrie::from_binary(&bytes) {

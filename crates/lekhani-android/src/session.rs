@@ -1,15 +1,15 @@
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use unicode_segmentation::UnicodeSegmentation;
 use lekhani_core::phonetic::PhoneticDatabase;
 use crate::error::LekhaniError;
 use crate::layout::LekhaniLayoutType;
 use crate::probaho::{get_conjunct_suggestions, is_bengali_consonant_or_modifier, is_bengali_punctuation_or_space, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
 
-static CORE_DB: OnceLock<PhoneticDatabase> = OnceLock::new();
-static CUSTOM_DICT_DIR: OnceLock<String> = OnceLock::new();
-static CONTEXT_SCORER: OnceLock<lekhani_ai::ContextScorer> = OnceLock::new();
-static NEXT_WORD_PREDICTOR: OnceLock<lekhani_ai::NextWordPredictor> = OnceLock::new();
-static NEURAL_PREDICTOR: OnceLock<lekhani_neural::NeuralContextPredictor> = OnceLock::new();
+static CORE_DB: RwLock<Option<&'static PhoneticDatabase>> = RwLock::new(None);
+static CUSTOM_DICT_DIR: RwLock<Option<String>> = RwLock::new(None);
+static CONTEXT_SCORER: RwLock<Option<&'static lekhani_ai::ContextScorer>> = RwLock::new(None);
+static NEXT_WORD_PREDICTOR: RwLock<Option<&'static lekhani_ai::NextWordPredictor>> = RwLock::new(None);
+static NEURAL_PREDICTOR: RwLock<Option<&'static lekhani_neural::NeuralContextPredictor>> = RwLock::new(None);
 
 /// Maximum characters kept in the in-session surrounding_context buffer.
 /// This matches the Kotlin-side CONTEXT_CHAR_LIMIT (256 chars from IPC)
@@ -43,7 +43,47 @@ fn candidate_dict_dirs() -> &'static [&'static std::path::Path] {
 /// Sets a custom dictionary directory dynamically from Android application context.
 #[uniffi::export]
 pub fn set_dictionary_directory(path: String) {
-    let _ = CUSTOM_DICT_DIR.set(path);
+    let dir = std::path::PathBuf::from(&path);
+    if let Ok(mut lock) = CUSTOM_DICT_DIR.write() {
+        *lock = Some(path);
+    }
+    if dir.exists() {
+        let mut db = PhoneticDatabase::new();
+        let _ = db.load_from_dir(&dir);
+        let static_db: &'static PhoneticDatabase = Box::leak(Box::new(db));
+        if let Ok(mut lock) = CORE_DB.write() {
+            *lock = Some(static_db);
+        }
+
+        let mut lm = lekhani_ai::LanguageModel::new();
+        let lm_path = dir.join("bengali_lm.bin");
+        if lm_path.is_file() && lm.load_binary_file(&lm_path).is_ok() {
+            let static_scorer: &'static lekhani_ai::ContextScorer = Box::leak(Box::new(lekhani_ai::ContextScorer::with_language_model(lm.clone())));
+            if let Ok(mut lock) = CONTEXT_SCORER.write() {
+                *lock = Some(static_scorer);
+            }
+            let static_pred: &'static lekhani_ai::NextWordPredictor = Box::leak(Box::new(lekhani_ai::NextWordPredictor::with_language_model(lm)));
+            if let Ok(mut lock) = NEXT_WORD_PREDICTOR.write() {
+                *lock = Some(static_pred);
+            }
+
+            if let Some(sugg_mutex) = PHONETIC_SUGGESTION.get() {
+                if let Ok(mut sugg) = sugg_mutex.lock() {
+                    sugg.database = static_db.clone();
+                    sugg.ai_context = static_scorer.clone();
+                    sugg.ai_predictor = static_pred.clone();
+                }
+            }
+        } else if let Some(sugg_mutex) = PHONETIC_SUGGESTION.get() {
+            if let Ok(mut sugg) = sugg_mutex.lock() {
+                sugg.database = static_db.clone();
+            }
+        }
+
+        if let Ok(mut lock) = NEURAL_PREDICTOR.write() {
+            *lock = None;
+        }
+    }
 }
 
 static LEARNER_AUTOSAVE_PATH: Mutex<Option<String>> = Mutex::new(None);
@@ -69,54 +109,87 @@ pub fn clear_candidate_memory() {
     }
 }
 
-pub fn get_custom_dict_dir() -> Option<&'static str> {
-    CUSTOM_DICT_DIR.get().map(|s| s.as_str())
+pub fn get_custom_dict_dir() -> Option<String> {
+    CUSTOM_DICT_DIR.read().ok().and_then(|lock| lock.clone())
 }
 
 pub fn get_core_database() -> &'static PhoneticDatabase {
-    CORE_DB.get_or_init(|| {
-        let mut db = PhoneticDatabase::new();
-        if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
-            let path = std::path::Path::new(custom_dir);
-            if path.exists() {
-                let _ = db.load_from_dir(path);
-                return db;
-            }
+    if let Ok(guard) = CORE_DB.read() {
+        if let Some(db) = *guard {
+            return db;
         }
+    }
+    let mut guard = CORE_DB.write().unwrap_or_else(|e| e.into_inner());
+    if let Some(db) = *guard {
+        return db;
+    }
+    let mut db = PhoneticDatabase::new();
+    let mut loaded = false;
+    if let Some(custom_dir) = get_custom_dict_dir() {
+        let path = std::path::Path::new(&custom_dir);
+        if path.exists() {
+            let _ = db.load_from_dir(path);
+            loaded = true;
+        }
+    }
+    if !loaded {
         for dir in candidate_dict_dirs() {
             if dir.exists() {
                 let _ = db.load_from_dir(dir);
                 break;
             }
         }
-        db
-    })
+    }
+    let static_db: &'static PhoneticDatabase = Box::leak(Box::new(db));
+    *guard = Some(static_db);
+    static_db
 }
 
 pub fn get_context_scorer() -> &'static lekhani_ai::ContextScorer {
-    CONTEXT_SCORER.get_or_init(|| {
-        let mut lm = lekhani_ai::LanguageModel::new();
-        if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
-            let path = std::path::Path::new(custom_dir).join("bengali_lm.bin");
-            if path.is_file() && lm.load_binary_file(&path).is_ok() {
-                return lekhani_ai::ContextScorer::with_language_model(lm);
-            }
+    if let Ok(guard) = CONTEXT_SCORER.read() {
+        if let Some(scorer) = *guard {
+            return scorer;
         }
+    }
+    let mut guard = CONTEXT_SCORER.write().unwrap_or_else(|e| e.into_inner());
+    if let Some(scorer) = *guard {
+        return scorer;
+    }
+    let mut lm = lekhani_ai::LanguageModel::new();
+    let mut loaded = false;
+    if let Some(custom_dir) = get_custom_dict_dir() {
+        let path = std::path::Path::new(&custom_dir).join("bengali_lm.bin");
+        if path.is_file() && lm.load_binary_file(&path).is_ok() {
+            loaded = true;
+        }
+    }
+    if !loaded {
         for dir in candidate_dict_dirs() {
             let path = dir.join("bengali_lm.bin");
             if path.is_file() && lm.load_binary_file(&path).is_ok() {
                 break;
             }
         }
-        lekhani_ai::ContextScorer::with_language_model(lm)
-    })
+    }
+    let static_scorer: &'static lekhani_ai::ContextScorer = Box::leak(Box::new(lekhani_ai::ContextScorer::with_language_model(lm)));
+    *guard = Some(static_scorer);
+    static_scorer
 }
 
 pub fn get_next_word_predictor() -> &'static lekhani_ai::NextWordPredictor {
-    NEXT_WORD_PREDICTOR.get_or_init(|| {
-        let scorer = get_context_scorer();
-        lekhani_ai::NextWordPredictor::with_language_model(scorer.lm().clone())
-    })
+    if let Ok(guard) = NEXT_WORD_PREDICTOR.read() {
+        if let Some(pred) = *guard {
+            return pred;
+        }
+    }
+    let mut guard = NEXT_WORD_PREDICTOR.write().unwrap_or_else(|e| e.into_inner());
+    if let Some(pred) = *guard {
+        return pred;
+    }
+    let scorer = get_context_scorer();
+    let static_pred: &'static lekhani_ai::NextWordPredictor = Box::leak(Box::new(lekhani_ai::NextWordPredictor::with_language_model(scorer.lm().clone())));
+    *guard = Some(static_pred);
+    static_pred
 }
 
 /// Returns the GRU neural next-word predictor singleton.
@@ -126,102 +199,113 @@ pub fn get_next_word_predictor() -> &'static lekhani_ai::NextWordPredictor {
 /// replace the zero-initialized model; here we fall back gracefully so the
 /// predictor is always available even without a trained weights file.
 pub fn get_neural_predictor() -> &'static lekhani_neural::NeuralContextPredictor {
-    NEURAL_PREDICTOR.get_or_init(|| {
-        use lekhani_neural::{BpeVocabulary, MicroGruModel, NeuralContextPredictor};
-
-        let mut vocab_opt = None;
-        let mut model_opt = None;
-
-        let mut search_dirs = Vec::new();
-        if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
-            search_dirs.push(std::path::PathBuf::from(custom_dir));
+    if let Ok(guard) = NEURAL_PREDICTOR.read() {
+        if let Some(pred) = *guard {
+            return pred;
         }
-        for dir in candidate_dict_dirs() {
-            search_dirs.push(dir.to_path_buf());
-        }
+    }
+    let mut guard = NEURAL_PREDICTOR.write().unwrap_or_else(|e| e.into_inner());
+    if let Some(pred) = *guard {
+        return pred;
+    }
+    use lekhani_neural::{BpeVocabulary, MicroGruModel, NeuralContextPredictor};
 
-        for dir in &search_dirs {
-            // 1. Check for v2 pair (bengali_gru_v2.bin + bengali_vocab_v2.json)
-            let p_model_v2 = dir.join("bengali_gru_v2.bin");
-            let p_vocab_v2 = dir.join("bengali_vocab_v2.json");
-            if p_model_v2.exists() && p_vocab_v2.exists() {
-                if let (Ok(m), Ok(v)) = (
-                    MicroGruModel::load_binary(&p_model_v2),
-                    BpeVocabulary::load_json(&p_vocab_v2),
-                ) {
-                    if m.vocab_size() == v.len() {
-                        model_opt = Some(Arc::new(m));
-                        vocab_opt = Some(Arc::new(v));
-                        break;
-                    }
-                }
-            }
+    let mut vocab_opt = None;
+    let mut model_opt = None;
 
-            // 2. Check for v1 binary pair (bengali_gru.bin + bengali_vocab.bin)
-            let p_model_v1 = dir.join("bengali_gru.bin");
-            let p_vocab_v1 = dir.join("bengali_vocab.bin");
-            if p_model_v1.exists() && p_vocab_v1.exists() {
-                if let (Ok(m), Ok(v)) = (
-                    MicroGruModel::load_binary(&p_model_v1),
-                    BpeVocabulary::load_binary(&p_vocab_v1),
-                ) {
-                    if m.vocab_size() == v.len() {
-                        model_opt = Some(Arc::new(m));
-                        vocab_opt = Some(Arc::new(v));
-                        break;
-                    }
-                }
-            }
+    let mut search_dirs = Vec::new();
+    if let Some(custom_dir) = get_custom_dict_dir() {
+        search_dirs.push(std::path::PathBuf::from(custom_dir));
+    }
+    for dir in candidate_dict_dirs() {
+        search_dirs.push(dir.to_path_buf());
+    }
 
-            // 3. Check for JSON development pair (neural_weights.json + neural_vocab.json)
-            let p_model_json = dir.join("neural_weights.json");
-            let p_vocab_json = dir.join("neural_vocab.json");
-            if p_model_json.exists() && p_vocab_json.exists() {
-                if let (Ok(m), Ok(v)) = (
-                    MicroGruModel::load_json(&p_model_json),
-                    BpeVocabulary::load_json(&p_vocab_json),
-                ) {
-                    if m.vocab_size() == v.len() {
-                        model_opt = Some(Arc::new(m));
-                        vocab_opt = Some(Arc::new(v));
-                        break;
-                    }
+    for dir in &search_dirs {
+        // 1. Check for v2 pair (bengali_gru_v2.bin + bengali_vocab_v2.json)
+        let p_model_v2 = dir.join("bengali_gru_v2.bin");
+        let p_vocab_v2 = dir.join("bengali_vocab_v2.json");
+        if p_model_v2.exists() && p_vocab_v2.exists() {
+            if let (Ok(m), Ok(v)) = (
+                MicroGruModel::load_binary(&p_model_v2),
+                BpeVocabulary::load_json(&p_vocab_v2),
+            ) {
+                if m.vocab_size() == v.len() {
+                    model_opt = Some(Arc::new(m));
+                    vocab_opt = Some(Arc::new(v));
+                    break;
                 }
             }
         }
 
-        let vocab = vocab_opt.unwrap_or_else(|| {
-            let db = get_core_database();
-            let word_list: Vec<String> = db.trie.iter()
-                .take(2048)
-                .map(|(w, _)| w.to_string())
-                .collect();
-            Arc::new(if word_list.is_empty() {
-                BpeVocabulary::new()
-            } else {
-                BpeVocabulary::from_tokens(word_list)
-            })
-        });
-
-        let model = match model_opt {
-            Some(m) if m.vocab_size() == vocab.len() => m,
-            Some(m) => {
-                eprintln!(
-                    "Lekhani AI: MicroGruModel vocab_size mismatch (model: {}, vocab: {}). Falling back to matched baseline.",
-                    m.vocab_size(),
-                    vocab.len()
-                );
-                Arc::new(MicroGruModel::new(vocab.len(), 64, 64))
+        // 2. Check for v1 binary pair (bengali_gru.bin + bengali_vocab.bin)
+        let p_model_v1 = dir.join("bengali_gru.bin");
+        let p_vocab_v1 = dir.join("bengali_vocab.bin");
+        if p_model_v1.exists() && p_vocab_v1.exists() {
+            if let (Ok(m), Ok(v)) = (
+                MicroGruModel::load_binary(&p_model_v1),
+                BpeVocabulary::load_binary(&p_vocab_v1),
+            ) {
+                if m.vocab_size() == v.len() {
+                    model_opt = Some(Arc::new(m));
+                    vocab_opt = Some(Arc::new(v));
+                    break;
+                }
             }
-            None => Arc::new(MicroGruModel::new(vocab.len(), 64, 64)),
-        };
+        }
 
+        // 3. Check for JSON development pair (neural_weights.json + neural_vocab.json)
+        let p_model_json = dir.join("neural_weights.json");
+        let p_vocab_json = dir.join("neural_vocab.json");
+        if p_model_json.exists() && p_vocab_json.exists() {
+            if let (Ok(m), Ok(v)) = (
+                MicroGruModel::load_json(&p_model_json),
+                BpeVocabulary::load_json(&p_vocab_json),
+            ) {
+                if m.vocab_size() == v.len() {
+                    model_opt = Some(Arc::new(m));
+                    vocab_opt = Some(Arc::new(v));
+                    break;
+                }
+            }
+        }
+    }
+
+    let vocab = vocab_opt.unwrap_or_else(|| {
+        let db = get_core_database();
+        let word_list: Vec<String> = db.trie.iter()
+            .take(2048)
+            .map(|(w, _)| w.to_string())
+            .collect();
+        Arc::new(if word_list.is_empty() {
+            BpeVocabulary::new()
+        } else {
+            BpeVocabulary::from_tokens(word_list)
+        })
+    });
+
+    let model = match model_opt {
+        Some(m) if m.vocab_size() == vocab.len() => m,
+        Some(m) => {
+            eprintln!(
+                "Lekhani AI: MicroGruModel vocab_size mismatch (model: {}, vocab: {}). Falling back to matched baseline.",
+                m.vocab_size(),
+                vocab.len()
+            );
+            Arc::new(MicroGruModel::new(vocab.len(), 64, 64))
+        }
+        None => Arc::new(MicroGruModel::new(vocab.len(), 64, 64)),
+    };
+
+    let predictor: &'static lekhani_neural::NeuralContextPredictor = Box::leak(Box::new(
         NeuralContextPredictor::try_new(model.clone(), vocab.clone())
             .unwrap_or_else(|_| {
                 let matched = Arc::new(MicroGruModel::new(vocab.len(), 64, 64));
                 NeuralContextPredictor::new(matched, vocab)
             })
-    })
+    ));
+    *guard = Some(predictor);
+    predictor
 }
 
 static PHONETIC_SUGGESTION: OnceLock<Mutex<lekhani_core::phonetic::PhoneticSuggestion>> = OnceLock::new();
@@ -232,9 +316,9 @@ pub fn get_phonetic_suggestion() -> &'static Mutex<lekhani_core::phonetic::Phone
         let scorer = get_context_scorer();
         let predictor = get_next_word_predictor();
         let mut sugg = lekhani_core::phonetic::PhoneticSuggestion::new();
-        sugg.database = db.clone();
-        sugg.ai_context = scorer.clone();
-        sugg.ai_predictor = predictor.clone();
+        sugg.database = (*db).clone();
+        sugg.ai_context = (*scorer).clone();
+        sugg.ai_predictor = (*predictor).clone();
         sugg.config.enable_word_segmentation = true;
 
         let layout_candidates = [
@@ -248,8 +332,8 @@ pub fn get_phonetic_suggestion() -> &'static Mutex<lekhani_core::phonetic::Phone
             std::path::Path::new("../data/layouts/avrophonetic.json"),
             std::path::Path::new("../../data/layouts/avrophonetic.json"),
         ];
-        if let Some(custom_dir) = CUSTOM_DICT_DIR.get() {
-            let parent = std::path::Path::new(custom_dir).parent();
+        if let Some(custom_dir) = get_custom_dict_dir() {
+            let parent = std::path::Path::new(&custom_dir).parent();
             if let Some(p) = parent {
                 let layout_path = p.join("layouts/avrophonetic.json");
                 if layout_path.is_file() {
