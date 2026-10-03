@@ -945,6 +945,15 @@ impl AndroidLekhaniSession {
                     } else {
                         crate::avro::prioritize_common_or_override_candidate(&state.composing_buffer, &mut candidates);
                     }
+                    if let Some(top) = candidates.first() {
+                        let db = get_core_database();
+                        if !crate::avro::are_phonetically_compatible(&preedit, top) && db.is_exact_dictionary_word(&preedit) {
+                            if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
+                                let cand = candidates.remove(pos);
+                                candidates.insert(0, cand);
+                            }
+                        }
+                    }
                 }
                 let len = preedit.graphemes(true).count() as u32;
                 Ok(TypingResult {
@@ -1533,6 +1542,15 @@ impl AndroidLekhaniSession {
                         let right_word = state.right_context.split_whitespace().next();
                         scorer.rank_candidates_in_place_bidirectional(&words, right_word, &mut candidates);
                         crate::avro::prioritize_common_or_override_candidate(&state.composing_buffer, &mut candidates);
+                        if let Some(top) = candidates.first() {
+                            let db = get_core_database();
+                            if !crate::avro::are_phonetically_compatible(&preedit, top) && db.is_exact_dictionary_word(&preedit) {
+                                if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
+                                    let cand = candidates.remove(pos);
+                                    candidates.insert(0, cand);
+                                }
+                            }
+                        }
                     }
                     let len = preedit.graphemes(true).count() as u32;
                     Ok(TypingResult {
@@ -1675,6 +1693,15 @@ impl AndroidLekhaniSession {
                         candidates = scorer.rank_candidates_bidirectional(&context_words, right_word, &candidates);
                     }
                     crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
+                    if let Some(top) = candidates.first() {
+                        let db = get_core_database();
+                        if !crate::avro::are_phonetically_compatible(&preedit, top) && db.is_exact_dictionary_word(&preedit) {
+                            if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
+                                let cand = candidates.remove(pos);
+                                candidates.insert(0, cand);
+                            }
+                        }
+                    }
                     candidates.first().map(|s| s.as_str()).unwrap_or(&raw)
                 } else if !preedit.is_empty() {
                     &preedit

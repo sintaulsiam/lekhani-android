@@ -474,6 +474,22 @@ fn test_homophone_and_authoritative_candidate_ranking() {
     }
 }
 
+#[test]
+#[serial]
+fn test_exact_dictionary_match_not_overridden_by_typo_with_context() {
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+    session.set_context("আমার সোনার".to_string());
+
+    let mut last_res = None;
+    for ch in "ban".chars() {
+        last_res = Some(session.process_key(ch.to_string()).unwrap());
+    }
+    let res = last_res.unwrap();
+    assert_eq!(res.preedit, "বান");
+    assert_eq!(res.candidates.first().map(|s| s.as_str()), Some("বান"));
+}
+
 
 
 

@@ -61,6 +61,48 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     }
 }
 
+/// Determines if two Bengali words share a compatible phonetic root consonant or vowel,
+/// distinguishing authentic homophones (e.g. করি vs কড়ি, সকাল vs শকাল) from
+/// fat-finger QWERTY key substitutions (e.g. বান [typed 'b'] vs গান [typo 'g']).
+pub fn are_phonetically_compatible(w1: &str, w2: &str) -> bool {
+    let c1 = match w1.chars().next() {
+        Some(c) => c,
+        None => return true,
+    };
+    let c2 = match w2.chars().next() {
+        Some(c) => c,
+        None => return true,
+    };
+    if c1 == c2 {
+        return true;
+    }
+    let is_sibilant = |c| c == 'স' || c == 'শ' || c == 'ষ';
+    if is_sibilant(c1) && is_sibilant(c2) {
+        return true;
+    }
+    let is_rhotic = |c| c == 'র' || c == 'ড়' || c == 'ঢ়';
+    if is_rhotic(c1) && is_rhotic(c2) {
+        return true;
+    }
+    let is_nasal = |c| c == 'ন' || c == 'ণ' || c == 'ঙ' || c == 'ঞ' || c == 'ং';
+    if is_nasal(c1) && is_nasal(c2) {
+        return true;
+    }
+    let is_ja_ya = |c| c == 'জ' || c == 'য' || c == 'য়';
+    if is_ja_ya(c1) && is_ja_ya(c2) {
+        return true;
+    }
+    let is_ta = |c| c == 'ত' || c == 'ৎ';
+    if is_ta(c1) && is_ta(c2) {
+        return true;
+    }
+    let is_vowel = |c| "অআইঈউঊঋএঐওঔািীুূৃেৈোৌ".contains(c);
+    if is_vowel(c1) && is_vowel(c2) {
+        return true;
+    }
+    false
+}
+
 fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]> {
     COMMON_WORDS.get_or_init(|| {
         let mut m = HashMap::new();

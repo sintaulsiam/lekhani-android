@@ -3574,7 +3574,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     }
                     if (nextWords.isNotEmpty()) {
                         withContext(Dispatchers.Main) {
-                            if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty()) {
+                            if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() && activeInspectedWord == null) {
                                 if (_candidateState.value !is CandidateStripState.Undo) {
                                     publishCandidates(nextWords)
                                 }
@@ -3847,11 +3847,12 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         val primaryCandidate = if (isBengali) word else (candidatesList.firstOrNull() ?: word)
-        if (!displayCandidates.contains(primaryCandidate)) {
+        if (!displayCandidates.any { it.equals(primaryCandidate, ignoreCase = true) }) {
             displayCandidates.add(primaryCandidate)
         }
         for (cand in candidatesList) {
-            if (!displayCandidates.contains(cand) && !blacklist.isBlacklisted(cand)) {
+            val isEnglishDup = cand.equals(formattedEnglish, ignoreCase = true) || cand.equals(rawEnglish, ignoreCase = true)
+            if (!isEnglishDup && !displayCandidates.contains(cand) && !blacklist.isBlacklisted(cand)) {
                 displayCandidates.add(cand)
             }
         }
