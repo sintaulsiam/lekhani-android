@@ -40,7 +40,17 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     // 2. Check dynamic/bundled supervised phonetic overrides (phonetic_overrides.bin / json)
     let lower = input.to_lowercase();
     let db = crate::session::get_core_database();
-    if let Some(overrides) = db.lookup_override(input).or_else(|| db.lookup_override(&lower)) {
+    let is_title_case = input.len() >= 3
+        && input.chars().next().is_some_and(|c| c.is_uppercase())
+        && input.chars().skip(1).all(|c| c.is_lowercase() || !c.is_alphabetic());
+    let override_opt = db.lookup_override(input).or_else(|| {
+        if is_title_case {
+            db.lookup_override(&lower)
+        } else {
+            None
+        }
+    });
+    if let Some(overrides) = override_opt {
         for (override_word, _score) in overrides {
             if let Some(pos) = candidates.iter().position(|c| c == override_word) {
                 let cand = candidates.remove(pos);
