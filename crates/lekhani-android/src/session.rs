@@ -2496,6 +2496,7 @@ mod tests {
     #[serial]
     fn test_neural_predictor_loads_matched_pair() {
         let neural = get_neural_predictor();
+        assert_eq!(neural.vocab_size(), 1576, "Should load v2 1576-token model");
         let cands = neural.predict_candidates("আমি ভাত", 3);
         assert!(!cands.is_empty(), "Neural predictor should return predictions from matched model");
     }

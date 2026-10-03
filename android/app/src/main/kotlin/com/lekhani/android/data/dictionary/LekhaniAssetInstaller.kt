@@ -27,6 +27,8 @@ object LekhaniAssetInstaller {
         "bengali_lm.bin",
         "bengali_vocab.bin",
         "bengali_gru.bin",
+        "bengali_vocab_v2.json",
+        "bengali_gru_v2.bin",
         "autocorrect.json",
         "suffix.json",
         "phonetic_overrides.json",
