@@ -489,21 +489,16 @@ class LekhaniInputMethodService : InputMethodService() {
         // 2. Drop transient auxiliary engine sessions and candidate strip arrays.
         emojiSearchSession = null
         _candidateState.value = CandidateStripState.Empty
-
-        // 3. Proactively request garbage collection to release transient UI / View composition trees.
-        // This dramatically reduces our background RSS, preventing Android LMK from killing us while the phone is idle.
-        System.gc()
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
             // High memory pressure and IME is backgrounded.
-            // Drop heavy Kotlin/View objects and trigger GC.
+            // Drop heavy transient objects and let the runtime reclaim memory naturally.
             audioManager.cancelStreaming()
             emojiSearchSession = null
             _candidateState.value = CandidateStripState.Empty
-            System.gc()
         }
     }
 
