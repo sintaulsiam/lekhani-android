@@ -4,17 +4,23 @@ import android.net.Uri
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +39,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +51,7 @@ import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Forest
@@ -113,10 +121,10 @@ fun computeChromaComposeColor(mode: ChromaMode, phase: Float, xRatio: Float = 0.
 /**
  * ThemeStudioSheet
  * Redesigned, clean Material 3 Theme Studio.
- * - 2-Column visual keyboard thumbnail grid (instant visual identification)
- * - Compact live interactive typing preview sandbox
+ * - 2-Column visual keyboard thumbnail grid (instant visual identification, fills full height)
+ * - On-demand bottom-anchored live preview bar (slides up when a theme card is tapped)
  * - Clean collapsible custom wallpaper controls
- * - No text clutter, maximum space utilization
+ * - Zero wasted vertical space: grid is always the primary focus
  */
 @Composable
 fun ThemeStudioSheet(
@@ -154,12 +162,6 @@ fun ThemeStudioSheet(
         ThemeRegistry.PRESET_THEMES + listOf(ThemeRegistry.createMaterialYouTheme(context))
     }
 
-    val activePreviewTheme = remember(selectedThemeId, customThemes, allPresetThemes) {
-        customThemes.firstOrNull { it.id == selectedThemeId }
-            ?: allPresetThemes.firstOrNull { it.id == selectedThemeId }
-            ?: ThemeRegistry.resolveTheme(context, selectedThemeId)
-    }
-
     val filteredThemes = remember(selectedCategory, customThemes, allPresetThemes) {
         when (selectedCategory) {
             ThemeCategory.ALL -> customThemes + allPresetThemes
@@ -172,6 +174,17 @@ fun ThemeStudioSheet(
         }
     }
 
+    // ── Preview bar state ─────────────────────────────────────────────────────
+    // previewThemeId: the theme currently showing in the bottom bar (null = bar hidden)
+    var previewThemeId by remember { mutableStateOf<String?>(null) }
+    val previewTheme = remember(previewThemeId, customThemes, allPresetThemes) {
+        previewThemeId?.let { pid ->
+            customThemes.firstOrNull { it.id == pid }
+                ?: allPresetThemes.firstOrNull { it.id == pid }
+                ?: ThemeRegistry.resolveTheme(context, pid)
+        }
+    }
+
     val chunkedThemes = remember(filteredThemes) {
         filteredThemes.chunked(2)
     }
@@ -180,11 +193,12 @@ fun ThemeStudioSheet(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+            ) {
             // ── Clean Header ──────────────────────────────────────────────
             Row(
                 modifier = Modifier
@@ -243,8 +257,9 @@ fun ThemeStudioSheet(
 
                     Button(
                         onClick = {
-                            val baseTheme = activePreviewTheme
-                            themeToEdit = baseTheme.copy(
+                            // Always start from neutral baseline, not active theme
+                            val baseline = ThemeRegistry.THEME_FLOW_TEAL
+                            themeToEdit = baseline.copy(
                                 id = "custom_${System.currentTimeMillis()}",
                                 nameBengali = "আমার থিম",
                                 nameEnglish = "My Custom Theme",
@@ -349,10 +364,7 @@ fun ThemeStudioSheet(
                 }
             }
 
-            // ── Live Interactive Keyboard Preview Sandbox ────────────────
-            LiveKeyboardMiniPreview(theme = activePreviewTheme, isEnglish = isEnglish)
-
-            Spacer(modifier = Modifier.height(8.dp))
+            // (Preview bar is now anchored at the bottom — see Box overlay below)
 
             // ── Category Filter Chips ─────────────────────────────────────
             Row(
@@ -430,55 +442,103 @@ fun ThemeStudioSheet(
                 } else {
                     items(chunkedThemes.size) { rowIdx ->
                         val pair = chunkedThemes[rowIdx]
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(modifier = Modifier.weight(1f)) {
-                                val theme1 = pair[0]
-                                ThemeGridThumbnailCard(
-                                    theme = theme1,
-                                    isSelected = selectedThemeId == theme1.id,
-                                    isEnglish = isEnglish,
-                                    onSelect = {
-                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                        selectedThemeId = theme1.id
-                                        prefs.themeId = theme1.id
-                                        onThemeChanged?.invoke(theme1.id)
-                                    },
-                                    onEdit = if (theme1.isCustom) {
-                                        {
-                                            themeToEdit = theme1
-                                            showEditorDialog = true
+                        if (pair.size == 1) {
+                            // Orphaned single card: full-width
+                            val theme1 = pair[0]
+                            ThemeGridThumbnailCard(
+                                theme = theme1,
+                                isSelected = selectedThemeId == theme1.id,
+                                isPreviewing = previewThemeId == theme1.id,
+                                isEnglish = isEnglish,
+                                onSelect = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    // Toggle preview: tap same card = dismiss, different card = open
+                                    previewThemeId = if (previewThemeId == theme1.id) null else theme1.id
+                                },
+                                onApply = {
+                                    selectedThemeId = theme1.id
+                                    prefs.themeId = theme1.id
+                                    onThemeChanged?.invoke(theme1.id)
+                                    previewThemeId = null
+                                },
+                                onEdit = if (theme1.isCustom) {
+                                    {
+                                        themeToEdit = theme1
+                                        showEditorDialog = true
+                                    }
+                                } else null,
+                                onDelete = if (theme1.isCustom) {
+                                    {
+                                        customThemeManager.deleteCustomTheme(theme1.id)
+                                        customThemes = customThemeManager.getAllCustomThemes()
+                                        if (selectedThemeId == theme1.id) {
+                                            val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
+                                            selectedThemeId = fallback
+                                            prefs.themeId = fallback
+                                            onThemeChanged?.invoke(fallback)
                                         }
-                                    } else null,
-                                    onDelete = if (theme1.isCustom) {
-                                        {
-                                            customThemeManager.deleteCustomTheme(theme1.id)
-                                            customThemes = customThemeManager.getAllCustomThemes()
-                                            if (selectedThemeId == theme1.id) {
-                                                val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
-                                                selectedThemeId = fallback
-                                                prefs.themeId = fallback
-                                                onThemeChanged?.invoke(fallback)
+                                    }
+                                } else null
+                            )
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    val theme1 = pair[0]
+                                    ThemeGridThumbnailCard(
+                                        theme = theme1,
+                                        isSelected = selectedThemeId == theme1.id,
+                                        isPreviewing = previewThemeId == theme1.id,
+                                        isEnglish = isEnglish,
+                                        onSelect = {
+                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                            previewThemeId = if (previewThemeId == theme1.id) null else theme1.id
+                                        },
+                                        onApply = {
+                                            selectedThemeId = theme1.id
+                                            prefs.themeId = theme1.id
+                                            onThemeChanged?.invoke(theme1.id)
+                                            previewThemeId = null
+                                        },
+                                        onEdit = if (theme1.isCustom) {
+                                            {
+                                                themeToEdit = theme1
+                                                showEditorDialog = true
                                             }
-                                        }
-                                    } else null
-                                )
-                            }
+                                        } else null,
+                                        onDelete = if (theme1.isCustom) {
+                                            {
+                                                customThemeManager.deleteCustomTheme(theme1.id)
+                                                customThemes = customThemeManager.getAllCustomThemes()
+                                                if (selectedThemeId == theme1.id) {
+                                                    val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
+                                                    selectedThemeId = fallback
+                                                    prefs.themeId = fallback
+                                                    onThemeChanged?.invoke(fallback)
+                                                }
+                                            }
+                                        } else null
+                                    )
+                                }
 
-                            if (pair.size > 1) {
                                 Box(modifier = Modifier.weight(1f)) {
                                     val theme2 = pair[1]
                                     ThemeGridThumbnailCard(
                                         theme = theme2,
                                         isSelected = selectedThemeId == theme2.id,
+                                        isPreviewing = previewThemeId == theme2.id,
                                         isEnglish = isEnglish,
                                         onSelect = {
                                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                            previewThemeId = if (previewThemeId == theme2.id) null else theme2.id
+                                        },
+                                        onApply = {
                                             selectedThemeId = theme2.id
                                             prefs.themeId = theme2.id
                                             onThemeChanged?.invoke(theme2.id)
+                                            previewThemeId = null
                                         },
                                         onEdit = if (theme2.isCustom) {
                                             {
@@ -500,14 +560,37 @@ fun ThemeStudioSheet(
                                         } else null
                                     )
                                 }
-                            } else {
-                                Spacer(modifier = Modifier.weight(1f))
                             }
                         }
                     }
                 }
             }
-        }
+            } // end Column
+
+            // ── Bottom-Anchored On-Demand Preview Bar ─────────────────────
+            AnimatedVisibility(
+                visible = previewTheme != null,
+                enter = slideInVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { it } + fadeIn(),
+                exit = slideOutVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { it } + fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                previewTheme?.let { theme ->
+                    ThemePreviewBottomBar(
+                        theme = theme,
+                        isApplied = selectedThemeId == theme.id,
+                        isEnglish = isEnglish,
+                        onApply = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            selectedThemeId = theme.id
+                            prefs.themeId = theme.id
+                            onThemeChanged?.invoke(theme.id)
+                            previewThemeId = null
+                        },
+                        onDismiss = { previewThemeId = null }
+                    )
+                }
+            }
+        } // end Box
 
         if (showEditorDialog && themeToEdit != null) {
             ThemeEditorDialog(
@@ -540,8 +623,10 @@ fun ThemeStudioSheet(
 private fun ThemeGridThumbnailCard(
     theme: KeyboardTheme,
     isSelected: Boolean,
+    isPreviewing: Boolean = false,
     isEnglish: Boolean = false,
     onSelect: () -> Unit,
+    onApply: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
@@ -565,11 +650,17 @@ private fun ThemeGridThumbnailCard(
 
     val cardAccentColor = if (theme.isRgbChroma) liveChromaColor else Color(theme.accentColor)
     val cardBorderColor = when {
+        isPreviewing -> MaterialTheme.colorScheme.primary
         isSelected -> cardAccentColor
         theme.isRgbChroma -> liveChromaColor.copy(alpha = 0.5f)
         else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     }
-    val cardBorderWidth = if (isSelected) 2.dp else if (theme.isRgbChroma) 1.5.dp else 1.dp
+    val cardBorderWidth = when {
+        isPreviewing -> 2.5.dp
+        isSelected -> 2.dp
+        theme.isRgbChroma -> 1.5.dp
+        else -> 1.dp
+    }
 
     Card(
         modifier = Modifier
@@ -778,6 +869,121 @@ private fun ThemeGridThumbnailCard(
         }
     }
 }
+
+/**
+ * Bottom-anchored on-demand live theme preview bar.
+ * Slides up from the bottom when a theme card is tapped.
+ * Shows the full interactive mini keyboard + apply / dismiss actions.
+ */
+@Composable
+private fun ThemePreviewBottomBar(
+    theme: KeyboardTheme,
+    isApplied: Boolean,
+    isEnglish: Boolean = false,
+    onApply: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 12.dp,
+        shadowElevation = 16.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Drag handle
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f))
+            )
+
+            // Header: theme name + close
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isEnglish) "Live Preview" else "লাইভ প্রিভিউ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isApplied) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Applied" else "সেট",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    } else {
+                        Button(
+                            onClick = onApply,
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (isEnglish) "Apply" else "সেট করুন",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(30.dp)) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = if (isEnglish) "Close" else "বন্ধ করুন",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            // Live interactive mini keyboard preview
+            LiveKeyboardMiniPreview(theme = theme, isEnglish = isEnglish)
+
+            Spacer(modifier = Modifier.height(2.dp))
+        }
+    }
+}
+
 
 /**
  * Interactive Live Keyboard Preview sandbox featuring:
