@@ -26,6 +26,11 @@ object ThemeChromaUtils {
         ChromaMode.MAGMA_EMBER -> 3200L
         ChromaMode.CELESTIAL_AMETHYST -> 4200L
         ChromaMode.ENCHANTED_JADE -> 3800L
+        ChromaMode.PRISM_SPECTRUM -> 4000L
+        ChromaMode.ELECTRIC_CYBER -> 3000L
+        ChromaMode.SOLAR_GOLD -> 4400L
+        ChromaMode.FROST_NEBULA -> 4200L
+        ChromaMode.NORDIC_AURORA -> 4600L
         ChromaMode.NONE -> 3600L
     }
 
@@ -110,6 +115,41 @@ object ThemeChromaUtils {
                 val wave = (sin((phase * 2.0 * PI) + (xRatio * PI)).toFloat() + 1f) * 0.5f
                 hsv[0] = 85f + wave * (155f - 85f)
                 hsv[1] = 0.90f
+                hsv[2] = 1.0f
+            }
+            ChromaMode.PRISM_SPECTRUM -> {
+                // Prismatic diamond dispersion: shifts across cool cyan (185°) -> crystal lavender (275°) -> silver teal (160°)
+                val wave = (sin((phase * 2.0 * PI) + (xRatio * PI)).toFloat() + 1f) * 0.5f
+                hsv[0] = 160f + wave * (280f - 160f)
+                hsv[1] = 0.65f // Clean, crisp, non-oversaturated diamond luminescence
+                hsv[2] = 1.0f
+            }
+            ChromaMode.ELECTRIC_CYBER -> {
+                // High-voltage cobalt (210°) through neon indigo to electric violet (295°)
+                val wave = (sin((phase * 2.0 * PI) + (xRatio * 1.5 * PI)).toFloat() + 1f) * 0.5f
+                hsv[0] = 205f + wave * (295f - 205f)
+                hsv[1] = 0.95f
+                hsv[2] = 1.0f
+            }
+            ChromaMode.SOLAR_GOLD -> {
+                // Luxurious eclipse gold: warm copper amber (22°) to radiant solar champagne gold (52°)
+                val wave = (sin((phase * 2.0 * PI) + (xRatio * PI)).toFloat() + 1f) * 0.5f
+                hsv[0] = 22f + wave * (52f - 22f)
+                hsv[1] = 0.90f
+                hsv[2] = 1.0f
+            }
+            ChromaMode.FROST_NEBULA -> {
+                // Sub-zero glacier cyan (175°) to deep polar ice blue (228°)
+                val wave = (sin((phase * 2.0 * PI) + (xRatio * PI)).toFloat() + 1f) * 0.5f
+                hsv[0] = 175f + wave * (228f - 175f)
+                hsv[1] = 0.78f // Clean frost saturation
+                hsv[2] = 1.0f
+            }
+            ChromaMode.NORDIC_AURORA -> {
+                // Ethereal Scandinavian sky: arctic emerald (145°) to fjord purple-violet (270°)
+                val wave = (sin((phase * 2.0 * PI) + (xRatio * PI)).toFloat() + 1f) * 0.5f
+                hsv[0] = 145f + wave * (270f - 145f)
+                hsv[1] = 0.85f
                 hsv[2] = 1.0f
             }
             ChromaMode.NONE -> {

@@ -84,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.settings.KeyboardPreferences
 import com.lekhani.android.theme.ChromaMode
+import com.lekhani.android.theme.ChromaStyle
 import com.lekhani.android.theme.CustomThemeManager
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeCategory
@@ -809,12 +810,13 @@ private fun LiveKeyboardMiniPreview(
     var testInput by remember { mutableStateOf("") }
 
     // Dynamic RGB animation for chroma themes
+    val duration = ThemeChromaUtils.getCycleDuration(theme.chromaMode).toInt()
     val infiniteTransition = rememberInfiniteTransition(label = "ChromaFlow")
     val phase by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3600, easing = LinearEasing),
+            animation = tween(durationMillis = duration, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "PhaseAnim"
@@ -943,19 +945,26 @@ private fun LiveKeyboardMiniPreview(
             }
 
             // Row 1: Vowels / Consonants
+            val shouldDrawKeyBorder = when {
+                theme.isRgbChroma -> theme.chromaStyle != ChromaStyle.CLEAN_MINIMAL
+                else -> true
+            }
+            val borderWidth = if (theme.isRgbChroma && theme.chromaStyle == ChromaStyle.AMBIENT_BREATHE) 0.8.dp else 1.2.dp
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল").forEachIndexed { colIdx, ch ->
                     val keyBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, colIdx / 7f) else animatedBorderColor
+                    val borderModifier = if (shouldDrawKeyBorder) Modifier.border(borderWidth, keyBorder, RoundedCornerShape(6.dp)) else Modifier
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(30.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(Color(theme.keyNormalColor))
-                            .border(1.2.dp, keyBorder, RoundedCornerShape(6.dp))
+                            .then(borderModifier)
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 testInput += ch
@@ -974,13 +983,14 @@ private fun LiveKeyboardMiniPreview(
             ) {
                 listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক").forEachIndexed { colIdx, ch ->
                     val keyBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, colIdx / 7f) else animatedBorderColor
+                    val borderModifier = if (shouldDrawKeyBorder) Modifier.border(borderWidth, keyBorder, RoundedCornerShape(6.dp)) else Modifier
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(30.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(Color(theme.keyNormalColor))
-                            .border(1.2.dp, keyBorder, RoundedCornerShape(6.dp))
+                            .then(borderModifier)
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 testInput += ch

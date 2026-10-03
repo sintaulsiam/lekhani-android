@@ -3257,14 +3257,17 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun cycleTheme() {
-        val themeIds = ThemeRegistry.allPresetIds()
+        val themeIds = ThemeRegistry.QUICK_TOOLBAR_THEME_IDS
         val curId = keyboardPrefs.themeId
         val idx = themeIds.indexOf(curId)
-        val nextId = if (idx == -1 || idx == themeIds.lastIndex) themeIds.first() else themeIds[idx + 1]
+        val nextId = if (idx == -1) themeIds.first() else themeIds[(idx + 1) % themeIds.size]
         keyboardPrefs.themeId = nextId
         val nextTheme = ThemeRegistry.resolveTheme(this, nextId)
         _themeFlow.value = nextTheme
         keyboardView?.applyTheme(nextTheme)
+        val isEng = keyboardPrefs.uiLanguage == "en"
+        val themeName = if (isEng) nextTheme.nameEnglish else nextTheme.nameBengali
+        showNotice("🎨 $themeName", "✨", 1500L)
     }
 
     /**

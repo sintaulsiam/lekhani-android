@@ -39,6 +39,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Switch
 import com.lekhani.android.theme.ChromaMode
+import com.lekhani.android.theme.ChromaStyle
 import com.lekhani.android.theme.ThemeCategory
 import com.lekhani.android.theme.ThemeChromaUtils
 import androidx.compose.material3.Icon
@@ -85,6 +86,7 @@ fun ThemeEditorDialog(
     var activeColorTarget by remember { mutableStateOf(ColorTarget.BACKGROUND) }
     var isRgbChroma by remember { mutableStateOf(initialTheme.isRgbChroma) }
     var chromaMode by remember { mutableStateOf(if (initialTheme.chromaMode != ChromaMode.NONE) initialTheme.chromaMode else ChromaMode.RAINBOW_FLOW) }
+    var chromaStyle by remember { mutableStateOf(initialTheme.chromaStyle) }
 
     // Dynamic Chroma continuous phase animation for preview
     val infiniteTransition = rememberInfiniteTransition(label = "DialogChroma")
@@ -182,6 +184,9 @@ fun ThemeEditorDialog(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         // Preview Row 1
+                        val shouldDrawPreviewBorder = if (isRgbChroma) chromaStyle != ChromaStyle.CLEAN_MINIMAL else false
+                        val previewBorderWidth = if (chromaStyle == ChromaStyle.AMBIENT_BREATHE) 0.8.dp else 1.4.dp
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -189,9 +194,9 @@ fun ThemeEditorDialog(
                             val r1 = listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল")
                             r1.forEachIndexed { colIdx, char ->
                                 val xRatio = colIdx.toFloat() / (r1.size - 1).toFloat()
-                                val borderModifier = if (isRgbChroma) {
+                                val borderModifier = if (shouldDrawPreviewBorder) {
                                     Modifier.border(
-                                        1.4.dp,
+                                        previewBorderWidth,
                                         Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, xRatio)),
                                         RoundedCornerShape(6.dp)
                                     )
@@ -218,9 +223,9 @@ fun ThemeEditorDialog(
                             val r2 = listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক")
                             r2.forEachIndexed { colIdx, char ->
                                 val xRatio = colIdx.toFloat() / (r2.size - 1).toFloat()
-                                val borderModifier = if (isRgbChroma) {
+                                val borderModifier = if (shouldDrawPreviewBorder) {
                                     Modifier.border(
-                                        1.4.dp,
+                                        previewBorderWidth,
                                         Color(ThemeChromaUtils.getColorAtPhase(chromaMode, phase, xRatio)),
                                         RoundedCornerShape(6.dp)
                                     )
@@ -459,6 +464,36 @@ fun ThemeEditorDialog(
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = if (isEnglish) "Chroma Visual Style" else "ভিজ্যুয়াল ডিজাইন স্টাইল",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                ChromaStyle.values().forEach { style ->
+                                    val isSelected = chromaStyle == style
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { chromaStyle = style },
+                                        label = {
+                                            Text(if (isEnglish) style.titleEnglish else style.titleBengali)
+                                        },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -620,6 +655,7 @@ fun ThemeEditorDialog(
                                 isCustom = true,
                                 isRgbChroma = isRgbChroma,
                                 chromaMode = if (isRgbChroma) chromaMode else ChromaMode.NONE,
+                                chromaStyle = if (isRgbChroma) chromaStyle else ChromaStyle.FULL_BORDER,
                                 category = if (isRgbChroma) ThemeCategory.RGB_CHROMA else ThemeCategory.CUSTOM,
                             )
                             onSave(finalTheme)

@@ -29,6 +29,7 @@ import com.lekhani.android.model.KeyAction
 import com.lekhani.android.model.KeyboardLayout
 import com.lekhani.android.ime.EnterKeyResolver
 import com.lekhani.android.theme.ChromaMode
+import com.lekhani.android.theme.ChromaStyle
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeChromaUtils
 import com.lekhani.android.theme.ThemeRegistry
@@ -1574,7 +1575,11 @@ class KeyboardCanvasView @JvmOverloads constructor(
         if (activeTheme.isRgbChroma) {
             centerChromaColor = getChromaColor(activeTheme.chromaMode, now, 0.5f)
             keyBorderPaint.color = centerChromaColor
-            keyBorderPaint.strokeWidth = 1.6f * cachedDensity
+            keyBorderPaint.strokeWidth = when (activeTheme.chromaStyle) {
+                ChromaStyle.FULL_BORDER -> 1.6f * cachedDensity
+                ChromaStyle.AMBIENT_BREATHE -> 0.9f * cachedDensity
+                ChromaStyle.CLEAN_MINIMAL -> 1.0f * cachedDensity
+            }
             homeRowAccentPaint.color = centerChromaColor
             keyGlowPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(centerChromaColor, 0x80)
             spaceSlideThumbPaint.color = centerChromaColor
@@ -1655,11 +1660,30 @@ class KeyboardCanvasView @JvmOverloads constructor(
             // Draw key background with rounded corners
             canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, bgPaint)
 
-            // Draw key border (enabled by user preference OR automatically illuminated on 120 FPS RGB Chroma themes)
-            if (showKeyBorders || activeTheme.isRgbChroma) {
+            // Draw key border (enabled by user preference OR dynamic RGB chroma)
+            val shouldDrawKeyBorder = when {
+                activeTheme.isRgbChroma -> {
+                    when (activeTheme.chromaStyle) {
+                        ChromaStyle.FULL_BORDER -> true
+                        ChromaStyle.AMBIENT_BREATHE -> true
+                        ChromaStyle.CLEAN_MINIMAL -> {
+                            // In CLEAN_MINIMAL: floating borderless keys, dynamic accent only on Enter and Spacebar!
+                            key.action == KeyAction.Enter || key.action == KeyAction.Space
+                        }
+                    }
+                }
+                else -> showKeyBorders
+            }
+
+            if (shouldDrawKeyBorder) {
                 if (activeTheme.isRgbChroma) {
                     val xRatio = if (width > 0) (drawBounds.centerX() / width.toFloat()).coerceIn(0f, 1f) else 0.5f
-                    keyBorderPaint.color = getChromaColor(activeTheme.chromaMode, now, xRatio)
+                    val chromaColor = getChromaColor(activeTheme.chromaMode, now, xRatio)
+                    if (activeTheme.chromaStyle == ChromaStyle.AMBIENT_BREATHE) {
+                        keyBorderPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(chromaColor, 0x99)
+                    } else {
+                        keyBorderPaint.color = chromaColor
+                    }
                 }
                 canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, keyBorderPaint)
             }
@@ -1680,7 +1704,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 val elapsed = (now - pressStartTime).coerceAtMost(RIPPLE_DURATION_MS)
                 val fraction = elapsed.toFloat() / RIPPLE_DURATION_MS
                 val rippleAlpha = ((1f - fraction) * RIPPLE_MAX_ALPHA).toInt().coerceIn(0, 255)
-                ripplePaint.alpha = rippleAlpha
+                if (activeTheme.isRgbChroma) {
+                    val xRatio = if (width > 0) (drawBounds.centerX() / width.toFloat()).coerceIn(0f, 1f) else 0.5f
+                    val rippleBaseColor = getChromaColor(activeTheme.chromaMode, now, xRatio)
+                    ripplePaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(rippleBaseColor, rippleAlpha)
+                } else {
+                    ripplePaint.alpha = rippleAlpha
+                }
                 rippleRect.set(drawBounds)
                 canvas.drawRoundRect(rippleRect, keyCornerRadius, keyCornerRadius, ripplePaint)
                 if (fraction < 1f) invalidate()

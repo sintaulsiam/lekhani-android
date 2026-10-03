@@ -429,29 +429,6 @@ fun CandidateStripView(
                 }
             }
         }
-
-        if (theme.isRgbChroma) {
-            val infiniteTransition = rememberInfiniteTransition(label = "StripChroma")
-            val phase by infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 3600, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                ),
-                label = "StripChromaPhase"
-            )
-            val c0 = Color(ThemeChromaUtils.getColorAtPhase(theme.chromaMode, phase, 0f))
-            val c1 = Color(ThemeChromaUtils.getColorAtPhase(theme.chromaMode, phase, 0.5f))
-            val c2 = Color(ThemeChromaUtils.getColorAtPhase(theme.chromaMode, phase, 1f))
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(1.5.dp)
-                    .background(Brush.horizontalGradient(listOf(c0, c1, c2)))
-            )
-        }
     }
 }
 
@@ -843,12 +820,13 @@ private fun CandidatePill(
     }
 
     val liveChromaColor = if (theme.isRgbChroma && item.isPrimary) {
+        val duration = ThemeChromaUtils.getCycleDuration(theme.chromaMode).toInt()
         val infiniteTransition = rememberInfiniteTransition(label = "PillChroma")
         val phase by infiniteTransition.animateFloat(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 3600, easing = LinearEasing),
+                animation = tween(durationMillis = duration, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart
             ),
             label = "PillChromaPhase"

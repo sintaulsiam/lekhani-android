@@ -34,7 +34,22 @@ enum class ChromaMode(val titleBengali: String, val titleEnglish: String) {
     SAKURA_GLOW("সাকুরা গ্লো", "Sakura Flow"),
     MAGMA_EMBER("ম্যাগমা এম্বার", "Magma Ember"),
     CELESTIAL_AMETHYST("স্টারলাইট অ্যামিথিস্ট", "Celestial Amethyst"),
-    ENCHANTED_JADE("এলভেন জেড", "Enchanted Jade");
+    ENCHANTED_JADE("এলভেন জেড", "Enchanted Jade"),
+    PRISM_SPECTRUM("প্রিজম স্পেকট্রাম", "Prism Spectrum"),
+    ELECTRIC_CYBER("ইলেকট্রিক সাইবার", "Electric Cyber"),
+    SOLAR_GOLD("সোলার গোল্ড", "Solar Gold"),
+    FROST_NEBULA("ফ্রস্ট নেবুলা", "Frost Nebula"),
+    NORDIC_AURORA("নর্ডিক অরোরা", "Nordic Aurora");
+}
+
+/**
+ * ChromaStyle
+ * Visual layout and border presentation styles for dynamic themes.
+ */
+enum class ChromaStyle(val titleBengali: String, val titleEnglish: String) {
+    FULL_BORDER("সম্পূর্ণ বর্ডার", "Full Border"),
+    CLEAN_MINIMAL("ক্লিন মিনিমাল", "Clean Minimal"),
+    AMBIENT_BREATHE("অ্যাম্বিয়েন্ট গ্লো", "Ambient Breathe");
 }
 
 /**
@@ -64,6 +79,7 @@ data class KeyboardTheme(
     val isCustom: Boolean = false,
     val isRgbChroma: Boolean = false,
     val chromaMode: ChromaMode = if (isRgbChroma) ChromaMode.RAINBOW_FLOW else ChromaMode.NONE,
+    val chromaStyle: ChromaStyle = ChromaStyle.FULL_BORDER,
     val category: ThemeCategory = ThemeCategory.CLASSIC,
 ) {
     fun toJson(): org.json.JSONObject {
@@ -87,6 +103,7 @@ data class KeyboardTheme(
         json.put("isCustom", isCustom)
         json.put("isRgbChroma", isRgbChroma)
         json.put("chromaMode", chromaMode.name)
+        json.put("chromaStyle", chromaStyle.name)
         json.put("category", category.name)
         return json
     }
@@ -103,6 +120,11 @@ data class KeyboardTheme(
                 ChromaMode.valueOf(json.optString("chromaMode", if (isChroma) ChromaMode.RAINBOW_FLOW.name else ChromaMode.NONE.name))
             } catch (_: Exception) {
                 if (isChroma) ChromaMode.RAINBOW_FLOW else ChromaMode.NONE
+            }
+            val cStyle = try {
+                ChromaStyle.valueOf(json.optString("chromaStyle", ChromaStyle.FULL_BORDER.name))
+            } catch (_: Exception) {
+                ChromaStyle.FULL_BORDER
             }
             return KeyboardTheme(
                 id = json.getString("id"),
@@ -124,6 +146,7 @@ data class KeyboardTheme(
                 isCustom = json.optBoolean("isCustom", true),
                 isRgbChroma = isChroma,
                 chromaMode = cMode,
+                chromaStyle = cStyle,
                 category = cat,
             )
         }
@@ -175,6 +198,11 @@ object ThemeRegistry {
     const val ID_MAGMA_EMBER = "magma_ember"
     const val ID_CELESTIAL_AMETHYST = "celestial_amethyst"
     const val ID_ENCHANTED_JADE = "enchanted_jade"
+    const val ID_MIDNIGHT_PRISM = "midnight_prism"
+    const val ID_ELECTRIC_CYBER = "electric_cyber"
+    const val ID_FROST_NEBULA = "frost_nebula"
+    const val ID_SOLAR_ECLIPSE = "solar_eclipse"
+    const val ID_NORDIC_LIGHTS = "nordic_lights"
 
     // High Contrast & Nature IDs
     const val ID_HIGH_CONTRAST = "high_contrast"
@@ -633,6 +661,7 @@ object ThemeRegistry {
         isDark = true,
         isRgbChroma = true,
         chromaMode = ChromaMode.AURORA_BOREALIS,
+        chromaStyle = ChromaStyle.AMBIENT_BREATHE,
         category = ThemeCategory.RGB_CHROMA,
     )
 
@@ -834,6 +863,121 @@ object ThemeRegistry {
         category = ThemeCategory.RGB_CHROMA,
     )
 
+    val THEME_MIDNIGHT_PRISM = KeyboardTheme(
+        id = ID_MIDNIGHT_PRISM,
+        nameBengali = "মিডনাইট প্রিজম",
+        nameEnglish = "Midnight Prism",
+        backgroundColor = 0xFF090B10.toInt(),
+        keyNormalColor = 0xFF131722.toInt(),
+        keyShiftColor = 0xFF0D1017.toInt(),
+        keySpaceColor = 0xFF191F2D.toInt(),
+        keyHasantaColor = 0xFF1C2A3A.toInt(),
+        keyBorderColor = 0xFF64B5F6.toInt(),
+        labelColor = 0xFFF1F5F9.toInt(),
+        labelDimColor = 0xFF94A3B8.toInt(),
+        accentColor = 0xFF38BDF8.toInt(),
+        rippleColor = 0x4038BDF8.toInt(),
+        glideStrokeColor = 0xFF818CF8.toInt(),
+        glideGlowColor = 0x5038BDF8.toInt(),
+        isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.PRISM_SPECTRUM,
+        chromaStyle = ChromaStyle.CLEAN_MINIMAL,
+        category = ThemeCategory.RGB_CHROMA,
+    )
+
+    val THEME_ELECTRIC_CYBER = KeyboardTheme(
+        id = ID_ELECTRIC_CYBER,
+        nameBengali = "ইলেকট্রিক সাইবার",
+        nameEnglish = "Electric Cyber",
+        backgroundColor = 0xFF080914.toInt(),
+        keyNormalColor = 0xFF101426.toInt(),
+        keyShiftColor = 0xFF0B0D1A.toInt(),
+        keySpaceColor = 0xFF171D36.toInt(),
+        keyHasantaColor = 0xFF1C2652.toInt(),
+        keyBorderColor = 0xFF3D5AFE.toInt(),
+        labelColor = 0xFFEEF2FF.toInt(),
+        labelDimColor = 0xFF818CF8.toInt(),
+        accentColor = 0xFF7C4DFF.toInt(),
+        rippleColor = 0x407C4DFF.toInt(),
+        glideStrokeColor = 0xFF3D5AFE.toInt(),
+        glideGlowColor = 0x507C4DFF.toInt(),
+        isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.ELECTRIC_CYBER,
+        chromaStyle = ChromaStyle.FULL_BORDER,
+        category = ThemeCategory.RGB_CHROMA,
+    )
+
+    val THEME_FROST_NEBULA = KeyboardTheme(
+        id = ID_FROST_NEBULA,
+        nameBengali = "ফ্রস্ট নেবুলা",
+        nameEnglish = "Frost Nebula",
+        backgroundColor = 0xFF060D14.toInt(),
+        keyNormalColor = 0xFF0E1A26.toInt(),
+        keyShiftColor = 0xFF09121B.toInt(),
+        keySpaceColor = 0xFF142435.toInt(),
+        keyHasantaColor = 0xFF13394A.toInt(),
+        keyBorderColor = 0xFF00E5FF.toInt(),
+        labelColor = 0xFFF0F9FF.toInt(),
+        labelDimColor = 0xFF7DD3FC.toInt(),
+        accentColor = 0xFF38BDF8.toInt(),
+        rippleColor = 0x4038BDF8.toInt(),
+        glideStrokeColor = 0xFF00E5FF.toInt(),
+        glideGlowColor = 0x5038BDF8.toInt(),
+        isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.FROST_NEBULA,
+        chromaStyle = ChromaStyle.CLEAN_MINIMAL,
+        category = ThemeCategory.RGB_CHROMA,
+    )
+
+    val THEME_SOLAR_ECLIPSE = KeyboardTheme(
+        id = ID_SOLAR_ECLIPSE,
+        nameBengali = "সোলার একলিপ্স",
+        nameEnglish = "Solar Eclipse",
+        backgroundColor = 0xFF0F0C09.toInt(),
+        keyNormalColor = 0xFF1C1712.toInt(),
+        keyShiftColor = 0xFF14100C.toInt(),
+        keySpaceColor = 0xFF262019.toInt(),
+        keyHasantaColor = 0xFF3D2F18.toInt(),
+        keyBorderColor = 0xFFFFAB00.toInt(),
+        labelColor = 0xFFFFFDF5.toInt(),
+        labelDimColor = 0xFFFFD54F.toInt(),
+        accentColor = 0xFFFFB300.toInt(),
+        rippleColor = 0x40FFB300.toInt(),
+        glideStrokeColor = 0xFFFF8F00.toInt(),
+        glideGlowColor = 0x50FFB300.toInt(),
+        isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.SOLAR_GOLD,
+        chromaStyle = ChromaStyle.AMBIENT_BREATHE,
+        category = ThemeCategory.RGB_CHROMA,
+    )
+
+    val THEME_NORDIC_LIGHTS = KeyboardTheme(
+        id = ID_NORDIC_LIGHTS,
+        nameBengali = "নর্ডিক লাইটস",
+        nameEnglish = "Nordic Lights",
+        backgroundColor = 0xFF071015.toInt(),
+        keyNormalColor = 0xFF0F2028.toInt(),
+        keyShiftColor = 0xFF0A161C.toInt(),
+        keySpaceColor = 0xFF162B36.toInt(),
+        keyHasantaColor = 0xFF18444B.toInt(),
+        keyBorderColor = 0xFF14B8A6.toInt(),
+        labelColor = 0xFFF0FDF4.toInt(),
+        labelDimColor = 0xFF5EEAD4.toInt(),
+        accentColor = 0xFF2DD4BF.toInt(),
+        rippleColor = 0x402DD4BF.toInt(),
+        glideStrokeColor = 0xFF38BDF8.toInt(),
+        glideGlowColor = 0x502DD4BF.toInt(),
+        isDark = true,
+        isRgbChroma = true,
+        chromaMode = ChromaMode.NORDIC_AURORA,
+        chromaStyle = ChromaStyle.AMBIENT_BREATHE,
+        category = ThemeCategory.RGB_CHROMA,
+    )
+
     // ── 5. Contrast & Nature ──────────────────────────────────────────────────
 
     val THEME_HIGH_CONTRAST = KeyboardTheme(
@@ -889,6 +1033,11 @@ object ThemeRegistry {
         // RGB Chroma & Dynamic
         THEME_RGB_CHROMA_FLOW,
         THEME_AURORA_BOREALIS,
+        THEME_MIDNIGHT_PRISM,
+        THEME_ELECTRIC_CYBER,
+        THEME_FROST_NEBULA,
+        THEME_SOLAR_ECLIPSE,
+        THEME_NORDIC_LIGHTS,
         THEME_SUNSET_HORIZON,
         THEME_COSMIC_NEBULA,
         THEME_MATRIX_PULSE,
@@ -922,6 +1071,22 @@ object ThemeRegistry {
         // Contrast & Nature
         THEME_HIGH_CONTRAST,
         THEME_FOREST_EMERALD,
+    )
+
+    /**
+     * Top 5 flagship themes across all categories for fast cycling via toolbar button.
+     * 1. Classic flagship: Flow Teal (Lekhani signature dark teal)
+     * 2. Minimal flagship: OLED Pure Black (pitch-black minimalist)
+     * 3. Clean Dynamic flagship: Midnight Prism (borderless obsidian, prismatic diamond dynamic accents)
+     * 4. Ambient Dynamic flagship: Aurora Borealis (flowing emerald-cyan ambient glow)
+     * 5. Neon/Cyber flagship: Cyberpunk Neon (vibrant futuristic electric cyber)
+     */
+    val QUICK_TOOLBAR_THEME_IDS: List<String> = listOf(
+        ID_FLOW_TEAL,
+        ID_OLED_BLACK,
+        ID_MIDNIGHT_PRISM,
+        ID_AURORA_BOREALIS,
+        ID_CYBERPUNK_NEON,
     )
 
     /**
