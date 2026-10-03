@@ -210,6 +210,14 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_AVRO_SHOW_ENGLISH_PREVIEW, true)
         set(value) = prefs.edit().putBoolean(KEY_AVRO_SHOW_ENGLISH_PREVIEW, value).apply()
 
+    var avroDynamicRecomposition: Boolean
+        get() = prefs.getBoolean(KEY_AVRO_DYNAMIC_RECOMPOSITION, true)
+        set(value) = prefs.edit().putBoolean(KEY_AVRO_DYNAMIC_RECOMPOSITION, value).apply()
+
+    var avroStripOrder: String
+        get() = prefs.getString(KEY_AVRO_STRIP_ORDER, STRIP_ORDER_BENGALI_FIRST) ?: STRIP_ORDER_BENGALI_FIRST
+        set(value) = prefs.edit().putString(KEY_AVRO_STRIP_ORDER, value).apply()
+
     // ── Clipboard Settings ────────────────────────────────────────────────────
     var clipboardRetentionMinutes: Int
         get() = prefs.getInt(KEY_CLIPBOARD_RETENTION_MINUTES, 60)
@@ -337,6 +345,10 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_GLIDE_TYPING_ENABLED = "glide_typing_enabled"
         const val KEY_CODE_SHIELD_ENABLED = "code_shield_enabled"
         const val KEY_AVRO_SHOW_ENGLISH_PREVIEW = "avro_show_english_preview"
+        const val KEY_AVRO_DYNAMIC_RECOMPOSITION = "avro_dynamic_recomposition"
+        const val KEY_AVRO_STRIP_ORDER = "avro_strip_order"
+        const val STRIP_ORDER_BENGALI_FIRST = "bengali_first"
+        const val STRIP_ORDER_ENGLISH_FIRST = "english_first"
         const val KEY_AVRO_NUMERALS_BENGALI = "avro_numerals_bengali"
         const val KEY_DOUBLE_SPACE_DARI_ENABLED = "double_space_dari_enabled"
         const val KEY_SPACEBAR_AUTOCOMPLETE_ENABLED = "spacebar_autocomplete_enabled"

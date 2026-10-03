@@ -575,6 +575,9 @@ class LekhaniInputMethodService : InputMethodService() {
         } else if (newSelStart == newSelEnd && newSelStart >= 0) {
             // User tapped somewhere in text to reposition the cursor while idle.
             // Respect the user's intended cursor position without hijacking or resetting it.
+            // Clear the post-commit suppression so word inspection (e.g. "Sonar" preview)
+            // shows correctly when the user taps back into a committed word.
+            suppressNextWordAfterCommit = false
             refreshSurroundingContext()
             updateAutoCaps()
             currentInputConnection?.let { updateAvroStripForWordAtCursor(it) }
@@ -2121,6 +2124,15 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     /**
+     * Checks if a key token is a character that contributes to an Avro phonetic composing word.
+     */
+    private fun isAvroPhoneticKey(keyToken: String): Boolean {
+        if (keyToken.length != 1) return false
+        val c = keyToken[0]
+        return (c in 'a'..'z') || (c in 'A'..'Z') || (c in '0'..'9') || c == ':' || c == '^' || c == '`'
+    }
+
+    /**
      * Processes a key from the Kotlin keyboard view layer.
      *
      * Called by [KeyboardCanvasView] (Phase 3) for every tap / long-press.
@@ -2138,7 +2150,62 @@ class LekhaniInputMethodService : InputMethodService() {
         val ic = currentInputConnection ?: return
         ensureCursorInComposingRegion(ic)
 
-        if (activeInspectedWord != null && !session.isComposing()) {
+        val inspected = activeInspectedWord
+        if (inspected != null && !session.isComposing() &&
+            session.getLayout() == LekhaniLayoutType.AVRO &&
+            !isCurrentFieldPrivate && keyboardPrefs.avroDynamicRecomposition &&
+            isAvroPhoneticKey(keyToken)
+        ) {
+            val rawPrefix = if (inspected.charsAfterCursor == 0) {
+                inspected.rawPhonetic
+            } else {
+                val prefixText = inspected.word.take(inspected.charsBeforeCursor)
+                avroHistory.get(prefixText) ?: AvroReverseTransliterator.bengaliToAvro(prefixText)
+            }
+
+            if (rawPrefix.isNotBlank()) {
+                activeInspectedWord = null
+                ic.beginBatchEdit()
+                try {
+                    if (inspected.charsBeforeCursor > 0) {
+                        ic.deleteSurroundingText(inspected.charsBeforeCursor, 0)
+                    }
+                    rawInputBuffer.clear()
+                    rawInputBuffer.append(rawPrefix).append(keyToken)
+
+                    session.reset()
+                    val immediateBefore = try {
+                        ic.getTextBeforeCursor(64, 0)?.toString()
+                    } catch (_: Exception) { null }
+                    if (!immediateBefore.isNullOrEmpty()) {
+                        session.setContext(immediateBefore)
+                    }
+
+                    var result: com.lekhani.android.ffi.TypingResult? = null
+                    for (i in 0 until rawInputBuffer.length) {
+                        result = session.processKey(rawInputBuffer[i].toString())
+                    }
+
+                    if (result != null) {
+                        result.commitText?.let { commitTxt ->
+                            ic.commitText(commitTxt, 1)
+                            preeditShadow = ""
+                            rawInputBuffer.clear()
+                            publishCandidates(result.candidates)
+                        } ?: run {
+                            preeditShadow = result.preedit
+                            setComposingTextSafe(ic, result.preedit)
+                            publishCandidates(result.candidates)
+                        }
+                    }
+                    return
+                } finally {
+                    ic.endBatchEdit()
+                }
+            }
+            activeInspectedWord = null
+            clearCandidates()
+        } else if (activeInspectedWord != null && !session.isComposing()) {
             activeInspectedWord = null
             clearCandidates()
         }
@@ -2283,6 +2350,8 @@ class LekhaniInputMethodService : InputMethodService() {
         val ic = currentInputConnection ?: return
         ensureCursorInComposingRegion(ic)
         isQuickChipDismissed = true
+        // Backspacing into a committed word should show its English preview.
+        suppressNextWordAfterCommit = false
 
         // 0. Frictionless Backspace Undo:
         // If Spacebar just performed an auto-substitution or word transformation,
@@ -2683,8 +2752,8 @@ class LekhaniInputMethodService : InputMethodService() {
             } finally {
                 ic.endBatchEdit()
             }
-            if (session.getLayout() == LekhaniLayoutType.AVRO && inspected.rawEnglish.isNotBlank()) {
-                avroHistory.record(actualCandidate, inspected.rawEnglish, withSpace = inspected.hasTrailingSpace)
+            if (session.getLayout() == LekhaniLayoutType.AVRO && inspected.rawPhonetic.isNotBlank()) {
+                avroHistory.record(actualCandidate, inspected.rawPhonetic, withSpace = inspected.hasTrailingSpace)
             }
             refreshSurroundingContext()
             updateAutoCaps()
@@ -2710,10 +2779,16 @@ class LekhaniInputMethodService : InputMethodService() {
             if (result.candidates.isNotEmpty()) {
                 publishCandidates(result.candidates)
             } else {
-                clearCandidates()
-                // Prevent next-word predictions from flashing onto the strip before
-                // the user begins typing the next word after tapping a candidate.
-                suppressNextWordAfterCommit = true
+                val nextWords = try {
+                    session.predictNextWords(5u)
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                if (nextWords.isNotEmpty()) {
+                    publishCandidates(nextWords)
+                } else {
+                    clearCandidates()
+                }
             }
         }
 
@@ -2918,26 +2993,41 @@ class LekhaniInputMethodService : InputMethodService() {
         val filtered = raw.filter { !blacklist.isBlacklisted(it) }.distinct().toMutableList()
 
         // 1. Avro Verbatim Token & Code Shield:
-        // Offer raw English input in first place (index 0) so users can verify phonetic spelling and commit English directly
+        // Configurable positioning: Bengali First (Recommended) vs English First (Classic)
         val rawInput = rawInputBuffer.toString()
         var primaryIndex = 0
         var verbatimIndex = -1
         if (session.getLayout() == LekhaniLayoutType.AVRO && rawInput.isNotBlank()) {
             if (keyboardPrefs.avroShowEnglishPreview) {
                 filtered.remove(rawInput)
-                filtered.add(0, rawInput)
                 val isCode = keyboardPrefs.codeShieldEnabled && SmartAssistant.isCodeToken(rawInput)
-                verbatimIndex = 0
+                val isBengaliFirst = keyboardPrefs.avroStripOrder == KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
 
-                // 1st place: Raw English input (filtered[0])
-                // 2nd place: Authoritative Bengali candidate ranked by Rust engine (filtered[1])
-                primaryIndex = when {
-                    isCode || filtered.size <= 1 -> 0
-                    else -> 1 // Always highlight Rust's top-ranked recommendation
+                if (isCode) {
+                    filtered.add(0, rawInput)
+                    primaryIndex = 0
+                    verbatimIndex = 0
+                } else if (isBengaliFirst) {
+                    // Bengali First (Recommended / Default):
+                    // Slot 0: Primary Bengali candidate (from Rust engine)
+                    // Slot 1: Verbatim English token
+                    primaryIndex = 0
+                    if (filtered.isNotEmpty()) {
+                        filtered.add(1, rawInput)
+                        verbatimIndex = 1
+                    } else {
+                        filtered.add(0, rawInput)
+                        verbatimIndex = 0
+                    }
+                } else {
+                    // English First (Classic Avro):
+                    // Slot 0: Verbatim English token
+                    // Slot 1: Primary Bengali candidate
+                    filtered.add(0, rawInput)
+                    verbatimIndex = 0
+                    primaryIndex = if (filtered.size > 1) 1 else 0
                 }
             } else {
-                // If English preview disabled:
-                // 1st place: Authoritative Bengali candidate ranked by Rust engine (filtered[0])
                 primaryIndex = 0
             }
         }
@@ -3660,9 +3750,12 @@ class LekhaniInputMethodService : InputMethodService() {
         val word: String,
         val charsBeforeCursor: Int,
         val charsAfterCursor: Int,
-        val rawEnglish: String,
+        val rawPhonetic: String,
+        val previewEnglish: String,
         val hasTrailingSpace: Boolean = false,
-    )
+    ) {
+        val rawEnglish: String get() = rawPhonetic
+    }
 
     /**
      * Inspects the word under or adjacent to the cursor in Avro phonetic mode
@@ -3681,12 +3774,6 @@ class LekhaniInputMethodService : InputMethodService() {
         if (session.getLayout() != LekhaniLayoutType.AVRO) return
         if (isCurrentFieldPrivate) return
         if (session.isComposing() || preeditShadow.isNotEmpty()) return
-        // After a word commit (space / candidate tap), the strip must stay clean
-        // until the user starts typing the next word. Bail out to prevent the
-        // trailing-space inspection from re-showing the previous word's English
-        // preview ("Sonar" flash) and the internal next-word paths from firing
-        // a second time while refreshSurroundingContext is already suppressed.
-        if (suppressNextWordAfterCommit) return
 
         val curState = _candidateState.value
         if (curState is CandidateStripState.Selection ||
@@ -3715,30 +3802,11 @@ class LekhaniInputMethodService : InputMethodService() {
             j++
         }
 
-        var totalWordLen = beforeWordCount + afterWordCount
-        var trailingSpace = false
-
-        // Trailing single-space inspection:
-        // When cursor is immediately after a single space following a word (e.g. "ভালো |"),
-        // inspect the preceding word so the strip doesn't abruptly collapse or flicker.
-        if (totalWordLen == 0 && before.endsWith(" ") && !before.endsWith("  ") && (after.isEmpty() || after.startsWith(" ") || !isWordChar(after[0]))) {
-            var k = before.length - 2
-            var spaceWordLen = 0
-            while (k >= 0 && isWordChar(before[k])) {
-                spaceWordLen++
-                k--
-            }
-            if (spaceWordLen > 0) {
-                beforeWordCount = spaceWordLen
-                afterWordCount = 0
-                totalWordLen = spaceWordLen
-                trailingSpace = true
-            }
-        }
+        val totalWordLen = beforeWordCount + afterWordCount
 
         if (totalWordLen == 0) {
             val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty()) {
+            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit) {
                 // The cursor is on a space, between words, or at the end of text.
                 // Fetch next-word predictions for the preceding text so the strip NEVER strobes/collapses!
                 session.setContext(trimmedBefore)
@@ -3765,16 +3833,12 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
-        val word = if (trailingSpace) {
-            before.substring(before.length - 1 - beforeWordCount, before.length - 1)
-        } else {
-            before.substring(before.length - beforeWordCount) + after.substring(0, afterWordCount)
-        }
+        val word = before.substring(before.length - beforeWordCount) + after.substring(0, afterWordCount)
         val isBengali = AvroReverseTransliterator.isBengaliWord(word)
         val isAsciiWord = !isBengali && word.isNotEmpty() && word.all { it in 'a'..'z' || it in 'A'..'Z' }
         if (!isBengali && !isAsciiWord) {
             val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty()) {
+            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit) {
                 session.setContext(trimmedBefore)
                 val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
                 if (nextWords.isNotEmpty()) {
@@ -3802,7 +3866,7 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         if (rawEnglish.isBlank()) {
             val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty()) {
+            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit) {
                 session.setContext(trimmedBefore)
                 val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
                 if (nextWords.isNotEmpty()) {
@@ -3826,27 +3890,26 @@ class LekhaniInputMethodService : InputMethodService() {
         // Format English preview token in clean Title Case (e.g. "Amar", "Sonar", "Bangla") matching Gboard
         val formattedEnglish = rawEnglish.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 
-        val effectiveCharsBefore = if (trailingSpace) beforeWordCount + 1 else beforeWordCount
-
         // Zero-allocation & zero-flicker deduplication:
         // If the user is navigating within or over the same word, just update cursor offsets
         // without re-querying the engine or triggering Compose recomposition.
         val prevInspected = activeInspectedWord
-        if (prevInspected != null && prevInspected.word == word && prevInspected.rawEnglish == formattedEnglish) {
+        if (prevInspected != null && prevInspected.word == word && prevInspected.rawPhonetic == rawEnglish) {
             activeInspectedWord = prevInspected.copy(
-                charsBeforeCursor = effectiveCharsBefore,
+                charsBeforeCursor = beforeWordCount,
                 charsAfterCursor = afterWordCount,
-                hasTrailingSpace = trailingSpace
+                hasTrailingSpace = false
             )
             return
         }
 
         activeInspectedWord = InspectedWord(
             word = word,
-            charsBeforeCursor = effectiveCharsBefore,
+            charsBeforeCursor = beforeWordCount,
             charsAfterCursor = afterWordCount,
-            rawEnglish = formattedEnglish,
-            hasTrailingSpace = trailingSpace
+            rawPhonetic = rawEnglish,
+            previewEnglish = formattedEnglish,
+            hasTrailingSpace = false
         )
 
         // Query candidate suggestions from the Avro engine via wordInspectionSession
@@ -3869,14 +3932,26 @@ class LekhaniInputMethodService : InputMethodService() {
         // Slot 1: primary candidate (the word currently in document, e.g. "সোনার", "আমার", "বাংলা")
         // Slot 2+: alternative suggestions (e.g. "অমর", "বাংলার")
         val displayCandidates = mutableListOf<String>()
-        if (keyboardPrefs.avroShowEnglishPreview) {
-            displayCandidates.add(formattedEnglish)
-        }
-
         val primaryCandidate = if (isBengali) word else (candidatesList.firstOrNull() ?: word)
-        if (!displayCandidates.any { it.equals(primaryCandidate, ignoreCase = true) }) {
+        val isBengaliFirst = keyboardPrefs.avroStripOrder == KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
+
+        if (keyboardPrefs.avroShowEnglishPreview) {
+            if (isBengaliFirst) {
+                // Slot 0: Primary Bengali candidate
+                displayCandidates.add(primaryCandidate)
+                // Slot 1: English preview token
+                displayCandidates.add(formattedEnglish)
+            } else {
+                // Slot 0: English preview token (Classic)
+                displayCandidates.add(formattedEnglish)
+                // Slot 1: Primary Bengali candidate
+                displayCandidates.add(primaryCandidate)
+            }
+        } else {
+            // English preview disabled: Slot 0 is Bengali
             displayCandidates.add(primaryCandidate)
         }
+
         for (cand in candidatesList) {
             val isEnglishDup = cand.equals(formattedEnglish, ignoreCase = true) || cand.equals(rawEnglish, ignoreCase = true)
             if (!isEnglishDup && !displayCandidates.contains(cand) && !blacklist.isBlacklisted(cand)) {
@@ -3884,8 +3959,8 @@ class LekhaniInputMethodService : InputMethodService() {
             }
         }
 
-        val verbatimIdx = if (keyboardPrefs.avroShowEnglishPreview) 0 else -1
-        val primaryIdx = if (keyboardPrefs.avroShowEnglishPreview) 1 else 0
+        val primaryIdx = if (!keyboardPrefs.avroShowEnglishPreview || isBengaliFirst) 0 else 1
+        val verbatimIdx = if (!keyboardPrefs.avroShowEnglishPreview) -1 else if (isBengaliFirst) 1 else 0
 
         val annotated = HomophoneAnnotator.annotate(
             displayCandidates,

@@ -105,6 +105,7 @@ fun PreferencesTabContent(
     var doubleSpaceDari by remember { mutableStateOf(prefs.doubleSpaceDariEnabled) }
     var codeShield by remember { mutableStateOf(prefs.codeShieldEnabled) }
     var avroShowEnglishPreview by remember { mutableStateOf(prefs.avroShowEnglishPreview) }
+    var avroStripOrder by remember { mutableStateOf(prefs.avroStripOrder) }
     var avroNumeralsBengali by remember { mutableStateOf(prefs.avroNumeralsBengali) }
     var showDedicatedNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
     var autoSwitchNumpad by remember { mutableStateOf(prefs.autoSwitchNumpad) }
@@ -462,7 +463,7 @@ fun PreferencesTabContent(
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Show quoted verbatim English input at the start of suggestion bar" else "সাজেশন বারের শুরুতে উদ্ধৃতিচিহ্নযুক্ত টাইপকৃত ইংরেজি প্রিভিউ প্রদর্শন করবে",
+                            text = if (isEnglish) "Show verbatim English input token alongside suggestions" else "সাজেশন বারে টাইপকৃত ইংরেজি প্রিভিউ প্রদর্শন করবে",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -474,6 +475,37 @@ fun PreferencesTabContent(
                             prefs.avroShowEnglishPreview = it
                         }
                     )
+                }
+
+                if (avroShowEnglishPreview) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (isEnglish) "Suggestion Strip Order" else "সাজেশন বারের ক্রম",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val orderOptions = listOf(
+                            Pair(KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST, if (isEnglish) "Bengali First (Recommended)" else "বাংলা প্রথমে (প্রস্তাবিত)"),
+                            Pair(KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST, if (isEnglish) "English First" else "ইংরেজি প্রথমে")
+                        )
+                        orderOptions.forEach { (order, label) ->
+                            val isSelected = avroStripOrder == order
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    avroStripOrder = order
+                                    prefs.avroStripOrder = order
+                                },
+                                label = { Text(label, fontSize = 12.sp) },
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                        }
+                    }
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

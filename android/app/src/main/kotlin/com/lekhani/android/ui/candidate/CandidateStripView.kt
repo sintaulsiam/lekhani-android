@@ -850,7 +850,19 @@ private fun CandidatePill(
     val pillBorder = when {
         item.isVerbatimPreview -> BorderStroke(1.dp, Color(theme.labelColor).copy(alpha = 0.28f))
         theme.isRgbChroma && item.isPrimary -> BorderStroke(1.2.dp, primaryBg.copy(alpha = 0.85f))
+        item.isPrimary -> BorderStroke(1.2.dp, primaryBg.copy(alpha = 0.80f))
         else -> null
+    }
+
+    val pillBg = when {
+        item.isPrimary -> if (theme.isRgbChroma) primaryBg else primaryBg.copy(alpha = 0.18f)
+        else -> secondaryBg
+    }
+
+    val itemTextColor = when {
+        item.isPrimary -> if (theme.isRgbChroma) primaryText else if (theme.isDark) Color(0xFFFFFFFF) else Color(0xFF000000)
+        item.isVerbatimPreview -> normalText.copy(alpha = 0.88f)
+        else -> normalText
     }
 
     Box(
@@ -862,7 +874,7 @@ private fun CandidatePill(
             .then(
                 if (pillBorder != null) Modifier.border(pillBorder, RoundedCornerShape(17.dp)) else Modifier
             )
-            .background(if (item.isPrimary) primaryBg else secondaryBg)
+            .background(pillBg)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = {
@@ -885,7 +897,7 @@ private fun CandidatePill(
                 text = displayText,
                 fontSize = if (item.isEmoji) 18.sp else if (item.isVerbatimPreview) 14.sp else 15.sp,
                 fontWeight = if (item.isPrimary) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (item.isPrimary) primaryText else if (item.isVerbatimPreview) normalText.copy(alpha = 0.88f) else normalText,
+                color = itemTextColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = TextStyle(
