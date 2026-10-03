@@ -1,17 +1,20 @@
 package com.lekhani.android.ui.theme
 
 import android.net.Uri
-import android.os.Build
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +23,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,15 +43,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Animation
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Forest
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tune
@@ -56,14 +55,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,6 +78,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.settings.KeyboardPreferences
@@ -96,9 +95,9 @@ import com.lekhani.android.theme.ThemeRegistry
  */
 fun ThemeCategory.getIcon(): ImageVector = when (this) {
     ThemeCategory.ALL -> Icons.Filled.AutoAwesome
+    ThemeCategory.RGB_CHROMA -> Icons.Filled.Animation
     ThemeCategory.NEON -> Icons.Filled.Bolt
     ThemeCategory.AESTHETIC -> Icons.Filled.Palette
-    ThemeCategory.RGB_CHROMA -> Icons.Filled.Animation
     ThemeCategory.CLASSIC -> Icons.Filled.Star
     ThemeCategory.CONTRAST_NATURE -> Icons.Filled.Forest
     ThemeCategory.CUSTOM -> Icons.Filled.Tune
@@ -107,16 +106,17 @@ fun ThemeCategory.getIcon(): ImageVector = when (this) {
 /**
  * Computes dynamic color transitions for Chroma preview elements in Compose.
  */
-private fun computeChromaComposeColor(mode: ChromaMode, phase: Float, xRatio: Float = 0.5f): Color {
+fun computeChromaComposeColor(mode: ChromaMode, phase: Float, xRatio: Float = 0.5f): Color {
     return Color(ThemeChromaUtils.getColorAtPhase(mode, phase, xRatio))
 }
 
 /**
  * ThemeStudioSheet
- * Material 3 Expressive theme customization studio.
- * Supports independent app appearance modes, rich categorized keyboard themes
- * (Neon & Cyber, Aesthetic & Pastel, 120 FPS RGB Chroma Dynamic, Classic),
- * live interactive sandbox keyboard previews, and custom wallpaper backgrounds.
+ * Redesigned, clean Material 3 Theme Studio.
+ * - 2-Column visual keyboard thumbnail grid (instant visual identification)
+ * - Compact live interactive typing preview sandbox
+ * - Clean collapsible custom wallpaper controls
+ * - No text clutter, maximum space utilization
  */
 @Composable
 fun ThemeStudioSheet(
@@ -134,10 +134,10 @@ fun ThemeStudioSheet(
     var showEditorDialog by remember { mutableStateOf(false) }
 
     var selectedThemeId by remember { mutableStateOf(prefs.themeId) }
-    var selectedAppThemeMode by remember { mutableStateOf(prefs.appThemeMode) }
     var selectedCategory by remember { mutableStateOf(ThemeCategory.ALL) }
     var wallpaperUri by remember { mutableStateOf(prefs.customWallpaperUri) }
     var wallpaperOpacity by remember { mutableFloatStateOf(prefs.wallpaperOpacity) }
+    var showWallpaperPanel by remember { mutableStateOf(wallpaperUri.isNotBlank()) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -146,6 +146,7 @@ fun ThemeStudioSheet(
             val uriStr = uri.toString()
             wallpaperUri = uriStr
             prefs.customWallpaperUri = uriStr
+            showWallpaperPanel = true
         }
     }
 
@@ -171,6 +172,10 @@ fun ThemeStudioSheet(
         }
     }
 
+    val chunkedThemes = remember(filteredThemes) {
+        filteredThemes.chunked(2)
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -178,236 +183,233 @@ fun ThemeStudioSheet(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            // Header
+            // ── Clean Header ──────────────────────────────────────────────
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = if (isEnglish) "Back" else "ফিরে যান",
-                        tint = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onClose, modifier = Modifier.size(34.dp)) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (isEnglish) "Back" else "ফিরে যান",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isEnglish) "Theme & Color Studio" else "থিম ও কালার স্টুডিও",
+                        text = if (isEnglish) "Themes" else "থিম",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    Text(
-                        text = if (isEnglish) "Customize keyboard colors, RGB chroma, and wallpaper"
-                               else "কীবোর্ডের নিওন, আরজিবি, কালার ও ওয়ালপেপার পরিবর্তন করুন",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = { showWallpaperPanel = !showWallpaperPanel },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = if (showWallpaperPanel || wallpaperUri.isNotBlank())
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Wallpaper,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = if (showWallpaperPanel || wallpaperUri.isNotBlank())
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isEnglish) "Wallpaper" else "ওয়ালপেপার",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            val baseTheme = activePreviewTheme
+                            themeToEdit = baseTheme.copy(
+                                id = "custom_${System.currentTimeMillis()}",
+                                nameBengali = "আমার থিম",
+                                nameEnglish = "My Custom Theme",
+                                isCustom = true,
+                                category = ThemeCategory.CUSTOM
+                            )
+                            showEditorDialog = true
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (isEnglish) "New" else "নতুন",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // ── Collapsible Wallpaper Panel ───────────────────────────────
+            AnimatedVisibility(
+                visible = showWallpaperPanel,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (wallpaperUri.isNotBlank())
+                                    (if (isEnglish) "Custom Wallpaper Active" else "কাস্টম ওয়ালপেপার সক্রিয়")
+                                else
+                                    (if (isEnglish) "No Wallpaper Set" else "কোনো ওয়ালপেপার নেই"),
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedButton(
+                                    onClick = { photoPickerLauncher.launch("image/*") },
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(if (isEnglish) "Choose Image" else "ছবি নির্বাচন", fontSize = 11.sp)
+                                }
+                                if (wallpaperUri.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            wallpaperUri = ""
+                                            prefs.customWallpaperUri = ""
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (wallpaperUri.isNotBlank()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${(wallpaperOpacity * 100).toInt()}%",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.width(32.dp)
+                                )
+                                Slider(
+                                    value = wallpaperOpacity,
+                                    onValueChange = {
+                                        wallpaperOpacity = it
+                                        prefs.wallpaperOpacity = it
+                                    },
+                                    valueRange = 0.05f..0.85f,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Live Interactive Keyboard Preview Sandbox ────────────────
+            LiveKeyboardMiniPreview(theme = activePreviewTheme, isEnglish = isEnglish)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ── Category Filter Chips ─────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                val categories = listOf(
+                    ThemeCategory.ALL,
+                    ThemeCategory.RGB_CHROMA,
+                    ThemeCategory.NEON,
+                    ThemeCategory.AESTHETIC,
+                    ThemeCategory.CLASSIC,
+                    ThemeCategory.CONTRAST_NATURE,
+                    ThemeCategory.CUSTOM,
+                )
+                categories.forEach { cat ->
+                    val isSelected = selectedCategory == cat
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            selectedCategory = cat
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = cat.getIcon(),
+                                contentDescription = null,
+                                modifier = Modifier.size(13.dp),
+                                tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        label = {
+                            val title = when (cat) {
+                                ThemeCategory.ALL -> if (isEnglish) "All" else "সব"
+                                ThemeCategory.RGB_CHROMA -> if (isEnglish) "Chroma 🌈" else "ক্রোমা 🌈"
+                                ThemeCategory.NEON -> if (isEnglish) "Neon ⚡" else "নিওন ⚡"
+                                ThemeCategory.AESTHETIC -> if (isEnglish) "Aesthetic 🌸" else "এসথেটিক 🌸"
+                                ThemeCategory.CLASSIC -> if (isEnglish) "Classic 🏛️" else "ক্লাসিক 🏛️"
+                                ThemeCategory.CONTRAST_NATURE -> if (isEnglish) "Nature 🌿" else "প্রকৃতি 🌿"
+                                ThemeCategory.CUSTOM -> if (isEnglish) "Custom 🛠️" else "কাস্টম 🛠️"
+                            }
+                            Text(title, fontSize = 11.5.sp)
+                        },
+                        shape = RoundedCornerShape(8.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            // ── 2-Column Visual Keyboard Grid ─────────────────────────────
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // ── Section 0: App Appearance ─────────────────────────────────
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isEnglish) "App Appearance" else "অ্যাপ অ্যাপিয়ারেন্স",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        val activeLabel = when (selectedAppThemeMode) {
-                            KeyboardPreferences.AppThemeMode.SYSTEM -> if (isEnglish) "System Default" else "সিস্টেম ডিফল্ট"
-                            KeyboardPreferences.AppThemeMode.LIGHT -> if (isEnglish) "Light Mode" else "লাইট মোড"
-                            KeyboardPreferences.AppThemeMode.DARK -> if (isEnglish) "Dark Mode" else "ডার্ক মোড"
-                            KeyboardPreferences.AppThemeMode.DYNAMIC -> if (isEnglish) "Dynamic Material You" else "ডাইনামিক কালার"
-                            KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD -> if (isEnglish) "Match Keyboard" else "কীবোর্ড সিঙ্ক"
-                        }
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = activeLabel,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(5.dp)
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val modes = buildList {
-                                add(Triple(KeyboardPreferences.AppThemeMode.SYSTEM, Icons.Default.BrightnessAuto, if (isEnglish) "System" else "সিস্টেম"))
-                                add(Triple(KeyboardPreferences.AppThemeMode.LIGHT, Icons.Default.LightMode, if (isEnglish) "Light" else "লাইট"))
-                                add(Triple(KeyboardPreferences.AppThemeMode.DARK, Icons.Default.DarkMode, if (isEnglish) "Dark" else "ডার্ক"))
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                    add(Triple(KeyboardPreferences.AppThemeMode.DYNAMIC, Icons.Default.AutoAwesome, if (isEnglish) "Dynamic" else "ডাইনামিক"))
-                                }
-                                add(Triple(KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD, Icons.Filled.Palette, if (isEnglish) "Match Kbd" else "কীবোর্ড ম্যাচ"))
-                            }
-                            modes.forEach { (mode, icon, title) ->
-                                val isSelected = selectedAppThemeMode == mode
-                                val animBg by animateColorAsState(
-                                    targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                    label = "pill_bg"
-                                )
-                                val animBorderColor by animateColorAsState(
-                                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
-                                    label = "pill_border"
-                                )
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(animBg)
-                                        .border(BorderStroke(1.dp, animBorderColor), RoundedCornerShape(10.dp))
-                                        .clickable {
-                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                            selectedAppThemeMode = mode
-                                            prefs.appThemeMode = mode
-                                            onAppThemeModeChanged?.invoke(mode)
-                                        }
-                                        .padding(horizontal = 14.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = title,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = title,
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                        ),
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // ── Section 1: Live Interactive Keyboard Preview ──────────────
-                item {
-                    Text(
-                        text = if (isEnglish) "Live Interactive Preview" else "লাইভ ইন্টারেক্টিভ প্রিভিউ",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LiveKeyboardMiniPreview(theme = activePreviewTheme, isEnglish = isEnglish)
-                }
-
-                // ── Section 2: Category Filter Chips ──────────────────────────
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (isEnglish) "Theme Collections" else "থিম কালেকশনসমূহ",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            OutlinedButton(
-                                onClick = {
-                                    val baseTheme = activePreviewTheme
-                                    themeToEdit = baseTheme.copy(
-                                        id = "custom_${System.currentTimeMillis()}",
-                                        nameBengali = "আমার থিম",
-                                        nameEnglish = "My Custom Theme",
-                                        isCustom = true,
-                                        category = ThemeCategory.CUSTOM
-                                    )
-                                    showEditorDialog = true
-                                },
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(if (isEnglish) "Create" else "নতুন থিম")
-                            }
-                        }
-
-                        // Filter chips horizontal row
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            val categories = listOf(
-                                ThemeCategory.ALL,
-                                ThemeCategory.CLASSIC,
-                                ThemeCategory.RGB_CHROMA,
-                                ThemeCategory.NEON,
-                                ThemeCategory.AESTHETIC,
-                                ThemeCategory.CONTRAST_NATURE,
-                                ThemeCategory.CUSTOM,
-                            )
-                            categories.forEach { cat ->
-                                val isSelected = selectedCategory == cat
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                        selectedCategory = cat
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = cat.getIcon(),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(16.dp),
-                                            tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    },
-                                    label = {
-                                        val title = if (isEnglish) cat.titleEnglish else cat.titleBengali
-                                        Text(title)
-                                    },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                    ),
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ── Section 3: Filtered Theme Cards List ──────────────────────
-
                 if (filteredThemes.isEmpty()) {
                     item {
                         Card(
@@ -418,8 +420,7 @@ fun ThemeStudioSheet(
                             )
                         ) {
                             Text(
-                                text = if (isEnglish) "No themes in this collection yet. Tap '+ Create' to craft your own!"
-                                       else "এই কালেকশনে কোনো থিম পাওয়া যায়নি। '+ নতুন থিম' দিয়ে তৈরি করুন!",
+                                text = if (isEnglish) "No custom themes created yet." else "কোনো কাস্টম থিম তৈরি করা হয়নি।",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(14.dp)
@@ -427,156 +428,84 @@ fun ThemeStudioSheet(
                         }
                     }
                 } else {
-                    items(filteredThemes.size) { idx ->
-                        val theme = filteredThemes[idx]
-                        val isSelected = selectedThemeId == theme.id
-
-                        ThemePreviewCard(
-                            theme = theme,
-                            isSelected = isSelected,
-                            isEnglish = isEnglish,
-                            onSelect = {
-                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                selectedThemeId = theme.id
-                                prefs.themeId = theme.id
-                                onThemeChanged?.invoke(theme.id)
-                            },
-                            onEdit = if (theme.isCustom) {
-                                {
-                                    themeToEdit = theme
-                                    showEditorDialog = true
-                                }
-                            } else null,
-                            onDuplicate = {
-                                val dup = customThemeManager.duplicateTheme(
-                                    theme,
-                                    if (isEnglish) "${theme.nameEnglish} (Copy)" else "${theme.nameBengali} (কপি)"
-                                )
-                                customThemes = customThemeManager.getAllCustomThemes()
-                                selectedThemeId = dup.id
-                                prefs.themeId = dup.id
-                                onThemeChanged?.invoke(dup.id)
-                            },
-                            onDelete = if (theme.isCustom) {
-                                {
-                                    customThemeManager.deleteCustomTheme(theme.id)
-                                    customThemes = customThemeManager.getAllCustomThemes()
-                                    if (selectedThemeId == theme.id) {
-                                        val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
-                                        selectedThemeId = fallback
-                                        prefs.themeId = fallback
-                                        onThemeChanged?.invoke(fallback)
-                                    }
-                                }
-                            } else null
-                        )
-                    }
-                }
-
-                // ── Section 4: Wallpaper Background ──────────────────────────
-                item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = if (isEnglish) "Custom Wallpaper Background" else "কাস্টম ওয়ালপেপার ব্যাকগ্রাউন্ড",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Wallpaper,
-                                        contentDescription = if (isEnglish) "Wallpaper" else "ওয়ালপেপার",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = if (wallpaperUri.isNotBlank()) {
-                                            if (isEnglish) "Wallpaper Active" else "ওয়ালপেপার যুক্ত হয়েছে"
-                                        } else {
-                                            if (isEnglish) "No Wallpaper" else "কোনো ওয়ালপেপার নেই"
-                                        },
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                }
-
-                                Row {
-                                    Button(
-                                        onClick = { photoPickerLauncher.launch("image/*") },
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text(if (isEnglish) "Choose Image" else "ছবি নির্বাচন")
-                                    }
-
-                                    if (wallpaperUri.isNotBlank()) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        IconButton(
-                                            onClick = {
-                                                wallpaperUri = ""
-                                                prefs.customWallpaperUri = ""
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = if (isEnglish) "Remove Wallpaper" else "ওয়ালপেপার মুছুন",
-                                                tint = MaterialTheme.colorScheme.error
-                                            )
+                    items(chunkedThemes.size) { rowIdx ->
+                        val pair = chunkedThemes[rowIdx]
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                val theme1 = pair[0]
+                                ThemeGridThumbnailCard(
+                                    theme = theme1,
+                                    isSelected = selectedThemeId == theme1.id,
+                                    isEnglish = isEnglish,
+                                    onSelect = {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        selectedThemeId = theme1.id
+                                        prefs.themeId = theme1.id
+                                        onThemeChanged?.invoke(theme1.id)
+                                    },
+                                    onEdit = if (theme1.isCustom) {
+                                        {
+                                            themeToEdit = theme1
+                                            showEditorDialog = true
                                         }
-                                    }
-                                }
+                                    } else null,
+                                    onDelete = if (theme1.isCustom) {
+                                        {
+                                            customThemeManager.deleteCustomTheme(theme1.id)
+                                            customThemes = customThemeManager.getAllCustomThemes()
+                                            if (selectedThemeId == theme1.id) {
+                                                val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
+                                                selectedThemeId = fallback
+                                                prefs.themeId = fallback
+                                                onThemeChanged?.invoke(fallback)
+                                            }
+                                        }
+                                    } else null
+                                )
                             }
 
-                            if (wallpaperUri.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(14.dp))
-                                Text(
-                                    text = if (isEnglish) "Background Opacity: ${(wallpaperOpacity * 100).toInt()}%" else "ওয়ালপেপারের স্বচ্ছতা: ${(wallpaperOpacity * 100).toInt()}%",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Slider(
-                                    value = wallpaperOpacity,
-                                    onValueChange = {
-                                        wallpaperOpacity = it
-                                        prefs.wallpaperOpacity = it
-                                    },
-                                    valueRange = 0.05f..0.85f,
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = MaterialTheme.colorScheme.primary,
-                                        activeTrackColor = MaterialTheme.colorScheme.primary
+                            if (pair.size > 1) {
+                                Box(modifier = Modifier.weight(1f)) {
+                                    val theme2 = pair[1]
+                                    ThemeGridThumbnailCard(
+                                        theme = theme2,
+                                        isSelected = selectedThemeId == theme2.id,
+                                        isEnglish = isEnglish,
+                                        onSelect = {
+                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                            selectedThemeId = theme2.id
+                                            prefs.themeId = theme2.id
+                                            onThemeChanged?.invoke(theme2.id)
+                                        },
+                                        onEdit = if (theme2.isCustom) {
+                                            {
+                                                themeToEdit = theme2
+                                                showEditorDialog = true
+                                            }
+                                        } else null,
+                                        onDelete = if (theme2.isCustom) {
+                                            {
+                                                customThemeManager.deleteCustomTheme(theme2.id)
+                                                customThemes = customThemeManager.getAllCustomThemes()
+                                                if (selectedThemeId == theme2.id) {
+                                                    val fallback = ThemeRegistry.THEME_FLOW_TEAL.id
+                                                    selectedThemeId = fallback
+                                                    prefs.themeId = fallback
+                                                    onThemeChanged?.invoke(fallback)
+                                                }
+                                            }
+                                        } else null
                                     )
-                                )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
                             }
                         }
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = onClose,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text(if (isEnglish) "Done" else "সম্পন্ন", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -603,16 +532,17 @@ fun ThemeStudioSheet(
 }
 
 /**
- * Modern Theme Card with circular color swatches, category badges, and active state.
+ * Modern 2-Column Miniature Keyboard Thumbnail Card.
+ * Renders an authentic, scaled representation of the keyboard with real theme colors,
+ * key borders, candidate strip, and glowing indicators.
  */
 @Composable
-private fun ThemePreviewCard(
+private fun ThemeGridThumbnailCard(
     theme: KeyboardTheme,
     isSelected: Boolean,
     isEnglish: Boolean = false,
     onSelect: () -> Unit,
     onEdit: (() -> Unit)? = null,
-    onDuplicate: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
 ) {
     val liveChromaColor = if (theme.isRgbChroma) {
@@ -634,149 +564,214 @@ private fun ThemePreviewCard(
     }
 
     val cardAccentColor = if (theme.isRgbChroma) liveChromaColor else Color(theme.accentColor)
-    val cardBorderColor = if (isSelected) {
-        cardAccentColor
-    } else if (theme.isRgbChroma) {
-        liveChromaColor.copy(alpha = 0.65f)
-    } else {
-        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    val cardBorderColor = when {
+        isSelected -> cardAccentColor
+        theme.isRgbChroma -> liveChromaColor.copy(alpha = 0.5f)
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     }
+    val cardBorderWidth = if (isSelected) 2.dp else if (theme.isRgbChroma) 1.5.dp else 1.dp
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .border(
-                width = if (isSelected) 2.5.dp else if (theme.isRgbChroma) 1.5.dp else 1.dp,
-                color = cardBorderColor,
-                shape = RoundedCornerShape(16.dp)
-            )
+            .clip(RoundedCornerShape(12.dp))
+            .border(cardBorderWidth, cardBorderColor, RoundedCornerShape(12.dp))
             .clickable(onClick = onSelect),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundColor))
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(6.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color(theme.labelColor)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+            // Miniature Keyboard Mockup Area
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(theme.backgroundColor))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 4.dp, vertical = 3.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Mini Candidate Strip
                     Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(cardAccentColor.copy(alpha = 0.18f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                            .fillMaxWidth()
+                            .height(8.dp),
+                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = theme.category.getIcon(),
-                            contentDescription = null,
-                            tint = cardAccentColor,
-                            modifier = Modifier.size(11.dp)
+                        Box(
+                            modifier = Modifier
+                                .width(32.dp)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(cardAccentColor)
                         )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = if (isEnglish) theme.category.titleEnglish else theme.category.titleBengali,
-                            fontSize = 10.sp,
-                            color = cardAccentColor,
-                            fontWeight = FontWeight.SemiBold
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(18.dp)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Color(theme.labelDimColor).copy(alpha = 0.35f))
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Circular Color Swatches (Key Normal, Shift/Function, Accent, Border)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ColorSwatchCircle(Color(theme.keyNormalColor), "Key")
-                    ColorSwatchCircle(Color(theme.keyShiftColor), "Shift")
-                    ColorSwatchCircle(cardAccentColor, "Accent")
-                    ColorSwatchCircle(if (theme.isRgbChroma) cardAccentColor else Color(theme.keyBorderColor), "Border")
-                    Spacer(modifier = Modifier.width(4.dp))
-                    if (theme.isRgbChroma) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.Animation,
-                                contentDescription = null,
-                                modifier = Modifier.size(13.dp),
-                                tint = liveChromaColor
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = if (isEnglish) "Dynamic Chroma" else "ডাইনামিক ক্রোমা",
-                                fontSize = 11.sp,
-                                color = liveChromaColor,
-                                fontWeight = FontWeight.Medium
+                    // Mini Key Row 1 (7 keys)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        repeat(7) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(2.5.dp))
+                                    .background(Color(theme.keyNormalColor))
+                                    .border(0.5.dp, Color(theme.keyBorderColor).copy(alpha = 0.35f), RoundedCornerShape(2.5.dp))
                             )
                         }
-                    } else {
-                        Text(
-                            text = if (theme.isDark) "Dark" else "Light",
-                            fontSize = 11.sp,
-                            color = Color(theme.labelDimColor)
-                        )
                     }
-                }
-            }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (onEdit != null) {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = if (isEnglish) "Edit" else "সম্পাদনা",
-                            tint = Color(theme.labelDimColor),
-                            modifier = Modifier.size(18.dp)
+                    // Mini Key Row 2 (7 keys)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        repeat(7) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(2.5.dp))
+                                    .background(Color(theme.keyNormalColor))
+                                    .border(0.5.dp, Color(theme.keyBorderColor).copy(alpha = 0.35f), RoundedCornerShape(2.5.dp))
+                            )
+                        }
+                    }
+
+                    // Mini Key Row 3 (Shift, Space, Enter)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(14.dp)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(2.5.dp))
+                                .background(Color(theme.keyShiftColor))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(2.5.dp))
+                                .background(Color(theme.keySpaceColor))
+                                .border(0.5.dp, Color(theme.keyBorderColor).copy(alpha = 0.35f), RoundedCornerShape(2.5.dp))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(16.dp)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(2.5.dp))
+                                .background(cardAccentColor)
                         )
                     }
                 }
-                if (onDuplicate != null) {
-                    IconButton(onClick = onDuplicate, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = if (isEnglish) "Duplicate" else "কপি করুন",
-                            tint = Color(theme.labelDimColor),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                if (onDelete != null) {
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = if (isEnglish) "Delete" else "মুছুন",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+
+                // Selected Checkmark Badge
                 if (isSelected) {
-                    Spacer(modifier = Modifier.width(6.dp))
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
+                            .align(Alignment.TopEnd)
+                            .padding(2.dp)
+                            .size(18.dp)
                             .clip(CircleShape)
                             .background(cardAccentColor),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
-                            contentDescription = if (isEnglish) "Selected" else "নির্বাচিত",
+                            contentDescription = null,
                             tint = if (theme.isDark) Color.Black else Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(12.dp)
                         )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Card Footer: Title & Actions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color(theme.labelColor),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (theme.isRgbChroma) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(liveChromaColor)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = if (isEnglish) "Chroma" else "ক্রোমা",
+                                fontSize = 9.sp,
+                                color = liveChromaColor,
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else {
+                            Text(
+                                text = if (theme.isDark) "Dark" else "Light",
+                                fontSize = 9.sp,
+                                color = Color(theme.labelDimColor)
+                            )
+                        }
+                    }
+                }
+
+                if (onEdit != null || onDelete != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (onEdit != null) {
+                            IconButton(onClick = onEdit, modifier = Modifier.size(20.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = Color(theme.labelDimColor),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
+                        if (onDelete != null) {
+                            IconButton(onClick = onDelete, modifier = Modifier.size(20.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -784,21 +779,10 @@ private fun ThemePreviewCard(
     }
 }
 
-@Composable
-private fun ColorSwatchCircle(color: Color, desc: String) {
-    Box(
-        modifier = Modifier
-            .size(18.dp)
-            .clip(CircleShape)
-            .background(color)
-            .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape)
-    )
-}
-
 /**
  * Interactive Live Keyboard Preview sandbox featuring:
  * - Candidate suggestion strip
- * - Real-time animated rainbow border / accents for RGB Chroma themes
+ * - Real-time animated borders / accents for RGB Chroma themes
  * - Interactive test typing bar with haptic response
  */
 @Composable
@@ -809,7 +793,6 @@ private fun LiveKeyboardMiniPreview(
     val view = LocalView.current
     var testInput by remember { mutableStateOf("") }
 
-    // Dynamic RGB animation for chroma themes
     val duration = ThemeChromaUtils.getCycleDuration(theme.chromaMode).toInt()
     val infiniteTransition = rememberInfiniteTransition(label = "ChromaFlow")
     val phase by infiniteTransition.animateFloat(
@@ -834,109 +817,73 @@ private fun LiveKeyboardMiniPreview(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color(theme.backgroundColor)),
         border = BorderStroke(1.5.dp, liveAccentColor.copy(alpha = 0.85f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            // Header: Theme Name + Badges
+            // Interactive Text Test Strip + Clear
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(Color(theme.keyShiftColor))
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (isEnglish) theme.nameEnglish else theme.nameBengali,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = Color(theme.labelColor)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(liveAccentColor.copy(alpha = 0.2f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = theme.category.getIcon(),
-                            contentDescription = null,
-                            tint = liveAccentColor,
-                            modifier = Modifier.size(11.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = if (isEnglish) theme.category.titleEnglish else theme.category.titleBengali,
-                            fontSize = 10.sp,
-                            color = liveAccentColor,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
+                Text(
+                    text = if (testInput.isNotBlank()) testInput else (if (isEnglish) "Tap keys to test..." else "টাইপিং টেস্ট করুন..."),
+                    color = if (testInput.isNotBlank()) Color(theme.labelColor) else Color(theme.labelDimColor),
+                    fontSize = 11.5.sp,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
                 if (testInput.isNotBlank()) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(4.dp))
                             .background(Color(theme.keyNormalColor))
                             .clickable { testInput = "" }
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
-                        Text("Clear", fontSize = 10.sp, color = Color(theme.labelDimColor))
+                        Text("Clear", fontSize = 9.5.sp, color = Color(theme.labelDimColor))
                     }
                 }
-            }
-
-            // Interactive Text Test Strip
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(theme.keyShiftColor))
-                    .padding(horizontal = 10.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = if (testInput.isNotBlank()) testInput else (if (isEnglish) "Tap keys below to test typing..." else "নিচে কি চেপে টাইপিং টেস্ট করুন..."),
-                    color = if (testInput.isNotBlank()) Color(theme.labelColor) else Color(theme.labelDimColor),
-                    fontSize = 12.sp,
-                    maxLines = 1
-                )
             }
 
             // Suggestions / Candidate Strip Preview
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(28.dp)
+                    .height(24.dp)
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val suggestions = listOf("বাংলা", "লেখনী", "বাংলাদেশ", "প্রবাহ")
+                val suggestions = listOf("বাংলা", "লেখনী", "প্রবাহ")
                 suggestions.forEachIndexed { idx, word ->
                     val isHighCandidate = idx == 0
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(5.dp))
                             .background(if (isHighCandidate) liveAccentColor else Color(theme.keyNormalColor))
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 testInput += if (testInput.isEmpty()) word else " $word"
                             }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = word,
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = if (isHighCandidate) FontWeight.Bold else FontWeight.Normal,
                             color = if (isHighCandidate) (if (theme.isDark) Color.Black else Color.White) else Color(theme.labelColor)
                         )
@@ -944,25 +891,25 @@ private fun LiveKeyboardMiniPreview(
                 }
             }
 
-            // Row 1: Vowels / Consonants
             val shouldDrawKeyBorder = when {
                 theme.isRgbChroma -> theme.chromaStyle != ChromaStyle.CLEAN_MINIMAL
                 else -> true
             }
-            val borderWidth = if (theme.isRgbChroma && theme.chromaStyle == ChromaStyle.AMBIENT_BREATHE) 0.8.dp else 1.2.dp
+            val borderWidth = if (theme.isRgbChroma && theme.chromaStyle == ChromaStyle.AMBIENT_BREATHE) 0.8.dp else 1.dp
 
+            // Row 1: Vowels / Consonants
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 listOf("আ", "ো", "ী", "প", "ব", "ম", "দ", "ল").forEachIndexed { colIdx, ch ->
                     val keyBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, colIdx / 7f) else animatedBorderColor
-                    val borderModifier = if (shouldDrawKeyBorder) Modifier.border(borderWidth, keyBorder, RoundedCornerShape(6.dp)) else Modifier
+                    val borderModifier = if (shouldDrawKeyBorder) Modifier.border(borderWidth, keyBorder, RoundedCornerShape(5.dp)) else Modifier
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(30.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .height(26.dp)
+                            .clip(RoundedCornerShape(5.dp))
                             .background(Color(theme.keyNormalColor))
                             .then(borderModifier)
                             .clickable {
@@ -971,24 +918,24 @@ private fun LiveKeyboardMiniPreview(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(ch, color = Color(theme.labelColor), fontSize = 12.sp)
+                        Text(ch, color = Color(theme.labelColor), fontSize = 11.sp)
                     }
                 }
             }
 
-            // Row 2: Home Row with accent
+            // Row 2: Home Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 listOf("অ", "া", "ি", "র", "ত", "ন", "স", "ক").forEachIndexed { colIdx, ch ->
                     val keyBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, colIdx / 7f) else animatedBorderColor
-                    val borderModifier = if (shouldDrawKeyBorder) Modifier.border(borderWidth, keyBorder, RoundedCornerShape(6.dp)) else Modifier
+                    val borderModifier = if (shouldDrawKeyBorder) Modifier.border(borderWidth, keyBorder, RoundedCornerShape(5.dp)) else Modifier
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(30.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .height(26.dp)
+                            .clip(RoundedCornerShape(5.dp))
                             .background(Color(theme.keyNormalColor))
                             .then(borderModifier)
                             .clickable {
@@ -997,7 +944,7 @@ private fun LiveKeyboardMiniPreview(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(ch, color = Color(theme.labelColor), fontSize = 12.sp)
+                        Text(ch, color = Color(theme.labelColor), fontSize = 11.sp)
                     }
                 }
             }
@@ -1005,7 +952,7 @@ private fun LiveKeyboardMiniPreview(
             // Row 3: Shift, Hasanta, Spacebar & Enter
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
                 val shiftBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 0f) else animatedBorderColor
                 val hasantaBorder = if (theme.isRgbChroma) computeChromaComposeColor(theme.chromaMode, phase, 0.25f) else animatedBorderColor
@@ -1014,37 +961,37 @@ private fun LiveKeyboardMiniPreview(
 
                 Box(
                     modifier = Modifier
-                        .weight(1.2f)
-                        .height(30.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .weight(1.1f)
+                        .height(26.dp)
+                        .clip(RoundedCornerShape(5.dp))
                         .background(Color(theme.keyShiftColor))
-                        .border(1.2.dp, shiftBorder, RoundedCornerShape(6.dp)),
+                        .border(1.dp, shiftBorder, RoundedCornerShape(5.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("⇧", color = Color(theme.labelDimColor), fontSize = 12.sp)
+                    Text("⇧", color = Color(theme.labelDimColor), fontSize = 11.sp)
                 }
                 Box(
                     modifier = Modifier
-                        .weight(1.0f)
-                        .height(30.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .weight(0.9f)
+                        .height(26.dp)
+                        .clip(RoundedCornerShape(5.dp))
                         .background(Color(theme.keyHasantaColor))
-                        .border(1.2.dp, hasantaBorder, RoundedCornerShape(6.dp))
+                        .border(1.dp, hasantaBorder, RoundedCornerShape(5.dp))
                         .clickable {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             testInput += "্"
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("্", color = liveAccentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("্", color = liveAccentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
                 Box(
                     modifier = Modifier
-                        .weight(3.6f)
-                        .height(30.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .weight(3.8f)
+                        .height(26.dp)
+                        .clip(RoundedCornerShape(5.dp))
                         .background(Color(theme.keySpaceColor))
-                        .border(1.2.dp, spaceBorder, RoundedCornerShape(6.dp))
+                        .border(1.dp, spaceBorder, RoundedCornerShape(5.dp))
                         .clickable {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             testInput += " "
@@ -1052,18 +999,18 @@ private fun LiveKeyboardMiniPreview(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        if (isEnglish) "Space • Lekhani" else "স্পেস • লেখনী",
+                        if (isEnglish) "Space" else "স্পেস",
                         color = Color(theme.labelDimColor),
-                        fontSize = 11.sp
+                        fontSize = 10.sp
                     )
                 }
                 Box(
                     modifier = Modifier
-                        .weight(1.4f)
-                        .height(30.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .weight(1.3f)
+                        .height(26.dp)
+                        .clip(RoundedCornerShape(5.dp))
                         .background(liveAccentColor)
-                        .border(1.2.dp, enterBorder, RoundedCornerShape(6.dp))
+                        .border(1.dp, enterBorder, RoundedCornerShape(5.dp))
                         .clickable {
                             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             if (testInput.isNotEmpty()) testInput = testInput.dropLast(1)
@@ -1074,7 +1021,7 @@ private fun LiveKeyboardMiniPreview(
                         imageVector = Icons.AutoMirrored.Filled.Backspace,
                         contentDescription = "Backspace",
                         tint = if (theme.isDark) Color.Black else Color.White,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                 }
             }

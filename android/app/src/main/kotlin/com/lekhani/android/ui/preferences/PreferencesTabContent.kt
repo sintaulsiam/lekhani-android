@@ -28,6 +28,11 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Swipe
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.VerticalSplit
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.Button
@@ -83,10 +88,12 @@ fun PreferencesTabContent(
     onOpenDictionaryManager: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenClipboard: (() -> Unit)? = null,
+    onAppThemeModeChanged: ((KeyboardPreferences.AppThemeMode) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
 
+    var appThemeMode by remember { mutableStateOf(prefs.appThemeMode) }
     var formFactor by remember { mutableStateOf(prefs.formFactor) }
     var spacebarSwipeMode by remember { mutableStateOf(prefs.spacebarSwipeMode) }
     var volumeKeyCursorMode by remember { mutableStateOf(prefs.volumeKeyCursorMode) }
@@ -147,6 +154,73 @@ fun PreferencesTabContent(
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // ── 0. App Appearance Card ──────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Filled.Palette,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "App Appearance" else "অ্যাপ অ্যাপিয়ারেন্স",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                        Text(
+                            text = if (isEnglish) "Theme mode for Lekhani settings app" else "লেখনী সেটিংস অ্যাপের ইন্টারফেস থিম",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val modes = listOf(
+                        Triple(KeyboardPreferences.AppThemeMode.SYSTEM, Icons.Default.BrightnessAuto, if (isEnglish) "System" else "সিস্টেম"),
+                        Triple(KeyboardPreferences.AppThemeMode.LIGHT, Icons.Default.LightMode, if (isEnglish) "Light" else "লাইট"),
+                        Triple(KeyboardPreferences.AppThemeMode.DARK, Icons.Default.DarkMode, if (isEnglish) "Dark" else "ডার্ক"),
+                        Triple(KeyboardPreferences.AppThemeMode.MATCH_KEYBOARD, Icons.Filled.Palette, if (isEnglish) "Sync Keyboard" else "কীবোর্ড সিঙ্ক"),
+                    )
+                    modes.forEach { (mode, icon, title) ->
+                        val isSel = appThemeMode == mode
+                        FilterChip(
+                            selected = isSel,
+                            onClick = {
+                                appThemeMode = mode
+                                prefs.appThemeMode = mode
+                                onAppThemeModeChanged?.invoke(mode)
+                            },
+                            leadingIcon = {
+                                Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp))
+                            },
+                            label = { Text(title, fontSize = 12.sp) },
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                    }
+                }
+            }
+        }
+
         // ── 1. Typing & Autocomplete Card ──────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),

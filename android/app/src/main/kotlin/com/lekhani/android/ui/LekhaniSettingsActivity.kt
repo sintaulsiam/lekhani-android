@@ -522,7 +522,8 @@ fun LekhaniSettingsScreen(
                     onOpenToolbarCustomizer = { showToolbarSheet = true },
                     onOpenDictionaryManager = { showDictionarySheet = true },
                     onOpenAbout = { showAboutDialog = true },
-                    onOpenClipboard = { selectedTab = 3 }
+                    onOpenClipboard = { selectedTab = 3 },
+                    onAppThemeModeChanged = onAppThemeModeChanged
                 )
                 3 -> ClipboardManagerSheet(
                     clipboardStore = clipboardStore,
