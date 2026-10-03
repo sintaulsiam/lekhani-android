@@ -132,16 +132,39 @@ Modern mobile typing requires fluid sentence construction without touching lette
 2. The continuations are published to the strip with `primaryIdx = 0`.
 3. Tapping consecutive suggestions allows users to compose entire sentences (e.g. `আমি` $\rightarrow$ `যাব` $\rightarrow$ `না` $\rightarrow$ `আজ`) seamlessly.
 
-### 4.3. Post-Space Stability & Anti-Flicker Architecture
-Earlier versions suffered from strip flickering after pressing Space due to two racing mechanisms:
-1. **Trailing-Space Inspection**: Inspecting words across a space caused the just-committed word's English preview (`Sonar`) to flash right after Space.
-2. **`onUpdateSelection` Race**: Android fires `onUpdateSelection` asynchronously right after `commitText()`.
+### 4.3. Post-Space Stability, Zero-Flicker Cache & Unified Prediction Styling
+Earlier versions suffered from strip flickering and a delayed coloring snap after pressing Space due to a 3-way race condition between `onSpace()`, Android's asynchronous `onUpdateSelection`, and the background `refreshSurroundingContext` coroutine:
+1. **The Race Condition**:
+   - `onSpace()` committed the text and published predictions with `primaryIndex = 0` (colored).
+   - `onUpdateSelection` arrived ~10 ms later, saw `totalWordLen == 0`, and re-published next words with `primaryIdx = -1` (stripping the color).
+   - `refreshSurroundingContext` completed on `Dispatchers.IO` ~20 ms later and re-published with `primaryIndex = 0` (color snapped back).
+2. **The Architectural Resolution**:
+   - **Unified `primaryIdx = 0`**: Next-word predictions consistently assign Slot 0 as the primary recommendation with Material 3 Tonal container styling across all callers.
+   - **Context Fingerprint Cache (`lastPredictedContext`)**: When `onSpace()` publishes predictions for the committed context, it caches the text fingerprint. When `onUpdateSelection` or `refreshSurroundingContext` fires, if `trimmedBefore == lastPredictedContext` and the strip already has valid candidates, it **skips re-querying and skips re-emitting**, locking the frame rate at a rock-solid 120 FPS without strobe or jitter.
 
-**The Permanent Fix**:
-- When `totalWordLen == 0` (cursor is on or after a space), the strip **strictly stays on Next-Word Predictions** and **never inspects preceding words across a space**.
-- Word inspection is only activated when `totalWordLen > 0` (cursor is directly touching word characters).
+### 4.4. Context-Aware Word Inspection (Bidirectional Sentence Context)
+When inspecting a word at the cursor (`updateAvroStripForWordAtCursor`):
+- Preceding sentence context (clamped to 256 characters) is passed to `wordInspectionSession.setContext(sentenceBefore)`.
+- Following sentence context (clamped to 64 characters) is passed to `wordInspectionSession.setRightContext(sentenceAfter)`.
+- The 4-gram LM uses surrounding context to accurately rank homophones based on sentence meaning (e.g. `পড়া` vs `পরা` depending on whether `বই` or `জামা` precedes it).
 
-### 4.4. Configurable Candidate Strip Order
+### 4.5. Smart Punctuation Spacing & Space Auto-Collapse
+- **Pre-Commit Lookahead**: In `onCandidateSelected()`, if the character immediately following the cursor is a punctuation mark (`।`, `,`, `?`, `!`, `;`, `:`, `\n`, quotes), trailing space is suppressed to avoid awkward gaps like `আমি যাব ।`.
+- **Post-Commit Space Auto-Collapse**: In `onKey()`, if a punctuation mark is typed within 2.5 seconds of a word committed with space, the preceding space is absorbed and cleanly attached: `আমি যাব ` + `।` $\rightarrow$ `আমি যাব। `.
+
+### 4.6. Phonetic Re-Opening on Backspace
+When backspacing directly into a recently committed Avro word (`মানুষ ` $\rightarrow$ Backspace $\rightarrow$ `মানুষ|` $\rightarrow$ Backspace):
+- Instead of deleting the raw Unicode letter (`ষ`), Lekhani re-opens the word into the **active phonetic composing preedit** (`manush` $\rightarrow$ drops `h` $\rightarrow$ `মানুস`).
+- Users can fix phonetic typos or inflections without erasing and retyping the entire word.
+
+### 4.7. Orphan Vowel Kar & Diacritic Healing
+Deleting a base consonant in front of an akar/ikar (e.g. `গান` $\rightarrow$ cursor at `গ|ান`, Backspace deletes `গ`) leaves an orphan diacritic `|ান` (which Android renders as dotted circle `◌ান`).
+- When the user types the new consonant (e.g. `p` for `প`), Lekhani absorbs the orphan kar and fuses them into the composing buffer (`p` + `a` $\rightarrow$ `পা` + `ন` = **`পান`**), preserving 100% canonical Unicode integrity.
+
+### 4.8. Selection-Aware Text Replacement
+When text is highlighted in any application, typing an Avro key cleanly deletes the selection and initiates a pristine composing session, preventing text duplication or composing span interleaving.
+
+### 4.9. Configurable Candidate Strip Order
 Under **Settings $\rightarrow$ Typing & Preferences $\rightarrow$ Avro Phonetic**:
 - **`Bengali First` (Recommended / Default)**:
   `[ ১. সোনার ]` *(Primary)* $\rightarrow$ `[ sonar ]` *(Verbatim English)* $\rightarrow$ `[ ২. শুনার ]`
@@ -151,7 +174,7 @@ Under **Settings $\rightarrow$ Typing & Preferences $\rightarrow$ Avro Phonetic*
   - Preserves classic desktop Avro muscle memory for legacy users.
 - **`Hidden`**: Toggling English preview off shows pure Bengali suggestions.
 
-### 4.5. Material 3 Expressive Tonal Pill Styling
+### 4.10. Material 3 Expressive Tonal Pill Styling
 Primary suggestions use a refined **Material 3 Tonal Container**:
 - Background: Luminous tonal accent tint (`accentColor.copy(alpha = 0.18f)`).
 - Border: Crisp accent stroke (`1.2.dp` with `alpha = 0.80f`).
@@ -207,7 +230,10 @@ stateDiagram-v2
 
 | Symptom | Probable Cause | Where to Look |
 | :--- | :--- | :--- |
-| **Strip flickers after pressing Space** | Trailing space inspection re-enabled or `onUpdateSelection` overwriting predictions. | `LekhaniInputMethodService.kt` $\rightarrow$ `updateAvroStripForWordAtCursor()` (check `totalWordLen == 0` path). |
+| **Strip flickers after pressing Space** | Trailing space inspection re-enabled or `onUpdateSelection` overwriting predictions. | `LekhaniInputMethodService.kt` $\rightarrow$ `updateAvroStripForWordAtCursor()` (check `totalWordLen == 0` path and `lastPredictedContext`). |
+| **Suggestions appear uncolored, then pop into color** | `primaryIdx` mismatch (`-1` vs `0`) between `updateAvroStripForWordAtCursor` and `publishCandidates`. | Ensure `primaryIdx = 0` is consistently used for predictions. |
+| **Awkward gap before punctuation (e.g. `আমি যাব ।`)** | Candidate selection appended unconditional trailing space. | `LekhaniInputMethodService.kt` $\rightarrow$ `onCandidateSelected()` (check `SMART_PUNCTUATION_CHARS`). |
+| **Dotted circle `◌া` appears when editing** | Consonant was deleted without orphan kar healing. | `LekhaniInputMethodService.kt` $\rightarrow$ `onKey()` (check `BENGALI_VOWEL_KARS` fusion). |
 | **Typing suffix produces isolated letter (e.g. `মানুষতা`)** | Word state recovery bypassed; `activeInspectedWord` was cleared before recomposition. | `LekhaniInputMethodService.kt` $\rightarrow$ `onKey()` (check `isAvroPhoneticKey` and recomposition block). |
 | **Middle-of-word editing inserts independent vowel (e.g. `অপ্রকআশিত`)** | Prefix wasn't reverse-transliterated; key evaluated without consonant context. | `LekhaniInputMethodService.kt` $\rightarrow$ `onKey()` (check `charsAfterCursor > 0` branch). |
 | **Candidate order jumps between slots** | `primaryIndex` / `verbatimIndex` inverted between `publishCandidates` and `updateAvroStripForWordAtCursor`. | Verify `avroStripOrder` checks in both methods. |

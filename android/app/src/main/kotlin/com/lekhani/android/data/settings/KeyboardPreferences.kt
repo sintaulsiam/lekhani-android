@@ -218,6 +218,14 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getString(KEY_AVRO_STRIP_ORDER, STRIP_ORDER_BENGALI_FIRST) ?: STRIP_ORDER_BENGALI_FIRST
         set(value) = prefs.edit().putString(KEY_AVRO_STRIP_ORDER, value).apply()
 
+    var avroPhoneticBackspaceReopening: Boolean
+        get() = prefs.getBoolean(KEY_AVRO_PHONETIC_BACKSPACE_REOPENING, true)
+        set(value) = prefs.edit().putBoolean(KEY_AVRO_PHONETIC_BACKSPACE_REOPENING, value).apply()
+
+    var smartPunctuationSpacing: Boolean
+        get() = prefs.getBoolean(KEY_SMART_PUNCTUATION_SPACING, true)
+        set(value) = prefs.edit().putBoolean(KEY_SMART_PUNCTUATION_SPACING, value).apply()
+
     // ── Clipboard Settings ────────────────────────────────────────────────────
     var clipboardRetentionMinutes: Int
         get() = prefs.getInt(KEY_CLIPBOARD_RETENTION_MINUTES, 60)
@@ -349,6 +357,8 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_AVRO_STRIP_ORDER = "avro_strip_order"
         const val STRIP_ORDER_BENGALI_FIRST = "bengali_first"
         const val STRIP_ORDER_ENGLISH_FIRST = "english_first"
+        const val KEY_AVRO_PHONETIC_BACKSPACE_REOPENING = "avro_phonetic_backspace_reopening"
+        const val KEY_SMART_PUNCTUATION_SPACING = "smart_punctuation_spacing"
         const val KEY_AVRO_NUMERALS_BENGALI = "avro_numerals_bengali"
         const val KEY_DOUBLE_SPACE_DARI_ENABLED = "double_space_dari_enabled"
         const val KEY_SPACEBAR_AUTOCOMPLETE_ENABLED = "spacebar_autocomplete_enabled"

@@ -106,6 +106,8 @@ fun PreferencesTabContent(
     var codeShield by remember { mutableStateOf(prefs.codeShieldEnabled) }
     var avroShowEnglishPreview by remember { mutableStateOf(prefs.avroShowEnglishPreview) }
     var avroStripOrder by remember { mutableStateOf(prefs.avroStripOrder) }
+    var avroPhoneticBackspaceReopening by remember { mutableStateOf(prefs.avroPhoneticBackspaceReopening) }
+    var smartPunctuationSpacing by remember { mutableStateOf(prefs.smartPunctuationSpacing) }
     var avroNumeralsBengali by remember { mutableStateOf(prefs.avroNumeralsBengali) }
     var showDedicatedNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
     var autoSwitchNumpad by remember { mutableStateOf(prefs.autoSwitchNumpad) }
@@ -423,6 +425,32 @@ fun PreferencesTabContent(
                     )
                 }
 
+                // Smart Punctuation Spacing Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Smart punctuation spacing" else "স্মার্ট বিরামচিহ্ন স্পেসিং",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Auto-collapse space before punctuation (। , ? !) and attach cleanly" else "বিরামচিহ্ন (। , ? !) এর আগের অপ্রয়োজনীয় স্পেস নিজে থেকেই মুছে সঠিকভাবে জুড়বে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = smartPunctuationSpacing,
+                        onCheckedChange = {
+                            smartPunctuationSpacing = it
+                            prefs.smartPunctuationSpacing = it
+                        }
+                    )
+                }
+
                 // Code & Token Shield Toggle
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -506,6 +534,34 @@ fun PreferencesTabContent(
                             )
                         }
                     }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                // Avro Phonetic Backspace Re-Opening Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = if (isEnglish) "Phonetic Backspace Re-opening" else "ধ্বনিভিত্তিক ব্যাকস্পেস আন-কমিট",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Backspacing into a committed word restores the active phonetic buffer so you can edit single letters" else "কমিট করা শব্দের শেষে ব্যাকস্পেস চাপলে শব্দটি পুনরায় ফনেটিক এডিটিং মোডে ফিরে যাবে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = avroPhoneticBackspaceReopening,
+                        onCheckedChange = {
+                            avroPhoneticBackspaceReopening = it
+                            prefs.avroPhoneticBackspaceReopening = it
+                        }
+                    )
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))

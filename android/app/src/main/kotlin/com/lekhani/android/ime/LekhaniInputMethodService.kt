@@ -237,6 +237,8 @@ class LekhaniInputMethodService : InputMethodService() {
     private var undoDismissJob: kotlinx.coroutines.Job? = null
     private var refreshContextJob: kotlinx.coroutines.Job? = null
     private var lastSpaceTapTime: Long = 0L
+    private var lastPredictedContext: String = ""
+    private var lastCommitWithTrailingSpaceTime: Long = 0L
 
     /**
      * Set to `true` immediately after a word is committed (space, candidate tap, backspace-undo).
@@ -2150,6 +2152,76 @@ class LekhaniInputMethodService : InputMethodService() {
         val ic = currentInputConnection ?: return
         ensureCursorInComposingRegion(ic)
 
+        // 0. Selection-aware text replacement:
+        // If text is selected in the target editor, typing any key immediately overwrites the selection
+        val hasSelection = (currentSelStart != currentSelEnd && currentSelStart >= 0 && currentSelEnd >= 0)
+        if (hasSelection) {
+            ic.commitText("", 1)
+            session.reset()
+            preeditShadow = ""
+            rawInputBuffer.clear()
+            activeInspectedWord = null
+            currentSelStart = -1
+            currentSelEnd = -1
+            clearCandidates()
+        }
+
+        // 0a. Smart Punctuation Spacing Auto-Collapse:
+        // If a word was just committed with a trailing space and the user taps punctuation within 2.5s,
+        // absorb the preceding space and cleanly attach the punctuation.
+        if (keyboardPrefs.smartPunctuationSpacing && keyToken.length == 1 && keyToken[0] in SMART_PUNCTUATION_CHARS) {
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - lastCommitWithTrailingSpaceTime <= 2500) {
+                val before = try { ic.getTextBeforeCursor(2, 0)?.toString() } catch (_: Exception) { null }
+                if (before != null && before.endsWith(" ")) {
+                    ic.beginBatchEdit()
+                    try {
+                        ic.deleteSurroundingText(1, 0)
+                        val insertText = if (keyToken in listOf("।", "॥", ",", ";", ":", "!", "?")) "$keyToken " else keyToken
+                        ic.commitText(insertText, 1)
+                    } finally {
+                        ic.endBatchEdit()
+                    }
+                    lastCommitWithTrailingSpaceTime = 0L
+                    refreshSurroundingContext()
+                    return
+                }
+            }
+        }
+
+        // 0b. Orphan Vowel Kar & Diacritic Healing:
+        // When deleting a base consonant leaves an orphan vowel kar right after the cursor (e.g. '|ান'),
+        // typing a new consonant key seamlessly absorbs the orphan kar and fuses them (e.g. 'p' + 'া' -> 'পা' + 'ন' = 'পান').
+        val charAfter = try { ic.getTextAfterCursor(1, 0)?.toString()?.firstOrNull() } catch (_: Exception) { null }
+        if (charAfter != null && charAfter in BENGALI_VOWEL_KARS &&
+            !session.isComposing() && preeditShadow.isEmpty() &&
+            session.getLayout() == LekhaniLayoutType.AVRO &&
+            !isCurrentFieldPrivate && isAvroPhoneticKey(keyToken)
+        ) {
+            val mappedVowel = BENGALI_VOWEL_KARS[charAfter] ?: ""
+            val isConsonant = keyToken.length == 1 && keyToken[0].lowercaseChar() !in listOf('a', 'e', 'i', 'o', 'u')
+            if (mappedVowel.isNotEmpty() && isConsonant) {
+                ic.deleteSurroundingText(0, 1)
+                rawInputBuffer.clear()
+                rawInputBuffer.append(keyToken).append(mappedVowel)
+                session.reset()
+                val immediateBefore = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null }
+                if (!immediateBefore.isNullOrEmpty()) {
+                    session.setContext(immediateBefore)
+                }
+                var result: com.lekhani.android.ffi.TypingResult? = null
+                for (i in 0 until rawInputBuffer.length) {
+                    result = session.processKey(rawInputBuffer[i].toString())
+                }
+                if (result != null) {
+                    preeditShadow = result.preedit
+                    setComposingTextSafe(ic, result.preedit)
+                    publishCandidates(result.candidates)
+                }
+                return
+            }
+        }
+
         val inspected = activeInspectedWord
         if (inspected != null && !session.isComposing() &&
             session.getLayout() == LekhaniLayoutType.AVRO &&
@@ -2175,7 +2247,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
                     session.reset()
                     val immediateBefore = try {
-                        ic.getTextBeforeCursor(64, 0)?.toString()
+                        ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString()
                     } catch (_: Exception) { null }
                     if (!immediateBefore.isNullOrEmpty()) {
                         session.setContext(immediateBefore)
@@ -2425,6 +2497,50 @@ class LekhaniInputMethodService : InputMethodService() {
             }
         } else {
             rawInputBuffer.clear()
+            val inspected = activeInspectedWord
+            if (inspected != null &&
+                inspected.charsAfterCursor == 0 &&
+                session.getLayout() == LekhaniLayoutType.AVRO &&
+                !isCurrentFieldPrivate &&
+                keyboardPrefs.avroPhoneticBackspaceReopening &&
+                inspected.rawPhonetic.isNotBlank()
+            ) {
+                val rawToReopen = inspected.rawPhonetic.dropLast(1)
+                activeInspectedWord = null
+                ic.beginBatchEdit()
+                try {
+                    if (inspected.charsBeforeCursor > 0) {
+                        ic.deleteSurroundingText(inspected.charsBeforeCursor, 0)
+                    }
+                    rawInputBuffer.clear()
+                    session.reset()
+                    if (rawToReopen.isNotEmpty()) {
+                        rawInputBuffer.append(rawToReopen)
+                        val immediateBefore = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null }
+                        if (!immediateBefore.isNullOrEmpty()) {
+                            session.setContext(immediateBefore)
+                        }
+                        var result: com.lekhani.android.ffi.TypingResult? = null
+                        for (i in 0 until rawInputBuffer.length) {
+                            result = session.processKey(rawInputBuffer[i].toString())
+                        }
+                        if (result != null) {
+                            preeditShadow = result.preedit
+                            setComposingTextSafe(ic, result.preedit)
+                            publishCandidates(result.candidates)
+                        }
+                    } else {
+                        preeditShadow = ""
+                        clearCandidates()
+                    }
+                } finally {
+                    ic.endBatchEdit()
+                }
+                refreshSurroundingContext()
+                updateAutoCaps()
+                return
+            }
+
             activeInspectedWord = null
             // 3. Notify session to trigger rapid-undo mistake penalization (<1500 ms)
             try {
@@ -2608,6 +2724,13 @@ class LekhaniInputMethodService : InputMethodService() {
             } else null
 
             activeUndoInfo = undo
+
+            val currentBefore = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null } ?: ""
+            lastPredictedContext = currentBefore.trimEnd()
+            if (text.endsWith(" ")) {
+                lastCommitWithTrailingSpaceTime = android.os.SystemClock.uptimeMillis()
+            }
+
             if (result.candidates.isNotEmpty()) {
                 publishCandidates(result.candidates, undo = undo)
             } else if (undo != null) {
@@ -2617,9 +2740,6 @@ class LekhaniInputMethodService : InputMethodService() {
             } else {
                 clearCandidates()
             }
-            // Suppress next-word predictions from landing on the strip until
-            // the user actually types the first character of the next word.
-            suppressNextWordAfterCommit = true
         }
 
         // After committing a word, refresh surrounding context for AI scorer
@@ -2746,9 +2866,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 if (inspected.charsBeforeCursor > 0 || inspected.charsAfterCursor > 0) {
                     ic.deleteSurroundingText(inspected.charsBeforeCursor, inspected.charsAfterCursor)
                 }
-                val textToCommit = if (inspected.hasTrailingSpace) "$actualCandidate " else actualCandidate
+                val charAfter = try { ic.getTextAfterCursor(1, 0)?.toString()?.firstOrNull() } catch (_: Exception) { null }
+                val shouldOmitTrailingSpace = keyboardPrefs.smartPunctuationSpacing && charAfter != null && charAfter in SMART_PUNCTUATION_CHARS
+                val textToCommit = if (shouldOmitTrailingSpace || !inspected.hasTrailingSpace) actualCandidate else "$actualCandidate "
                 ic.commitText(textToCommit, 1)
                 preeditShadow = ""
+                if (textToCommit.endsWith(" ")) {
+                    lastCommitWithTrailingSpaceTime = android.os.SystemClock.uptimeMillis()
+                }
             } finally {
                 ic.endBatchEdit()
             }
@@ -2768,14 +2893,25 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
+        val charAfter = try { ic.getTextAfterCursor(1, 0)?.toString()?.firstOrNull() } catch (_: Exception) { null }
+        val shouldOmitTrailingSpace = keyboardPrefs.smartPunctuationSpacing && charAfter != null && charAfter in SMART_PUNCTUATION_CHARS
+
         result.commitText?.let { text ->
+            val finalText = if (shouldOmitTrailingSpace && text.endsWith(" ")) text.trimEnd() else text
             ic.beginBatchEdit()
             try {
-                ic.commitText(text, 1)
+                ic.commitText(finalText, 1)
                 preeditShadow = ""
+                if (finalText.endsWith(" ")) {
+                    lastCommitWithTrailingSpaceTime = android.os.SystemClock.uptimeMillis()
+                }
             } finally {
                 ic.endBatchEdit()
             }
+
+            val currentBefore = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null } ?: ""
+            lastPredictedContext = currentBefore.trimEnd()
+
             if (result.candidates.isNotEmpty()) {
                 publishCandidates(result.candidates)
             } else {
@@ -3687,7 +3823,14 @@ class LekhaniInputMethodService : InputMethodService() {
                             if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() &&
                                 activeInspectedWord == null && !suppressNextWordAfterCommit) {
                                 if (_candidateState.value !is CandidateStripState.Undo) {
-                                    publishCandidates(nextWords)
+                                    val curCandidates = (_candidateState.value as? CandidateStripState.Candidates)?.items
+                                    val trimmedCtx = effectiveContext.trimEnd()
+                                    // If strip already displays predictions with the exact same top candidate,
+                                    // avoid redundant recomposition churn
+                                    if (curCandidates.isNullOrEmpty() || curCandidates.firstOrNull()?.text != nextWords.firstOrNull()) {
+                                        lastPredictedContext = trimmedCtx
+                                        publishCandidates(nextWords)
+                                    }
                                 }
                             }
                         }
@@ -3783,8 +3926,8 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
-        val before = try { ic.getTextBeforeCursor(64, 0)?.toString() } catch (_: Exception) { null } ?: ""
-        val after = try { ic.getTextAfterCursor(32, 0)?.toString() } catch (_: Exception) { null } ?: ""
+        val before = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null } ?: ""
+        val after = try { ic.getTextAfterCursor(64, 0)?.toString() } catch (_: Exception) { null } ?: ""
 
         // Backward scan in before to find the start of the current word
         var beforeWordCount = 0
@@ -3807,8 +3950,11 @@ class LekhaniInputMethodService : InputMethodService() {
         if (totalWordLen == 0) {
             val trimmedBefore = before.trimEnd()
             if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit) {
-                // The cursor is on a space, between words, or at the end of text.
-                // Fetch next-word predictions for the preceding text so the strip NEVER strobes/collapses!
+                // Anti-flicker cache: if the strip is already stably showing predictions for this context, do not re-emit
+                val curState = _candidateState.value
+                if (trimmedBefore == lastPredictedContext && curState is CandidateStripState.Candidates && curState.items.isNotEmpty()) {
+                    return
+                }
                 session.setContext(trimmedBefore)
                 val nextWords = try {
                     session.predictNextWords(5u)
@@ -3816,8 +3962,9 @@ class LekhaniInputMethodService : InputMethodService() {
                     emptyList()
                 }
                 if (nextWords.isNotEmpty()) {
+                    lastPredictedContext = trimmedBefore
                     activeInspectedWord = null
-                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = -1, verbatimIdx = -1)
+                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = 0, verbatimIdx = -1)
                     val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
                     if (curItems != annotated) {
                         _candidateState.value = CandidateStripState.Candidates(annotated)
@@ -3843,7 +3990,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
                 if (nextWords.isNotEmpty()) {
                     activeInspectedWord = null
-                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = -1, verbatimIdx = -1)
+                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = 0, verbatimIdx = -1)
                     val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
                     if (curItems != annotated) {
                         _candidateState.value = CandidateStripState.Candidates(annotated)
@@ -3871,7 +4018,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
                 if (nextWords.isNotEmpty()) {
                     activeInspectedWord = null
-                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = -1, verbatimIdx = -1)
+                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = 0, verbatimIdx = -1)
                     val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
                     if (curItems != annotated) {
                         _candidateState.value = CandidateStripState.Candidates(annotated)
@@ -3912,10 +4059,18 @@ class LekhaniInputMethodService : InputMethodService() {
             hasTrailingSpace = false
         )
 
-        // Query candidate suggestions from the Avro engine via wordInspectionSession
+        // Query candidate suggestions from the Avro engine via wordInspectionSession with surrounding context
         val candidatesList = mutableListOf<String>()
         try {
             wordInspectionSession.reset()
+            val sentenceBefore = before.substring(0, (before.length - beforeWordCount).coerceAtLeast(0)).trim()
+            if (sentenceBefore.isNotEmpty()) {
+                wordInspectionSession.setContext(sentenceBefore.takeLast(CONTEXT_CHAR_LIMIT))
+            }
+            val sentenceAfter = after.substring(afterWordCount.coerceAtMost(after.length)).trim()
+            if (sentenceAfter.isNotEmpty()) {
+                wordInspectionSession.setRightContext(sentenceAfter.take(64))
+            }
             var lastRes: com.lekhani.android.ffi.TypingResult? = null
             for (ch in rawEnglish) {
                 lastRes = wordInspectionSession.processKey(ch.toString())
@@ -3987,5 +4142,18 @@ class LekhaniInputMethodService : InputMethodService() {
          * without excessive Binder IPC payload.
          */
         private const val CONTEXT_CHAR_LIMIT = 256
+        private val SMART_PUNCTUATION_CHARS = setOf('।', '॥', '.', ',', '?', '!', ';', ':', ')', ']', '}', '"', '\'', '\n')
+        private val BENGALI_VOWEL_KARS = mapOf(
+            'া' to "a",
+            'ি' to "i",
+            'ী' to "I",
+            'ু' to "u",
+            'ূ' to "U",
+            'ৃ' to "rRI",
+            'ে' to "e",
+            'ৈ' to "OI",
+            'ো' to "o",
+            'ৌ' to "OU"
+        )
     }
 }
