@@ -317,8 +317,9 @@ fn get_context_words<'a>(context: &'a str, buffer: &mut [&'a str; 16]) -> usize 
 /// Helper to retrieve next-word predictions combining:
 /// 1. Personalized user bigrams from AutonomousLearner
 /// 2. Statistical N-gram predictions
-/// 3. Semantic GRU neural candidates blended in with alpha = 0.4
-///    (N-gram dominant during typing, neural adds diversity after spaces)
+/// 3. Semantic GRU neural candidates blended with context-adaptive alpha
+///    computed via `lekhani_neural::predictor::compute_neural_alpha`.
+///    Low alpha (0.15) when N-gram is confident; high alpha (0.65) when N-gram has no data.
 fn get_bengali_next_words(context: &str) -> Vec<String> {
     let mut words_buf = [""; 16];
     let count = get_context_words(context, &mut words_buf);
@@ -350,11 +351,29 @@ fn get_bengali_next_words(context: &str) -> Vec<String> {
         }
     }
 
-    // 3. Neural GRU semantic blend (alpha=0.4 → N-gram dominant but neural adds diversity)
+    // 3. Neural GRU semantic blend with context-adaptive alpha
+    // Alpha is computed dynamically from N-gram confidence and context length so that:
+    // - A confident N-gram stays dominant (low alpha)
+    // - An uncertain N-gram yields to neural diversity (high alpha)
     let neural = get_neural_predictor();
     let neural_cands = neural.predict_candidates(context, 4);
     if !neural_cands.is_empty() {
-        neural.blend_candidates(&ngram_results, &neural_cands, 0.4)
+        // Estimate N-gram confidence from the first prediction's position.
+        // Top N-gram bigrams typically have log-probs between -0.5 (common) and -4.0 (rare).
+        // We approximate by checking if we have any bigram results vs nothing.
+        let estimated_ngram_log_prob = if ngram_results.is_empty() {
+            -4.0_f32 // no N-gram data at all
+        } else if ngram_results.len() >= 3 {
+            -1.0_f32 // strong N-gram signal
+        } else {
+            -2.5_f32 // weak N-gram signal
+        };
+        let alpha = lekhani_neural::predictor::compute_neural_alpha(
+            estimated_ngram_log_prob,
+            true, // get_bengali_next_words is always called after a word boundary
+            count, // context_word_count: number of words in context
+        );
+        neural.blend_candidates(&ngram_results, &neural_cands, alpha)
             .into_iter()
             .take(5)
             .collect()

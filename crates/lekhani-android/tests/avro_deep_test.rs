@@ -1,4 +1,5 @@
 use lekhani_android::{AndroidLekhaniSession, LekhaniLayoutType};
+use serial_test::serial;
 
 struct AvroRuleTest {
     feature: &'static str,
@@ -7,6 +8,7 @@ struct AvroRuleTest {
 }
 
 #[test]
+#[serial]
 fn test_avro_exhaustive_features() {
     let tests = vec![
         // ── 1. Independent Vowels ─────────────────────────────────────
@@ -205,6 +207,7 @@ fn test_avro_exhaustive_features() {
 }
 
 #[test]
+#[serial]
 fn test_diagnose_avro_failures() {
     let failed_inputs = vec![
         "ko",
@@ -241,6 +244,7 @@ fn test_diagnose_avro_failures() {
 }
 
 #[test]
+#[serial]
 fn test_audit_bug_fixes_and_ux_primitives() {
     let session = AndroidLekhaniSession::new();
     session.set_layout(LekhaniLayoutType::Avro);
