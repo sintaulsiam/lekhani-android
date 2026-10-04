@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,53 +56,63 @@ fun FloatingHeaderView(
             .fillMaxWidth()
             .height(34.dp)
             .background(barBg)
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = { },
-                    onDragEnd = { onDragEnd() },
-                    onDragCancel = { onDragEnd() },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        onDragDelta(dragAmount.x, dragAmount.y)
-                    }
-                )
-            }
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Left badge / label
+        // Draggable section: Left label + Center pill
         Row(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { },
+                        onDragEnd = { onDragEnd() },
+                        onDragCancel = { onDragEnd() },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            onDragDelta(dragAmount.x, dragAmount.y)
+                        }
+                    )
+                }
+                .padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // Left badge / label
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(CircleShape)
+                        .background(accentColor)
+                )
+                Text(
+                    text = if (isEnglish) "Floating" else "ভাসমান",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor.copy(alpha = 0.75f)
+                )
+            }
+
+            // Center drag handle pill
             Box(
                 modifier = Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(accentColor)
-            )
-            Text(
-                text = if (isEnglish) "Floating" else "ভাসমান",
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = contentColor.copy(alpha = 0.75f)
+                    .width(44.dp)
+                    .height(4.5.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(contentColor.copy(alpha = 0.40f))
             )
         }
 
-        // Center drag handle pill
-        Box(
-            modifier = Modifier
-                .width(42.dp)
-                .height(4.5.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(contentColor.copy(alpha = 0.40f))
-        )
-
-        // Right dock / fullscreen restore action
+        // Right dock / fullscreen restore action (isolated from drag detector)
         IconButton(
             onClick = onDockToStandard,
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(32.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.FitScreen,

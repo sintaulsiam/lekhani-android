@@ -13,6 +13,8 @@ import android.view.ViewGroup
 import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import android.content.res.Configuration
+import android.graphics.drawable.ColorDrawable
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -516,6 +518,9 @@ class LekhaniInputMethodService : InputMethodService() {
         feedbackManager.updateCache()
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
         applyFloatingCardLayout(keyboardPrefs.formFactor)
+        rootInputContainer?.post {
+            updateParentLayoutHierarchy(keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING)
+        }
         session.setAutoLearnEnabled(keyboardPrefs.autoLearnWordsEnabled)
         updateCandidatesVisibility()
         checkAndShowQuickChip()
@@ -668,7 +673,21 @@ class LekhaniInputMethodService : InputMethodService() {
         attachLifecycleOwner(win.decorView)
         if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
             win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            win.setGravity(Gravity.TOP or Gravity.START)
+            win.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        } else {
+            win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             win.setGravity(Gravity.BOTTOM)
+        }
+        rootInputContainer?.post {
+            updateParentLayoutHierarchy(keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING)
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+            applyFloatingCardLayout(keyboardPrefs.formFactor)
         }
     }
 
@@ -686,13 +705,29 @@ class LekhaniInputMethodService : InputMethodService() {
         toolsMenuView = null
         resizeOverlayComposeView = null
 
-        val rootLayout = FrameLayout(this).apply {
+        val rootLayout = object : FrameLayout(this) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+                    val dm = resources.displayMetrics
+                    val fullWSpec = MeasureSpec.makeMeasureSpec(dm.widthPixels, MeasureSpec.EXACTLY)
+                    val fullHSpec = MeasureSpec.makeMeasureSpec(dm.heightPixels, MeasureSpec.EXACTLY)
+                    super.onMeasure(fullWSpec, fullHSpec)
+                    setMeasuredDimension(dm.widthPixels, dm.heightPixels)
+                } else {
+                    super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                }
+            }
+        }.apply {
             clipChildren = false
             clipToPadding = false
             attachLifecycleOwner(this)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
+                if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                } else {
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                }
             )
         }
         rootInputContainer = rootLayout
@@ -706,6 +741,21 @@ class LekhaniInputMethodService : InputMethodService() {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT
             )
+        }
+        cardLayout.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+                val displayHeight = resources.displayMetrics.heightPixels
+                val density = resources.displayMetrics.density
+                val floatingH = cardLayout.height
+                if (floatingH > 0) {
+                    val minY = 48f * density
+                    val maxY = (displayHeight - floatingH - 24f * density).coerceAtLeast(minY)
+                    if (cardLayout.translationY > maxY) {
+                        cardLayout.translationY = maxY
+                    }
+                }
+                requestInsetsRecalculation()
+            }
         }
         floatingCardContainer = cardLayout
         rootLayout.addView(cardLayout)
@@ -3638,6 +3688,60 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.invalidate()
     }
 
+    private fun updateParentLayoutHierarchy(isFloating: Boolean) {
+        val root = rootInputContainer ?: return
+        val win = window?.window
+
+        if (isFloating) {
+            win?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            win?.setGravity(Gravity.TOP or Gravity.START)
+            win?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+            root.layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        } else {
+            win?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            win?.setGravity(Gravity.BOTTOM)
+            root.layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        var p = root.parent
+        while (p is ViewGroup) {
+            p.clipChildren = false
+            p.clipToPadding = false
+            val lp = p.layoutParams
+            if (lp != null) {
+                val targetH = if (isFloating) {
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                } else {
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                }
+                if (lp.height != targetH) {
+                    lp.height = targetH
+                    p.layoutParams = lp
+                }
+            }
+            if (isFloating) {
+                p.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            }
+            p = p.parent
+        }
+    }
+
+    private fun requestInsetsRecalculation() {
+        if (isInputViewShown) {
+            val win = window?.window
+            win?.decorView?.let { decor ->
+                decor.requestApplyInsets()
+                decor.requestLayout()
+            }
+        }
+    }
+
     private fun applyFloatingCardLayout(formFactor: KeyboardPreferences.FormFactor) {
         val card = floatingCardContainer ?: return
         val root = rootInputContainer ?: return
@@ -3645,16 +3749,11 @@ class LekhaniInputMethodService : InputMethodService() {
         val displayWidth = resources.displayMetrics.widthPixels
         val displayHeight = resources.displayMetrics.heightPixels
         val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
-        val win = window?.window
 
         if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
             floatingHeaderComposeView?.visibility = View.VISIBLE
             floatingFooterComposeView?.visibility = View.VISIBLE
             root.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-
-            win?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            win?.setGravity(Gravity.TOP or Gravity.START)
-            root.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
 
             val floatingW = (displayWidth * keyboardPrefs.floatingWidthPercent).toInt()
                 .coerceIn((270 * density).toInt(), (displayWidth - 16 * density).toInt().coerceAtLeast((270 * density).toInt()))
@@ -3674,28 +3773,30 @@ class LekhaniInputMethodService : InputMethodService() {
             card.clipToOutline = true
             card.elevation = 16f * density
 
+            val floatingH = card.height.takeIf { it > 0 } ?: (280f * density).toInt()
+
             val minX = 8f * density
             val maxX = (displayWidth - floatingW - 8f * density).coerceAtLeast(minX)
-            val floatingH = card.height.takeIf { it > 0 } ?: (280f * density).toInt()
             val minY = 48f * density
-            val maxY = (displayHeight - floatingH - 32f * density).coerceAtLeast(minY)
+            val maxY = (displayHeight - floatingH - 24f * density).coerceAtLeast(minY)
+
+            val defaultX = ((displayWidth - floatingW) / 2f).coerceIn(minX, maxX)
+            val defaultY = (displayHeight - floatingH - 80f * density).coerceIn(minY, maxY)
 
             val savedX = keyboardPrefs.floatingOffsetX
             val savedY = keyboardPrefs.floatingOffsetY
 
-            val targetX = if (savedX <= 0f) (displayWidth - floatingW) / 2f else savedX.coerceIn(minX, maxX)
-            val targetY = if (savedY <= 0f) (displayHeight - floatingH - 80f * density).coerceIn(minY, maxY) else savedY.coerceIn(minY, maxY)
+            val targetX = if (savedX < minX || savedX > maxX) defaultX else savedX
+            val targetY = if (savedY < minY || savedY > maxY) defaultY else savedY
 
             card.translationX = targetX
             card.translationY = targetY
+
+            updateParentLayoutHierarchy(isFloating = true)
         } else {
             floatingHeaderComposeView?.visibility = View.GONE
             floatingFooterComposeView?.visibility = View.GONE
             root.setBackgroundColor(activeTheme.backgroundColor)
-
-            win?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            win?.setGravity(Gravity.BOTTOM)
-            root.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT)
 
             card.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.BOTTOM
@@ -3705,10 +3806,12 @@ class LekhaniInputMethodService : InputMethodService() {
             card.elevation = 0f
             card.translationX = 0f
             card.translationY = 0f
+
+            updateParentLayoutHierarchy(isFloating = false)
         }
         card.requestLayout()
         root.requestLayout()
-        window?.window?.decorView?.requestLayout()
+        requestInsetsRecalculation()
     }
 
     private fun handleFloatingDrag(dx: Float, dy: Float) {
@@ -3722,7 +3825,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val minX = 8f * density
         val maxX = (displayWidth - floatingW - 8f * density).coerceAtLeast(minX)
         val minY = 48f * density
-        val maxY = (displayHeight - floatingH - 32f * density).coerceAtLeast(minY)
+        val maxY = (displayHeight - floatingH - 24f * density).coerceAtLeast(minY)
 
         val newX = (card.translationX + dx).coerceIn(minX, maxX)
         val newY = (card.translationY + dy).coerceIn(minY, maxY)
@@ -3730,18 +3833,15 @@ class LekhaniInputMethodService : InputMethodService() {
         card.translationX = newX
         card.translationY = newY
 
-        // Recompute insets immediately on every drag step
-        card.post {
-            if (isInputViewShown) {
-                window?.window?.decorView?.requestLayout()
-            }
-        }
+        requestInsetsRecalculation()
     }
 
     private fun saveFloatingPosition() {
         val card = floatingCardContainer ?: return
-        keyboardPrefs.floatingOffsetX = card.translationX
-        keyboardPrefs.floatingOffsetY = card.translationY
+        if (card.translationX > 0f && card.translationY > 0f) {
+            keyboardPrefs.floatingOffsetX = card.translationX
+            keyboardPrefs.floatingOffsetY = card.translationY
+        }
     }
 
     override fun onComputeInsets(outInsets: Insets) {
@@ -3750,6 +3850,7 @@ class LekhaniInputMethodService : InputMethodService() {
             val card = floatingCardContainer
             val decorView = window?.window?.decorView
             val decorH = decorView?.height ?: resources.displayMetrics.heightPixels
+            val decorW = decorView?.width ?: resources.displayMetrics.widthPixels
 
             outInsets.contentTopInsets = decorH
             outInsets.visibleTopInsets = decorH
@@ -3757,12 +3858,16 @@ class LekhaniInputMethodService : InputMethodService() {
             if (card != null && card.isShown && card.width > 0 && card.height > 0) {
                 val loc = IntArray(2)
                 card.getLocationInWindow(loc)
-                val left = loc[0]
-                val top = loc[1]
-                val right = left + card.width
-                val bottom = top + card.height
+                val left = loc[0].coerceAtLeast(0)
+                val top = loc[1].coerceAtLeast(0)
+                val right = (left + card.width).coerceAtMost(decorW)
+                val bottom = (top + card.height).coerceAtMost(decorH)
 
-                outInsets.touchableRegion.set(left, top, right, bottom)
+                if (right > left && bottom > top) {
+                    outInsets.touchableRegion.set(left, top, right, bottom)
+                } else {
+                    outInsets.touchableRegion.setEmpty()
+                }
                 outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_REGION
             } else {
                 outInsets.touchableRegion.setEmpty()

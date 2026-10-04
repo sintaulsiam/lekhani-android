@@ -34,7 +34,7 @@ fun FloatingBottomDragBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(24.dp)
+            .height(26.dp)
             .background(barBg)
             .pointerInput(Unit) {
                 detectDragGestures(
@@ -52,9 +52,9 @@ fun FloatingBottomDragBar(
     ) {
         Box(
             modifier = Modifier
-                .width(44.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .width(48.dp)
+                .height(4.5.dp)
+                .clip(RoundedCornerShape(3.dp))
                 .background(contentColor.copy(alpha = 0.35f))
         )
     }
