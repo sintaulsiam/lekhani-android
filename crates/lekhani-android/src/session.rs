@@ -787,18 +787,41 @@ impl AndroidLekhaniSession {
 
         if is_punct {
             let mut committed = if state.layout == LekhaniLayoutType::Avro && !state.composing_buffer.is_empty() {
+                let raw = std::mem::take(&mut state.composing_buffer);
                 let words: Vec<&str> = if !state.surrounding_context.is_empty() {
                     state.surrounding_context.split_whitespace().collect()
                 } else {
                     Vec::new()
                 };
-                let (preedit, _) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, &words);
-                state.composing_buffer.clear();
-                preedit
+                let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw, &words);
+                if !words.is_empty() && candidates.len() > 1 {
+                    let scorer = get_context_scorer();
+                    let right_word = state.right_context.split_whitespace().next();
+                    scorer.rank_candidates_in_place_bidirectional(&words, right_word, &mut candidates);
+                }
+                crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
+                candidates.first().cloned().unwrap_or(preedit)
             } else {
                 std::mem::take(&mut state.composing_buffer)
             };
             state.composing_buffer = String::with_capacity(64);
+
+            let word = committed.clone();
+            if !word.is_empty() && !state.is_private_field && state.auto_learn_enabled {
+                let prev_word = state
+                    .surrounding_context
+                    .split_whitespace()
+                    .last()
+                    .map(|s| s.to_string());
+                let db = get_core_database();
+                if let Ok(mut learner) = db.learner.write() {
+                    if let Some(ref p) = prev_word {
+                        learner.observe_committed_pair(p, &word);
+                    }
+                }
+                state.last_commit_info =
+                    Some((prev_word, word.clone(), std::time::Instant::now()));
+            }
 
             let punct_str: &str = if key == "." && state.layout != LekhaniLayoutType::English {
                 let last_char = committed

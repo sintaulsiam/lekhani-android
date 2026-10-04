@@ -2325,8 +2325,10 @@ class LekhaniInputMethodService : InputMethodService() {
 
         result.commitText?.let { rawText ->
             val text = if (isUrlOrEmailOrNumericField() && rawText == "।") "." else rawText
-            val isPunctuation = !isUrlOrEmailOrNumericField() && text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',', '.')
-            val finalText = if (isPunctuation) {
+            val isSinglePunct = !isUrlOrEmailOrNumericField() && text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',', '.')
+            val isCommittedWordWithPunct = !isUrlOrEmailOrNumericField() && text.length > 1 && text.last() in listOf('।', '॥', '?', '!', ';', ',', '.')
+            val isPunctuation = isSinglePunct || isCommittedWordWithPunct
+            val finalText = if (isSinglePunct) {
                 if (text == ",") {
                     val before = try { ic.getTextBeforeCursor(1, 0)?.toString() } catch (_: Exception) { null }
                     if (before != null && before.isNotEmpty() && before[0].isDigit()) {
@@ -2372,6 +2374,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 } else {
                     "$text "
                 }
+            } else if (isCommittedWordWithPunct) {
+                "$text "
             } else {
                 text
             }
@@ -2380,6 +2384,10 @@ class LekhaniInputMethodService : InputMethodService() {
                 lastAutoDariCommitTime = android.os.SystemClock.uptimeMillis()
             } else {
                 lastAutoDariCommitTime = 0L
+            }
+
+            if (finalText.endsWith(" ")) {
+                lastCommitWithTrailingSpaceTime = android.os.SystemClock.uptimeMillis()
             }
 
             ic.beginBatchEdit()
@@ -2682,7 +2690,7 @@ class LekhaniInputMethodService : InputMethodService() {
         rawInputBuffer.clear()
 
         val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
-        val chosenForSpace = if (isPhonetic && activePrimary != null && !activePrimary.startsWith("=")) {
+        val chosenForSpace = if (activePrimary != null && !activePrimary.startsWith("=") && (isPhonetic || keyboardPrefs.spacebarAutocompleteEnabled)) {
             activePrimary
         } else {
             null
@@ -3826,8 +3834,8 @@ class LekhaniInputMethodService : InputMethodService() {
                                     val curCandidates = (_candidateState.value as? CandidateStripState.Candidates)?.items
                                     val trimmedCtx = effectiveContext.trimEnd()
                                     // If strip already displays predictions with the exact same top candidate,
-                                    // avoid redundant recomposition churn
-                                    if (curCandidates.isNullOrEmpty() || curCandidates.firstOrNull()?.text != nextWords.firstOrNull()) {
+                                    // or if predictions were already published for this context, avoid redundant recomposition churn
+                                    if (trimmedCtx != lastPredictedContext && (curCandidates.isNullOrEmpty() || curCandidates.firstOrNull()?.text != nextWords.firstOrNull())) {
                                         lastPredictedContext = trimmedCtx
                                         publishCandidates(nextWords)
                                     }
@@ -4149,7 +4157,7 @@ class LekhaniInputMethodService : InputMethodService() {
             'ী' to "I",
             'ু' to "u",
             'ূ' to "U",
-            'ৃ' to "rRI",
+            'ৃ' to "rri",
             'ে' to "e",
             'ৈ' to "OI",
             'ো' to "o",

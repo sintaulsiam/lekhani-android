@@ -63,13 +63,21 @@ object LekhaniAssetInstaller {
             }
         } catch (_: Exception) {}
 
-        val manifest = mapOf(
+        val regularManifest = mapOf(
             "dictionaries" to BUNDLED_DICTIONARIES,
+            "layouts" to BUNDLED_LAYOUTS
+        )
+        val dpsManifest = mapOf(
+            // Lean Direct Boot profile: lock screen only needs English & layouts for PIN/password entry.
+            "dictionaries" to listOf("english_dict.bin", "english_lm.bin"),
             "layouts" to BUNDLED_LAYOUTS
         )
 
         for (rootDir in targetRoots) {
-            for ((subDir, defaultFiles) in manifest) {
+            val isDps = rootDir.absolutePath.contains("user_de")
+            val currentManifest = if (isDps) dpsManifest else regularManifest
+
+            for ((subDir, defaultFiles) in currentManifest) {
                 val targetDir = File(rootDir, subDir)
                 if (!targetDir.exists()) {
                     targetDir.mkdirs()
@@ -80,15 +88,31 @@ object LekhaniAssetInstaller {
 
                 for (assetName in filesToUnpack) {
                     val targetFile = File(targetDir, assetName)
-                    if (!targetFile.exists() || targetFile.length() == 0L) {
+                    val assetLength = try {
+                        context.assets.openFd("$subDir/$assetName").use { it.length }
+                    } catch (_: Exception) {
+                        try {
+                            context.assets.open("$subDir/$assetName").use { it.available().toLong() }
+                        } catch (_: Exception) {
+                            -1L
+                        }
+                    }
+                    val needsUnpack = !targetFile.exists() || targetFile.length() == 0L || (assetLength > 0L && targetFile.length() != assetLength)
+                    if (needsUnpack) {
+                        val tmpFile = File(targetDir, "$assetName.tmp.${System.currentTimeMillis()}")
                         try {
                             context.assets.open("$subDir/$assetName").use { input ->
-                                FileOutputStream(targetFile).use { output ->
+                                FileOutputStream(tmpFile).use { output ->
                                     input.copyTo(output)
                                 }
                             }
+                            if (!tmpFile.renameTo(targetFile)) {
+                                tmpFile.copyTo(targetFile, overwrite = true)
+                                tmpFile.delete()
+                            }
                             Log.d(TAG, "Unpacked asset: $subDir/$assetName (${targetFile.length()} bytes) to ${targetFile.absolutePath}")
                         } catch (e: IOException) {
+                            tmpFile.delete()
                             Log.w(TAG, "Could not open asset $subDir/$assetName: ${e.message}")
                         }
                     }

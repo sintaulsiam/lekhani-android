@@ -61,7 +61,7 @@ object EnglishQwertyLayout {
                 widthWeight = 1.4f, contentDesc = "Numbers and symbols, long press for number pad",
             ),
             Key(
-                label = "🌐", shiftedLabel = "🌐",
+                label = "Layout", shiftedLabel = "Layout",
                 action = KeyAction.SwitchLayout, shiftedAction = KeyAction.SwitchLayout,
                 widthWeight = 1.0f, contentDesc = "Switch layout",
             ),

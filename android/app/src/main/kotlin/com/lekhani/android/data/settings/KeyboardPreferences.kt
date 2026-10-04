@@ -199,7 +199,7 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_DOUBLE_SPACE_DARI_ENABLED, value).apply()
 
     var spacebarAutocompleteEnabled: Boolean
-        get() = prefs.getBoolean(KEY_SPACEBAR_AUTOCOMPLETE_ENABLED, false)
+        get() = prefs.getBoolean(KEY_SPACEBAR_AUTOCOMPLETE_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_SPACEBAR_AUTOCOMPLETE_ENABLED, value).apply()
 
     var autoLearnWordsEnabled: Boolean

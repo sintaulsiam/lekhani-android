@@ -51,11 +51,20 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
         }
     });
     if let Some(overrides) = override_opt {
-        for (override_word, _score) in overrides {
+        let mut inserted_idx = 0;
+        for (override_word, score) in overrides {
             if let Some(pos) = candidates.iter().position(|c| c == override_word) {
                 let cand = candidates.remove(pos);
-                candidates.insert(0, cand);
-                return;
+                candidates.insert(inserted_idx, cand);
+                inserted_idx += 1;
+            } else if *score >= 0.70 {
+                candidates.insert(inserted_idx, override_word.clone());
+                inserted_idx += 1;
+            } else if !candidates.contains(override_word) {
+                if candidates.len() >= 12 {
+                    candidates.pop();
+                }
+                candidates.push(override_word.clone());
             }
         }
     }
@@ -556,7 +565,7 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("cute", &["কিউট"][..]);
         m.insert("sweet", &["সুইট"][..]);
         m.insert("cool", &["কুল"][..]);
-        m.insert("nice", &["সুন্দর", "নাইস"][..]);
+        m.insert("nice", &["নিচে", "নাইস"][..]);
         m.insert("tension", &["টেনশন"][..]);
         m.insert("relax", &["রিল্যাক্স"][..]);
         m.insert("happy", &["খুশি", "হ্যাপি"][..]);
@@ -1173,6 +1182,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
     // 4. Core database PrefixTrie lookup to expand matching vocabulary
     append_prefix_matches(&primary, &mut candidates);
+
+    prioritize_common_or_override_candidate(input, &mut candidates);
+    let primary = candidates.first().cloned().unwrap_or(primary);
 
     (primary, candidates)
 }
