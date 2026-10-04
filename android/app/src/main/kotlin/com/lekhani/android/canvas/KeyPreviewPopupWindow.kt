@@ -151,8 +151,9 @@ internal class KeyPreviewPopupWindow(context: Context) {
         }
 
         fun setLabel(newLabel: String) {
-            if (label != newLabel) {
-                label = newLabel
+            val sanitized = com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(newLabel)
+            if (label != sanitized) {
+                label = sanitized
                 invalidate()
             }
         }

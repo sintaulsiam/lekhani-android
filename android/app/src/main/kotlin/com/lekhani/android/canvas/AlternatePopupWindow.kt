@@ -292,9 +292,10 @@ internal class AlternatePopupWindow(context: Context) {
                     canvas.drawRoundRect(rect, pr, pr, pillBgPaint)
                 }
                 val label = labels.getOrNull(i) ?: continue
+                val displayLabel = com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(label)
                 val tp = if (isSelected) selectedTextPaint else textPaint
                 val ty = rect.centerY() - (tp.ascent() + tp.descent()) / 2f
-                canvas.drawText(label, rect.centerX(), ty, tp)
+                canvas.drawText(displayLabel, rect.centerX(), ty, tp)
             }
         }
     }

@@ -892,7 +892,7 @@ private fun CandidatePill(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            val displayText = item.text
+            val displayText = com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(item.text)
             Text(
                 text = displayText,
                 fontSize = if (item.isEmoji) 18.sp else if (item.isVerbatimPreview) 14.sp else 15.sp,
