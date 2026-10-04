@@ -33,15 +33,15 @@ class BengaliDiacriticsFormatterTest {
     }
 
     @Test
-    fun `formatForDisplay prepends ZWNJ to isolated combining marks`() {
-        assertEquals("\u200Cি", BengaliDiacriticsFormatter.formatForDisplay("ি"))
-        assertEquals("\u200Cা", BengaliDiacriticsFormatter.formatForDisplay("া"))
-        assertEquals("\u200Cু", BengaliDiacriticsFormatter.formatForDisplay("ু"))
-        assertEquals("\u200Cে", BengaliDiacriticsFormatter.formatForDisplay("ে"))
-        assertEquals("\u200C্", BengaliDiacriticsFormatter.formatForDisplay("্"))
-        assertEquals("\u200Cং", BengaliDiacriticsFormatter.formatForDisplay("ং"))
-        assertEquals("\u200Cঃ", BengaliDiacriticsFormatter.formatForDisplay("ঃ"))
-        assertEquals("\u200Cঁ", BengaliDiacriticsFormatter.formatForDisplay("ঁ"))
+    fun `formatForDisplay prepends NBSP to isolated combining marks`() {
+        assertEquals("\u00A0ি", BengaliDiacriticsFormatter.formatForDisplay("ি"))
+        assertEquals("\u00A0া", BengaliDiacriticsFormatter.formatForDisplay("া"))
+        assertEquals("\u00A0ু", BengaliDiacriticsFormatter.formatForDisplay("ু"))
+        assertEquals("\u00A0ে", BengaliDiacriticsFormatter.formatForDisplay("ে"))
+        assertEquals("\u00A0্", BengaliDiacriticsFormatter.formatForDisplay("্"))
+        assertEquals("\u00A0ং", BengaliDiacriticsFormatter.formatForDisplay("ং"))
+        assertEquals("\u00A0ঃ", BengaliDiacriticsFormatter.formatForDisplay("ঃ"))
+        assertEquals("\u00A0ঁ", BengaliDiacriticsFormatter.formatForDisplay("ঁ"))
     }
 
     @Test
@@ -50,7 +50,7 @@ class BengaliDiacriticsFormatterTest {
         assertEquals("অ", BengaliDiacriticsFormatter.formatForDisplay("অ"))
         assertEquals("কি", BengaliDiacriticsFormatter.formatForDisplay("কি"))
         assertEquals("English", BengaliDiacriticsFormatter.formatForDisplay("English"))
-        assertEquals("\u200Cি", BengaliDiacriticsFormatter.formatForDisplay("\u200Cি"))
+        assertEquals("\u00A0ি", BengaliDiacriticsFormatter.formatForDisplay("\u00A0ি"))
         assertEquals("", BengaliDiacriticsFormatter.formatForDisplay(""))
         assertEquals("", BengaliDiacriticsFormatter.formatForDisplay(null))
     }

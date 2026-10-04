@@ -7,17 +7,18 @@ package com.lekhani.android.model
  * Bengali vowel signs (Kars), Hasanta, and modifier diacritics.
  *
  * When combining marks (e.g. `ি`, `া`, `ু`, `্`, `ং`, `ঃ`, `ঁ`) are rendered alone
- * without a base consonant, Android's HarfBuzz font shaping engine automatically inserts
+ * without a base consonant, Android's HarfBuzz / Skia font shaping engine automatically inserts
  * a Unicode Dotted Circle (`◌` / U+25CC).
  *
- * Prepending a Zero-Width Non-Joiner (ZWNJ / `\u200C`) provides an invisible base glyph
- * for HarfBuzz to attach the combining mark to, cleanly rendering the pure diacritic
- * without the dotted circle on keyboard keycaps, preview bubbles, and alternate popups.
+ * In the OpenType Indic shaping specification, Non-Breaking Space (`\u00A0` / NBSP) is categorized
+ * as a valid whitespace base glyph (`Zs`). Prepending `\u00A0` satisfies the HarfBuzz syllable
+ * parser with an invisible whitespace base, cleanly rendering the pure diacritic without any
+ * dotted circle on keyboard keycaps, preview bubbles, and alternate popups.
  */
 object BengaliDiacriticsFormatter {
 
-    /** Zero-Width Non-Joiner (U+200C) acts as an invisible base glyph for HarfBuzz */
-    const val ZWNJ: String = "\u200C"
+    /** Non-Breaking Space (U+00A0) acts as a valid OpenType whitespace base glyph for HarfBuzz */
+    const val NBSP: String = "\u00A0"
 
     /**
      * Checks if a character is a standalone Bengali combining mark (Kar or modifier).
@@ -40,7 +41,7 @@ object BengaliDiacriticsFormatter {
     fun needsDottedCircleSuppression(text: String): Boolean {
         if (text.isEmpty()) return false
         val first = text[0]
-        return isBengaliCombiningMark(first) && !text.startsWith(ZWNJ)
+        return isBengaliCombiningMark(first) && !text.startsWith(NBSP)
     }
 
     /**
@@ -52,7 +53,7 @@ object BengaliDiacriticsFormatter {
     fun formatForDisplay(label: String?): String {
         if (label == null || label.isEmpty()) return ""
         return if (needsDottedCircleSuppression(label)) {
-            ZWNJ + label
+            NBSP + label
         } else {
             label
         }
