@@ -2551,6 +2551,13 @@ class LekhaniInputMethodService : InputMethodService() {
                 clearCandidates()
             }
         } ?: run {
+            // Probaho 2.0 Micro-Haptics: tactile tick when a Kar auto-promotes to an independent vowel
+            if (session.getLayout() == LekhaniLayoutType.PROBAHO &&
+                keyToken.length == 1 && keyToken[0] in '\u09BE'..'\u09CC' &&
+                result.preedit.isNotEmpty() && result.preedit.last() in '\u0985'..'\u0994'
+            ) {
+                keyboardView?.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+            }
             setComposingTextSafe(ic, result.preedit)
             publishCandidates(result.candidates)
         }

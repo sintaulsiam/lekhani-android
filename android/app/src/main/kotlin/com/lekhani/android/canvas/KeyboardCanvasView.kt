@@ -218,6 +218,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
         color = 0x44000000
     }
 
+    // Swipe-up flick gesture state (Probaho 2.0 / rapid shifted access)
+    private var isFlickGestureActive: Boolean = false
+    private var flickThresholdPx: Float = 0f
+
+    // Bilateral Thumb Aura paint (Probaho 2.0 vowel-consonant realm tint)
+    private val vowelAuraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+
     // ── PopupWindow-based Key Preview & Alternate Popups ──────────────────────
     // Both live in their own window layer so they're never clipped by this view's
     // bounds — consistently visible on row 1 without overlapping the candidate strip.
@@ -638,6 +647,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         vectorIconStrokePaint.color = theme.labelColor
         vectorIconFillPaint.color = theme.labelColor
         hintPaint.color = theme.labelDimColor
+        vowelAuraPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(theme.accentColor, 18)
 
         keyPreviewPopup.applyTheme(theme)
         alternatePopup.applyTheme(theme)
@@ -840,6 +850,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyCornerRadius = 7.5f * density
         homeRowAccentHeight = 2.5f * density
         swipeThresholdPx = 28f * density
+        flickThresholdPx = 18f * density
         spaceSlideThresholdPx = 16f * density
         spaceSlideStepPx = 16f * density
         backspaceSwipeStepPx = 28f * density
@@ -1641,6 +1652,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
             // Draw key background with rounded corners
             canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, bgPaint)
 
+            // Probaho Bilateral Thumb Aura: subtle tint on Left Hand (vowels realm) character keys
+            if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.PROBAHO &&
+                drawBounds.centerX() < width / 2f &&
+                key.action is KeyAction.Character &&
+                !activeTheme.isRgbChroma
+            ) {
+                canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, vowelAuraPaint)
+            }
+
             // Draw key border (enabled by user preference OR dynamic RGB chroma)
             val shouldDrawKeyBorder = when {
                 activeTheme.isRgbChroma -> {
@@ -1916,6 +1936,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     pressedKeyIndex = idx
                     pressStartTime = SystemClock.uptimeMillis()
                     isLongPressTriggered = false
+                    isFlickGestureActive = false
                     isSpaceSwiping = false
                     isSpaceCursorMoving = false
                     isBackspaceSwiping = false
@@ -2000,8 +2021,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 if (!isOverBackspace && moveDistSq > touchSlopPx * touchSlopPx) {
                     removeCallbacks(longPressRunnable)
                     removeCallbacks(backspaceRepeatRunnable)
-                    // Dismiss key preview once the finger moves (matches Gboard behaviour)
-                    keyPreviewPopup.dismiss()
+                    // Dismiss key preview once the finger moves (unless flick gesture is active)
+                    if (!isFlickGestureActive) {
+                        keyPreviewPopup.dismiss()
+                    }
                 }
 
                 if (pressedKeyIndex in resolvedKeys.indices) {
@@ -2146,6 +2169,50 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     }
                 }
 
+                // ── Swipe-Up Flick Gesture Detection (Probaho 2.0 / rapid shifted access) ──
+                if (!isGliding && !isSpaceSwiping && !isSpaceCursorMoving && !isBackspaceSwiping && !alternatePopup.isShowing) {
+                    if (pressedKeyIndex in resolvedKeys.indices) {
+                        val flickKey = resolvedKeys[pressedKeyIndex].key
+                        if (flickKey.action is KeyAction.Character && flickKey.shiftedLabel != null && flickKey.shiftedLabel != flickKey.label) {
+                            val dy = curY - touchStartY
+                            val dx = curX - touchStartX
+                            val absDx = kotlin.math.abs(dx)
+                            if (-dy > flickThresholdPx && -dy > absDx * 1.15f) {
+                                if (!isFlickGestureActive) {
+                                    isFlickGestureActive = true
+                                    removeCallbacks(longPressRunnable)
+                                    val bounds = resolvedKeys[pressedKeyIndex].bounds
+                                    keyPreviewPopup.show(
+                                        anchor = this,
+                                        label = flickKey.shiftedLabel!!,
+                                        keyLeft = bounds.left,
+                                        keyTop = bounds.top,
+                                        keyRight = bounds.right,
+                                        keyBottom = bounds.bottom,
+                                        density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
+                                    )
+                                    feedbackManager?.onTickFeedback(this)
+                                        ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                }
+                            } else if (isFlickGestureActive && -dy < flickThresholdPx * 0.4f) {
+                                isFlickGestureActive = false
+                                val bounds = resolvedKeys[pressedKeyIndex].bounds
+                                keyPreviewPopup.show(
+                                    anchor = this,
+                                    label = flickKey.displayLabel(isShifted),
+                                    keyLeft = bounds.left,
+                                    keyTop = bounds.top,
+                                    keyRight = bounds.right,
+                                    keyBottom = bounds.bottom,
+                                    density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
+                                )
+                                feedbackManager?.onTickFeedback(this)
+                                    ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            }
+                        }
+                    }
+                }
+
                 // Glide / Swipe typing gesture detection
                 val totalDx = curX - touchStartX
                 val totalDy = curY - touchStartY
@@ -2213,6 +2280,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     pressedKeyIndex = -1
                     pressedPointerId = -1
                     isLongPressTriggered = false
+                    isFlickGestureActive = false
                     isSpaceSwiping = false
                     keyPreviewPopup.dismiss()
                     alternatePopup.dismiss()
@@ -2290,8 +2358,26 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     pressedKeyIndex = -1
                     pressedPointerId = -1
                     isLongPressTriggered = false
+                    isFlickGestureActive = false
                     isSpaceSwiping = false
                     keyPreviewPopup.dismiss()
+                    invalidate()
+                    return true
+                }
+
+                if (isFlickGestureActive) {
+                    isFlickGestureActive = false
+                    keyPreviewPopup.dismiss()
+                    if (pressedKeyIndex in resolvedKeys.indices) {
+                        val flickKey = resolvedKeys[pressedKeyIndex].key
+                        keyListener?.onKey(flickKey, flickKey.shiftedAction)
+                        feedbackManager?.onKeyFeedback(this)
+                            ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    }
+                    pressedKeyIndex = -1
+                    pressedPointerId = -1
+                    isLongPressTriggered = false
+                    isSpaceSwiping = false
                     invalidate()
                     return true
                 }
@@ -2334,6 +2420,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 backspaceDeletedWordCount = 0
                 keyListener?.onSwipeDeletePreview(0)
                 isSpaceSwiping = false
+                isFlickGestureActive = false
                 pressedKeyIndex = -1
                 pressedPointerId = -1
                 invalidate()

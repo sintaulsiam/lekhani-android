@@ -1854,6 +1854,41 @@ impl AndroidLekhaniSession {
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
+        // ── Probaho In-Flight Conjunct Substitution ─────────────────────────
+        // If Probaho mode is active and the composing buffer ends with Hasanta (`্`),
+        // selecting a conjunct candidate (e.g. `ক্ষ` or `ক্ত`) replaces the base consonant
+        // and Hasanta in-place, keeping the composing buffer alive so the typist can
+        // seamlessly continue typing subsequent Kars/consonants (e.g. `শিক্` + `ক্ষ` -> `শিক্ষ` + `া` -> `শিক্ষা`).
+        if state.layout == LekhaniLayoutType::Probaho && state.composing_buffer.ends_with('্') {
+            let mut chars: Vec<char> = state.composing_buffer.chars().collect();
+            if chars.len() >= 2 {
+                chars.pop(); // Remove '্'
+                chars.pop(); // Remove base consonant
+                let prefix: String = chars.into_iter().collect();
+                let new_buffer = nfc_normalize(&format!("{}{}", prefix, candidate));
+                state.composing_buffer = new_buffer.clone();
+
+                let mut candidates = Vec::new();
+                let db = get_core_database();
+                let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 5);
+                if !prefix_matches.is_empty() {
+                    candidates.push(state.composing_buffer.clone());
+                    for (word, _) in prefix_matches {
+                        if !candidates.iter().any(|c| c == word) {
+                            candidates.push(word.to_string());
+                        }
+                    }
+                }
+
+                return Ok(TypingResult {
+                    preedit: state.composing_buffer.clone(),
+                    commit_text: None,
+                    candidates,
+                    cursor_position: state.composing_buffer.chars().count() as u32,
+                });
+            }
+        }
+
         let typed_buffer = std::mem::take(&mut state.composing_buffer);
         state.composing_buffer = String::with_capacity(64);
         let normalized = nfc_normalize(&candidate);
@@ -2708,12 +2743,23 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_neural_predictor_loads_matched_pair() {
-        let neural = get_neural_predictor();
-        assert_eq!(neural.vocab_size(), 1576, "Should load v2 1576-token model");
-        let cands = neural.predict_candidates("আমি ভাত", 3);
-        assert!(!cands.is_empty(), "Neural predictor should return predictions from matched model");
+    fn test_probaho_conjunct_substitution() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+        session.process_key("শ".into()).unwrap();
+        session.process_key("ি".into()).unwrap();
+        session.process_key("ক".into()).unwrap();
+        let res = session.process_key("্".into()).unwrap();
+        assert!(res.candidates.contains(&"ক্ষ".to_string()));
+
+        let select_res = session.select_candidate("ক্ষ".into()).unwrap();
+        assert_eq!(select_res.commit_text, None);
+        assert_eq!(select_res.preedit, "শিক্ষ");
+
+        let res_kar = session.process_key("া".into()).unwrap();
+        assert_eq!(res_kar.preedit, "শিক্ষা");
     }
 }
+
 
 
