@@ -118,6 +118,7 @@ fun PreferencesTabContent(
     var showLayoutNameOnSpacebar by remember { mutableStateOf(prefs.showLayoutNameOnSpacebar) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
     var showBilateralAura by remember { mutableStateOf(prefs.showBilateralAura) }
+    var showKeyHints by remember { mutableStateOf(prefs.showKeyHints) }
     var swipeUpFlickEnabled by remember { mutableStateOf(prefs.swipeUpFlickEnabled) }
 
     var fontStyle by remember { mutableStateOf(prefs.fontStyle) }
@@ -1251,6 +1252,38 @@ fun PreferencesTabContent(
                         onCheckedChange = {
                             showBilateralAura = it
                             prefs.showBilateralAura = it
+                        }
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                // Key Hints (Subscripts)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Key Hints (Subscripts)" else "কি-এর উপরের সংকেত (সাবস্ক্রিপ্ট)",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Show secondary / shifted characters in the top corner of keys"
+                                   else "কি-এর কোণায় শিফট বা ফ্লিক করে টাইপযোগ্য বর্ণ সংকেত দেখাবে",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = showKeyHints,
+                        onCheckedChange = {
+                            showKeyHints = it
+                            prefs.showKeyHints = it
                         }
                     )
                 }

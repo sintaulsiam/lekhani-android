@@ -107,6 +107,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SHOW_BILATERAL_AURA, false)
         set(value) = prefs.edit().putBoolean(KEY_SHOW_BILATERAL_AURA, value).apply()
 
+    var showKeyHints: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_KEY_HINTS, true)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_KEY_HINTS, value).apply()
+
     var swipeUpFlickEnabled: Boolean
         get() = prefs.getBoolean(KEY_SWIPE_UP_FLICK, true)
         set(value) = prefs.edit().putBoolean(KEY_SWIPE_UP_FLICK, value).apply()
@@ -388,6 +392,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_AUTO_LEARN_WORDS_ENABLED = "auto_learn_words_enabled"
         const val KEY_SHOW_LAYOUT_NAME_ON_SPACEBAR = "show_layout_name_on_spacebar"
         const val KEY_SHOW_BILATERAL_AURA = "show_bilateral_aura"
+        const val KEY_SHOW_KEY_HINTS = "show_key_hints"
         const val KEY_SWIPE_UP_FLICK = "swipe_up_flick"
         const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
 

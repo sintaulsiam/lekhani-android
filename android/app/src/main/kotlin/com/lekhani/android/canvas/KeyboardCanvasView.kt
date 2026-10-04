@@ -128,6 +128,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var showKeyPreviews: Boolean = true
     var isUiLanguageEnglish: Boolean = false
     var showLayoutNameOnSpacebar: Boolean = true
+    var showKeyHints: Boolean = true
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
 
     var isResizeVisualGuide: Boolean = false
         set(value) {
@@ -590,6 +597,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.isUiLanguageEnglish = (prefs.uiLanguage == "en")
         this.showLayoutNameOnSpacebar = prefs.showLayoutNameOnSpacebar
         this.showBilateralAura = prefs.showBilateralAura
+        this.showKeyHints = prefs.showKeyHints
         this.swipeUpFlickEnabled = prefs.swipeUpFlickEnabled
 
         val tf = when (prefs.fontStyle) {
@@ -1799,20 +1807,24 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 }
                 KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits -> {
                     canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
-                    val hint = key.displayHint(isShifted)?.let { com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(it) }
-                    if (hint != null) {
-                        val hintX = drawBounds.right - 5f * density
-                        val hintY = drawBounds.top + 13f * density
-                        canvas.drawText(hint, hintX, hintY, hintPaint)
+                    if (showKeyHints) {
+                        val hint = key.displayHint(isShifted)?.let { com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(it) }
+                        if (hint != null) {
+                            val hintX = drawBounds.right - 5f * density
+                            val hintY = drawBounds.top + 13f * density
+                            canvas.drawText(hint, hintX, hintY, hintPaint)
+                        }
                     }
                 }
                 else -> {
                     canvas.drawText(labelText, cx, cy, labelPaint)
-                    val hint = key.displayHint(isShifted)?.let { com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(it) }
-                    if (hint != null) {
-                        val hintX = drawBounds.right - 5f * density
-                        val hintY = drawBounds.top + 13f * density
-                        canvas.drawText(hint, hintX, hintY, hintPaint)
+                    if (showKeyHints) {
+                        val hint = key.displayHint(isShifted)?.let { com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(it) }
+                        if (hint != null) {
+                            val hintX = drawBounds.right - 5f * density
+                            val hintY = drawBounds.top + 13f * density
+                            canvas.drawText(hint, hintX, hintY, hintPaint)
+                        }
                     }
                 }
             }

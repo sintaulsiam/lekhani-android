@@ -2805,6 +2805,26 @@ mod tests {
         let res = session.process_key("্".into()).unwrap();
         assert!(res.candidates.contains(&"ন্য".to_string()), "Hasanta after ন must suggest ন্য");
     }
+
+    #[test]
+    #[serial]
+    fn test_probaho_rphola_suggestion() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+        session.process_key("প".into()).unwrap();
+        let res = session.process_key("্".into()).unwrap();
+        assert_eq!(res.candidates.first().map(|s| s.as_str()), Some("প্র"), "First candidate after প + ্ must be প্র");
+
+        let select_res = session.select_candidate("প্র".into()).unwrap();
+        assert_eq!(select_res.commit_text, None);
+        assert_eq!(select_res.preedit, "প্র");
+
+        let res_e = session.process_key("ে".into()).unwrap();
+        assert_eq!(res_e.preedit, "প্রে");
+
+        let res_m = session.process_key("ম".into()).unwrap();
+        assert_eq!(res_m.preedit, "প্রেম");
+    }
 }
 
 

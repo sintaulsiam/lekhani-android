@@ -21,14 +21,14 @@ object ProbahLayout {
         rows = listOf(
             // ── Row 1 (Top) — Vowels & Labials/Dentals ──────────
             listOf(
-                Ch("ৈ", shifted = "ঐ", desc = "ৈ, shifted ঐ"),
+                Ch("য", shifted = "য়", desc = "য, shifted য়"),
                 Ch("ো", shifted = "ও", desc = "ো, shifted ও"),
                 Ch("ী", shifted = "ঈ", desc = "ী, shifted ঈ"),
                 Ch("ূ", shifted = "ঊ", desc = "ূ, shifted ঊ"),
-                Ch("য", shifted = "য়", desc = "য, shifted য়"),
+                Ch("ৈ", shifted = "ঐ", desc = "ৈ, shifted ঐ"),
                 Ch("প", shifted = "ফ", desc = "প, shifted ফ"),
                 Ch("ব", shifted = "ভ", desc = "ব, shifted ভ"),
-                Ch("গ", shifted = "ঘ", desc = "গ, shifted ঘ"),
+                Ch("ম", shifted = "ঙ", desc = "ম, shifted ঙ"),
                 Ch("দ", shifted = "ধ", desc = "দ, shifted ধ"),
                 Ch("ল", shifted = "শ", desc = "ল, shifted শ"),
             ),
@@ -54,7 +54,7 @@ object ProbahLayout {
                     contentDesc = "Shift",
                 ),
                 Ch("হ", shifted = "ঞ", desc = "হ, shifted ঞ"),
-                Ch("ম", shifted = "ঙ", desc = "ম, shifted ঙ"),
+                Ch("গ", shifted = "ঘ", desc = "গ, shifted ঘ"),
                 Ch("ং", shifted = "ঃ", desc = "ং, shifted ঃ (Visarga)"),
                 Ch("ঁ", shifted = "৳", desc = "ঁ, shifted Taka ৳"),
                 Ch("চ", shifted = "ছ", desc = "চ, shifted ছ"),

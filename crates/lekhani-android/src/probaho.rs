@@ -151,11 +151,31 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         .map(|info| info.conjunct)
         .collect();
 
-    // Ensure Ya-phola (্য) is always offered for any standard consonant
-    if is_bengali_consonant_or_modifier(last_consonant) && last_consonant != 'র' && last_consonant != '্' && last_consonant != 'ৎ' {
+    // Ensure R-phola (্র) is prominently offered for eligible consonants
+    if is_bengali_consonant_or_modifier(last_consonant)
+        && !matches!(last_consonant, 'র' | '্' | 'ৎ' | 'ড়' | 'ঢ়' | 'য়' | '়' | 'ং' | 'ঃ' | 'ঁ')
+    {
+        let rphola = format!("{}্র", last_consonant);
+        if let Some(pos) = results.iter().position(|r| r == &rphola) {
+            results.remove(pos);
+            results.insert(0, rphola);
+        } else {
+            results.insert(0, rphola);
+        }
+    }
+
+    // Ensure Ya-phola (্য) is prominently offered for eligible consonants
+    if is_bengali_consonant_or_modifier(last_consonant)
+        && !matches!(last_consonant, 'র' | '্' | 'ৎ' | 'ড়' | 'ঢ়' | '়' | 'ং' | 'ঃ' | 'ঁ')
+    {
         let yaphola = format!("{}্য", last_consonant);
-        if !results.contains(&yaphola) {
-            results.push(yaphola);
+        if let Some(pos) = results.iter().position(|r| r == &yaphola) {
+            results.remove(pos);
+            let insert_idx = if !results.is_empty() { 1 } else { 0 };
+            results.insert(insert_idx, yaphola);
+        } else {
+            let insert_idx = if !results.is_empty() { 1 } else { 0 };
+            results.insert(insert_idx, yaphola);
         }
     }
 
@@ -214,8 +234,14 @@ mod tests {
     #[test]
     fn test_conjunct_suggestions() {
         let suggestions = get_conjunct_suggestions('ক');
+        assert_eq!(suggestions[0], "ক্র");
+        assert_eq!(suggestions[1], "ক্য");
         assert!(suggestions.contains(&"ক্ত".to_string()));
         assert!(suggestions.contains(&"ক্ষ".to_string()));
+
+        let p_suggestions = get_conjunct_suggestions('প');
+        assert_eq!(p_suggestions[0], "প্র");
+        assert_eq!(p_suggestions[1], "প্য");
 
         let reph_suggestions = get_conjunct_suggestions('র');
         assert!(reph_suggestions.contains(&"র্ক".to_string()));

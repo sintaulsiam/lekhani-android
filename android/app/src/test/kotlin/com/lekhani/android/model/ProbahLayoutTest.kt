@@ -118,12 +118,21 @@ class ProbahLayoutTest {
 
     @Test
     fun `long vowels sit above their short partners in top row vs home row`() {
+        // য sits at column 0 above অ
+        assertEquals("য", layout.rows[0][0].label)
+        assertEquals("অ", layout.rows[1][0].label)
+        // ো (O) is top row position 1; া (short Aa) is home row position 1
+        assertEquals("ো", layout.rows[0][1].label)
+        assertEquals("া", layout.rows[1][1].label)
         // ী (long I) is top row position 2; ি (short I) is home row position 2
         assertEquals("ী", layout.rows[0][2].label)
         assertEquals("ি", layout.rows[1][2].label)
         // ূ (long U) is top row position 3; ু (short U) is home row position 3
         assertEquals("ূ", layout.rows[0][3].label)
         assertEquals("ু", layout.rows[1][3].label)
+        // ৈ (Oi) is top row position 4; ে (short E) is home row position 4
+        assertEquals("ৈ", layout.rows[0][4].label)
+        assertEquals("ে", layout.rows[1][4].label)
     }
 
     @Test
@@ -205,11 +214,11 @@ class ProbahLayoutTest {
     }
 
     @Test
-    fun `ga and ya are unshifted on top row and ma on bottom row`() {
-        val gaKey = layout.rows[0].find { it.label == "গ" }
-        assertNotNull("গ key should exist in row 0", gaKey)
-        assertEquals("ঘ", gaKey!!.shiftedLabel)
-        assertEquals(KeyAction.Character("ঘ"), gaKey.shiftedAction)
+    fun `ma, ya, and oi are unshifted on top row and ga on bottom row`() {
+        val maKey = layout.rows[0].find { it.label == "ম" }
+        assertNotNull("ম key should exist in row 0", maKey)
+        assertEquals("ঙ", maKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ঙ"), maKey.shiftedAction)
 
         val yaKey = layout.rows[0].find { it.label == "য" }
         assertNotNull("য key should exist in row 0", yaKey)
@@ -221,9 +230,9 @@ class ProbahLayoutTest {
         assertEquals("ঐ", oiKey!!.shiftedLabel)
         assertEquals(KeyAction.Character("ঐ"), oiKey.shiftedAction)
 
-        val maKey = layout.rows[2].find { it.label == "ম" }
-        assertNotNull("ম key should exist in row 2", maKey)
-        assertEquals("ঙ", maKey!!.shiftedLabel)
-        assertEquals(KeyAction.Character("ঙ"), maKey.shiftedAction)
+        val gaKey = layout.rows[2].find { it.label == "গ" }
+        assertNotNull("গ key should exist in row 2", gaKey)
+        assertEquals("ঘ", gaKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ঘ"), gaKey.shiftedAction)
     }
 }
