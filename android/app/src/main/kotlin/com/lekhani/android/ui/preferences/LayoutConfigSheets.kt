@@ -6,19 +6,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -83,11 +78,11 @@ fun ProbahoSettingsDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = if (isEnglish) "Lekhani প্রবাহ (Flow) Settings" else "লেখনী প্রবাহ লেআউট সেটিংস",
+                            text = if (isEnglish) "Lekhani প্রবাহ (Flow) Settings" else "লেখনী প্রবাহ সেটিংস",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = if (isEnglish) "Ergonomic two-thumb layout preferences" else "দ্বি-আঙুল আঙুলচালনা ও ফ্লো সেটিংস",
+                            text = if (isEnglish) "Ergonomic two-thumb layout" else "দ্বি-আঙুল এরগনোমিক লেআউট",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -103,37 +98,6 @@ fun ProbahoSettingsDialog(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Feature Overview Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Keyboard,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Text(
-                                text = if (isEnglish)
-                                    "Probaho layout splits vowels on the left thumb and consonants on the right thumb for natural alternation."
-                                else
-                                    "প্রবাহ লেআউটে বাম থাম্বে স্বরবর্ণ ও ডান থাম্বে ব্যঞ্জনবর্ণ সাজানো থাকে, যা সর্বোচ্চ টাইপিং গতি নিশ্চিত করে।",
-                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    // Toggles Card
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -145,7 +109,7 @@ fun ProbahoSettingsDialog(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // Subscript Hints
+                            // Key Hints
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -153,12 +117,12 @@ fun ProbahoSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Key Hints (Subscripts)" else "কি-এর উপরের সংকেত (সাবস্ক্রিপ্ট)",
+                                        text = if (isEnglish) "Key Hints" else "কী সহায়িকা",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Show secondary / shifted characters in the top corner of keys"
-                                               else "কি-এর কোণায় শিফট বা ফ্লিক করে টাইপযোগ্য বর্ণ সংকেত দেখাবে",
+                                        text = if (isEnglish) "Show shifted characters on keys"
+                                               else "কী-এর উপরে সহায়ক বর্ণ দেখাবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -182,12 +146,12 @@ fun ProbahoSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Swipe-Up Flick for Shift" else "উপরে সোয়াইপ করে শিফট টাইপ",
+                                        text = if (isEnglish) "Swipe-Up for Shift" else "উপরে সোয়াইপ করে শিফট",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Flick upward on any key to type its secondary shifted letter without pressing Shift"
-                                               else "শিফট না চেপেই দ্রুত উপরে সোয়াইপ করে মহাপ্রাণ বর্ণ টাইপ করুন",
+                                        text = if (isEnglish) "Flick key upward to type shifted letter"
+                                               else "কী-এর উপর সোয়াইপ করে শিফট বর্ণ লিখুন",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -211,12 +175,12 @@ fun ProbahoSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Bilateral Thumb Zone Aura" else "দ্বিপাক্ষিক থাম্ব জোন আভা",
+                                        text = if (isEnglish) "Thumb Zone Tint" else "থাম্ব জোন আভা",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Subtle color tint on left-hand vowel realm keys (off by default)"
-                                               else "বাম হাতের স্বরবর্ণ অঞ্চলে হালকা রঙের আভা দেখাবে",
+                                        text = if (isEnglish) "Subtle color tint for vowel and consonant zones"
+                                               else "স্বরবর্ণ ও ব্যঞ্জনবর্ণ অঞ্চলে রঙের আভা দেখাবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -229,38 +193,6 @@ fun ProbahoSettingsDialog(
                                     }
                                 )
                             }
-                        }
-                    }
-
-                    // Smart Rules Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = if (isEnglish) "Intelligent Orthography (Always Active)" else "স্বয়ংক্রিয় ব্যাকরণ নিয়ম (সক্রিয়)",
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = if (isEnglish)
-                                    "• Smart Kar Promotion: Typing a Kar at word start promotes it to independent vowel (া → আ, ি → ই)\n" +
-                                    "• Auto Kar Demotion: Typing vowel after consonant converts to Kar (ব + ঋ → বৃ)\n" +
-                                    "• Hasanta Phola Quick-Picks: Tapping Hasanta (্) surfaces R-phola (্র), Ya-phola (্য), and authentic conjuncts."
-                                else
-                                    "• কার স্বয়ংক্রিয় রূপান্তর: শব্দের শুরুতে কার চাপলে পূর্ণ স্বরবর্ণ হয় (া → আ, ি → ই)\n" +
-                                    "• স্বরবর্ণ ডিমোশন: ব্যঞ্জনের পর স্বরবর্ণ চাপলে কার হয় (ব + ঋ → বৃ)\n" +
-                                    "• হসন্ত ফলা কুইক-পিক: হসন্ত (্) চাপলে র-ফলা (্র), য-ফলা (্য) ও যুক্তবর্ণ সরাসরি সাজেশনে আসে।",
-                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
                 }
@@ -315,7 +247,7 @@ fun AvroSettingsDialog(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = if (isEnglish) "Phonetic transliteration rules and previews" else "উচ্চারণভিত্তিক টাইপিং ও সাজেশন বিন্যাস",
+                            text = if (isEnglish) "Phonetic typing and previews" else "উচ্চারণভিত্তিক টাইপিং ও প্রিভিউ",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -342,7 +274,7 @@ fun AvroSettingsDialog(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // Dual Script English Preview
+                            // English Input Preview
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -350,12 +282,12 @@ fun AvroSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Dual Script English Preview" else "ইংরেজি ও বাংলা প্রিভিউ ব্যাজ",
+                                        text = if (isEnglish) "English Input Preview" else "ইংরেজি প্রিভিউ",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Show typed English input above the Bengali preedit word bubble"
-                                               else "টাইপ করা রোমান অক্ষরগুলো বাংলা শব্দের উপরে প্রিভিউ হিসেবে দেখাবে",
+                                        text = if (isEnglish) "Show typed English letters above Bengali preview"
+                                               else "বাংলা প্রিভিউয়ের উপরে টাইপ করা ইংরেজি অক্ষর দেখাবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -371,7 +303,7 @@ fun AvroSettingsDialog(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Dynamic Recomposition
+                            // Smart Recomposition
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -379,12 +311,12 @@ fun AvroSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Dynamic Recomposition" else "শব্দ পুনর্গঠন (রি-কম্পোজিশন)",
+                                        text = if (isEnglish) "Smart Recomposition" else "শব্দ সমন্বয়",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Automatically re-evaluate previous characters when ambiguous prefixes change"
-                                               else "উচ্চারণের সুবিধার্থে পূর্ববর্তী বর্ণগুলোকে নতুন অক্ষরের সাথে সমন্বয় করবে",
+                                        text = if (isEnglish) "Adjust previous letters as typing changes word structure"
+                                               else "টাইপ করার সাথে সাথে পূর্ববর্তী অক্ষরের উচ্চারণ সমন্বয় করবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -400,15 +332,15 @@ fun AvroSettingsDialog(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Candidate Strip Order
+                            // Candidate Strip Priority
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = if (isEnglish) "Candidate Strip Priority" else "সাজেশন স্ট্রিপে অগ্রাধিকার",
+                                    text = if (isEnglish) "Suggestion Priority" else "সাজেশন অগ্রাধিকার",
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                 )
                                 Text(
-                                    text = if (isEnglish) "Select which candidate appears in the prime first position"
-                                           else "সাজেশন তালিকায় সবার শুরুতে কোন শব্দটি থাকবে নির্বাচন করুন",
+                                    text = if (isEnglish) "First suggestion in the candidate bar"
+                                           else "সাজেশন বারে সবার শুরুতে যা দেখাবে",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -423,7 +355,7 @@ fun AvroSettingsDialog(
                                             prefs.avroStripOrder = KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
                                         },
                                         label = {
-                                            Text(if (isEnglish) "Bengali First" else "বাংলা শব্দ আগে", fontSize = 12.sp)
+                                            Text(if (isEnglish) "Bengali First" else "বাংলা আগে", fontSize = 12.sp)
                                         },
                                         shape = RoundedCornerShape(8.dp)
                                     )
@@ -434,7 +366,7 @@ fun AvroSettingsDialog(
                                             prefs.avroStripOrder = KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST
                                         },
                                         label = {
-                                            Text(if (isEnglish) "English First" else "ইংরেজি শব্দ আগে", fontSize = 12.sp)
+                                            Text(if (isEnglish) "English First" else "ইংরেজি আগে", fontSize = 12.sp)
                                         },
                                         shape = RoundedCornerShape(8.dp)
                                     )
@@ -443,7 +375,7 @@ fun AvroSettingsDialog(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Phonetic Backspace Reopening
+                            // Reopen Word on Backspace
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -451,12 +383,12 @@ fun AvroSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Backspace Reopens Pre-edit" else "ব্যাকস্পেসে শব্দ পুনরায় সম্পাদনা",
+                                        text = if (isEnglish) "Reopen Word on Backspace" else "ব্যাকস্পেসে শব্দ এডিট",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Hitting backspace right after committing a word reopens the phonetic composition buffer"
-                                               else "শব্দ লেখার সাথে সাথে ব্যাকস্পেস দিলে পূর্বের রোমান কম্পোজিশন ফিরে আসবে",
+                                        text = if (isEnglish) "Resume phonetic editing when deleting back into a word"
+                                               else "শব্দ লেখার পর ব্যাকস্পেস দিলে পূর্বের রূপ ফিরিয়ে আনবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -472,7 +404,7 @@ fun AvroSettingsDialog(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Bengali Numerals in Avro
+                            // Bengali Numbers in Avro
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -480,12 +412,12 @@ fun AvroSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Bengali Digits in Avro (১, ২, ৩)" else "অভ্রতে বাংলা সংখ্যা (১, ২, ৩)",
+                                        text = if (isEnglish) "Bengali Numbers (১, ২, ৩)" else "বাংলা সংখ্যা (১, ২, ৩)",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Number row outputs Bengali digits by default instead of English"
-                                               else "সংখ্যা সারিতে ইংরেজি সংখ্যার বদলে ডিফল্টভাবে বাংলা সংখ্যা টাইপ হবে",
+                                        text = if (isEnglish) "Type Bengali numbers on number keys by default"
+                                               else "সংখ্যা সারিতে ডিফল্টভাবে বাংলা সংখ্যা লিখবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -508,8 +440,6 @@ fun AvroSettingsDialog(
 
 /**
  * Dedicated settings dialog for Probhat (प्रभात) layout.
- * Guarantees 100% muscle-memory invariance (zero key moves) while providing
- * smart IME candidate, conjunct quick-picks, and haptic superpowers.
  */
 @Composable
 fun ProbhatSettingsDialog(
@@ -554,7 +484,7 @@ fun ProbhatSettingsDialog(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = if (isEnglish) "Official 12-key ergonomic layout preferences" else "ক্লাসিক ১২-কি এরগনোমিক লেআউট কনফিগারেশন",
+                            text = if (isEnglish) "Probhat layout preferences" else "প্রভাত লেআউট কনফিগারেশন",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -568,49 +498,8 @@ fun ProbhatSettingsDialog(
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Muscle Memory Invariant Guarantee Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Info,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (isEnglish) "Classic Muscle Memory Invariant" else "ক্লাসিক মাসল মেমোরি অপরিবর্তিত নিশ্চয়তা",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = if (isEnglish)
-                                        "Every key position and shift layer remains 100% untouched. All enhancements operate strictly through the intelligent IME engine and candidate strip."
-                                    else
-                                        "প্রভাত লেআউটের মূল কীবোর্ড বিন্যাস ও অবস্থানের একটি কি-ও পরিবর্তন করা হয়নি। সকল সুবিধা ইঞ্জিন ও সফটওয়্যার স্তরে কাজ করে।",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    // Card 1: Typing Accelerators
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -622,23 +511,7 @@ fun ProbhatSettingsDialog(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Keyboard,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = if (isEnglish) "Typing Accelerators" else "টাইপিং গতিবর্ধক",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                                )
-                            }
-
-                            // Hasanta Conjunct Quick-Picks
+                            // Conjunct Suggestions
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -646,12 +519,12 @@ fun ProbhatSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Hasanta Conjunct Quick-Picks" else "হসন্ত যুক্তবর্ণ সাজেস্ট",
+                                        text = if (isEnglish) "Conjunct Suggestions" else "যুক্তবর্ণ সাজেশন",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Pressing Hasanta (্) suggests ligatures (ক্র, ক্য, ক্ত, ক্ষ) and replaces base consonant in-flight"
-                                               else "হসন্ত (্) চাপলে স্বয়ংক্রিয়ভাবে সম্ভাব্য যুক্তবর্ণ ক্যান্ডিডেট বারে ভেসে উঠবে এবং শিক্ + ক্ষ সরাসরি শিক্ষ-তে রূপান্তরিত হবে",
+                                        text = if (isEnglish) "Show conjunct suggestions when typing Hasanta (্)"
+                                               else "হসন্ত (্) চাপলে সম্ভাব্য যুক্তবর্ণের সাজেশন দেখাবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -667,7 +540,7 @@ fun ProbhatSettingsDialog(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Smart Word-Initial Kar Promotion
+                            // Auto-Fix Initial Vowels
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -675,12 +548,12 @@ fun ProbhatSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Word-Initial Kar Auto-Promotion" else "শব্দের শুরুতে কার চিহ্ন স্বরবর্ণে রূপান্তর",
+                                        text = if (isEnglish) "Auto-Fix Initial Vowels" else "শুরুতে স্বরবর্ণ সংশোধন",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Promotes lone vowel signs typed at word start to full vowels (া → আ, ি → ই) preventing broken diacritics"
-                                               else "শব্দের শুরুতে অসাবধানতাবশত কার দিলে তা সঠিক পূর্ণ স্বরবর্ণে রূপান্তরিত হবে (যেমন া → আ)",
+                                        text = if (isEnglish) "Convert vowel signs at word start to full vowels (া → আ)"
+                                               else "শব্দের শুরুতে কার চিহ্ন দিলে স্বরবর্ণে রূপান্তর করবে (া → আ)",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -696,7 +569,7 @@ fun ProbhatSettingsDialog(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Geminate Double-Tap
+                            // Double-Tap for Conjuncts
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -704,12 +577,12 @@ fun ProbhatSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Consonant Double-Tap Geminates" else "দ্বিত্ব ব্যঞ্জন শর্টকাট (ডাবল ট্যাপ)",
+                                        text = if (isEnglish) "Double-Tap for Conjuncts" else "ডাবল ট্যাপে দ্বিত্ব বর্ণ",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Quick double-tap on any consonant generates geminate conjunct (ত × 2 → ত্ত, ব × 2 → ব্ব, ল × 2 → ল্ল)"
-                                               else "একই ব্যঞ্জন দ্রুত পরপর দুইবার ট্যাপ করলে যুক্তবর্ণ গঠিত হবে (ত × ২ → ত্ত, ব × ২ → ব্ব)",
+                                        text = if (isEnglish) "Double-tap a consonant to type twin letters (ত → ত্ত, ব → ব্ব)"
+                                               else "ব্যঞ্জনবর্ণে ডাবল ট্যাপ করে দ্বিত্ব রূপ লিখুন (ত → ত্ত, ব → ব্ব)",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -722,38 +595,10 @@ fun ProbhatSettingsDialog(
                                     }
                                 )
                             }
-                        }
-                    }
 
-                    // Card 2: Visual Hints & Tactile Feedback
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Tune,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = if (isEnglish) "Hints & Tactile Feedback" else "সহায়িকা ও স্পর্শ অনুভূতি",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
-                                )
-                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Keycap Subscript Hints
+                            // Key Hints
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -761,12 +606,12 @@ fun ProbhatSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Keycap Subscript Shift Hints" else "কী-ক্যাপে শিফট সহায়িকা চিহ্ন",
+                                        text = if (isEnglish) "Key Hints" else "কী সহায়িকা",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Displays shifted characters (ধ, ঊ, ঈ, ড়, ঠ, ঐ...) in the top-right corner of keycaps"
-                                               else "প্রতিটি কী-এর ওপরের কোণায় শিফট বর্ণের ছোট রূপ প্রদর্শন করে",
+                                        text = if (isEnglish) "Show shifted characters on keys"
+                                               else "কী-এর কোণায় শিফট বর্ণ দেখাবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -782,7 +627,7 @@ fun ProbhatSettingsDialog(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Hasanta / Dead-Key Haptic Pulse
+                            // Hasanta Vibration
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -790,12 +635,12 @@ fun ProbhatSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Hasanta Combining Haptic Tick" else "হসন্ত যুক্তবর্ণ স্পর্শ সংকেত",
+                                        text = if (isEnglish) "Hasanta Vibration" else "হসন্ত ভাইব্রেশন",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Distinct tactile tick feedback when Hasanta is active for conjunct composition"
-                                               else "হসন্ত চাপে যুক্তবর্ণ অবস্থা সক্রিয় হলে বিশেষ স্পর্শ স্পন্দন প্রদান করে",
+                                        text = if (isEnglish) "Subtle vibration when Hasanta is pressed"
+                                               else "হসন্ত চাপলে মৃদু ভাইব্রেশন প্রদান করবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -815,4 +660,3 @@ fun ProbhatSettingsDialog(
         }
     }
 }
-

@@ -989,8 +989,8 @@ private fun LayoutsTabContent(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = if (isEnglish) "Spacebar swipe sequence"
-                                       else "স্পেসবারে সোয়াইপ ক্রম",
+                                text = if (isEnglish) "Active layouts and settings"
+                                       else "সক্রিয় লেআউট ও সেটিংস",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

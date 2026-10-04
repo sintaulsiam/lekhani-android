@@ -341,11 +341,6 @@ fun PreferencesTabContent(
                                 text = if (isEnglish) "App Appearance" else "অ্যাপ অ্যাপিয়ারেন্স",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
-                            Text(
-                                text = if (isEnglish) "Theme mode for Lekhani settings app" else "লেখনী সেটিংস অ্যাপের ইন্টারফেস থিম",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
 
@@ -407,13 +402,8 @@ fun PreferencesTabContent(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (isEnglish) "Typing & Autocomplete" else "টাইপিং ও স্বয়ংক্রিয় সাজেশন",
+                                text = if (isEnglish) "Typing & Autocomplete" else "টাইপিং ও সাজেশন",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                            )
-                            Text(
-                                text = if (isEnglish) "Suggestions, auto-learning, and typing assists" else "সাজেশন নির্বাচন, শব্দ শেখা ও টাইপিং সহায়ক নিয়ম",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -422,44 +412,6 @@ fun PreferencesTabContent(
                         modifier = Modifier.padding(vertical = 2.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                     )
-
-                    // Layout Specific Options Callout
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                Text(
-                                    text = if (isEnglish) "Layout-Specific Options" else "লেআউটভিত্তিক অপশন",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                                )
-                                Text(
-                                    text = if (isEnglish) "Dedicated settings for Avro Phonetic & Lekhani প্রবাহ are located under the Layouts tab."
-                                           else "অভ্র ফোনেটিক ও লেখনী প্রবাহের নির্দিষ্ট সেটিংস লেআউট ট্যাবে পাওয়া যাবে।",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (onOpenLayoutsTab != null) {
-                                FilledTonalButton(
-                                    onClick = onOpenLayoutsTab,
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                    modifier = Modifier.height(32.dp)
-                                ) {
-                                    Text(if (isEnglish) "View" else "দেখুন", fontSize = 11.5.sp)
-                                }
-                            }
-                        }
-                    }
 
                     // Dedicated Number Row Toggle
                     Row(
@@ -473,7 +425,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Always show a top numeric row (1-0)" else "কীবোর্ডের উপরে সব সময় সংখ্যার সারি প্রদর্শন করবে",
+                                text = if (isEnglish) "Show number row above keyboard" else "কীবোর্ডের উপরে সংখ্যার সারি দেখাবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -501,7 +453,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Switch to 3x4 PIN/number pad for phone and PIN fields" else "ফোন নম্বর বা পিন ফিল্ডে স্বয়ংক্রিয়ভাবে ৩x৪ নম্বর প্যাড চালু হবে",
+                                text = if (isEnglish) "Show numeric pad for phone and PIN fields" else "ফোন নম্বর বা পিন ফিল্ডে নম্বর প্যাড দেখাবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -529,7 +481,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Automatically insert a space after punctuation (, . । ? !)" else "যতিচিহ্ন টাইপ করার পর স্বয়ংক্রিয়ভাবে স্পেস যোগ হবে",
+                                text = if (isEnglish) "Add space after punctuation" else "যতিচিহ্নের পর স্পেস যুক্ত করবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -557,7 +509,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Double-tap spacebar to insert a Bengali Dari (।)" else "টানা দুইবার স্পেসবার চাপলে দাঁড়ি (।) যুক্ত হবে",
+                                text = if (isEnglish) "Double-tap space to insert Dari (।)" else "টানা দুইবার স্পেস চাপলে দাঁড়ি (।) বসবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -585,7 +537,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Pressing space commits the top highlighted suggestion" else "স্পেসবার চাপলে তালিকার প্রথম শব্দটি সরাসরি যুক্ত হবে",
+                                text = if (isEnglish) "Spacebar inserts top suggestion" else "স্পেসবার চাপলে প্রথম সাজেশন নির্বাচন হবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -613,7 +565,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Privately remember unique words typed frequently" else "নতুন ও ঘনঘন টাইপ করা শব্দ ব্যক্তিগত ডিকশনারিতে সংরক্ষিত হবে",
+                                text = if (isEnglish) "Remember frequently typed words locally" else "ঘনঘন টাইপ করা শব্দগুলো মনে রাখবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -637,11 +589,11 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "Glide Typing (Swipe to Type)" else "গ্লাইড টাইপিং (আঙুল টেনে লেখা)",
+                                text = if (isEnglish) "Glide Typing" else "গ্লাইড টাইপিং",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Continuous gesture typing on English QWERTY" else "ইংরেজি কীবোর্ডে আঙুল টেনে নিরবচ্ছিন্ন শব্দ গঠন",
+                                text = if (isEnglish) "Slide finger across letters to type (English)" else "আঙুল টেনে ইংরেজি শব্দ লিখুন",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -665,11 +617,11 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "Code Shield Mode" else "কোড শিল্ড মোড",
+                                text = if (isEnglish) "Code Shield" else "কোড শিল্ড",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Prevent autocorrect inside URLs, variable names, and code syntax" else "কোড, ভেরিয়েবল বা ইউআরএল লেখার সময় স্বয়ংক্রিয় সংশোধন বন্ধ রাখবে",
+                                text = if (isEnglish) "Pause suggestions in code, URLs, and passwords" else "কোড, ইউআরএল ও পাসওয়ার্ডে সাজেশন বন্ধ রাখবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -709,11 +661,6 @@ fun PreferencesTabContent(
                                 text = if (isEnglish) "Gestures & Navigation" else "জেশ্চার ও নেভিগেশন",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
-                            Text(
-                                text = if (isEnglish) "Spacebar swipe, erase gestures, and bottom row key" else "স্পেসবারে সোয়াইপ, মোছার অঙ্গভঙ্গি ও নিচের সারির বোতাম",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
 
@@ -732,11 +679,11 @@ fun PreferencesTabContent(
                                 KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV
                             ),
                             Pair(
-                                if (isEnglish) "Switch Keyboard Layout" else "লেআউট পরিবর্তন",
+                                if (isEnglish) "Switch Layout" else "লেআউট পরিবর্তন",
                                 KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH
                             ),
                             Pair(
-                                if (isEnglish) "Disabled (No swipe action)" else "বন্ধ (কোনো অ্যাকশন নেই)",
+                                if (isEnglish) "Off" else "বন্ধ",
                                 KeyboardPreferences.SpacebarSwipeMode.DISABLED
                             )
                         )
@@ -776,15 +723,15 @@ fun PreferencesTabContent(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         val bottomKeyOptions = listOf(
                             Pair(
-                                if (isEnglish) "Language / Layout Switcher" else "ভাষা / লেআউট সুইচার (🌐)",
+                                if (isEnglish) "Language / Layout Switcher" else "ভাষা ও লেআউট সুইচার",
                                 KeyboardPreferences.BottomRowKeyMode.LANGUAGE_SWITCH
                             ),
                             Pair(
-                                if (isEnglish) "Emoji Picker" else "ইমোজি প্যালেট (😊)",
+                                if (isEnglish) "Emoji Key" else "ইমোজি কী",
                                 KeyboardPreferences.BottomRowKeyMode.EMOJI
                             ),
                             Pair(
-                                if (isEnglish) "Smart (Automatic / Comma)" else "স্মার্ট / স্বয়ংক্রিয় (,) ",
+                                if (isEnglish) "Comma (,)" else "কমা (,)",
                                 KeyboardPreferences.BottomRowKeyMode.SMART
                             )
                         )
@@ -827,7 +774,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Slide left from backspace to quickly erase words" else "ব্যাকস্পেস থেকে বামে টেনে দ্রুত শব্দগুলো মুছে ফেলুন",
+                                text = if (isEnglish) "Slide left from backspace to delete" else "মুছতে ব্যাকস্পেস থেকে বামে সোয়াইপ করুন",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -845,14 +792,14 @@ fun PreferencesTabContent(
 
                     // Volume Key Cursor
                     Text(
-                        text = if (isEnglish) "Volume Key Cursor Navigation" else "ভলিউম কী দিয়ে কার্সর মুভ",
+                        text = if (isEnglish) "Volume Key Cursor" else "ভলিউম কী দিয়ে কার্সর",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         val volOptions = listOf(
                             Pair(
-                                if (isEnglish) "Disabled" else "বন্ধ",
+                                if (isEnglish) "Off" else "বন্ধ",
                                 KeyboardPreferences.VolumeKeyCursorMode.DISABLED
                             ),
                             Pair(
@@ -914,11 +861,6 @@ fun PreferencesTabContent(
                             Text(
                                 text = if (isEnglish) "Display & Keys" else "ডিসপ্লে ও কী বিন্যাস",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                            )
-                            Text(
-                                text = if (isEnglish) "Typography, key borders, popups, and flick gestures" else "ফন্ট স্টাইল, কী বর্ডার, প্রিভিউ বাবল ও ফ্লিক সংকেত",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -996,7 +938,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Show outlines around individual keys" else "প্রতিটি কী-এর চারপাশে বর্ডার আউটলাইন দেখাবে",
+                                text = if (isEnglish) "Show outlines around keys" else "কী-এর চারপাশে বর্ডার দেখাবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1021,7 +963,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Show popup balloon above pressed key" else "কী চাপলে উপরে পপআপ বাবল প্রদর্শন করবে",
+                                text = if (isEnglish) "Show character preview above pressed key" else "কী চাপলে উপরে প্রিভিউ বাবল দেখাবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1045,12 +987,12 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "Key Hints (Subscripts)" else "কি-এর উপরের সংকেত (সাবস্ক্রিপ্ট)",
+                                text = if (isEnglish) "Key Hints" else "কী সহায়িকা",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Show secondary / shifted characters in the top corner of keys"
-                                       else "কি-এর কোণায় শিফট বা ফ্লিক করে টাইপযোগ্য বর্ণ সংকেত দেখাবে",
+                                text = if (isEnglish) "Show shifted characters on keys"
+                                       else "কী-এর কোণায় শিফট বর্ণ দেখাবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1074,12 +1016,12 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "Swipe-Up Flick for Shift" else "উপরে সোয়াইপ করে শিফট টাইপ",
+                                text = if (isEnglish) "Swipe-Up for Shift" else "উপরে সোয়াইপ করে শিফট",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Flick upward on any key to type its secondary shifted letter without pressing Shift"
-                                       else "শিফট না চেপেই দ্রুত উপরে সোয়াইপ করে মহাপ্রাণ বর্ণ টাইপ করুন",
+                                text = if (isEnglish) "Flick key upward to type shifted letter"
+                                       else "কী-এর উপর সোয়াইপ করে শিফট বর্ণ লিখুন",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1107,7 +1049,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Show current layout label on spacebar" else "স্পেসবারের উপর বর্তমান সক্রিয় লেআউটের নাম দেখাবে",
+                                text = if (isEnglish) "Show layout label on spacebar" else "স্পেসবারে লেআউটের নাম দেখাবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1131,11 +1073,11 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "Touch Glow Ripple" else "টাচ গ্লো রিপল",
+                                text = if (isEnglish) "Touch Ripple" else "টাচ রিপল",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Dynamic radiant glow on tapped keys" else "কী চাপলে মসৃণ রঙের তরঙ্গ অ্যানিমেশন",
+                                text = if (isEnglish) "Visual ripple effect on key press" else "কী চাপলে রিপল অ্যানিমেশন দেখাবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1175,11 +1117,6 @@ fun PreferencesTabContent(
                                 text = if (isEnglish) "Sound & Haptics" else "সাউন্ড ও কম্পন",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
-                            Text(
-                                text = if (isEnglish) "Vibration strength, sound packs, and audio volume" else "কী চাপলে ভাইব্রেশন মাত্রা ও সাউন্ড এফেক্ট",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
 
@@ -1193,11 +1130,11 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "Haptic Vibration" else "ভাইব্রেশন (হ্যাপটিক ফিডব্যাক)",
+                                text = if (isEnglish) "Vibration" else "ভাইব্রেশন",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Tactile vibration tick on keypress" else "কী চাপলে সূক্ষ্ম স্পন্দন অনুভব করুন",
+                                text = if (isEnglish) "Vibrate on key press" else "কী চাপলে ভাইব্রেশন হবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1250,7 +1187,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Play audio feedback click on typing" else "টাইপিংয়ের সময় অডিও ক্লিক সাউন্ড",
+                                text = if (isEnglish) "Play click sound on key press" else "কী চাপলে অডিও সাউন্ড হবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1338,13 +1275,8 @@ fun PreferencesTabContent(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (isEnglish) "Form Factor & Modes" else "কীবোর্ড মোড ও অবস্থান",
+                                text = if (isEnglish) "Form Factor & Modes" else "কীবোর্ড মোড",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                            )
-                            Text(
-                                text = if (isEnglish) "Keyboard sizing and ergonomics" else "কীবোর্ডের আকার ও একহাতে ব্যবহারের বিন্যাস",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -1353,7 +1285,7 @@ fun PreferencesTabContent(
 
                     FormFactorPrefOption(
                         title = if (isEnglish) "Standard" else "সাধারণ (Standard)",
-                        subtitle = if (isEnglish) "Standard full-width keyboard" else "ডিফল্ট পূর্ণ প্রস্থ কীবোর্ড মোড",
+                        subtitle = if (isEnglish) "Default full width" else "ডিফল্ট পূর্ণ প্রস্থ",
                         icon = Icons.Filled.Smartphone,
                         selected = formFactor == KeyboardPreferences.FormFactor.STANDARD,
                         onSelect = {
@@ -1363,7 +1295,7 @@ fun PreferencesTabContent(
                     )
                     FormFactorPrefOption(
                         title = if (isEnglish) "One-Handed Mode" else "একহাতে ব্যবহারের মোড (One-Handed)",
-                        subtitle = if (isEnglish) "Docked keyboard with quick side dock controls" else "সহজে এক আঙুলে টাইপ করার সংকুচিত মোড",
+                        subtitle = if (isEnglish) "Compact for one-handed typing" else "এক হাতে সহজে টাইপ করার জন্য",
                         icon = Icons.Filled.Smartphone,
                         selected = formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT || formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_LEFT,
                         onSelect = {
@@ -1373,7 +1305,7 @@ fun PreferencesTabContent(
                     )
                     FormFactorPrefOption(
                         title = if (isEnglish) "Floating Keyboard" else "ভাসমান কীবোর্ড (Floating)",
-                        subtitle = if (isEnglish) "Draggable keyboard overlay" else "পর্দার যেকোনো জায়গায় সরিয়ে ব্যবহারযোগ্য কীবোর্ড",
+                        subtitle = if (isEnglish) "Movable mini keyboard" else "পর্দার যেকোনো জায়গায় নেওয়া যায়",
                         icon = Icons.Filled.PictureInPictureAlt,
                         selected = formFactor == KeyboardPreferences.FormFactor.FLOATING,
                         onSelect = {
@@ -1383,7 +1315,7 @@ fun PreferencesTabContent(
                     )
                     FormFactorPrefOption(
                         title = if (isEnglish) "Split Keyboard" else "বিভক্ত কীবোর্ড (Split)",
-                        subtitle = if (isEnglish) "Ergonomic two-thumb split mode for tablets" else "ট্যাবলেট ও বড় স্ক্রিনে দুই হাতের আঙুলচালনা মোড",
+                        subtitle = if (isEnglish) "Split for two-thumb typing on large screens" else "বড় স্ক্রিনে দুই হাতে সহজে টাইপ করার জন্য",
                         icon = Icons.Filled.VerticalSplit,
                         selected = formFactor == KeyboardPreferences.FormFactor.SPLIT,
                         onSelect = {
@@ -1418,11 +1350,6 @@ fun PreferencesTabContent(
                                 text = if (isEnglish) "Tools & Vocabulary" else "টুলস ও শব্দকোষ",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
-                            Text(
-                                text = if (isEnglish) "Candidate strip toolbar and custom dictionary" else "টুলবার বিন্যাস ও ব্যক্তিগত শব্দভাণ্ডার",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
 
@@ -1440,7 +1367,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Rearrange shortcuts in the keyboard candidate strip" else "কীবোর্ডের উপরের স্ট্রিপে আপনার পছন্দের টুলগুলো সাজান",
+                                text = if (isEnglish) "Reorder shortcuts on the candidate bar" else "ক্যান্ডিডেট বারের শর্টকাটগুলো সাজান",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1467,7 +1394,7 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Manage your learned and custom added words" else "আপনার সংরক্ষিত ও টাইপ করা শব্দসমূহ ব্যবস্থাপনা করুন",
+                                text = if (isEnglish) "Manage your custom and learned words" else "সংরক্ষিত ও কাস্টম শব্দসমূহ দেখুন",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1506,11 +1433,6 @@ fun PreferencesTabContent(
                                 text = if (isEnglish) "Privacy & Security" else "নিরাপত্তা ও গোপনীয়তা",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
-                            Text(
-                                text = if (isEnglish) "100% on-device guarantee and system permissions" else "১০০% অফলাইন নিশ্চয়তা ও অ্যাপ সম্পর্কিত তথ্য",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
 
@@ -1523,11 +1445,11 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "Zero Telemetry Guarantee" else "শূন্য টেলিমেট্রি নিশ্চয়তা",
+                                text = if (isEnglish) "100% On-Device & Private" else "১০০% অফলাইন ও নিরাপদ",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "All AI models, grammar logic, and keystrokes execute 100% locally on-device" else "লেখনী কীবোর্ডে টাইপ করা কোনো তথ্য বা শব্দ কখনো ইন্টারনেটে পাঠানো হয় না",
+                                text = if (isEnglish) "Keystrokes and text never leave your device" else "টাইপ করা কোনো তথ্য কখনো ডিভাইস থেকে বাইরে যায় না",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1549,11 +1471,11 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "About Lekhani Keyboard" else "লেখনী কীবোর্ড পরিচিতি",
+                                text = if (isEnglish) "About Lekhani" else "লেখনী পরিচিতি",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Version, license, and architectural details" else "অ্যাপ সংস্করণ, লাইসেন্স ও ইঞ্জিন তথ্য",
+                                text = if (isEnglish) "Version, license, and credits" else "অ্যাপ সংস্করণ, লাইসেন্স ও তথ্য",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
