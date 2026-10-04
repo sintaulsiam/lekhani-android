@@ -94,6 +94,29 @@ pub fn promote_kar_if_needed(kar: &str, should_promote: bool) -> String {
     }
 }
 
+/// When an independent vowel is typed immediately following a consonant,
+/// Bengali orthography dictates that it automatically converts into its corresponding Kar sign
+/// (e.g. ব + ঋ -> বৃ, ক + আ -> কা, ন + ঔ -> নৌ, ব + ঐ -> বৈ).
+pub fn demote_vowel_to_kar_if_preceded_by_consonant(vowel: &str, preceded_by_consonant: bool) -> String {
+    if !preceded_by_consonant {
+        return vowel.to_string();
+    }
+
+    match vowel {
+        "আ" => "া".to_string(),
+        "ই" => "ি".to_string(),
+        "ঈ" => "ী".to_string(),
+        "উ" => "ু".to_string(),
+        "ঊ" => "ূ".to_string(),
+        "ঋ" => "ৃ".to_string(),
+        "এ" => "ে".to_string(),
+        "ঐ" => "ৈ".to_string(),
+        "ও" => "ো".to_string(),
+        "ঔ" => "ৌ".to_string(),
+        _ => vowel.to_string(),
+    }
+}
+
 /// Returns dynamic conjunct suggestions for the candidate strip when Hasanta (`্`) is typed.
 /// Powered directly by Tier 1 `lekhani-core`'s authentic Bengali `ConjunctCatalog`.
 pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
@@ -122,11 +145,21 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         ];
     }
     let prefix = format!("{} + ্", last_consonant);
-    lekhani_core::conjuncts::ConjunctCatalog::all()
+    let mut results: Vec<String> = lekhani_core::conjuncts::ConjunctCatalog::all()
         .into_iter()
         .filter(|info| info.breakdown.starts_with(&prefix))
         .map(|info| info.conjunct)
-        .collect()
+        .collect();
+
+    // Ensure Ya-phola (্য) is always offered for any standard consonant
+    if is_bengali_consonant_or_modifier(last_consonant) && last_consonant != 'র' && last_consonant != '্' && last_consonant != 'ৎ' {
+        let yaphola = format!("{}্য", last_consonant);
+        if !results.contains(&yaphola) {
+            results.push(yaphola);
+        }
+    }
+
+    results
 }
 
 #[cfg(test)]
@@ -141,6 +174,16 @@ mod tests {
         assert_eq!(promote_kar_if_needed("ে", true), "এ");
         assert_eq!(promote_kar_if_needed("া", false), "া");
         assert_eq!(promote_kar_if_needed("ৃ", false), "ৃ");
+    }
+
+    #[test]
+    fn test_vowel_demotion_to_kar() {
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঋ", true), "ৃ");
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঔ", true), "ৌ");
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঐ", true), "ৈ");
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("আ", true), "া");
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঋ", false), "ঋ");
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঔ", false), "ঔ");
     }
 
     #[test]

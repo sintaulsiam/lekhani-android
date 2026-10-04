@@ -3,7 +3,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use lekhani_core::phonetic::PhoneticDatabase;
 use crate::error::LekhaniError;
 use crate::layout::LekhaniLayoutType;
-use crate::probaho::{get_conjunct_suggestions, is_bengali_consonant_or_modifier, is_bengali_punctuation_or_space, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
+use crate::probaho::{demote_vowel_to_kar_if_preceded_by_consonant, get_conjunct_suggestions, is_bengali_consonant_or_modifier, is_bengali_punctuation_or_space, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
 
 static CORE_DB: RwLock<Option<&'static PhoneticDatabase>> = RwLock::new(None);
 static CUSTOM_DICT_DIR: RwLock<Option<String>> = RwLock::new(None);
@@ -860,21 +860,22 @@ impl AndroidLekhaniSession {
 
         match state.layout {
             LekhaniLayoutType::Probaho => {
-                let (is_start, last_is_vowel) = if let Some(last_ch) = state.composing_buffer.chars().last() {
-                    (false, is_bengali_vowel(last_ch))
+                let (is_start, last_is_vowel, last_is_consonant) = if let Some(last_ch) = state.composing_buffer.chars().last() {
+                    (false, is_bengali_vowel(last_ch), is_bengali_consonant_or_modifier(last_ch) && last_ch != '্')
                 } else if let Some(ctx_ch) = state.surrounding_context.chars().last() {
-                    if is_bengali_consonant_or_modifier(ctx_ch) {
-                        (false, false)
+                    if is_bengali_consonant_or_modifier(ctx_ch) && ctx_ch != '্' {
+                        (false, false, true)
                     } else if is_bengali_vowel(ctx_ch) {
-                        (false, true)
+                        (false, true, false)
                     } else {
-                        (ctx_ch.is_whitespace() || is_bengali_punctuation_or_space(ctx_ch), false)
+                        (ctx_ch.is_whitespace() || is_bengali_punctuation_or_space(ctx_ch), false, false)
                     }
                 } else {
-                    (true, false)
+                    (true, false, false)
                 };
                 let promoted = promote_kar_if_needed(&key, is_start || last_is_vowel);
-                state.composing_buffer.push_str(&promoted);
+                let transformed = demote_vowel_to_kar_if_preceded_by_consonant(&promoted, last_is_consonant);
+                state.composing_buffer.push_str(&transformed);
 
                 let mut candidates = Vec::new();
 
@@ -2778,6 +2779,31 @@ mod tests {
         let select_res = session.select_candidate("র্ম".into()).unwrap();
         assert_eq!(select_res.commit_text, None);
         assert_eq!(select_res.preedit, "ধর্ম");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probaho_vowel_demotion_after_consonant() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+        session.process_key("ব".into()).unwrap();
+        let res = session.process_key("ঋ".into()).unwrap();
+        assert_eq!(res.preedit, "বৃ", "ঋ after ব must automatically demote to বৃ");
+
+        session.reset();
+        session.process_key("ন".into()).unwrap();
+        let res2 = session.process_key("ঔ".into()).unwrap();
+        assert_eq!(res2.preedit, "নৌ", "ঔ after ন must automatically demote to নৌ");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probaho_yaphola_suggestion() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+        session.process_key("ন".into()).unwrap();
+        let res = session.process_key("্".into()).unwrap();
+        assert!(res.candidates.contains(&"ন্য".to_string()), "Hasanta after ন must suggest ন্য");
     }
 }
 
