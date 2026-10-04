@@ -172,17 +172,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
         textAlign = Paint.Align.RIGHT
     }
 
-    // Floating mode drag state
-    private var floatingOffsetX: Float = 0f
-    private var floatingOffsetY: Float = 0f
-    private var committedFloatingOffsetX: Float = 0f
-    private var committedFloatingOffsetY: Float = 0f
-    private var isDraggingFloatingBar: Boolean = false
-    private var floatingDragStartX: Float = 0f
-    private var floatingDragStartY: Float = 0f
-    private val floatingTopBarRect = RectF()
-    private val floatingDockBtnRect = RectF()
-
     // Spacebar cursor slide navigation state
     private var isSpaceCursorMoving: Boolean = false
     private var spaceSlideLastX: Float = 0f
@@ -929,20 +918,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
             KeyboardPreferences.FormFactor.FLOATING -> {
                 isSideDockVisible = false
-                val floatingW = (w * 0.76f).coerceAtLeast(260f * density).coerceAtMost(w)
-                val topBarH = 26f * density
-                val floatingH = availableH * 0.86f
-                val minX = 0f
-                val maxX = (w - floatingW).coerceAtLeast(0f)
-                val startX = ((w - floatingW) / 2f + floatingOffsetX).coerceIn(minX, maxX)
-                val startY = floatingOffsetY.coerceIn(0f, (h - floatingH).coerceAtLeast(0f))
-
-                floatingTopBarRect.set(startX, startY, startX + floatingW, startY + topBarH)
-                floatingDockBtnRect.set(startX + floatingW - 32f * density, startY, startX + floatingW, startY + topBarH)
-
-                val kbAreaTop = startY + topBarH
-                val kbAreaH = floatingH - topBarH
-                layoutKeysStandard(startX, floatingW, kbAreaH, yOffset = kbAreaTop)
+                layoutKeysStandard(0f, w, availableH)
             }
             KeyboardPreferences.FormFactor.SPLIT -> {
                 isSideDockVisible = false
@@ -1625,21 +1601,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
         }
 
-        // ── Floating Mode Top Drag Bar ────────────────────────────────────
-        val isLiveDraggingFloating = isDraggingFloatingBar && formFactor == KeyboardPreferences.FormFactor.FLOATING
-        if (isLiveDraggingFloating) {
-            canvas.save()
-            canvas.translate(floatingOffsetX - committedFloatingOffsetX, floatingOffsetY - committedFloatingOffsetY)
-        }
-        if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
-            canvas.drawRoundRect(floatingTopBarRect, 8f * density, 8f * density, sideDockBgPaint)
-            val barMidX = floatingTopBarRect.centerX()
-            val barMidY = floatingTopBarRect.centerY()
-            scratchRect.set(barMidX - 16f * density, barMidY - 2.5f * density, barMidX + 16f * density, barMidY + 2.5f * density)
-            canvas.drawRoundRect(scratchRect, 2.5f * density, 2.5f * density, sideDockTextPaint)
-            drawVectorExpand(canvas, floatingDockBtnRect.centerX(), floatingDockBtnRect.centerY(), 14f * density, vectorIconStrokePaint)
-        }
-
         // ── Keys ───────────────────────────────────────────────────────────
         for (i in resolvedKeys.indices) {
             val resolved = resolvedKeys[i]
@@ -1886,9 +1847,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
             scratchRect.set(pad, pad, width - pad, height - pad)
             canvas.drawRoundRect(scratchRect, 10f * density, 10f * density, resizeGuidePaint)
         }
-        if (isLiveDraggingFloating) {
-            canvas.restore()
-        }
     }
 
     private fun isSpacebarKey(key: Key): Boolean =
@@ -1950,25 +1908,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
                             }
                             return true
                         }
-                    }
-                }
-
-                // Floating mode top bar / dock button hit-testing
-                if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
-                    if (floatingDockBtnRect.contains(px, py)) {
-                        feedbackManager?.onKeyFeedback(this)
-                            ?: performHapticFeedback(
-                                HapticFeedbackConstants.KEYBOARD_TAP)
-                        keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.STANDARD)
-                        return true
-                    }
-                    if (floatingTopBarRect.contains(px, py)) {
-                        isDraggingFloatingBar = true
-                        committedFloatingOffsetX = floatingOffsetX
-                        committedFloatingOffsetY = floatingOffsetY
-                        floatingDragStartX = px - floatingOffsetX
-                        floatingDragStartY = py - floatingOffsetY
-                        return true
                     }
                 }
 
@@ -2063,14 +2002,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     removeCallbacks(backspaceRepeatRunnable)
                     // Dismiss key preview once the finger moves (matches Gboard behaviour)
                     keyPreviewPopup.dismiss()
-                }
-
-                // Floating mode window dragging — zero allocations and zero bound recalculations during drag
-                if (isDraggingFloatingBar) {
-                    floatingOffsetX = curX - floatingDragStartX
-                    floatingOffsetY = curY - floatingDragStartY
-                    invalidate()
-                    return true
                 }
 
                 if (pressedKeyIndex in resolvedKeys.indices) {
@@ -2308,15 +2239,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     return true
                 }
 
-                if (isDraggingFloatingBar) {
-                    isDraggingFloatingBar = false
-                    committedFloatingOffsetX = floatingOffsetX
-                    committedFloatingOffsetY = floatingOffsetY
-                    computeKeyBounds()
-                    invalidate()
-                    return true
-                }
-
                 if (isSpaceSwiping) {
                     isSpaceSwiping = false
                     pressedKeyIndex = -1
@@ -2409,7 +2331,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 isBackspaceSwiping = false
                 isSwipeDeleteGestureActive = false
                 isBackspaceDisarmed = false
-                isDraggingFloatingBar = false
                 backspaceDeletedWordCount = 0
                 keyListener?.onSwipeDeletePreview(0)
                 isSpaceSwiping = false

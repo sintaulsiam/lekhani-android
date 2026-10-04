@@ -145,6 +145,18 @@ class KeyboardPreferences private constructor(context: Context) {
         }
         set(value) = prefs.edit().putString(KEY_FORM_FACTOR, value.name).apply()
 
+    var floatingOffsetX: Float
+        get() = prefs.getFloat(KEY_FLOATING_OFFSET_X, 0f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_OFFSET_X, value).apply()
+
+    var floatingOffsetY: Float
+        get() = prefs.getFloat(KEY_FLOATING_OFFSET_Y, 0f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_OFFSET_Y, value).apply()
+
+    var floatingWidthPercent: Float
+        get() = prefs.getFloat(KEY_FLOATING_WIDTH_PERCENT, 0.82f)
+        set(value) = prefs.edit().putFloat(KEY_FLOATING_WIDTH_PERCENT, value).apply()
+
     var spacebarSwipeMode: SpacebarSwipeMode
         get() {
             val name = prefs.getString(KEY_SPACEBAR_SWIPE_MODE, SpacebarSwipeMode.LAYOUT_SWITCH.name) ?: SpacebarSwipeMode.LAYOUT_SWITCH.name
@@ -343,6 +355,9 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_FONT_SCALE = "font_scale"
 
         const val KEY_FORM_FACTOR = "keyboard_form_factor"
+        const val KEY_FLOATING_OFFSET_X = "floating_offset_x"
+        const val KEY_FLOATING_OFFSET_Y = "floating_offset_y"
+        const val KEY_FLOATING_WIDTH_PERCENT = "floating_width_percent"
         const val KEY_SPACE_CURSOR_SLIDE = "space_cursor_slide"
         const val KEY_SPACEBAR_SWIPE_MODE = "spacebar_swipe_mode"
         const val KEY_VOLUME_KEY_CURSOR_MODE = "volume_key_cursor_mode"
