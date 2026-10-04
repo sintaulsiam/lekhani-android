@@ -31,9 +31,36 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     }
     // 1. Check static common words (cold-start fallback)
     if let Some(common_list) = get_common_word_candidates(input) {
-        if let Some(pos) = candidates.iter().position(|c| common_list.contains(&c.as_str())) {
-            let cand = candidates.remove(pos);
-            candidates.insert(0, cand);
+        if common_list.len() == 1 {
+            let target_nfc = crate::probaho::nfc_normalize(common_list[0]);
+            if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+                let _ = candidates.remove(pos);
+                candidates.insert(0, target_nfc);
+                return;
+            }
+        } else {
+            // Multi-homophone common list (e.g. "pora" -> ["পরা", "পড়া"], "ki" -> ["কি", "কী"]):
+            // If the top candidate is ALREADY in the common_list (e.g. ranked by context LM), keep it at position 0!
+            if let Some(first_cand) = candidates.first() {
+                let first_nfc = crate::probaho::nfc_normalize(first_cand);
+                if common_list.iter().any(|&w| crate::probaho::nfc_normalize(w) == first_nfc) {
+                    return;
+                }
+            }
+            for &target in common_list {
+                let target_nfc = crate::probaho::nfc_normalize(target);
+                if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+                    let _ = candidates.remove(pos);
+                    candidates.insert(0, target_nfc);
+                    return;
+                }
+            }
+        }
+        if let Some(&first_common) = common_list.first() {
+            let norm = crate::probaho::nfc_normalize(first_common);
+            if !candidates.contains(&norm) {
+                candidates.insert(0, norm);
+            }
             return;
         }
     }
@@ -187,6 +214,21 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("kono", &["কোনো", "কোন"][..]);
         m.insert("kon", &["কোন", "কোনো"][..]);
         m.insert("boi", &["বই"][..]);
+        m.insert("pera", &["প্যারা", "পেরা"][..]);
+        m.insert("pyara", &["প্যারা"][..]);
+        m.insert("shala", &["শালা"][..]);
+        m.insert("sala", &["শালা"][..]);
+        m.insert("dost", &["দোস্ত"][..]);
+        m.insert("bro", &["ব্রো"][..]);
+        m.insert("vai", &["ভাই"][..]);
+        m.insert("kire", &["কিরে"][..]);
+        m.insert("khapang", &["খাপ্যাং"][..]);
+        m.insert("mama", &["মামা"][..]);
+        m.insert("choto", &["ছোট", "ছোটো"][..]);
+        m.insert("boro", &["বড়", "বড়", "বোরো"][..]);
+        m.insert("boRo", &["বড়", "বড়"][..]);
+        m.insert("re", &["রে"][..]);
+        m.insert("na", &["না"][..]);
         m.insert("pora", &["পরা", "পড়া"][..]);
         m.insert("poRa", &["পড়া", "পরা"][..]);
         m.insert("valo", &["ভালো"][..]);
@@ -1091,29 +1133,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
-    // If mistyped (not an explicit common word), check if the current primary candidate is a non-dictionary word
-    // while the top typo correction is a high-confidence dictionary or common word.
-    let should_promote_typo = !is_explicit_common
-        && !input.contains('`')
-        && !input.contains('\'')
-        && input.chars().count() >= 3
-        && !typo_corrections.is_empty()
-        && typo_corrections[0].chars().count() >= 2
-        && candidates.first().map(|c| !db.is_exact_dictionary_word(c) && get_word_frequency(c) == 0).unwrap_or(false)
-        && (db.is_exact_dictionary_word(&typo_corrections[0]) || get_common_words().values().any(|ws| ws.contains(&typo_corrections[0].as_str())));
-
-    if should_promote_typo {
-        let best_typo = typo_corrections.remove(0);
-        if let Some(pos) = candidates.iter().position(|c| c == &best_typo) {
-            candidates.remove(pos);
-        }
-        candidates.insert(0, best_typo);
-        if !def.is_empty() && !candidates.contains(&def) {
-            candidates.insert(1.min(candidates.len()), def.clone());
-        }
-    }
-
-    // If mistyped (not an explicit common word), place remaining typo corrections AFTER def to preserve Force Avro at index 1
+    // Place typo corrections AFTER def to preserve primary phonetic output at index 0
+    // and Force Avro at index 1, offering typo recoveries as optional strip choices.
     let insert_offset = if candidates.len() > 1 && candidates[1] == def {
         2
     } else {
@@ -1184,9 +1205,18 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     append_prefix_matches(&primary, &mut candidates);
 
     prioritize_common_or_override_candidate(input, &mut candidates);
-    let primary = candidates.first().cloned().unwrap_or(primary);
+    let raw_primary = candidates.first().cloned().unwrap_or(primary);
+    let primary = crate::probaho::nfc_normalize(&raw_primary);
 
-    (primary, candidates)
+    let mut normalized_candidates = Vec::with_capacity(candidates.len());
+    for c in candidates {
+        let norm = crate::probaho::nfc_normalize(&c);
+        if !normalized_candidates.contains(&norm) {
+            normalized_candidates.push(norm);
+        }
+    }
+
+    (primary, normalized_candidates)
 }
 
 /// Convenience wrapper for zero-context transliteration

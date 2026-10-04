@@ -916,6 +916,11 @@ impl AndroidLekhaniSession {
                     let right_word = state.right_context.split_whitespace().next();
                     scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
                 }
+                // In fixed layouts, the exact typed buffer is guaranteed to stay at position 0
+                if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
+                    let exact = candidates.remove(pos);
+                    candidates.insert(0, exact);
+                }
 
                 let len = state.composing_buffer.graphemes(true).count() as u32;
                 Ok(TypingResult {
@@ -969,8 +974,16 @@ impl AndroidLekhaniSession {
                         crate::avro::prioritize_common_or_override_candidate(&state.composing_buffer, &mut candidates);
                     }
                     if let Some(top) = candidates.first() {
+                        let is_explicit_common = crate::avro::get_common_word_candidates(&state.composing_buffer).is_some();
                         let db = get_core_database();
-                        if !crate::avro::are_phonetically_compatible(&preedit, top) && db.is_exact_dictionary_word(&preedit) {
+                        let has_override = db.lookup_override(&state.composing_buffer).is_some()
+                            || db.lookup_override(&state.composing_buffer.to_lowercase()).is_some();
+
+                        if !has_candidate_memory
+                            && !is_explicit_common
+                            && !has_override
+                            && (!crate::avro::are_phonetically_compatible(&preedit, top) || !db.is_exact_dictionary_word(top))
+                        {
                             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                                 let cand = candidates.remove(pos);
                                 candidates.insert(0, cand);
@@ -978,11 +991,18 @@ impl AndroidLekhaniSession {
                         }
                     }
                 }
+                let mut norm_candidates = Vec::with_capacity(candidates.len());
+                for c in candidates {
+                    let n = nfc_normalize(&c);
+                    if !norm_candidates.contains(&n) {
+                        norm_candidates.push(n);
+                    }
+                }
                 let len = preedit.graphemes(true).count() as u32;
                 Ok(TypingResult {
                     preedit,
                     commit_text: None,
-                    candidates,
+                    candidates: norm_candidates,
                     cursor_position: len,
                 })
             }
@@ -1717,8 +1737,16 @@ impl AndroidLekhaniSession {
                     }
                     crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
                     if let Some(top) = candidates.first() {
+                        let is_explicit_common = crate::avro::get_common_word_candidates(&raw).is_some();
                         let db = get_core_database();
-                        if !crate::avro::are_phonetically_compatible(&preedit, top) && db.is_exact_dictionary_word(&preedit) {
+                        let has_override = db.lookup_override(&raw).is_some()
+                            || db.lookup_override(&raw.to_lowercase()).is_some();
+
+                        if !has_candidate_memory
+                            && !is_explicit_common
+                            && !has_override
+                            && (!crate::avro::are_phonetically_compatible(&preedit, top) || !db.is_exact_dictionary_word(top))
+                        {
                             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                                 let cand = candidates.remove(pos);
                                 candidates.insert(0, cand);

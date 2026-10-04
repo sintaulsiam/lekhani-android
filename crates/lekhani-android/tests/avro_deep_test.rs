@@ -503,6 +503,74 @@ fn test_exact_dictionary_match_not_overridden_by_typo_with_context() {
     assert_eq!(res.candidates.first().map(|s| s.as_str()), Some("বান"));
 }
 
+#[test]
+#[serial]
+fn test_small_words_slang_and_fixed_layouts() {
+    let session = AndroidLekhaniSession::new();
+
+    // 1. Avro Slang and Small Words Preservation
+    session.set_layout(LekhaniLayoutType::Avro);
+    let avro_cases = vec![
+        ("boro", "বড়"),
+        ("pera", "প্যারা"),
+        ("shala", "শালা"),
+        ("dost", "দোস্ত"),
+        ("bro", "ব্রো"),
+        ("khapang", "খাপ্যাং"),
+        ("ki", "কি"),
+        ("re", "রে"),
+        ("na", "না"),
+        ("vai", "ভাই"),
+    ];
+
+    for (input, expected) in avro_cases {
+        session.reset();
+        session.set_context("আমি খুব".to_string());
+        let mut last_res = None;
+        for ch in input.chars() {
+            last_res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+        let res = last_res.unwrap();
+        assert_eq!(
+            res.candidates.first().map(|s| s.as_str()),
+            Some(expected),
+            "Avro input '{}' must produce primary candidate '{}', got: {:?}",
+            input,
+            expected,
+            res.candidates
+        );
+
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(
+            space_res.commit_text.as_deref(),
+            Some(&format!("{} ", expected)[..]),
+            "Avro spacebar for '{}' must commit '{} '",
+            input,
+            expected
+        );
+    }
+
+    // 2. Probaho / Fixed Layout Verbatim Typing & Spacebar Preservation
+    session.set_layout(LekhaniLayoutType::Probaho);
+    session.reset();
+    session.set_context("অনেক".to_string());
+    // Type 'ব' then 'ড়'
+    session.process_key("ব".to_string()).unwrap();
+    let res = session.process_key("ড়".to_string()).unwrap();
+    assert_eq!(
+        res.candidates.first().map(|s| s.as_str()),
+        Some("বড়"),
+        "Fixed layout 'বড়' must have 'বড়' at candidate index 0, got: {:?}",
+        res.candidates
+    );
+    let space_res = session.handle_space().unwrap();
+    assert_eq!(
+        space_res.commit_text.as_deref(),
+        Some("বড় "),
+        "Fixed layout spacebar must commit verbatim 'বড় '"
+    );
+}
+
 
 
 

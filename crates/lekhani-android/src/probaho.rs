@@ -1,5 +1,3 @@
-use unicode_segmentation::UnicodeSegmentation;
-
 // ─── NFC Normalization ────────────────────────────────────────────────────────
 
 /// Return the Unicode NFC canonical form of `text`.
@@ -13,17 +11,35 @@ use unicode_segmentation::UnicodeSegmentation;
 /// when the input is not already NFC — the common case during normal typing
 /// produces zero allocations.
 pub fn nfc_normalize(text: &str) -> String {
-    // Bengali Unicode block is entirely precomposed in NFC; the Kars are
-    // combining marks that follow base consonants.  A simple grapheme-cluster
-    // round-trip is sufficient for the current character set, but we keep this
-    // function boundary so a full `unicode-normalization` crate can be swapped
-    // in without changing callers.
-    //
-    // For Phase 0 / Phase 1 scope: collect graphemes and re-join.  This is
-    // safe for Bengali because Unicode NFC == NFD for all Bengali combining
-    // sequences when typed through the Probaho layout (Kars always follow
-    // their base consonant in codepoint order).
-    text.graphemes(true).collect()
+    if !text.contains('\u{09BC}') {
+        return text.to_string();
+    }
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if chars.peek() == Some(&'\u{09BC}') {
+            match c {
+                'ড' => {
+                    chars.next();
+                    out.push('ড়');
+                }
+                'ঢ' => {
+                    chars.next();
+                    out.push('ঢ়');
+                }
+                'য' => {
+                    chars.next();
+                    out.push('য়');
+                }
+                _ => {
+                    out.push(c);
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 
 

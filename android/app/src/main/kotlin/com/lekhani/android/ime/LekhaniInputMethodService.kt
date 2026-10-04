@@ -2668,20 +2668,6 @@ class LekhaniInputMethodService : InputMethodService() {
         val candState = _candidateState.value as? CandidateStripState.Candidates
         val activePrimary = candState?.items?.firstOrNull { it.isPrimary }?.text
 
-        // 0a. Spacebar Autocomplete:
-        // If enabled and composing, autocomplete to the top suggestion on candidate strip
-        if (keyboardPrefs.spacebarAutocompleteEnabled && session.isComposing()) {
-            val topCandidate = activePrimary
-                ?: candState?.items?.firstOrNull()?.text
-            if (!topCandidate.isNullOrBlank() && !topCandidate.startsWith("=")) {
-                onCandidateSelected(topCandidate)
-                if (isNumericMode && !isNumericFieldMode) {
-                    restoreAlphaKeyboard()
-                }
-                return
-            }
-        }
-
         clearUndo()
         ensureCursorInComposingRegion(ic)
 
@@ -2690,7 +2676,7 @@ class LekhaniInputMethodService : InputMethodService() {
         rawInputBuffer.clear()
 
         val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
-        val chosenForSpace = if (activePrimary != null && !activePrimary.startsWith("=") && (isPhonetic || keyboardPrefs.spacebarAutocompleteEnabled)) {
+        val chosenForSpace = if (activePrimary != null && !activePrimary.startsWith("=") && isPhonetic) {
             activePrimary
         } else {
             null
