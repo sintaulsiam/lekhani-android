@@ -521,6 +521,12 @@ fn test_small_words_slang_and_fixed_layouts() {
         ("re", "রে"),
         ("na", "না"),
         ("vai", "ভাই"),
+        ("kosto", "কষ্ট"),
+        ("srishti", "সৃষ্টি"),
+        ("poriskar", "পরিষ্কার"),
+        ("shadhinota", "স্বাধীনতা"),
+        ("songbad", "সংবাদ"),
+        ("biggan", "বিজ্ঞান"),
     ];
 
     for (input, expected) in avro_cases {
@@ -550,25 +556,62 @@ fn test_small_words_slang_and_fixed_layouts() {
         );
     }
 
-    // 2. Probaho / Fixed Layout Verbatim Typing & Spacebar Preservation
-    session.set_layout(LekhaniLayoutType::Probaho);
+    // 2. Probaho & National Fixed Layout Verbatim Typing & Spacebar Preservation
+    for layout in [LekhaniLayoutType::Probaho, LekhaniLayoutType::National, LekhaniLayoutType::Gboard] {
+        session.set_layout(layout);
+        session.reset();
+        session.set_context("অনেক".to_string());
+        // Type 'ব' then 'ড়'
+        session.process_key("ব".to_string()).unwrap();
+        let res = session.process_key("ড়".to_string()).unwrap();
+        assert_eq!(
+            res.candidates.first().map(|s| s.as_str()),
+            Some("বড়"),
+            "Fixed layout {:?} 'বড়' must have 'বড়' at candidate index 0, got: {:?}",
+            layout,
+            res.candidates
+        );
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(
+            space_res.commit_text.as_deref(),
+            Some("বড় "),
+            "Fixed layout {:?} spacebar must commit verbatim 'বড় '",
+            layout
+        );
+    }
+
+    // 3. English Contractions and Casing Tests
+    session.set_layout(LekhaniLayoutType::English);
     session.reset();
-    session.set_context("অনেক".to_string());
-    // Type 'ব' then 'ড়'
-    session.process_key("ব".to_string()).unwrap();
-    let res = session.process_key("ড়".to_string()).unwrap();
-    assert_eq!(
-        res.candidates.first().map(|s| s.as_str()),
-        Some("বড়"),
-        "Fixed layout 'বড়' must have 'বড়' at candidate index 0, got: {:?}",
-        res.candidates
-    );
-    let space_res = session.handle_space().unwrap();
-    assert_eq!(
-        space_res.commit_text.as_deref(),
-        Some("বড় "),
-        "Fixed layout spacebar must commit verbatim 'বড় '"
-    );
+    let eng_cases = [
+        ("dont", "don't"),
+        ("Dont", "Don't"),
+        ("cant", "can't"),
+        ("im", "I'm"),
+        ("youre", "you're"),
+        ("didnt", "didn't"),
+    ];
+    for (input, expected_contraction) in eng_cases {
+        session.reset();
+        let mut last_res = None;
+        for ch in input.chars() {
+            last_res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+        let res = last_res.unwrap();
+        assert_eq!(
+            res.candidates.first().map(|s| s.as_str()),
+            Some(input),
+            "English candidate 0 must remain verbatim '{}'",
+            input
+        );
+        assert!(
+            res.candidates.contains(&expected_contraction.to_string()),
+            "English candidates for '{}' must contain '{}', got: {:?}",
+            input,
+            expected_contraction,
+            res.candidates
+        );
+    }
 }
 
 

@@ -1119,6 +1119,11 @@ impl AndroidLekhaniSession {
                     let right_word = state.right_context.split_whitespace().next();
                     scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
                 }
+                // In fixed layouts, the exact typed buffer is guaranteed to stay at position 0
+                if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
+                    let exact = candidates.remove(pos);
+                    candidates.insert(0, exact);
+                }
 
                 let len = state.composing_buffer.graphemes(true).count() as u32;
                 Ok(TypingResult {
@@ -1178,6 +1183,11 @@ impl AndroidLekhaniSession {
                     let scorer = get_context_scorer();
                     let right_word = state.right_context.split_whitespace().next();
                     scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
+                }
+                // In fixed layouts, the exact typed buffer is guaranteed to stay at position 0
+                if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
+                    let exact = candidates.remove(pos);
+                    candidates.insert(0, exact);
                 }
                 let len = state.composing_buffer.graphemes(true).count() as u32;
                 Ok(TypingResult {

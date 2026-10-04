@@ -329,11 +329,11 @@ fun PreferencesTabContent(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
-                            text = if (isEnglish) "Spacebar selects suggestion" else "স্পেসবারে শীর্ষ সাজেশন নির্বাচন",
+                            text = if (isEnglish) "Autocorrect on Spacebar" else "স্পেসবারে স্বয়ংক্রিয় সংশোধন",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                         Text(
-                            text = if (isEnglish) "Pressing space selects the top suggestion" else "স্পেস চাপলে সাজেশনের প্রথম শব্দটি স্বয়ংক্রিয়ভাবে বসে যাবে",
+                            text = if (isEnglish) "Transliterates Avro and fixes common English typos on space" else "অভ্র লিপ্যন্তর এবং ইংরেজি বানান ত্রুটি স্পেসবারে স্বয়ংক্রিয়ভাবে সংশোধন হবে",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

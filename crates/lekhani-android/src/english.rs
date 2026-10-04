@@ -187,6 +187,11 @@ pub fn match_casing(source: &str, target: &str) -> String {
     if is_all_upper && source.len() > 1 {
         return target.to_uppercase();
     }
+    // For English first-person contractions ("I'm", "I've", "I'll", "I'd"),
+    // always preserve the capitalized "I" pronoun even if typed as lowercase.
+    if target.starts_with("I'") {
+        return target.to_string();
+    }
     let starts_upper = source.chars().next().is_some_and(|c| c.is_uppercase());
     if starts_upper {
         let mut chars = target.chars();
@@ -218,12 +223,65 @@ pub const FALLBACK_ENGLISH_WORDS: &[&str] = &[
     "very", "view", "voice", "wait", "walk", "watch", "week", "woman", "work", "yes", "young",
 ];
 
+pub const ENGLISH_CONTRACTIONS: &[(&str, &str)] = &[
+    ("dont", "don't"),
+    ("cant", "can't"),
+    ("wont", "won't"),
+    ("im", "I'm"),
+    ("ive", "I've"),
+    ("id", "I'd"),
+    ("ill", "I'll"),
+    ("youre", "you're"),
+    ("theyre", "they're"),
+    ("weve", "we've"),
+    ("didnt", "didn't"),
+    ("isnt", "isn't"),
+    ("arent", "aren't"),
+    ("wasnt", "wasn't"),
+    ("werent", "weren't"),
+    ("hasnt", "hasn't"),
+    ("havent", "haven't"),
+    ("hadnt", "hadn't"),
+    ("couldnt", "couldn't"),
+    ("shouldnt", "shouldn't"),
+    ("wouldnt", "wouldn't"),
+    ("thats", "that's"),
+    ("whats", "what's"),
+    ("lets", "let's"),
+    ("heres", "here's"),
+    ("theres", "there's"),
+    ("youll", "you'll"),
+    ("hell", "he'll"),
+    ("shell", "she'll"),
+    ("itll", "it'll"),
+    ("theyd", "they'd"),
+    ("youd", "you'd"),
+    ("hed", "he'd"),
+    ("shed", "she'd"),
+    ("wed", "we'd"),
+    ("teh", "the"),
+    ("recieve", "receive"),
+    ("seperate", "separate"),
+    ("definately", "definitely"),
+];
+
+/// Returns the formatted contraction or typo replacement for `lower_word`, if known.
+pub fn lookup_english_contraction(lower_word: &str) -> Option<&'static str> {
+    for &(input, target) in ENGLISH_CONTRACTIONS {
+        if input == lower_word {
+            return Some(target);
+        }
+    }
+    None
+}
+
 /// Generates candidate words for the typed English buffer:
 /// Returns candidate words for an active English composing buffer.
 /// Ranking strategy:
 /// 1. Verbatim buffer (at index 0)
-/// 2. Prefix completions from PrefixTrie
-/// 3. Typo auto-corrections via QWERTY proximity if buffer has few completions
+/// 2. Direct contraction/typo correction (at index 1 if matched)
+/// 3. Prefix completions from PrefixTrie
+/// 4. Typo auto-corrections via QWERTY proximity if buffer has few completions
 pub fn get_english_candidates(buffer: &str, limit: usize) -> Vec<String> {
     get_english_candidates_with_trie(buffer, get_english_trie(), limit)
 }
@@ -235,13 +293,21 @@ pub fn get_english_candidates_with_trie(buffer: &str, trie: Option<&PrefixTrie>,
     }
 
     let mut results: Vec<String> = Vec::with_capacity(limit + 2);
-    // Verbatim word is always candidate 0 (supports Option B conservative commit)
+    // Verbatim word is always candidate 0 (supports verbatim user typing)
     results.push(buffer.to_string());
 
     let lower_buffer = buffer.to_lowercase();
 
+    // 1. High-priority contraction or typo match
+    if let Some(target) = lookup_english_contraction(&lower_buffer) {
+        let formatted = match_casing(buffer, target);
+        if !results.iter().any(|r| r.eq_ignore_ascii_case(&formatted)) {
+            results.push(formatted);
+        }
+    }
+
     if let Some(trie) = trie {
-        // 1. Prefix completions
+        // 2. Prefix completions
         let prefix_entries = trie.find_prefix_entries(&lower_buffer, limit + 2);
         for (cand, _) in prefix_entries {
             let formatted = match_casing(buffer, cand);
@@ -253,7 +319,7 @@ pub fn get_english_candidates_with_trie(buffer: &str, trie: Option<&PrefixTrie>,
             }
         }
 
-        // 2. Proximity auto-correction if few prefix matches were found and word is >= 3 chars
+        // 3. Proximity auto-correction if few prefix matches were found and word is >= 3 chars
         if results.len() <= 2 && lower_buffer.len() >= 3 {
             let corrections = generate_qwerty_corrections(&lower_buffer, trie);
             for corr in corrections {
