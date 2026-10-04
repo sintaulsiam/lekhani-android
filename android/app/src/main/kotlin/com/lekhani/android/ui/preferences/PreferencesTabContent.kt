@@ -1,6 +1,9 @@
 package com.lekhani.android.ui.preferences
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -506,32 +509,208 @@ fun PreferencesTabContent(
                 }
 
                 if (avroShowEnglishPreview) {
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         text = if (isEnglish) "Suggestion Strip Order" else "সাজেশন বারের ক্রম",
                         style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(Modifier.height(6.dp))
-                    Row(
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = if (isEnglish) "Choose what the spacebar automatically writes in Avro Phonetic" else "অভ্র ফোনেটিকে স্পেসবার চাপলে কোন শব্দটি যুক্ত হবে তা নির্ধারণ করুন",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        val orderOptions = listOf(
-                            Pair(KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST, if (isEnglish) "Bengali First (Recommended)" else "বাংলা প্রথমে (প্রস্তাবিত)"),
-                            Pair(KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST, if (isEnglish) "English First" else "ইংরেজি প্রথমে")
-                        )
-                        orderOptions.forEach { (order, label) ->
-                            val isSelected = avroStripOrder == order
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    avroStripOrder = order
-                                    prefs.avroStripOrder = order
+                        // Card 1: Bengali First (Recommended)
+                        val isBengaliSelected = (avroStripOrder == KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    avroStripOrder = KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
+                                    prefs.avroStripOrder = KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
                                 },
-                                label = { Text(label, fontSize = 12.sp) },
-                                shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isBengaliSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = BorderStroke(
+                                width = if (isBengaliSelected) 1.5.dp else 1.dp,
+                                color = if (isBengaliSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
                             )
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isBengaliSelected,
+                                        onClick = {
+                                            avroStripOrder = KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
+                                            prefs.avroStripOrder = KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(
+                                        text = if (isEnglish) "Bengali First" else "বাংলা প্রথমে",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer
+                                    ) {
+                                        Text(
+                                            text = if (isEnglish) "Recommended" else "প্রস্তাবিত",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (isEnglish) "Spacebar writes Bengali: \"ami\" → \"আমি\"" else "স্পেসবারে সরাসরি বাংলা লিখবে: \"ami\" → \"আমি\"",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 34.dp)
+                                )
+
+                                Spacer(Modifier.height(8.dp))
+                                // Visual candidate strip mockup
+                                Row(
+                                    modifier = Modifier
+                                        .padding(start = 34.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Slot 1 (Primary - Spacebar)
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ) {
+                                        Text(
+                                            text = if (isEnglish) "1. আমি  (Space)" else "১. আমি  (স্পেস)",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                    // Slot 2 (Secondary)
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    ) {
+                                        Text(
+                                            text = if (isEnglish) "2. ami" else "২. ami",
+                                            fontSize = 11.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Card 2: English First
+                        val isEnglishSelected = (avroStripOrder == KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    avroStripOrder = KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST
+                                    prefs.avroStripOrder = KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST
+                                },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isEnglishSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            border = BorderStroke(
+                                width = if (isEnglishSelected) 1.5.dp else 1.dp,
+                                color = if (isEnglishSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isEnglishSelected,
+                                        onClick = {
+                                            avroStripOrder = KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST
+                                            prefs.avroStripOrder = KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(
+                                        text = if (isEnglish) "English First" else "ইংরেজি প্রথমে",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (isEnglish) "Spacebar keeps raw English: \"ami\" → \"ami\"" else "স্পেসবারে ইংরেজি রেখে দেবে: \"ami\" → \"ami\"",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 34.dp)
+                                )
+
+                                Spacer(Modifier.height(8.dp))
+                                // Visual candidate strip mockup
+                                Row(
+                                    modifier = Modifier
+                                        .padding(start = 34.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Slot 1 (Primary - Spacebar)
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                                    ) {
+                                        Text(
+                                            text = if (isEnglish) "1. ami  (Space)" else "১. ami  (স্পেস)",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                    // Slot 2 (Secondary)
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                    ) {
+                                        Text(
+                                            text = if (isEnglish) "2. আমি" else "২. আমি",
+                                            fontSize = 11.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
