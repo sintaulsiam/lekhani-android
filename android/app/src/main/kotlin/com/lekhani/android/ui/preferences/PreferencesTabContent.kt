@@ -117,6 +117,8 @@ fun PreferencesTabContent(
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
     var showLayoutNameOnSpacebar by remember { mutableStateOf(prefs.showLayoutNameOnSpacebar) }
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
+    var showBilateralAura by remember { mutableStateOf(prefs.showBilateralAura) }
+    var swipeUpFlickEnabled by remember { mutableStateOf(prefs.swipeUpFlickEnabled) }
 
     var fontStyle by remember { mutableStateOf(prefs.fontStyle) }
     var fontScale by remember { mutableFloatStateOf(prefs.fontScale) }
@@ -954,6 +956,38 @@ fun PreferencesTabContent(
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
 
+                // Swipe-Up for Shifted Characters Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Swipe-up for shifted characters" else "উপরে সোয়াইপ করে বিকল্প বা যুক্ত বর্ণ",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Flick upward on any key to quickly type its shifted character without pressing Shift"
+                                   else "শিফট না চেপেই যেকোনো কীতে দ্রুত উপরে টেনে তার বিকল্প বা যুক্ত বর্ণ লিখুন",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = swipeUpFlickEnabled,
+                        onCheckedChange = {
+                            swipeUpFlickEnabled = it
+                            prefs.swipeUpFlickEnabled = it
+                        }
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
                 // Volume Key Cursor Navigation
                 Text(
                     text = if (isEnglish) "Volume key cursor navigation" else "ভলিউম কি দিয়ে কার্সার নিয়ন্ত্রণ",
@@ -1185,6 +1219,38 @@ fun PreferencesTabContent(
                         onCheckedChange = {
                             keyGlowRipple = it
                             prefs.keyGlowRippleEnabled = it
+                        }
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                // Probaho Vowel Zone Aura Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = if (isEnglish) "Probaho vowel zone aura" else "প্রবাহ স্বরবর্ণ জোন আভা",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = if (isEnglish) "Subtle color tint on left-hand vowel realm keys in Probaho layout (off by default)"
+                                   else "প্রবাহ লেআউটে বাম হাতের স্বরবর্ণ অঞ্চলে হালকা রঙের আভা দেখাবে (ডিফল্টভাবে বন্ধ)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = showBilateralAura,
+                        onCheckedChange = {
+                            showBilateralAura = it
+                            prefs.showBilateralAura = it
                         }
                     )
                 }
