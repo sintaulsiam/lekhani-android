@@ -115,6 +115,23 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SWIPE_UP_FLICK, true)
         set(value) = prefs.edit().putBoolean(KEY_SWIPE_UP_FLICK, value).apply()
 
+    // ── Probhat Layout Preferences ───────────────────────────────────────────
+    var probhatHasantaConjuncts: Boolean
+        get() = prefs.getBoolean(KEY_PROBHAT_HASANTA_CONJUNCTS, true)
+        set(value) = prefs.edit().putBoolean(KEY_PROBHAT_HASANTA_CONJUNCTS, value).apply()
+
+    var probhatSmartInitialKar: Boolean
+        get() = prefs.getBoolean(KEY_PROBHAT_SMART_INITIAL_KAR, true)
+        set(value) = prefs.edit().putBoolean(KEY_PROBHAT_SMART_INITIAL_KAR, value).apply()
+
+    var probhatGeminateDoubleTap: Boolean
+        get() = prefs.getBoolean(KEY_PROBHAT_GEMINATE_DOUBLE_TAP, true)
+        set(value) = prefs.edit().putBoolean(KEY_PROBHAT_GEMINATE_DOUBLE_TAP, value).apply()
+
+    var probhatDeadKeyHaptic: Boolean
+        get() = prefs.getBoolean(KEY_PROBHAT_DEAD_KEY_HAPTIC, true)
+        set(value) = prefs.edit().putBoolean(KEY_PROBHAT_DEAD_KEY_HAPTIC, value).apply()
+
     var uiLanguage: String
         get() = prefs.getString(KEY_UI_LANGUAGE, null)
             ?: if (java.util.Locale.getDefault().language == "bn") "bn" else "en"
@@ -395,6 +412,11 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SHOW_KEY_HINTS = "show_key_hints"
         const val KEY_SWIPE_UP_FLICK = "swipe_up_flick"
         const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
+
+        const val KEY_PROBHAT_HASANTA_CONJUNCTS = "probhat_hasanta_conjuncts"
+        const val KEY_PROBHAT_SMART_INITIAL_KAR = "probhat_smart_initial_kar"
+        const val KEY_PROBHAT_GEMINATE_DOUBLE_TAP = "probhat_geminate_double_tap"
+        const val KEY_PROBHAT_DEAD_KEY_HAPTIC = "probhat_dead_key_haptic"
 
         const val KEY_HAPTIC_ENABLED = "haptic_enabled"
         const val KEY_HAPTIC_DURATION_MS = "haptic_duration_ms"

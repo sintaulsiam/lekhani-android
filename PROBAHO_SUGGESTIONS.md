@@ -184,9 +184,30 @@ This document tracks and categorizes all proposed enhancements, architectural op
 - [x] R-phola (`্র`) and Ya-phola (`্য`) quick-picks on Hasanta
 - [x] Subscript shift/flick hints on keycaps with settings toggle
 - [x] Preferences Tab Modernization (Live Search, Category Pills, Dedicated Layout Dialogs)
-- [ ] **Next up**: Geminate double-tap (`ত` $\times 2 \rightarrow$ `ত্ত`, `ব` $\times 2 \rightarrow$ `ব্ব`)
-- [ ] **Next up**: Radial Flick Snap for top conjuncts (`ক্ষ`, `জ্ঞ`, `ত্র`, `স্থ`)
-- [ ] **Next up**: Extended pholas on Hasanta (`্ব`, `্ম`, `্ল`)
-- [ ] **Next up**: Interactive 60-Second Onboarding Sandbox in Settings
-- [ ] **Next up**: HD Haptic Grammatical Signatures
-- [ ] **Next up**: Elastic Scrub-to-Rewind Backspace Timeline with Undo Pill
+- [ ] **Next up (Probaho)**: Geminate double-tap (`ত` $\times 2 \rightarrow$ `ত্ত`, `ব` $\times 2 \rightarrow$ `ব্ব`)
+- [ ] **Next up (Probaho)**: Radial Flick Snap for top conjuncts (`ক্ষ`, `জ্ঞ`, `ত্র`, `স্থ`)
+- [ ] **Next up (Probaho)**: Extended pholas on Hasanta (`্ব`, `্ম`, `্ল`)
+- [ ] **Next up (Probaho)**: Interactive 60-Second Onboarding Sandbox in Settings
+- [ ] **Next up (Probaho)**: HD Haptic Grammatical Signatures
+- [ ] **Next up (Probaho)**: Elastic Scrub-to-Rewind Backspace Timeline with Undo Pill
+
+---
+
+## 🏛️ Probhat (प्रभात) Software & IME Optimization Plan (Zero Layout Alterations)
+
+### Strict Invariant
+**NOT A SINGLE KEY POSITION OR SHIFT STATE WILL BE ALTERED**. Typists rely on decades of established muscle memory. All enhancements operate strictly through the IME candidate engine, pre-edit state machine, haptic drivers, and Material 3 settings chrome.
+
+### Prioritized Probhat Superpowers
+
+| Priority | Feature / Optimization | Description & User Experience | Status |
+| :--- | :--- | :--- | :--- |
+| **Tier P1** | **In-Flight Conjunct Substitution** | `শিক্` + candidate `ক্ষ` replaces `ক + ্` in the composing buffer $\rightarrow$ `শিক্ষ`, enabling the user to immediately type `া` for `শিক্ষা` without word-break interruption. | Planned / Engine |
+| **Tier P1** | **Hasanta Dynamic Conjunct Quick-Picks** | Hitting `্` on Probhat presents top conjuncts (`ক্র, ক্য, ক্ত, ক্ষ, ক্ব, শ্র, দ্র, ত্র, দ্ব`) directly on the candidate strip. | Planned / Engine |
+| **Tier P1** | **Dedicated Probhat Configuration Sheet** | `ProbhatSettingsDialog` accessible from the Layouts tab (`⚙️`) with toggles for conjunct quick-picks, geminate double-taps, Kar promotion, and hint visibility. | Planned / UI |
+| **Tier P2** | **Smart Word-Initial Kar Auto-Promotion** | Automatically transforms lone Kars typed at the start of a word into canonical independent vowels (`া` $\rightarrow$ `আ`, `ি` $\rightarrow$ `ই`, `ু` $\rightarrow$ `উ`). Demotes full vowels preceded by a consonant (`ক` + `আ` $\rightarrow$ `কা`). | Planned / Engine |
+| **Tier P2** | **Consonant Geminate Double-Tap** | Double-tapping identical consonants within 220 ms generates geminates (`ত` $\times 2 \rightarrow$ `ত্ত`, `ব` $\times 2 \rightarrow$ `ব্ব`, `ল` $\times 2 \rightarrow$ `ল্ল`, `প` $\times 2 \rightarrow$ `প্প`). | Planned / Engine |
+| **Tier P3** | **Keycap Subscript Shift Hints** | Displays shifted glyphs (`ধ, ঊ, ঈ, ড়, ঠ, ঐ...`) in subtle micro-typography on the top-right corner of keycaps. Controlled by `showKeyHints`. | Available / Ready |
+| **Tier P3** | **Hasanta / Dead-Key Haptic Pulse** | Crisp linear actuator tick when Hasanta is pressed, providing tactile confirmation of conjunct composition mode. | Planned / Haptics |
+| **Tier P4** | **Spacebar Cursor Glide & Swipe Delete** | Spacebar scrub (`◀   প্রভাত   ▶`) and swipe-to-delete with undo delete floating badge. | Available / Ready |
+

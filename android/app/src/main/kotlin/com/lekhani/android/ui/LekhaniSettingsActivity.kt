@@ -67,6 +67,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import com.lekhani.android.ui.preferences.ProbahoSettingsDialog
 import com.lekhani.android.ui.preferences.AvroSettingsDialog
+import com.lekhani.android.ui.preferences.ProbhatSettingsDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -632,6 +633,12 @@ fun LekhaniSettingsScreen(
             isEnglish = isEnglish,
             onDismiss = { selectedLayoutConfig = null }
         )
+    } else if (selectedLayoutConfig == LekhaniLayoutType.PROBHAT) {
+        ProbhatSettingsDialog(
+            prefs = keyboardPrefs,
+            isEnglish = isEnglish,
+            onDismiss = { selectedLayoutConfig = null }
+        )
     }
     }
 }
@@ -1071,7 +1078,7 @@ private fun LayoutsTabContent(
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (type == LekhaniLayoutType.PROBAHO || type == LekhaniLayoutType.AVRO) {
+                                if (type == LekhaniLayoutType.PROBAHO || type == LekhaniLayoutType.AVRO || type == LekhaniLayoutType.PROBHAT) {
                                     IconButton(
                                         onClick = { onOpenLayoutConfig(type) },
                                         modifier = Modifier.size(36.dp)

@@ -505,3 +505,314 @@ fun AvroSettingsDialog(
         }
     }
 }
+
+/**
+ * Dedicated settings dialog for Probhat (प्रभात) layout.
+ * Guarantees 100% muscle-memory invariance (zero key moves) while providing
+ * smart IME candidate, conjunct quick-picks, and haptic superpowers.
+ */
+@Composable
+fun ProbhatSettingsDialog(
+    prefs: KeyboardPreferences,
+    isEnglish: Boolean = false,
+    onDismiss: () -> Unit
+) {
+    var probhatHasantaConjuncts by remember { mutableStateOf(prefs.probhatHasantaConjuncts) }
+    var probhatSmartInitialKar by remember { mutableStateOf(prefs.probhatSmartInitialKar) }
+    var probhatGeminateDoubleTap by remember { mutableStateOf(prefs.probhatGeminateDoubleTap) }
+    var showKeyHints by remember { mutableStateOf(prefs.showKeyHints) }
+    var probhatDeadKeyHaptic by remember { mutableStateOf(prefs.probhatDeadKeyHaptic) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top App Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (isEnglish) "Back" else "ফিরে যান"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Probhat (प्रभात) Settings" else "প্রভাত লেআউট সেটিংস",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = if (isEnglish) "Official 12-key ergonomic layout preferences" else "ক্লাসিক ১২-কি এরগনোমিক লেআউট কনফিগারেশন",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // Muscle Memory Invariant Guarantee Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (isEnglish) "Classic Muscle Memory Invariant" else "ক্লাসিক মাসল মেমোরি অপরিবর্তিত নিশ্চয়তা",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (isEnglish)
+                                        "Every key position and shift layer remains 100% untouched. All enhancements operate strictly through the intelligent IME engine and candidate strip."
+                                    else
+                                        "প্রভাত লেআউটের মূল কীবোর্ড বিন্যাস ও অবস্থানের একটি কি-ও পরিবর্তন করা হয়নি। সকল সুবিধা ইঞ্জিন ও সফটওয়্যার স্তরে কাজ করে।",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Card 1: Typing Accelerators
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Keyboard,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Typing Accelerators" else "টাইপিং গতিবর্ধক",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+
+                            // Hasanta Conjunct Quick-Picks
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Hasanta Conjunct Quick-Picks" else "হসন্ত যুক্তবর্ণ সাজেস্ট",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Pressing Hasanta (্) suggests ligatures (ক্র, ক্য, ক্ত, ক্ষ) and replaces base consonant in-flight"
+                                               else "হসন্ত (্) চাপলে স্বয়ংক্রিয়ভাবে সম্ভাব্য যুক্তবর্ণ ক্যান্ডিডেট বারে ভেসে উঠবে এবং শিক্ + ক্ষ সরাসরি শিক্ষ-তে রূপান্তরিত হবে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = probhatHasantaConjuncts,
+                                    onCheckedChange = {
+                                        probhatHasantaConjuncts = it
+                                        prefs.probhatHasantaConjuncts = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Smart Word-Initial Kar Promotion
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Word-Initial Kar Auto-Promotion" else "শব্দের শুরুতে কার চিহ্ন স্বরবর্ণে রূপান্তর",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Promotes lone vowel signs typed at word start to full vowels (া → আ, ি → ই) preventing broken diacritics"
+                                               else "শব্দের শুরুতে অসাবধানতাবশত কার দিলে তা সঠিক পূর্ণ স্বরবর্ণে রূপান্তরিত হবে (যেমন া → আ)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = probhatSmartInitialKar,
+                                    onCheckedChange = {
+                                        probhatSmartInitialKar = it
+                                        prefs.probhatSmartInitialKar = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Geminate Double-Tap
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Consonant Double-Tap Geminates" else "দ্বিত্ব ব্যঞ্জন শর্টকাট (ডাবল ট্যাপ)",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Quick double-tap on any consonant generates geminate conjunct (ত × 2 → ত্ত, ব × 2 → ব্ব, ল × 2 → ল্ল)"
+                                               else "একই ব্যঞ্জন দ্রুত পরপর দুইবার ট্যাপ করলে যুক্তবর্ণ গঠিত হবে (ত × ২ → ত্ত, ব × ২ → ব্ব)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = probhatGeminateDoubleTap,
+                                    onCheckedChange = {
+                                        probhatGeminateDoubleTap = it
+                                        prefs.probhatGeminateDoubleTap = it
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Card 2: Visual Hints & Tactile Feedback
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Hints & Tactile Feedback" else "সহায়িকা ও স্পর্শ অনুভূতি",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+
+                            // Keycap Subscript Hints
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Keycap Subscript Shift Hints" else "কী-ক্যাপে শিফট সহায়িকা চিহ্ন",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Displays shifted characters (ধ, ঊ, ঈ, ড়, ঠ, ঐ...) in the top-right corner of keycaps"
+                                               else "প্রতিটি কী-এর ওপরের কোণায় শিফট বর্ণের ছোট রূপ প্রদর্শন করে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = showKeyHints,
+                                    onCheckedChange = {
+                                        showKeyHints = it
+                                        prefs.showKeyHints = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Hasanta / Dead-Key Haptic Pulse
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Hasanta Combining Haptic Tick" else "হসন্ত যুক্তবর্ণ স্পর্শ সংকেত",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Distinct tactile tick feedback when Hasanta is active for conjunct composition"
+                                               else "হসন্ত চাপে যুক্তবর্ণ অবস্থা সক্রিয় হলে বিশেষ স্পর্শ স্পন্দন প্রদান করে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = probhatDeadKeyHaptic,
+                                    onCheckedChange = {
+                                        probhatDeadKeyHaptic = it
+                                        prefs.probhatDeadKeyHaptic = it
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

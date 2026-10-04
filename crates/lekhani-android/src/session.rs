@@ -859,7 +859,7 @@ impl AndroidLekhaniSession {
         }
 
         match state.layout {
-            LekhaniLayoutType::Probaho => {
+            LekhaniLayoutType::Probaho | LekhaniLayoutType::Probhat => {
                 let (is_start, last_is_vowel, last_is_consonant) = if let Some(last_ch) = state.composing_buffer.chars().last() {
                     (false, is_bengali_vowel(last_ch), is_bengali_consonant_or_modifier(last_ch) && last_ch != '্')
                 } else if let Some(ctx_ch) = state.surrounding_context.chars().last() {
@@ -1855,12 +1855,14 @@ impl AndroidLekhaniSession {
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
-        // ── Probaho In-Flight Conjunct Substitution ─────────────────────────
-        // If Probaho mode is active and the composing buffer ends with Hasanta (`্`),
+        // ── Probaho & Probhat In-Flight Conjunct Substitution ────────────────
+        // If Probaho or Probhat mode is active and the composing buffer ends with Hasanta (`্`),
         // selecting a conjunct candidate (e.g. `ক্ষ` or `ক্ত`) replaces the base consonant
         // and Hasanta in-place, keeping the composing buffer alive so the typist can
         // seamlessly continue typing subsequent Kars/consonants (e.g. `শিক্` + `ক্ষ` -> `শিক্ষ` + `া` -> `শিক্ষা`).
-        if state.layout == LekhaniLayoutType::Probaho && state.composing_buffer.ends_with('্') {
+        if (state.layout == LekhaniLayoutType::Probaho || state.layout == LekhaniLayoutType::Probhat)
+            && state.composing_buffer.ends_with('্')
+        {
             let mut chars: Vec<char> = state.composing_buffer.chars().collect();
             if chars.len() >= 2 {
                 chars.pop(); // Remove '্'
@@ -2824,6 +2826,53 @@ mod tests {
 
         let res_m = session.process_key("ম".into()).unwrap();
         assert_eq!(res_m.preedit, "প্রেম");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probhat_hasanta_conjunct_suggestion_and_substitution() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probhat);
+
+        // Type 'শ' + 'ি' + 'ক' + '্' -> preedit 'শিক্'
+        session.process_key("শ".into()).unwrap();
+        session.process_key("ি".into()).unwrap();
+        session.process_key("ক".into()).unwrap();
+        let res_hasanta = session.process_key("্".into()).unwrap();
+        assert_eq!(res_hasanta.preedit, "শিক্");
+        assert!(res_hasanta.candidates.contains(&"ক্ষ".to_string()), "Candidates must contain 'ক্ষ' after 'ক' + '্'");
+
+        // Select 'ক্ষ' -> in-flight substitution replaces 'ক্' with 'ক্ষ' -> 'শিক্ষ'
+        let res_select = session.select_candidate("ক্ষ".into()).unwrap();
+        assert_eq!(res_select.commit_text, None, "In-flight conjunct selection should not commit immediately");
+        assert_eq!(res_select.preedit, "শিক্ষ");
+
+        // Continue typing 'া' -> 'শিক্ষা'
+        let res_a = session.process_key("া".into()).unwrap();
+        assert_eq!(res_a.preedit, "শিক্ষা");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probhat_vowel_promotion_at_word_start() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probhat);
+
+        // Tapping 'া' at start of word promotes to 'আ'
+        let res = session.process_key("া".into()).unwrap();
+        assert_eq!(res.preedit, "আ");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probhat_vowel_demotion_after_consonant() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probhat);
+
+        // Tapping 'ক' then independent 'আ' (Probhat unshifted Row 3) should produce 'কা'
+        session.process_key("ক".into()).unwrap();
+        let res = session.process_key("আ".into()).unwrap();
+        assert_eq!(res.preedit, "কা");
     }
 }
 
