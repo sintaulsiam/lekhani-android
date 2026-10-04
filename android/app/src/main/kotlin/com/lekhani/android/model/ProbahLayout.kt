@@ -8,47 +8,44 @@ package com.lekhani.android.model
  *  - Left thumb: vowels & kars (স্বরবর্ণ)
  *  - Right thumb: consonants (ব্যঞ্জনবর্ণ)
  *  - Home row (Row 2): অ া ি ু ে | র ত ন স ক  (68.7% of daily keystrokes)
- *  - Long vowels sit directly ABOVE their short partners (learnability rule 1)
- *  - Aspirated pairs on Shift (learnability rule 2)
- *  - Smart Kar auto-promotion at word-start (learnability rule 3, handled in Rust)
- *  - Hasanta (্) beside Spacebar for one-thumb conjunct access (learnability rule 4)
+ *  - Independent vowels sit on the Shift layer of their corresponding Kars (ই on ি, উ on ু, এ on ে, ও on ো, আ on া)
+ *  - Long vowels & Kars sit paired with their independent partners on Shift (ঈ on ী, ঊ on ূ, ঔ on আ, ৈ on য)
+ *  - Aspirated & Sibilant pairs on Shift (ষ on স, শ on ল, খ on ক, ঘ on গ, থ on ত, ধ on দ, ফ on প, ভ on ব)
+ *  - Smart Kar auto-promotion at word-start (handled in Rust session engine)
+ *  - Hasanta (্) beside Spacebar for one-thumb conjunct access with Khanda Ta (ৎ) on Shift
  */
 object ProbahLayout {
 
     val layout: KeyboardLayout = KeyboardLayout(
         name = "Lekhani প্রবাহ",
         rows = listOf(
-            // ── Row 1 (Top) — Long vowels | Labial/Dental consonants ──────────
-            //  Left:  আ ো ী ূ য  (য promoted from Shift+ে; ৈ now lives on Shift+য)
-            //  Right: প ব গ দ ল  (গ promoted from Shift+ম; ঘ now lives on Shift+ল)
+            // ── Row 1 (Top) — Vowels & Labials/Dentals ──────────
             listOf(
                 Ch("আ", shifted = "ঔ", desc = "আ, shifted ঔ"),
-                Ch("ো", shifted = "ৌ", hint = "ঐ", desc = "ো, shifted ৌ, hint ঐ"),
+                Ch("ো", shifted = "ও", desc = "ো, shifted ও"),
                 Ch("ী", shifted = "ঈ", desc = "ী, shifted ঈ"),
                 Ch("ূ", shifted = "ঊ", desc = "ূ, shifted ঊ"),
-                Ch("য", shifted = "ৈ", hint = "ৃ", desc = "য, shifted ৈ (ai-kar), hint ৃ (ri-kar)"),
+                Ch("য", shifted = "ৈ", desc = "য, shifted ৈ"),
                 Ch("প", shifted = "ফ", desc = "প, shifted ফ"),
                 Ch("ব", shifted = "ভ", desc = "ব, shifted ভ"),
                 Ch("গ", shifted = "ঘ", desc = "গ, shifted ঘ"),
                 Ch("দ", shifted = "ধ", desc = "দ, shifted ধ"),
-                Ch("ল", shifted = "॥", hint = "॥", desc = "ল, shifted ॥ (Double Dari)"),
+                Ch("ল", shifted = "শ", desc = "ল, shifted শ"),
             ),
             // ── Row 2 (Home) — Base vowels | Golden 5 consonants ─────────────
             listOf(
-                Ch("অ", shifted = "ঋ", hint = "ৃ", homeRow = true, desc = "অ, shifted ঋ, hint ৃ"),
-                Ch("া", shifted = "ঽ", homeRow = true, desc = "া, shifted ঽ"),
-                Ch("ি", shifted = "য়", homeRow = true, desc = "ি, shifted য়"),
-                Ch("ু", shifted = "ৎ", homeRow = true, desc = "ু, shifted ৎ"),
-                Ch("ে", shifted = "ঐ", hint = "ঐ", homeRow = true, desc = "ে, shifted ঐ"),
-                Ch("র", shifted = "ড়", hint = "ঢ়", homeRow = true, desc = "র, shifted ড়, hint ঢ়"),
-                Ch("ত", shifted = "থ",  homeRow = true, desc = "ত, shifted থ"),
-                Ch("ন", shifted = "ণ",  homeRow = true, desc = "ন, shifted ণ"),
-                Ch("স", shifted = "শ", hint = "ষ", homeRow = true, desc = "স, shifted শ, hint ষ"),
-                Ch("ক", shifted = "খ",  homeRow = true, desc = "ক, shifted খ"),
+                Ch("অ", shifted = "ঋ", homeRow = true, desc = "অ, shifted ঋ"),
+                Ch("া", shifted = "আ", homeRow = true, desc = "া, shifted আ"),
+                Ch("ি", shifted = "ই", homeRow = true, desc = "ি, shifted ই"),
+                Ch("ু", shifted = "উ", homeRow = true, desc = "ু, shifted উ"),
+                Ch("ে", shifted = "এ", homeRow = true, desc = "ে, shifted এ"),
+                Ch("র", shifted = "ড়", homeRow = true, desc = "র, shifted ড়"),
+                Ch("ত", shifted = "থ", homeRow = true, desc = "ত, shifted থ"),
+                Ch("ন", shifted = "ণ", homeRow = true, desc = "ন, shifted ণ"),
+                Ch("স", shifted = "ষ", homeRow = true, desc = "স, shifted ষ"),
+                Ch("ক", shifted = "খ", homeRow = true, desc = "ক, shifted খ"),
             ),
             // ── Row 3 (Bottom) — Nasals/modifiers | Palatal/Retroflex ─────────
-            //  ম moved here from Row 1 (rank-7 frequency, still a dedicated key)
-            //  ঃ (Visarga — very rare) now Shift+ঁ; ঙ now Shift+ম
             listOf(
                 Key(
                     label = "⇧", shiftedLabel = "⇧",
@@ -56,10 +53,10 @@ object ProbahLayout {
                     widthWeight = 1.32f,
                     contentDesc = "Shift",
                 ),
-                Ch("হ", shifted = "ঞ", hint = "ঞ", desc = "হ, shifted ঞ, hint ঞ"),
+                Ch("হ", shifted = "ঞ", desc = "হ, shifted ঞ"),
                 Ch("ম", shifted = "ঙ", desc = "ম, shifted ঙ"),
-                Ch("ং", shifted = "ঃ", hint = "ঃ", desc = "ং, shifted ঃ (Visarga)"),
-                Ch("ঁ", shifted = "৳", hint = "৳", desc = "ঁ, shifted Taka ৳"),
+                Ch("ং", shifted = "ঃ", desc = "ং, shifted ঃ (Visarga)"),
+                Ch("ঁ", shifted = "৳", desc = "ঁ, shifted Taka ৳"),
                 Ch("চ", shifted = "ছ", desc = "চ, shifted ছ"),
                 Ch("জ", shifted = "ঝ", desc = "জ, shifted ঝ"),
                 Ch("ট", shifted = "ঠ", desc = "ট, shifted ঠ"),
@@ -102,21 +99,21 @@ object ProbahLayout {
             ),
             Key(
                 label = "্",           // Hasanta — conjunct trigger
-                shiftedLabel = "হ",    // হ on shift row (see shifted layout spec)
-                hintLabel = "হ",
+                shiftedLabel = "ৎ",    // Khanda Ta on shift
+                hintLabel = "ৎ",
                 action = KeyAction.Character("্"),
-                shiftedAction = KeyAction.Character("হ"),
-                longPressAction = KeyAction.Character("হ"),
+                shiftedAction = KeyAction.Character("ৎ"),
+                longPressAction = KeyAction.Character("ৎ"),
                 widthWeight = 1.0f,
-                contentDesc = "Hasanta conjunct key, shifted or long-press হ",
+                contentDesc = "Hasanta conjunct key, shifted or long-press Khanda Ta ৎ",
             ),
             Key(
-                label = "।", shiftedLabel = "!", hintLabel = "?",
+                label = "।", shiftedLabel = "!", hintLabel = "!",
                 action = KeyAction.Character("।"),
                 shiftedAction = KeyAction.Character("!"),
-                longPressAction = KeyAction.Character("?"),
+                longPressAction = KeyAction.Character("!"),
                 widthWeight = 1.0f,
-                contentDesc = "Dari, shifted exclamation, long press question mark",
+                contentDesc = "Dari, shifted exclamation",
             ),
             Key(
                 label = "↵", shiftedLabel = "↵",

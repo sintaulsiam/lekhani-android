@@ -76,13 +76,13 @@ Row 4 (Space):   [ ?123 ] [ 🌐 ] [ , ] [     স্পেস     ] [  ্  ] [
                          └─ Left Thumb ─┘             └─ Right Thumb ─┘
 ```
 
-### Shifted Layer (Aspirated & Rare Characters)
+### Shifted Layer (Aspirated, Independent Vowels & Rare Characters)
 
 ```
-Row 1 (Top):     [ ঔ ] [ ৌ ] [ ঈ ] [ ঊ ] [ ৈ ]   |   [ ফ ] [ ভ ] [ ঘ ] [ ধ ] [  ॥  ]
-Row 2 (Home):    [ ঋ ] [ ঽ ] [ য় ] [ ৎ ] [ ঐ ]   |   [ ড় ] [ থ ] [ ণ ] [ শ ] [ খ ]
+Row 1 (Top):     [ ঔ ] [ ও ] [ ঈ ] [ ঊ ] [ ৈ ]   |   [ ফ ] [ ভ ] [ ঘ ] [ ধ ] [  শ  ]
+Row 2 (Home):    [ ঋ ] [ আ ] [ ই ] [ উ ] [ এ ]   |   [ ড় ] [ থ ] [ ণ ] [ ষ ] [ খ ]
 Row 3 (Bottom):  [ ⇧ ] [ ঞ ] [ ঙ ] [ ঃ ] [  ৳  ] |   [ ছ ] [ ঝ ] [ ঠ ] [ ঢ ] [ ⌫ ]
-Row 4 (Space):   [ ?123 ] [ 🌐 ] [ ? ] [     স্পেস     ] [ হ ] [ ! ] [ ↵ ]
+Row 4 (Space):   [ ?123 ] [ 🌐 ] [ ? ] [     স্পেস     ] [ ৎ ] [ ! ] [ ↵ ]
 ```
 
 ---

@@ -104,16 +104,16 @@ class ProbahLayoutTest {
     }
 
     @Test
-    fun `Visarga is on shift layer of anusvara key and double dari on la`() {
+    fun `Visarga is on shift layer of anusvara key and talabya sha on la`() {
         // Visarga (ঃ) should be the shifted action of ং
         val anusvaraKey = layout.rows[2].find { it.label == "ং" }
         assertNotNull("ং key should exist", anusvaraKey)
         assertEquals(KeyAction.Character("ঃ"), anusvaraKey!!.shiftedAction)
 
-        // Double Dari (॥) is on shift of ল
+        // Talabya Sha (শ) is on shift of ল
         val laKey = layout.rows[0].find { it.label == "ল" }
         assertNotNull("ল key should exist", laKey)
-        assertEquals(KeyAction.Character("॥"), laKey!!.shiftedAction)
+        assertEquals(KeyAction.Character("শ"), laKey!!.shiftedAction)
     }
 
     @Test
@@ -141,16 +141,39 @@ class ProbahLayoutTest {
     }
 
     @Test
-    fun `ri-kar is accessible as hint on unshifted ja and o`() {
-        val yaKey = layout.rows[0].find { it.label == "য" }
-        assertNotNull("য key should exist", yaKey)
-        assertEquals("ৈ", yaKey!!.shiftedLabel)
-        assertEquals(KeyAction.Character("ৈ"), yaKey.shiftedAction)
-        assertEquals("ৃ", yaKey.hintLabel)
+    fun `independent vowels are accessible on shift layer of corresponding kars`() {
+        val iKey = layout.rows[1].find { it.label == "ি" }
+        assertNotNull("ি key should exist", iKey)
+        assertEquals("ই", iKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ই"), iKey.shiftedAction)
 
-        val oKey = layout.rows[1].find { it.label == "অ" }
-        assertNotNull("অ key should exist", oKey)
-        assertEquals("ৃ", oKey!!.hintLabel)
+        val uKey = layout.rows[1].find { it.label == "ু" }
+        assertNotNull("ু key should exist", uKey)
+        assertEquals("উ", uKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("উ"), uKey.shiftedAction)
+
+        val eKey = layout.rows[1].find { it.label == "ে" }
+        assertNotNull("ে key should exist", eKey)
+        assertEquals("এ", eKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("এ"), eKey.shiftedAction)
+
+        val oKey = layout.rows[0].find { it.label == "ো" }
+        assertNotNull("ো key should exist", oKey)
+        assertEquals("ও", oKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ও"), oKey.shiftedAction)
+
+        val aKey = layout.rows[1].find { it.label == "া" }
+        assertNotNull("া key should exist", aKey)
+        assertEquals("আ", aKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("আ"), aKey.shiftedAction)
+    }
+
+    @Test
+    fun `murdhanya sha is accessible on shift layer of sa`() {
+        val saKey = layout.rows[1].find { it.label == "স" }
+        assertNotNull("স key should exist", saKey)
+        assertEquals("ষ", saKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ষ"), saKey.shiftedAction)
     }
 
     @Test
@@ -161,37 +184,24 @@ class ProbahLayoutTest {
     }
 
     @Test
-    fun `ha is unshifted on bottom row and also on spacebar row`() {
-        val haBottom = layout.rows[2].find { it.label == "হ" }
-        assertNotNull("হ should be unshifted in row 3", haBottom)
-        assertEquals(KeyAction.Character("হ"), haBottom!!.action)
-
+    fun `khanda ta is accessible on shift layer of hasanta key`() {
         val hasantaKey = layout.spacebarRow.find { it.label == "্" }
         assertNotNull("Hasanta key should exist in spacebar row", hasantaKey)
-        assertEquals("হ", hasantaKey!!.hintLabel)
-        assertEquals(KeyAction.Character("হ"), hasantaKey.longPressAction)
+        assertEquals("ৎ", hasantaKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ৎ"), hasantaKey.shiftedAction)
     }
 
     @Test
-    fun `question mark is accessible on comma and dari keys`() {
+    fun `question mark on comma and exclamation on dari key`() {
         val commaKey = layout.spacebarRow.find { it.label == "," }
         assertNotNull("Comma key should exist", commaKey)
         assertEquals("?", commaKey!!.shiftedLabel)
-        assertEquals("?", commaKey.hintLabel)
-        assertEquals(KeyAction.Character("?"), commaKey.longPressAction)
+        assertEquals(KeyAction.Character("?"), commaKey.shiftedAction)
 
         val dariKey = layout.spacebarRow.find { it.label == "।" }
         assertNotNull("Dari key should exist", dariKey)
-        assertEquals("?", dariKey!!.hintLabel)
-        assertEquals(KeyAction.Character("?"), dariKey.longPressAction)
-    }
-
-    @Test
-    fun `ou-kar is accessible on shifted o-kar`() {
-        val oKey = layout.rows[0].find { it.label == "ো" }
-        assertNotNull("ো key should exist", oKey)
-        assertEquals("ৌ", oKey!!.shiftedLabel)
-        assertEquals(KeyAction.Character("ৌ"), oKey.shiftedAction)
+        assertEquals("!", dariKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("!"), dariKey.shiftedAction)
     }
 
     @Test
