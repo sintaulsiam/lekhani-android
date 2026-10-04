@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -52,6 +52,7 @@ import com.lekhani.android.feedback.LekhaniFeedbackManager
 fun HapticsSoundSheet(
     prefs: KeyboardPreferences,
     onClose: () -> Unit,
+    isEnglish: Boolean = false,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -80,20 +81,20 @@ fun HapticsSoundSheet(
             ) {
                 IconButton(onClick = onClose) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "ফিরে যান",
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = if (isEnglish) "Back" else "ফিরে যান",
                         tint = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "হ্যাপটিক্স ও সাউন্ড প্রোফাইল",
+                        text = if (isEnglish) "Haptics & Sound Profiles" else "হ্যাপটিক্স ও সাউন্ড প্রোফাইল",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "বাটনে চাপলে কম্পন এবং অডিও ফিডব্যাক নিয়ন্ত্রণ করুন",
+                        text = if (isEnglish) "Control keypress vibration and audio feedback" else "বাটনে চাপলে কম্পন এবং অডিও ফিডব্যাক নিয়ন্ত্রণ করুন",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -123,12 +124,12 @@ fun HapticsSoundSheet(
                             ) {
                                 Column {
                                     Text(
-                                        text = "হ্যাপটিক ভাইব্রেশন",
+                                        text = if (isEnglish) "Haptic Vibration" else "হ্যাপটিক ভাইব্রেশন",
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
-                                        text = "প্রতিটি কি-প্রেসে মৃদু ভাইব্রেশন দিন",
+                                        text = if (isEnglish) "Vibrate on every keypress" else "প্রতিটি কি-প্রেসে মৃদু ভাইব্রেশন দিন",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -145,7 +146,7 @@ fun HapticsSoundSheet(
                             if (hapticEnabled) {
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Text(
-                                    text = "কম্পনের স্থায়িত্ব (Duration): $hapticDuration ms",
+                                    text = if (isEnglish) "Vibration Duration: $hapticDuration ms" else "কম্পনের স্থায়িত্ব (Duration): $hapticDuration ms",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                                 Slider(
@@ -182,12 +183,12 @@ fun HapticsSoundSheet(
                             ) {
                                 Column {
                                     Text(
-                                        text = "কি-প্রেস সাউন্ড ফিডব্যাক",
+                                        text = if (isEnglish) "Keypress Sound" else "কি-প্রেস সাউন্ড ফিডব্যাক",
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
-                                        text = "টাইপিংয়ে অডিও শব্দ বাজান",
+                                        text = if (isEnglish) "Audio clicks on key tap" else "টাইপিংয়ে অডিও শব্দ বাজান",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -204,20 +205,30 @@ fun HapticsSoundSheet(
                             if (soundEnabled) {
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Text(
-                                    text = "সাউন্ড প্যাক নির্বাচন করুন",
+                                    text = if (isEnglish) "Select Sound Profile" else "সাউন্ড প্যাক নির্বাচন করুন",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                val soundPacks = listOf(
-                                    KeyboardPreferences.SOUND_SYSTEM to "সিস্টেম",
-                                    KeyboardPreferences.SOUND_BUBBLE to "বাবল (Bubble)",
-                                    KeyboardPreferences.SOUND_MECHANICAL to "মেকানিক্যাল",
-                                    KeyboardPreferences.SOUND_TYPEWRITER to "টাইপরাইটার",
-                                    KeyboardPreferences.SOUND_WOODBLOCK to "উডব্লক",
-                                )
+                                val soundPacks = if (isEnglish) {
+                                    listOf(
+                                        KeyboardPreferences.SOUND_SYSTEM to "System",
+                                        KeyboardPreferences.SOUND_BUBBLE to "Bubble",
+                                        KeyboardPreferences.SOUND_MECHANICAL to "Mechanical",
+                                        KeyboardPreferences.SOUND_TYPEWRITER to "Typewriter",
+                                        KeyboardPreferences.SOUND_WOODBLOCK to "Woodblock",
+                                    )
+                                } else {
+                                    listOf(
+                                        KeyboardPreferences.SOUND_SYSTEM to "সিস্টেম",
+                                        KeyboardPreferences.SOUND_BUBBLE to "বাবল (Bubble)",
+                                        KeyboardPreferences.SOUND_MECHANICAL to "মেকানিক্যাল",
+                                        KeyboardPreferences.SOUND_TYPEWRITER to "টাইপরাইটার",
+                                        KeyboardPreferences.SOUND_WOODBLOCK to "উডব্লক",
+                                    )
+                                }
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -255,7 +266,7 @@ fun HapticsSoundSheet(
 
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Text(
-                                    text = "সাউন্ড ভলিউম: ${(soundVolume * 100).toInt()}%",
+                                    text = if (isEnglish) "Sound Volume: ${(soundVolume * 100).toInt()}%" else "সাউন্ড ভলিউম: ${(soundVolume * 100).toInt()}%",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                                 Slider(
@@ -286,7 +297,7 @@ fun HapticsSoundSheet(
                         ) {
                             Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("এখানে চাপ দিয়ে টেস্ট করুন", fontWeight = FontWeight.Medium)
+                            Text(if (isEnglish) "Tap here to test feedback" else "এখানে চাপ দিয়ে টেস্ট করুন", fontWeight = FontWeight.Medium)
                         }
 
                         if (testTapCount > 0) {
@@ -297,7 +308,11 @@ fun HapticsSoundSheet(
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                             ) {
                                 Text(
-                                    text = "✓ ফিডব্যাক সক্রিয়: ${if (hapticEnabled) "${hapticDuration}ms ভাইব্রেশন" else "ভাইব্রেশন বন্ধ"}${if (soundEnabled) " + সাউন্ড" else ""} (ট্যাপ #$testTapCount)",
+                                    text = if (isEnglish) {
+                                        "✓ Feedback Active: ${if (hapticEnabled) "${hapticDuration}ms vibration" else "vibration off"}${if (soundEnabled) " + sound" else ""} (Tap #$testTapCount)"
+                                    } else {
+                                        "✓ ফিডব্যাক সক্রিয়: ${if (hapticEnabled) "${hapticDuration}ms ভাইব্রেশন" else "ভাইব্রেশন বন্ধ"}${if (soundEnabled) " + সাউন্ড" else ""} (ট্যাপ #$testTapCount)"
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -321,8 +336,9 @@ fun HapticsSoundSheet(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text("সম্পন্ন", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(if (isEnglish) "Done" else "সম্পন্ন", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
 }
+
