@@ -1009,30 +1009,29 @@ private fun UndoChip(
     Surface(
         onClick = onUndoClick,
         shape = RoundedCornerShape(16.dp),
-        color = Color(theme.accentColor).copy(alpha = 0.16f),
-        border = BorderStroke(1.dp, Color(theme.accentColor).copy(alpha = 0.45f)),
+        color = Color(theme.accentColor).copy(alpha = 0.18f),
+        border = BorderStroke(1.dp, Color(theme.accentColor).copy(alpha = 0.50f)),
         modifier = modifier
-            .padding(start = 4.dp, end = 4.dp)
-            .height(30.dp),
+            .padding(start = 6.dp, end = 6.dp)
+            .height(32.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 8.dp)
+            modifier = Modifier.padding(horizontal = 10.dp)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = if (isEnglish) "Undo autocorrection" else "পূর্বাবস্থায় ফেরান",
+                contentDescription = if (isEnglish) "Undo deletion" else "পূর্বাবস্থায় ফেরান",
                 tint = Color(theme.accentColor),
-                modifier = Modifier.size(13.dp)
+                modifier = Modifier.size(14.dp)
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(5.dp))
             Text(
-                text = "${if (isEnglish) "Undo" else "পূর্বাবস্থা"}: \"${undoInfo.originalText}\"",
+                text = if (isEnglish) "Undo" else "পূর্বাবস্থা",
                 color = Color(theme.labelColor),
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
             )
         }
     }
