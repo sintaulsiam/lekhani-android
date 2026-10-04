@@ -159,8 +159,21 @@ This document tracks and categorizes all proposed enhancements, architectural op
 ### 25. In-Line Math & Currency Converter
 - **Feature**: Typing mathematical expressions (e.g., `২৫০ * ৪ =`) or currency queries (e.g., `USD to BDT`) surfaces the calculated answer directly on the candidate strip.
 
-### 26. Mirrored Left-Handed One-Thumb Mode
-- **Feature**: Swap the Left (Vowel) and Right (Consonant) realms for typists who type predominantly with their left thumb.
+### 27. Radial Flick Snap for Instant Conjuncts (হসন্ত জেশ্চার হুইল)
+- **Concept**: Single 40ms directional flick on consonants directly produces complex conjuncts without hitting Hasanta (`ক` flick right $\rightarrow$ `ক্ষ`, `প` flick down $\rightarrow$ `প্র`, `ত` flick right $\rightarrow$ `ত্র`, `জ` flick down $\rightarrow$ `জ্ঞ`).
+- **Implementation**: Directional drag thresholds in `KeyboardCanvasView.kt` mapped to a static lookup table in `lekhani-core`.
+
+### 28. HD Haptic Grammatical Signatures (হ্যাপটিক ব্যাকরণ স্পর্শ)
+- **Concept**: Unique tactile pulses for consonant taps, vowel promotions, and conjunct snaps using Android X-axis linear actuator.
+- **Implementation**: Extend `LekhaniFeedbackManager.kt` with distinct vibration waveform patterns.
+
+### 29. Dynamic Contextual Action Strip (রূপান্তরশীল ক্যান্ডিডেট স্ট্রিপ)
+- **Concept**: Transform idle strip into word-level cursor scrubbers, text-selection tools, inline math evaluation, and contextual emojis.
+- **Implementation**: State machine in `CandidateStripView` switching between Composing, Idle Navigation, and Math evaluation.
+
+### 30. Elastic Scrub-to-Rewind Backspace Timeline
+- **Concept**: Dragging left from backspace highlights words with mechanical ratchet clicks; sliding right restores them before thumb release, followed by an Undo pill.
+- **Implementation**: Bidirectional gesture scrubber with cached pre-edit history in `KeyboardCanvasView.kt`.
 
 ---
 
@@ -170,6 +183,10 @@ This document tracks and categorizes all proposed enhancements, architectural op
 - [x] 'ম' moved to Row 1 Right for optimal thumb alternation on 'আমি', 'তুমি'
 - [x] R-phola (`্র`) and Ya-phola (`্য`) quick-picks on Hasanta
 - [x] Subscript shift/flick hints on keycaps with settings toggle
-- [ ] **Next up**: Geminate double-tap (`ত` $\times 2 \rightarrow$ `ত্ত`)
-- [ ] **Next up**: Extended pholas (`্ব`, `্ম`, `্ল`)
+- [x] Preferences Tab Modernization (Live Search, Category Pills, Dedicated Layout Dialogs)
+- [ ] **Next up**: Geminate double-tap (`ত` $\times 2 \rightarrow$ `ত্ত`, `ব` $\times 2 \rightarrow$ `ব্ব`)
+- [ ] **Next up**: Radial Flick Snap for top conjuncts (`ক্ষ`, `জ্ঞ`, `ত্র`, `স্থ`)
+- [ ] **Next up**: Extended pholas on Hasanta (`্ব`, `্ম`, `্ল`)
 - [ ] **Next up**: Interactive 60-Second Onboarding Sandbox in Settings
+- [ ] **Next up**: HD Haptic Grammatical Signatures
+- [ ] **Next up**: Elastic Scrub-to-Rewind Backspace Timeline with Undo Pill
