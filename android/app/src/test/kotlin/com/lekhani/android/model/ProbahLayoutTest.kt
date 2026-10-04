@@ -213,8 +213,13 @@ class ProbahLayoutTest {
 
         val yaKey = layout.rows[0].find { it.label == "য" }
         assertNotNull("য key should exist in row 0", yaKey)
-        assertEquals("ৈ", yaKey!!.shiftedLabel)
-        assertEquals(KeyAction.Character("ৈ"), yaKey.shiftedAction)
+        assertEquals("য়", yaKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("য়"), yaKey.shiftedAction)
+
+        val oiKey = layout.rows[0].find { it.label == "ৈ" }
+        assertNotNull("ৈ key should exist in row 0", oiKey)
+        assertEquals("ঐ", oiKey!!.shiftedLabel)
+        assertEquals(KeyAction.Character("ঐ"), oiKey.shiftedAction)
 
         val maKey = layout.rows[2].find { it.label == "ম" }
         assertNotNull("ম key should exist in row 2", maKey)

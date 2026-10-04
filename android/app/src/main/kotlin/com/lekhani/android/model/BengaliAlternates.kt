@@ -8,17 +8,17 @@ object BengaliAlternates {
 
     private val ALTERNATES_MAP = HashMap<String, Array<String>>(120).apply {
         // ── Bengali Vowels & Modifiers ──────────────────────────────────────────
-        put("অ", arrayOf("আ", "অ্যা", "১"))
+        put("অ", arrayOf("আ", "ঋ", "ৃ", "অ্যা", "১"))
         put("আ", arrayOf("অ্যা", "অ", "১"))
         put("ই", arrayOf("ঈ", "২"))
         put("ঈ", arrayOf("ই", "২"))
         put("উ", arrayOf("ঊ", "৩"))
         put("ঊ", arrayOf("উ", "৩"))
-        put("ঋ", arrayOf("ৠ", "৪"))
+        put("ঋ", arrayOf("ৃ", "ৠ", "৪"))
         put("এ", arrayOf("ঐ", "ঞ", "৫"))
-        put("ঐ", arrayOf("ঞ", "এ", "৫"))
+        put("ঐ", arrayOf("ৈ", "ঞ", "এ", "৫"))
         put("ও", arrayOf("ঔ", "৬"))
-        put("ঔ", arrayOf("ও", "৬"))
+        put("ঔ", arrayOf("ৌ", "ও", "৬"))
 
         // ── Vowel Kars (Diacritics) ─────────────────────────────────────────────
         put("া", arrayOf("আ", "্যা", "া"))
@@ -28,8 +28,8 @@ object BengaliAlternates {
         put("ূ", arrayOf("ঊ", "ু", "ূ"))
         put("ৃ", arrayOf("ঋ", "ৄ", "ৃ"))
         put("ে", arrayOf("এ", "ৈ", "ে"))
-        put("ৈ", arrayOf("ঐ", "ে", "ৈ"))
-        put("ো", arrayOf("ও", "ৌ", "ো"))
+        put("ৈ", arrayOf("ঐ", "ৌ", "ঔ", "ে", "ৈ"))
+        put("ো", arrayOf("ও", "ৌ", "ঔ", "ো"))
         put("ৌ", arrayOf("ঔ", "ো", "ৌ"))
 
         // ── Consonants & Conjunct Roots ─────────────────────────────────────────

@@ -8,9 +8,9 @@ package com.lekhani.android.model
  *  - Left thumb: vowels & kars (স্বরবর্ণ)
  *  - Right thumb: consonants (ব্যঞ্জনবর্ণ)
  *  - Home row (Row 2): অ া ি ু ে | র ত ন স ক  (68.7% of daily keystrokes)
- *  - Independent vowels sit on the Shift layer of their corresponding Kars (ই on ি, উ on ু, এ on ে, ও on ো, আ on া)
- *  - Long vowels & Kars sit paired with their independent partners on Shift (ঈ on ী, ঊ on ূ, ঔ on আ, ৈ on য)
- *  - Aspirated & Sibilant pairs on Shift (ষ on স, শ on ল, খ on ক, ঘ on গ, থ on ত, ধ on দ, ফ on প, ভ on ব)
+ *  - Independent vowels sit on the Shift layer of their corresponding Kars (ই on ি, উ on ু, এ on ে, ও on ো, আ on া, ঐ on ৈ)
+ *  - Long vowels & Kars sit paired with their independent partners on Shift (ঈ on ী, ঊ on ূ, ঔ on ঁ, ঐ on ৈ)
+ *  - য and য় paired on Shift (য -> য়), Aspirated & Sibilant pairs on Shift (ষ on স, শ on ল, খ on ক, ঘ on গ, থ on ত, ধ on দ, ফ on প, ভ on ব)
  *  - Smart Kar auto-promotion at word-start (handled in Rust session engine)
  *  - Hasanta (্) beside Spacebar for one-thumb conjunct access with Khanda Ta (ৎ) on Shift
  */
@@ -21,11 +21,11 @@ object ProbahLayout {
         rows = listOf(
             // ── Row 1 (Top) — Vowels & Labials/Dentals ──────────
             listOf(
-                Ch("আ", shifted = "ঔ", desc = "আ, shifted ঔ"),
+                Ch("ৈ", shifted = "ঐ", desc = "ৈ, shifted ঐ"),
                 Ch("ো", shifted = "ও", desc = "ো, shifted ও"),
                 Ch("ী", shifted = "ঈ", desc = "ী, shifted ঈ"),
                 Ch("ূ", shifted = "ঊ", desc = "ূ, shifted ঊ"),
-                Ch("য", shifted = "ৈ", desc = "য, shifted ৈ"),
+                Ch("য", shifted = "য়", desc = "য, shifted য়"),
                 Ch("প", shifted = "ফ", desc = "প, shifted ফ"),
                 Ch("ব", shifted = "ভ", desc = "ব, shifted ভ"),
                 Ch("গ", shifted = "ঘ", desc = "গ, shifted ঘ"),

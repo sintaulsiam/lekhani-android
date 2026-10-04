@@ -97,6 +97,30 @@ pub fn promote_kar_if_needed(kar: &str, should_promote: bool) -> String {
 /// Returns dynamic conjunct suggestions for the candidate strip when Hasanta (`্`) is typed.
 /// Powered directly by Tier 1 `lekhani-core`'s authentic Bengali `ConjunctCatalog`.
 pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
+    if last_consonant == 'র' {
+        return vec![
+            "র্ক".to_string(),
+            "র্গ".to_string(),
+            "র্জ".to_string(),
+            "র্ণ".to_string(),
+            "র্ত".to_string(),
+            "র্থ".to_string(),
+            "র্দ".to_string(),
+            "র্ধ".to_string(),
+            "র্প".to_string(),
+            "র্ব".to_string(),
+            "র্ভ".to_string(),
+            "র্ম".to_string(),
+            "র্য".to_string(),
+            "র্শ".to_string(),
+            "র্ষ".to_string(),
+            "র্স".to_string(),
+            "র্ঘ".to_string(),
+            "র্চ".to_string(),
+            "র্ন".to_string(),
+            "র্হ".to_string(),
+        ];
+    }
     let prefix = format!("{} + ্", last_consonant);
     lekhani_core::conjuncts::ConjunctCatalog::all()
         .into_iter()
@@ -149,6 +173,11 @@ mod tests {
         let suggestions = get_conjunct_suggestions('ক');
         assert!(suggestions.contains(&"ক্ত".to_string()));
         assert!(suggestions.contains(&"ক্ষ".to_string()));
+
+        let reph_suggestions = get_conjunct_suggestions('র');
+        assert!(reph_suggestions.contains(&"র্ক".to_string()));
+        assert!(reph_suggestions.contains(&"র্ম".to_string()));
+        assert!(reph_suggestions.contains(&"র্ষ".to_string()));
     }
 
     #[test]

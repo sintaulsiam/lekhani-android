@@ -1865,7 +1865,11 @@ impl AndroidLekhaniSession {
                 chars.pop(); // Remove '্'
                 chars.pop(); // Remove base consonant
                 let prefix: String = chars.into_iter().collect();
-                let new_buffer = nfc_normalize(&format!("{}{}", prefix, candidate));
+                let new_buffer = if !prefix.is_empty() && candidate.starts_with(&prefix) {
+                    nfc_normalize(&candidate)
+                } else {
+                    nfc_normalize(&format!("{}{}", prefix, candidate))
+                };
                 state.composing_buffer = new_buffer.clone();
 
                 let mut candidates = Vec::new();
@@ -2758,6 +2762,22 @@ mod tests {
 
         let res_kar = session.process_key("া".into()).unwrap();
         assert_eq!(res_kar.preedit, "শিক্ষা");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probaho_reph_conjunct_suggestion_and_substitution() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+        session.process_key("ধ".into()).unwrap();
+        session.process_key("র".into()).unwrap();
+        let res = session.process_key("্".into()).unwrap();
+        assert!(res.candidates.contains(&"র্ম".to_string()), "Candidates must contain র্ম after ধর্");
+        assert!(res.candidates.contains(&"র্ষ".to_string()), "Candidates must contain র্ষ after ধর্");
+
+        let select_res = session.select_candidate("র্ম".into()).unwrap();
+        assert_eq!(select_res.commit_text, None);
+        assert_eq!(select_res.preedit, "ধর্ম");
     }
 }
 
