@@ -63,7 +63,10 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
+import com.lekhani.android.ui.preferences.ProbahoSettingsDialog
+import com.lekhani.android.ui.preferences.AvroSettingsDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -256,6 +259,7 @@ fun LekhaniSettingsScreen(
     var showToolbarSheet by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLayoutFlowScreen by remember { mutableStateOf(false) }
+    var selectedLayoutConfig by remember { mutableStateOf<LekhaniLayoutType?>(null) }
 
     val navItems = if (isEnglish) {
         listOf(
@@ -506,7 +510,8 @@ fun LekhaniSettingsScreen(
                     isEnglish = isEnglish,
                     onOpenImeSettings = onOpenImeSettings,
                     onOpenImePicker = onOpenImePicker,
-                    onOpenLayoutFlow = { showLayoutFlowScreen = true }
+                    onOpenLayoutFlow = { showLayoutFlowScreen = true },
+                    onOpenLayoutConfig = { layout -> selectedLayoutConfig = layout }
                 )
                 1 -> ThemeStudioSheet(
                     prefs = keyboardPrefs,
@@ -523,6 +528,7 @@ fun LekhaniSettingsScreen(
                     onOpenDictionaryManager = { showDictionarySheet = true },
                     onOpenAbout = { showAboutDialog = true },
                     onOpenClipboard = { selectedTab = 3 },
+                    onOpenLayoutsTab = { selectedTab = 0 },
                     onAppThemeModeChanged = onAppThemeModeChanged
                 )
                 3 -> ClipboardManagerSheet(
@@ -613,6 +619,20 @@ fun LekhaniSettingsScreen(
             }
         }
     }
+
+    if (selectedLayoutConfig == LekhaniLayoutType.PROBAHO) {
+        ProbahoSettingsDialog(
+            prefs = keyboardPrefs,
+            isEnglish = isEnglish,
+            onDismiss = { selectedLayoutConfig = null }
+        )
+    } else if (selectedLayoutConfig == LekhaniLayoutType.AVRO) {
+        AvroSettingsDialog(
+            prefs = keyboardPrefs,
+            isEnglish = isEnglish,
+            onDismiss = { selectedLayoutConfig = null }
+        )
+    }
     }
 }
 
@@ -624,6 +644,7 @@ private fun LayoutsTabContent(
     onOpenImeSettings: () -> Unit,
     onOpenImePicker: () -> Unit,
     onOpenLayoutFlow: () -> Unit,
+    onOpenLayoutConfig: (LekhaniLayoutType) -> Unit,
 ) {
     val scrollState = rememberScrollState()
 
@@ -1049,11 +1070,27 @@ private fun LayoutsTabContent(
                                 )
                             }
 
-                            Switch(
-                                checked = isChecked,
-                                enabled = !isChecked || enabledLayouts.size > 1,
-                                onCheckedChange = { toggleLayout(type, it) }
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (type == LekhaniLayoutType.PROBAHO || type == LekhaniLayoutType.AVRO) {
+                                    IconButton(
+                                        onClick = { onOpenLayoutConfig(type) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Settings,
+                                            contentDescription = if (isEnglish) "Settings for $title" else "$title সেটিংস",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                }
+                                Switch(
+                                    checked = isChecked,
+                                    enabled = !isChecked || enabledLayouts.size > 1,
+                                    onCheckedChange = { toggleLayout(type, it) }
+                                )
+                            }
                         }
 
                         if (index < orderedLayouts.lastIndex) {
