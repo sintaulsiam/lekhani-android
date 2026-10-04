@@ -32,7 +32,8 @@ import com.lekhani.android.theme.KeyboardTheme
  * Material 3 Expressive drag header bar for Floating Keyboard Mode.
  *
  * Provides:
- *  - Centered drag handle pill for smooth repositioning anywhere on screen.
+ *  - Full header drag gesture area for smooth 360° repositioning anywhere on screen.
+ *  - Centered drag handle pill.
  *  - Quick "Dock / Expand" button to return to standard docked keyboard mode.
  *  - High-contrast visual styling adapted dynamically to the active Lekhani theme.
  */
@@ -52,7 +53,7 @@ fun FloatingHeaderView(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(30.dp)
+            .height(34.dp)
             .background(barBg)
             .pointerInput(Unit) {
                 detectDragGestures(
@@ -65,48 +66,48 @@ fun FloatingHeaderView(
                     }
                 )
             }
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         // Left badge / label
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(7.dp)
                     .clip(CircleShape)
                     .background(accentColor)
             )
             Text(
                 text = if (isEnglish) "Floating" else "ভাসমান",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = contentColor.copy(alpha = 0.65f)
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = contentColor.copy(alpha = 0.75f)
             )
         }
 
         // Center drag handle pill
         Box(
             modifier = Modifier
-                .width(38.dp)
+                .width(42.dp)
                 .height(4.5.dp)
                 .clip(RoundedCornerShape(3.dp))
-                .background(contentColor.copy(alpha = 0.35f))
+                .background(contentColor.copy(alpha = 0.40f))
         )
 
         // Right dock / fullscreen restore action
         IconButton(
             onClick = onDockToStandard,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(28.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.FitScreen,
                 contentDescription = if (isEnglish) "Dock Keyboard" else "কীবোর্ড ডক করুন",
                 tint = contentColor.copy(alpha = 0.85f),
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
     }

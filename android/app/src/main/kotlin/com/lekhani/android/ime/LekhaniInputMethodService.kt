@@ -179,6 +179,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var rootInputContainer: ViewGroup? = null
     private var floatingCardContainer: LinearLayout? = null
     private var floatingHeaderComposeView: ComposeView? = null
+    private var floatingFooterComposeView: ComposeView? = null
     private var modesContainer: FrameLayout? = null
     private var candidateStripComposeView: ComposeView? = null
     private var resizeOverlayComposeView: ComposeView? = null
@@ -440,6 +441,7 @@ class LekhaniInputMethodService : InputMethodService() {
         candidateStripComposeView = null
         floatingCardContainer = null
         floatingHeaderComposeView = null
+        floatingFooterComposeView = null
         rootInputContainer = null
         serviceScope.cancel()
         try {
@@ -991,6 +993,33 @@ class LekhaniInputMethodService : InputMethodService() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
         )
+
+        val floatingFooter = ComposeView(this).apply {
+            attachLifecycleOwner(this)
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                val currentTheme by _themeFlow.collectAsState()
+                com.lekhani.android.ui.floating.FloatingBottomDragBar(
+                    theme = currentTheme,
+                    onDragDelta = { dx, dy ->
+                        handleFloatingDrag(dx, dy)
+                    },
+                    onDragEnd = {
+                        saveFloatingPosition()
+                    }
+                )
+            }
+            visibility = if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) View.VISIBLE else View.GONE
+        }
+        floatingFooterComposeView = floatingFooter
+        cardLayout.addView(
+            floatingFooter,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+
         applyFloatingCardLayout(keyboardPrefs.formFactor)
         return rootLayout
     }
@@ -3620,17 +3649,18 @@ class LekhaniInputMethodService : InputMethodService() {
 
         if (formFactor == KeyboardPreferences.FormFactor.FLOATING) {
             floatingHeaderComposeView?.visibility = View.VISIBLE
+            floatingFooterComposeView?.visibility = View.VISIBLE
             root.setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
             win?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            win?.setGravity(Gravity.BOTTOM)
+            win?.setGravity(Gravity.TOP or Gravity.START)
             root.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
 
             val floatingW = (displayWidth * keyboardPrefs.floatingWidthPercent).toInt()
-                .coerceIn((270 * density).toInt(), displayWidth)
+                .coerceIn((270 * density).toInt(), (displayWidth - 16 * density).toInt().coerceAtLeast((270 * density).toInt()))
 
             card.layoutParams = FrameLayout.LayoutParams(floatingW, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                gravity = Gravity.TOP or Gravity.START
             }
 
             val cornerRadiusPx = 16f * density
@@ -3644,14 +3674,23 @@ class LekhaniInputMethodService : InputMethodService() {
             card.clipToOutline = true
             card.elevation = 16f * density
 
-            val maxDragX = (displayWidth - floatingW).toFloat().coerceAtLeast(0f)
-            val floatingH = card.height.takeIf { it > 0 } ?: (260f * density).toInt()
-            val maxDragYUp = (displayHeight - floatingH - 48f * density).coerceAtLeast(0f)
+            val minX = 8f * density
+            val maxX = (displayWidth - floatingW - 8f * density).coerceAtLeast(minX)
+            val floatingH = card.height.takeIf { it > 0 } ?: (280f * density).toInt()
+            val minY = 48f * density
+            val maxY = (displayHeight - floatingH - 32f * density).coerceAtLeast(minY)
 
-            card.translationX = keyboardPrefs.floatingOffsetX.coerceIn(-maxDragX / 2f, maxDragX / 2f)
-            card.translationY = keyboardPrefs.floatingOffsetY.coerceIn(-maxDragYUp, 0f)
+            val savedX = keyboardPrefs.floatingOffsetX
+            val savedY = keyboardPrefs.floatingOffsetY
+
+            val targetX = if (savedX <= 0f) (displayWidth - floatingW) / 2f else savedX.coerceIn(minX, maxX)
+            val targetY = if (savedY <= 0f) (displayHeight - floatingH - 80f * density).coerceIn(minY, maxY) else savedY.coerceIn(minY, maxY)
+
+            card.translationX = targetX
+            card.translationY = targetY
         } else {
             floatingHeaderComposeView?.visibility = View.GONE
+            floatingFooterComposeView?.visibility = View.GONE
             root.setBackgroundColor(activeTheme.backgroundColor)
 
             win?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
@@ -3678,13 +3717,15 @@ class LekhaniInputMethodService : InputMethodService() {
         val displayHeight = resources.displayMetrics.heightPixels
         val density = resources.displayMetrics.density
         val floatingW = card.width.takeIf { it > 0 } ?: (displayWidth * keyboardPrefs.floatingWidthPercent).toInt()
-        val floatingH = card.height.takeIf { it > 0 } ?: (260f * density).toInt()
+        val floatingH = card.height.takeIf { it > 0 } ?: (280f * density).toInt()
 
-        val maxDragX = (displayWidth - floatingW).toFloat().coerceAtLeast(0f)
-        val maxDragYUp = (displayHeight - floatingH - 48f * density).coerceAtLeast(0f)
+        val minX = 8f * density
+        val maxX = (displayWidth - floatingW - 8f * density).coerceAtLeast(minX)
+        val minY = 48f * density
+        val maxY = (displayHeight - floatingH - 32f * density).coerceAtLeast(minY)
 
-        val newX = (card.translationX + dx).coerceIn(-maxDragX / 2f, maxDragX / 2f)
-        val newY = (card.translationY + dy).coerceIn(-maxDragYUp, 0f)
+        val newX = (card.translationX + dx).coerceIn(minX, maxX)
+        val newY = (card.translationY + dy).coerceIn(minY, maxY)
 
         card.translationX = newX
         card.translationY = newY
