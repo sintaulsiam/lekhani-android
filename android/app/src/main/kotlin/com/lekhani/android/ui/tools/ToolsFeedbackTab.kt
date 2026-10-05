@@ -23,10 +23,12 @@ import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import kotlin.math.roundToInt
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -117,20 +119,56 @@ fun ToolsFeedbackTab(
 
                 if (hapticEnabled) {
                     Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = if (isEnglish) "Vibration strength: ${hapticDuration.toInt()} ms"
-                               else "ভাইব্রেশন মাত্রা: ${hapticDuration.toInt()} ms",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                    )
+                    val strengthLabel = when {
+                        hapticDuration <= 15f -> if (isEnglish) "Light" else "হালকা"
+                        hapticDuration <= 35f -> if (isEnglish) "Medium" else "মাঝারি"
+                        else -> if (isEnglish) "Strong" else "জোরালো"
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isEnglish) "Vibration strength" else "ভাইব্রেশন মাত্রা",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                        )
+                        Text(
+                            text = "$strengthLabel (${hapticDuration.toInt()} ms)",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Slider(
                         value = hapticDuration,
                         onValueChange = {
-                            hapticDuration = it
-                            prefs.hapticDurationMs = it.toInt()
+                            val snapped = ((it / 5f).roundToInt() * 5).coerceIn(5, 60).toFloat()
+                            hapticDuration = snapped
+                            prefs.hapticDurationMs = snapped.toInt()
                         },
-                        valueRange = 5f..60f,
-                        steps = 11
+                        valueRange = 5f..60f
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            10 to (if (isEnglish) "Light (10 ms)" else "হালকা (১০ ms)"),
+                            25 to (if (isEnglish) "Medium (25 ms)" else "মাঝারি (২৫ ms)"),
+                            45 to (if (isEnglish) "Strong (45 ms)" else "জোরালো (৪৫ ms)")
+                        ).forEach { (ms, label) ->
+                            val isSelected = hapticDuration.toInt() == ms
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    hapticDuration = ms.toFloat()
+                                    prefs.hapticDurationMs = ms
+                                },
+                                label = { Text(label, fontSize = 11.sp, maxLines = 1) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
             }
         }

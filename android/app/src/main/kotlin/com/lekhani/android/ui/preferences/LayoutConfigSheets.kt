@@ -556,7 +556,7 @@ fun AvroSettingsDialog(
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Adjust previous letters as typing changes word structure"
+                                        text = if (isEnglish) "Refine previous letters as word builds"
                                                else "টাইপ করার সাথে সাথে পূর্ববর্তী অক্ষরের উচ্চারণ সমন্বয় করবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1011,7 +1011,7 @@ fun GboardSettingsDialog(
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Show extended vowel & consonant alternatives on long-press"
+                                        text = if (isEnglish) "Show alternate letters on long-press"
                                                else "কী-তে লং-প্রেস করলে সম্পর্কিত বর্ণ ও চিহ্ন দেখাবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1129,7 +1129,7 @@ fun EnglishSettingsDialog(
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Capitalize the first letter of each sentence automatically"
+                                        text = if (isEnglish) "Capitalize the first letter of sentences"
                                                else "প্রতিটি বাক্যের প্রথম অক্ষর স্বয়ংক্রিয়ভাবে বড় হাতের করবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1158,7 +1158,7 @@ fun EnglishSettingsDialog(
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Show next-word predictions and completions while typing English"
+                                        text = if (isEnglish) "Show word suggestions while typing"
                                                else "ইংরেজি লেখার সময় পরবর্তী সম্ভাব্য শব্দ ও সাজেশন দেখাবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant

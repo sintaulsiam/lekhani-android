@@ -245,7 +245,7 @@ fun LekhaniSettingsScreen(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val isCompactHeight = configuration.screenHeightDp < 540
-    val isCompactWidth = configuration.screenWidthDp < 360
+    val isCompactWidth = configuration.screenWidthDp <= 360
     var selectedTab by remember { mutableIntStateOf(initialTab) }
 
     LaunchedEffect(initialTab) {

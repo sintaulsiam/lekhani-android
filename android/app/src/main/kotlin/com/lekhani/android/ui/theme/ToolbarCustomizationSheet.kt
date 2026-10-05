@@ -87,7 +87,7 @@ fun ToolbarCustomizationSheet(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp)
+                .padding(16.dp)
         ) {
             // Header
             Row(

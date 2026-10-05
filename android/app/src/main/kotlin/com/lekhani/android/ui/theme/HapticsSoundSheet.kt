@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -147,22 +148,60 @@ fun HapticsSoundSheet(
 
                             if (hapticEnabled) {
                                 Spacer(modifier = Modifier.height(14.dp))
-                                Text(
-                                    text = if (isEnglish) "Vibration Duration: $hapticDuration ms" else "কম্পনের স্থায়িত্ব (Duration): $hapticDuration ms",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
+                                val strengthLabel = when {
+                                    hapticDuration <= 15 -> if (isEnglish) "Light" else "হালকা"
+                                    hapticDuration <= 35 -> if (isEnglish) "Medium" else "মাঝারি"
+                                    else -> if (isEnglish) "Strong" else "জোরালো"
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isEnglish) "Vibration strength" else "কম্পনের মাত্রা",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = "$strengthLabel ($hapticDuration ms)",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                                 Slider(
                                     value = hapticDuration.toFloat(),
                                     onValueChange = {
-                                        val v = it.toInt()
-                                        hapticDuration = v
-                                        prefs.hapticDurationMs = v
+                                        val snapped = ((it / 5f).roundToInt() * 5).coerceIn(5, 60)
+                                        hapticDuration = snapped
+                                        prefs.hapticDurationMs = snapped
                                     },
                                     onValueChangeFinished = {
                                         feedbackManager.onKeyFeedback(view)
                                     },
-                                    valueRange = 5f..80f
+                                    valueRange = 5f..60f
                                 )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    listOf(
+                                        10 to (if (isEnglish) "Light (10 ms)" else "হালকা (১০ ms)"),
+                                        25 to (if (isEnglish) "Medium (25 ms)" else "মাঝারি (২৫ ms)"),
+                                        45 to (if (isEnglish) "Strong (45 ms)" else "জোরালো (৪৫ ms)")
+                                    ).forEach { (ms, label) ->
+                                        val isSelected = hapticDuration == ms
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = {
+                                                hapticDuration = ms
+                                                prefs.hapticDurationMs = ms
+                                                feedbackManager.onKeyFeedback(view)
+                                            },
+                                            label = { Text(label, fontSize = 11.sp, maxLines = 1) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

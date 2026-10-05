@@ -71,6 +71,7 @@ fun DictionaryManagementSheet(
     var searchQuery by remember { mutableStateOf("") }
     var newWordInput by remember { mutableStateOf("") }
     var userWords by remember { mutableStateOf(dictManager.getUserWords()) }
+    var showAddWordDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var rawImportText by remember { mutableStateOf("") }
     var showClearConfirm by remember { mutableStateOf(false) }
@@ -213,16 +214,34 @@ fun DictionaryManagementSheet(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        IconButton(onClick = { showAddRuleDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = if (isEnglish) "Add rule" else "নিয়ম যোগ করুন",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                    } else if (selectedSubTab == 2) {
+                        if (learnedWordsCount > 0) {
+                            IconButton(onClick = { showClearLearnedConfirm = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.DeleteSweep,
+                                    contentDescription = if (isEnglish) "Reset learned memory" else "টাইপিং মেমোরি মুছুন",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            if (selectedSubTab == 0) {
+                ExtendedFloatingActionButton(
+                    onClick = { showAddWordDialog = true },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text(if (isEnglish) "Add Word" else "শব্দ যোগ করুন") }
+                )
+            } else if (selectedSubTab == 1 && shortcutSubTab == 0) {
+                ExtendedFloatingActionButton(
+                    onClick = { showAddRuleDialog = true },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text(if (isEnglish) "Add Shortcut" else "শর্টকাট যোগ করুন") }
+                )
+            }
         }
     ) { padding ->
         Column(
@@ -265,138 +284,26 @@ fun DictionaryManagementSheet(
             when (selectedSubTab) {
                 // ── TAB 0: Custom Personal Words ────────────────────────────────
                 0 -> {
-                    // Search Bar
+                    // Search Bar with Clear Button
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text(if (isEnglish) "Search custom words..." else "কাস্টম শব্দ খুঁজুন...") },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = if (isEnglish) "Clear search" else "অনুসন্ধান মুছুন"
+                                    )
+                                }
+                            }
+                        },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Add Word Input with integrated action
-                    OutlinedTextField(
-                        value = newWordInput,
-                        onValueChange = { newWordInput = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(if (isEnglish) "Add custom word..." else "নতুন শব্দ লিখুন...") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        trailingIcon = {
-                            val word = newWordInput.trim()
-                            IconButton(
-                                onClick = {
-                                    if (word.length >= 2) {
-                                        dictManager.addUserWord(word)
-                                        dictManager.saveLearned(learnedFile.absolutePath)
-                                        userWords = dictManager.getUserWords()
-                                        newWordInput = ""
-                                        Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                enabled = word.length >= 2
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = if (isEnglish) "Add" else "যোগ",
-                                    tint = if (word.length >= 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                )
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                val word = newWordInput.trim()
-                                if (word.length >= 2) {
-                                    dictManager.addUserWord(word)
-                                    dictManager.saveLearned(learnedFile.absolutePath)
-                                    userWords = dictManager.getUserWords()
-                                    newWordInput = ""
-                                    Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Adaptive Action Chips (FlowRow guarantees scaling on small screens and large accessibility text)
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        AssistChip(
-                            onClick = {
-                                try {
-                                    filePickerLauncher.launch(arrayOf("*/*", "text/plain", "application/json"))
-                                } catch (e: Exception) {
-                                    showImportDialog = true
-                                }
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Filled.FileDownload,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            label = { Text(if (isEnglish) "Import" else "ইমপোর্ট", fontSize = 12.sp) },
-                            shape = RoundedCornerShape(8.dp)
-                        )
-
-                        AssistChip(
-                            onClick = {
-                                val json = dictManager.exportJson()
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/json"
-                                    putExtra(Intent.EXTRA_SUBJECT, "Lekhani_Dictionary_Backup.json")
-                                    putExtra(Intent.EXTRA_TEXT, json)
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, if (isEnglish) "Export Backup" else "ব্যাকআপ এক্সপোর্ট করুন"))
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Filled.FileUpload,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            label = { Text(if (isEnglish) "Export" else "এক্সপোর্ট", fontSize = 12.sp) },
-                            shape = RoundedCornerShape(8.dp)
-                        )
-
-                        if (userWords.isNotEmpty()) {
-                            AssistChip(
-                                onClick = { showClearConfirm = true },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.DeleteSweep,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        text = if (isEnglish) "Clear" else "মুছুন",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = AssistChipDefaults.assistChipColors(
-                                    labelColor = MaterialTheme.colorScheme.error
-                                )
-                            )
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -405,8 +312,7 @@ fun DictionaryManagementSheet(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f)
-                                .padding(horizontal = 16.dp),
+                                .weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
                             Card(
@@ -419,16 +325,24 @@ fun DictionaryManagementSheet(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(20.dp),
+                                        .padding(24.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(32.dp)
-                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        }
+                                    }
 
                                     Text(
                                         text = if (searchQuery.isBlank()) {
@@ -442,17 +356,29 @@ fun DictionaryManagementSheet(
 
                                     Text(
                                         text = if (searchQuery.isBlank()) {
-                                            if (isEnglish) "Words you add or import will appear here."
-                                            else "আপনার যুক্ত করা বা ইমপোর্ট করা শব্দগুলো এখানে থাকবে।"
+                                            if (isEnglish) "Words you add or import will appear here and won't be autocorrected."
+                                            else "আপনার যুক্ত করা বা ইমপোর্ট করা শব্দগুলো এখানে থাকবে এবং স্বয়ংক্রিয় সংশোধন হবে না।"
                                         } else {
-                                            if (isEnglish) "No words matching '$searchQuery'."
-                                            else "'$searchQuery' এর সাথে কোনো শব্দ মেলেনি।"
+                                            if (isEnglish) "No words matching \"$searchQuery\"."
+                                            else "\"$searchQuery\" এর সাথে কোনো শব্দ মেলেনি।"
                                         },
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         ),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        textAlign = TextAlign.Center
                                     )
+
+                                    if (searchQuery.isBlank()) {
+                                        FilledTonalButton(
+                                            onClick = { showAddWordDialog = true },
+                                            modifier = Modifier.padding(top = 4.dp),
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(if (isEnglish) "Add Word" else "শব্দ যোগ করুন")
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -568,17 +494,16 @@ fun DictionaryManagementSheet(
                             )
                         },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        trailingIcon = if (shortcutSubTab == 0) {
-                            {
-                                IconButton(onClick = { showAddRuleDialog = true }) {
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
                                     Icon(
-                                        Icons.Default.Add,
-                                        contentDescription = if (isEnglish) "New" else "নতুন",
-                                        tint = MaterialTheme.colorScheme.primary
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = if (isEnglish) "Clear search" else "অনুসন্ধান মুছুন"
                                     )
                                 }
                             }
-                        } else null,
+                        },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -591,8 +516,7 @@ fun DictionaryManagementSheet(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .weight(1f)
-                                    .padding(horizontal = 16.dp),
+                                    .weight(1f),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Card(
@@ -605,35 +529,56 @@ fun DictionaryManagementSheet(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(20.dp),
+                                            .padding(24.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Transform,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(32.dp)
-                                        )
-                                        Text(
-                                            text = if (isEnglish) "No Custom Shortcuts" else "কোনো শর্টকাট নেই",
-                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                        )
-                                        Text(
-                                            text = if (isEnglish)
-                                                "Create shortcuts like 'omw' ➔ 'On my way!' or 'dh' ➔ 'ধন্যবাদ'."
-                                            else
-                                                "স্বয়ংক্রিয় প্রতিস্থাপনের জন্য শর্টকাট তৈরি করুন (যেমন: 'dh' ➔ 'ধন্যবাদ')।",
-                                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                        )
-                                        Button(
-                                            onClick = { showAddRuleDialog = true },
-                                            shape = RoundedCornerShape(10.dp)
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            modifier = Modifier.size(48.dp)
                                         ) {
-                                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(if (isEnglish) "Add Shortcut" else "শর্টকাট যোগ করুন")
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Transform,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = if (searchQuery.isBlank()) {
+                                                if (isEnglish) "No Custom Shortcuts" else "কোনো শর্টকাট নেই"
+                                            } else {
+                                                if (isEnglish) "No Shortcuts Found" else "শর্টকাট পাওয়া যায়নি"
+                                            },
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = if (searchQuery.isBlank()) {
+                                                if (isEnglish)
+                                                    "Create shortcuts like 'omw' ➔ 'On my way!' or 'dh' ➔ 'ধন্যবাদ'."
+                                                else
+                                                    "স্বয়ংক্রিয় প্রতিস্থাপনের জন্য শর্টকাট তৈরি করুন (যেমন: 'dh' ➔ 'ধন্যবাদ')।"
+                                            } else {
+                                                if (isEnglish) "No shortcuts matching \"$searchQuery\"."
+                                                else "\"$searchQuery\" এর সাথে কোনো শর্টকাট মেলেনি।"
+                                            },
+                                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                                            textAlign = TextAlign.Center
+                                        )
+                                        if (searchQuery.isBlank()) {
+                                            FilledTonalButton(
+                                                onClick = { showAddRuleDialog = true },
+                                                modifier = Modifier.padding(top = 4.dp),
+                                                shape = RoundedCornerShape(10.dp)
+                                            ) {
+                                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(if (isEnglish) "Add Shortcut" else "শর্টকাট যোগ করুন")
+                                            }
                                         }
                                     }
                                 }
@@ -849,6 +794,85 @@ fun DictionaryManagementSheet(
                 }
             }
         }
+    }
+
+    // ── Add Custom Word Dialog ──────────────────────────────────────────
+    if (showAddWordDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddWordDialog = false
+                newWordInput = ""
+            },
+            title = {
+                Text(
+                    text = if (isEnglish) "Add Custom Word" else "নতুন শব্দ যোগ করুন",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = if (isEnglish)
+                            "Enter a word to save into your personal dictionary:"
+                        else
+                            "আপনার ব্যক্তিগত শব্দভাণ্ডারে নতুন শব্দ লিখুন:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = newWordInput,
+                        onValueChange = { newWordInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(if (isEnglish) "e.g. Lekhani" else "যেমন: লেখনী") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                val word = newWordInput.trim()
+                                if (word.length >= 2) {
+                                    dictManager.addUserWord(word)
+                                    dictManager.saveLearned(learnedFile.absolutePath)
+                                    userWords = dictManager.getUserWords()
+                                    newWordInput = ""
+                                    showAddWordDialog = false
+                                    Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                val word = newWordInput.trim()
+                Button(
+                    onClick = {
+                        if (word.length >= 2) {
+                            dictManager.addUserWord(word)
+                            dictManager.saveLearned(learnedFile.absolutePath)
+                            userWords = dictManager.getUserWords()
+                            newWordInput = ""
+                            showAddWordDialog = false
+                            Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    enabled = word.length >= 2
+                ) {
+                    Text(if (isEnglish) "Add" else "যোগ করুন")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAddWordDialog = false
+                    newWordInput = ""
+                }) {
+                    Text(if (isEnglish) "Cancel" else "বাতিল")
+                }
+            }
+        )
     }
 
     // ── Add Autocorrect Rule Dialog ─────────────────────────────────────

@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
 import com.lekhani.android.data.settings.KeyboardPreferences
+import kotlin.math.roundToInt
 import com.lekhani.android.feedback.LekhaniFeedbackManager
 
 /**
@@ -849,12 +850,12 @@ fun PreferencesTabContent(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = if (isEnglish) "Bengali Smart Input (Global Defaults)" else "বাংলা স্মার্ট ইনপুট (গ্লোবাল ডিফল্ট)",
+                                text = if (isEnglish) "Bengali Smart Input" else "বাংলা স্মার্ট ইনপুট",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = if (isEnglish) "Default behaviors across fixed layouts (can be overridden per layout)"
-                                       else "সকল ফিক্সড লেআউটের সাধারণ নিয়ম (লেআউটভিত্তিক পরিবর্তন সম্ভব)",
+                                text = if (isEnglish) "Typing behavior for fixed layouts (National, Probhat, Gboard)"
+                                       else "ফিক্সড লেআউটের জন্য টাইপিং আচরণ",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1547,28 +1548,60 @@ fun PreferencesTabContent(
                     }
 
                     if (hapticEnabled) {
-                        val strengthLabel = when (hapticDuration.toInt()) {
-                            in 5..15  -> if (isEnglish) "Light"  else "হালকা"
-                            in 16..35 -> if (isEnglish) "Medium" else "মাঝারি"
-                            else      -> if (isEnglish) "Strong" else "জোরালো"
+                        val strengthLabel = when {
+                            hapticDuration <= 15f -> if (isEnglish) "Light" else "হালকা"
+                            hapticDuration <= 35f -> if (isEnglish) "Medium" else "মাঝারি"
+                            else -> if (isEnglish) "Strong" else "জোরালো"
                         }
-                        Text(
-                            text = if (isEnglish) "Vibration strength: $strengthLabel (${hapticDuration.toInt()} ms)"
-                                   else "ভাইব্রেশনের মাত্রা: $strengthLabel (${hapticDuration.toInt()} ms)",
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isEnglish) "Vibration strength" else "ভাইব্রেশনের মাত্রা",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = "$strengthLabel (${hapticDuration.toInt()} ms)",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         Slider(
                             value = hapticDuration,
                             onValueChange = {
-                                hapticDuration = it
-                                prefs.hapticDurationMs = it.toInt()
+                                val snapped = ((it / 5f).roundToInt() * 5).coerceIn(5, 60).toFloat()
+                                hapticDuration = snapped
+                                prefs.hapticDurationMs = snapped.toInt()
                             },
                             onValueChangeFinished = {
                                 feedbackManager.onKeyFeedback(view)
                             },
-                            valueRange = 5f..80f,
-                            steps = 14
+                            valueRange = 5f..60f
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                10 to (if (isEnglish) "Light (10 ms)" else "হালকা (১০ ms)"),
+                                25 to (if (isEnglish) "Medium (25 ms)" else "মাঝারি (২৫ ms)"),
+                                45 to (if (isEnglish) "Strong (45 ms)" else "জোরালো (৪৫ ms)")
+                            ).forEach { (ms, label) ->
+                                val isSelected = hapticDuration.toInt() == ms
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        hapticDuration = ms.toFloat()
+                                        prefs.hapticDurationMs = ms
+                                        feedbackManager.onKeyFeedback(view)
+                                    },
+                                    label = { Text(label, fontSize = 11.sp, maxLines = 1) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
                     }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
