@@ -546,7 +546,7 @@ fun AvroSettingsDialog(
 }
 
 /**
- * Dedicated settings dialog for Probhat (प्रभात) layout.
+ * Dedicated settings dialog for Probhat (প্রভাত) layout.
  */
 @Composable
 fun ProbhatSettingsDialog(
@@ -586,7 +586,7 @@ fun ProbhatSettingsDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
-                            text = if (isEnglish) "Probhat (प्रभात) Settings" else "প্রভাত লেআউট সেটিংস",
+                            text = if (isEnglish) "Probhat Settings" else "প্রভাত লেআউট সেটিংস",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(

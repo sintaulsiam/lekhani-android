@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.LocalCafe
+import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Schedule
@@ -53,10 +55,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Job
 import androidx.compose.ui.Alignment
@@ -65,7 +69,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -227,6 +233,13 @@ fun EmojiPickerView(
         }
     }
 
+    // Horizontal drag gesture for switching emoji categories & palette tabs
+    val density = LocalDensity.current
+    val swipeThresholdPx = remember(density) { with(density) { 44.dp.toPx() } }
+    var horizontalDragAccumulator by remember { mutableFloatStateOf(0f) }
+    val currentSelectedTab by rememberUpdatedState(selectedTabIdx)
+    val currentActiveCategory by rememberUpdatedState(activeCategoryIdx)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -250,11 +263,68 @@ fun EmojiPickerView(
             onCategoryClick = onCategoryClick,
         )
 
-        // ── Main Content Grid Area (Clean, Uninterrupted, High Density) ─────
+        // ── Main Content Grid Area (Clean, Uninterrupted, High Density with Horizontal Swipe) ─────
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            horizontalDragAccumulator = 0f
+                        },
+                        onDragEnd = {
+                            val drag = horizontalDragAccumulator
+                            horizontalDragAccumulator = 0f
+                            if (drag < -swipeThresholdPx) {
+                                // Swipe Left (Finger moves left -> advance to next category / tab)
+                                when (currentSelectedTab) {
+                                    0 -> {
+                                        onCategoryClick(0)
+                                    }
+                                    1 -> {
+                                        if (currentActiveCategory < EmojiData.categories.size - 1) {
+                                            onCategoryClick(currentActiveCategory + 1)
+                                        } else {
+                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                            selectedTabIdx = 2
+                                        }
+                                    }
+                                    2 -> {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        selectedTabIdx = 3
+                                    }
+                                }
+                            } else if (drag > swipeThresholdPx) {
+                                // Swipe Right (Finger moves right -> retreat to previous category / tab)
+                                when (currentSelectedTab) {
+                                    3 -> {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        selectedTabIdx = 2
+                                    }
+                                    2 -> {
+                                        onCategoryClick(EmojiData.categories.size - 1)
+                                    }
+                                    1 -> {
+                                        if (currentActiveCategory > 0) {
+                                            onCategoryClick(currentActiveCategory - 1)
+                                        } else {
+                                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                            selectedTabIdx = 0
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            horizontalDragAccumulator = 0f
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            horizontalDragAccumulator += dragAmount
+                            change.consume()
+                        }
+                    )
+                },
         ) {
             when (selectedTabIdx) {
                 0 -> {
@@ -485,7 +555,7 @@ fun EmojiPickerView(
             // Prominent ABC key returning to the typing keyboard
             Box(
                 modifier = Modifier
-                    .width(54.dp)
+                    .width(60.dp)
                     .height(34.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color(theme.keyNormalColor))
@@ -496,12 +566,23 @@ fun EmojiPickerView(
                     .semantics { contentDescription = if (isEnglish) "Return to keyboard" else "কীবোর্ডে ফিরে যান" },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = "⌨ ABC",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = textColor,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Keyboard,
+                        contentDescription = null,
+                        tint = textColor,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = "ABC",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textColor,
+                    )
+                }
             }
 
             // Dedicated On-Canvas Search toggle -> Invokes Option B Full Keyboard Search Mode
@@ -658,6 +739,8 @@ private fun CategoryTabBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
+        val activeContentColor = if (activeTabPill.luminance() > 0.5f) Color(0xFF111111) else Color.White
+
         // Tab 0: Recents (Schedule clock icon)
         TabItem(
             isSelected = selectedTabIdx == 0,
@@ -668,7 +751,7 @@ private fun CategoryTabBar(
             Icon(
                 imageVector = Icons.Outlined.Schedule,
                 contentDescription = null,
-                tint = if (selectedTabIdx == 0) Color.Black else inactiveTabText,
+                tint = if (selectedTabIdx == 0) activeContentColor else inactiveTabText,
                 modifier = Modifier.size(17.dp)
             )
         }
@@ -684,7 +767,7 @@ private fun CategoryTabBar(
             ) {
                 CategoryTabIcon(
                     categoryId = cat.id,
-                    tint = if (isCatSelected) Color.Black else inactiveTabText,
+                    tint = if (isCatSelected) activeContentColor else inactiveTabText,
                 )
             }
         }
@@ -700,7 +783,7 @@ private fun CategoryTabBar(
                 text = "(^_^)",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (selectedTabIdx == 2) Color.Black else inactiveTabText,
+                color = if (selectedTabIdx == 2) activeContentColor else inactiveTabText,
             )
         }
 
@@ -715,7 +798,7 @@ private fun CategoryTabBar(
                 text = "৳",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (selectedTabIdx == 3) Color.Black else inactiveTabText,
+                color = if (selectedTabIdx == 3) activeContentColor else inactiveTabText,
             )
         }
     }

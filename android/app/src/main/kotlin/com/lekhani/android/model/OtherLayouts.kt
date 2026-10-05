@@ -226,7 +226,7 @@ object NationalLayout {
 }
 
 /**
- * Probhat (प्रभात) Layout — Official 12-Key Ergonomic Bengali Layout
+ * Probhat (প্রভাত) Layout — Official 12-Key Ergonomic Bengali Layout
  * Features full standard letter coverage including ে/ৈ and ো/ৌ on top row,
  * dedicated Hasanta (্) and Chandra Bindu (ঁ) in row 3, and standardized spacebar.
  */

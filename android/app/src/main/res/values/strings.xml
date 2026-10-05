@@ -8,7 +8,7 @@
     <string name="subtype_probaho">Lekhani প্রবাহ (Flow)</string>
     <string name="subtype_avro">Avro Phonetic</string>
     <string name="subtype_national">জাতীয় (National)</string>
-    <string name="subtype_probhat">Probhat (प्रभात)</string>
+    <string name="subtype_probhat">প্রভাত (Probhat)</string>
     <string name="subtype_gboard">Gboard Style</string>
     <string name="subtype_english">English (QWERTY)</string>
 </resources>

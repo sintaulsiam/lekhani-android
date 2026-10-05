@@ -9,7 +9,7 @@ pub enum LekhaniLayoutType {
     Avro,
     /// Official Bangladesh BBS fixed standard (National / জাতীয়)
     National,
-    /// Popular phonetic fixed layout (Probhat / प्रभात)
+    /// Popular phonetic fixed layout (Probhat / প্রভাত)
     Probhat,
     /// Google Gboard style Bengali fixed mapping
     Gboard,

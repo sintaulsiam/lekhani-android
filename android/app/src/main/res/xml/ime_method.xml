@@ -45,7 +45,7 @@
         android:isAuxiliary="false"
         android:overridesImplicitlyEnabledSubtype="false" />
 
-    <!-- Fixed Probhat (प्रभात) -->
+    <!-- Fixed Probhat (প্রভাত) -->
     <subtype
         android:label="@string/subtype_probhat"
         android:imeSubtypeLocale="bn"
