@@ -72,6 +72,11 @@
 - [x] Contextual homophone disambiguation badges with preview (*পড়া* vs *পরা*, *খাব* vs *যাব*) via `HomophoneAnnotator`.
 - [x] Real-time next-word continuations upon committing tokens.
 - [x] Colloquial Bengali suffix peeling & grammar morphology.
+- [x] **Agglutinative Inflectional Suffix Strip & Postfix Reph (র্) Workflow**:
+  - Automatic generation and candidate strip prioritization of high-frequency grammatical case markers and enclitics (`-এর`, `-কে`, `-গুলো`, `-টি`, `-টা`, `-দের`) when typing complete base words (e.g. `মানুষ` $\rightarrow$ `[মানুষের, মানুষকে, মানুষগুলো, মানুষটি]`).
+  - Ergonomic postfix Reph transposition in typing engine (`ধ` + `ম` + `র্` $\rightarrow$ `ধর্ম`, `ক` + `ম` + `র্` $\rightarrow$ `কর্ম`).
+  - Reph conjunct quick-pick on Hasanta (`ম` + `্` $\rightarrow$ `র্ম`, `ক` + `্` $\rightarrow$ `র্ক`).
+  - Probaho key `র` configured with `hint = "র্"` for instant flick-down / hold access, and `BengaliAlternates` updated.
 - [x] Candidate Blacklisting: Long-press any candidate in the strip to remove accidental typos from memory (`CandidateBlacklist.kt`).
 - [x] **100% Offline English Suggestions & Autocorrect (Phase 4 Extension)**:
   - Compact ~60,000-word binary PrefixTrie (`data/dictionaries/english_dict.bin`, 0.97 MB) compiled into APK assets.
