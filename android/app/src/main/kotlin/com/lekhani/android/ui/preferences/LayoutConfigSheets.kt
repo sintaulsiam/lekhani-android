@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import com.lekhani.android.ffi.LekhaniLayoutType
 import androidx.compose.foundation.rememberScrollState
@@ -20,8 +21,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.lekhani.android.data.settings.KeyboardPreferences
+import com.lekhani.android.ui.avro.AvroCheatSheetDialog
 
 /**
  * Reusable row displaying a tri-state cascading setting override:
@@ -456,6 +461,7 @@ fun AvroSettingsDialog(
     var avroStripOrder by remember { mutableStateOf(prefs.avroStripOrder) }
     var avroPhoneticBackspaceReopening by remember { mutableStateOf(prefs.avroPhoneticBackspaceReopening) }
     var avroNumeralsBengali by remember { mutableStateOf(prefs.avroNumeralsBengali) }
+    var showCheatSheet by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -504,6 +510,49 @@ fun AvroSettingsDialog(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    // Avro Guide & Cheat Sheet Banner
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = if (isEnglish) "Complex Words & Conjunct Guide" else "যুক্তবর্ণ ও শব্দ সহায়িকা",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = if (isEnglish) "How to type difficult conjuncts and Sanskrit words"
+                                           else "কঠিন যুক্তবর্ণ ও তৎসম শব্দ লেখার সহজ সহায়িকা",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            FilledTonalButton(
+                                onClick = { showCheatSheet = true },
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(if (isEnglish) "Guide" else "সহায়িকা")
+                            }
+                        }
+                    }
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -705,6 +754,13 @@ fun AvroSettingsDialog(
                 }
             }
         }
+    }
+
+    if (showCheatSheet) {
+        AvroCheatSheetDialog(
+            isEnglish = isEnglish,
+            onDismiss = { showCheatSheet = false }
+        )
     }
 }
 
