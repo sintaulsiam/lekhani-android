@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Swipe
 import androidx.compose.material.icons.filled.Tune
@@ -118,6 +119,7 @@ fun PreferencesTabContent(
     onOpenToolbarCustomizer: () -> Unit,
     onOpenDictionaryManager: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenBackupRestore: (() -> Unit)? = null,
     onOpenClipboard: (() -> Unit)? = null,
     onOpenLayoutsTab: (() -> Unit)? = null,
     onAppThemeModeChanged: ((KeyboardPreferences.AppThemeMode) -> Unit)? = null,
@@ -221,7 +223,7 @@ fun PreferencesTabContent(
             matchesSearch("form factor", "modes", "standard", "one-handed", "floating", "split", "কীবোর্ড মোড", "সাধারণ", "একহাতে", "ভাসমান", "বিভক্ত")
 
     val showTools = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.TOOLS) &&
-            matchesSearch("tools", "vocabulary", "toolbar", "dictionary", "typo", "clipboard", "টুলবার", "শব্দকোষ", "ডিকশনারি", "ক্লিপবোর্ড")
+            matchesSearch("tools", "vocabulary", "toolbar", "dictionary", "typo", "clipboard", "backup", "restore", "export", "import", "টুলবার", "শব্দকোষ", "ডিকশনারি", "ক্লিপবোর্ড", "ব্যাকআপ", "রিস্টোর")
 
     val showPrivacy = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.TOOLS) &&
             matchesSearch("privacy", "battery", "offline", "about", "telemetry", "নিরাপত্তা", "ব্যাটারি", "অফলাইন", "পরিচিতি")
@@ -1880,6 +1882,35 @@ fun PreferencesTabContent(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(if (isEnglish) "Manage" else "ব্যবস্থাপনা")
+                        }
+                    }
+
+                    if (onOpenBackupRestore != null) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                        // Backup & Restore
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = if (isEnglish) "Backup & Restore" else "ব্যাকআপ ও রিস্টোর",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Export or restore memory, shortcuts & settings" else "টাইপিং স্মৃতি, শর্টকাট ও সেটিংস ব্যাকআপ নিন",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            FilledTonalButton(
+                                onClick = onOpenBackupRestore,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(if (isEnglish) "Backup" else "ব্যাকআপ")
+                            }
                         }
                     }
                 }

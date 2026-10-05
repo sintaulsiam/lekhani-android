@@ -136,10 +136,23 @@
   - Zero-cloud local persistence via JSON in Device Protected Storage.
 - **Custom Wallpaper Themes**: Set custom background pictures or gradients with customizable blur and opacity overlays.
 
-## 10. User Data Freedom & Migration
-- **One-Click Import**: Easily import custom dictionaries and learned words from Ridmik Keyboard and desktop Avro.
-- **Offline JSON Backup & Restore**: Export all settings and personal vocabulary to an encrypted or plain JSON file.
-- **User Dictionary Editor**: Direct in-app interface to browse, add, edit, or purge learned words.
+## 10. User Data Freedom, Backup & Migration
+- **One-Click Import**: Easily import custom dictionaries and learned words from Ridmik Keyboard (`.txt` / backup), desktop Avro, and CSV wordlists.
+- **Unified On-Device Backup & Restore System**:
+  - Full-screen Material 3 bottom-sheet interface (`BackupRestoreSheet`) accessible via Preferences and Settings.
+  - 100% offline, zero-network architecture adhering strictly to local Device Protected Storage.
+  - Granular multi-component selection:
+    - **Vocabulary & Bigram Memory**: All custom added words, frequency graph, and learned N-gram associations.
+    - **Text Expansion Shortcuts**: Custom autocorrect trigger-to-replacement rules.
+    - **Preferences**: Layout assignments, display scales, sound/haptic settings, and active themes.
+    - **Pinned Clipboard Vault**: Starred snippets and immutable clipboard clippings.
+  - **Storage Access Framework (SAF) & Intent Sharing**:
+    - One-tap export to any local folder or SD card via `CreateDocument("application/json")`.
+    - Direct share via `Intent.ACTION_SEND` to send backup files securely to other devices or cloud vaults.
+  - **Inspection Preview & Safe Merge Restore**:
+    - Instant schema inspection before committing changes, showing exact word counts, rules, and export timestamps.
+    - Non-destructive merging: imports and blends new vocabulary and bigrams into existing typing memory without wiping existing data.
+- **User Dictionary Editor**: Direct in-app interface to browse, add, edit, or purge learned words and autocorrect rules.
 
 ## 11. Security, Direct Boot & System Integration
 - **Direct Boot Ready (`directBootAware="true"`)**: Full functionality on the device lockscreen immediately after reboot before decryption.

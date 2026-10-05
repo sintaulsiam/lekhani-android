@@ -130,6 +130,7 @@ import com.lekhani.android.model.LayoutRegistry
 import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeRegistry
 import com.lekhani.android.ui.about.AboutPrivacyTab
+import com.lekhani.android.ui.backup.BackupRestoreSheet
 import com.lekhani.android.ui.clipboard.ClipboardManagerSheet
 import com.lekhani.android.ui.dictionary.DictionaryManagementSheet
 import com.lekhani.android.ui.preferences.PreferencesTabContent
@@ -151,11 +152,13 @@ class LekhaniSettingsActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_CLIPBOARD = "open_clipboard"
         const val EXTRA_OPEN_DICTIONARY = "open_dictionary"
+        const val EXTRA_OPEN_BACKUP = "open_backup"
         const val EXTRA_TAB_INDEX = "tab_index"
     }
 
     private val requestedTabState = mutableStateOf(0)
     private val requestedOpenDictionaryState = mutableStateOf(false)
+    private val requestedOpenBackupState = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -172,11 +175,15 @@ class LekhaniSettingsActivity : ComponentActivity() {
         if (intent?.getBooleanExtra(EXTRA_OPEN_DICTIONARY, false) == true) {
             requestedOpenDictionaryState.value = true
         }
+        if (intent?.getBooleanExtra(EXTRA_OPEN_BACKUP, false) == true) {
+            requestedOpenBackupState.value = true
+        }
 
         setContent {
             val context = LocalContext.current
             val currentTab by requestedTabState
             val openDictionaryReq by requestedOpenDictionaryState
+            val openBackupReq by requestedOpenBackupState
             val keyboardPrefs = remember { KeyboardPreferences.get(context) }
             var currentThemeId by remember { mutableStateOf(keyboardPrefs.themeId) }
             var currentAppThemeMode by remember { mutableStateOf(keyboardPrefs.appThemeMode) }
@@ -190,6 +197,7 @@ class LekhaniSettingsActivity : ComponentActivity() {
                     LekhaniSettingsScreen(
                         initialTab = currentTab,
                         initialOpenDictionary = openDictionaryReq,
+                        initialOpenBackup = openBackupReq,
                         onThemeChanged = { newThemeId ->
                             currentThemeId = newThemeId
                         },
@@ -229,6 +237,9 @@ class LekhaniSettingsActivity : ComponentActivity() {
         if (intent.getBooleanExtra(EXTRA_OPEN_DICTIONARY, false)) {
             requestedOpenDictionaryState.value = true
         }
+        if (intent.getBooleanExtra(EXTRA_OPEN_BACKUP, false)) {
+            requestedOpenBackupState.value = true
+        }
     }
 
 
@@ -238,6 +249,7 @@ class LekhaniSettingsActivity : ComponentActivity() {
 fun LekhaniSettingsScreen(
     initialTab: Int = 0,
     initialOpenDictionary: Boolean = false,
+    initialOpenBackup: Boolean = false,
     onThemeChanged: (String) -> Unit = {},
     onAppThemeModeChanged: (KeyboardPreferences.AppThemeMode) -> Unit = {},
     onOpenImeSettings: () -> Unit = {},
@@ -286,6 +298,10 @@ fun LekhaniSettingsScreen(
     var showDictionarySheet by remember { mutableStateOf(initialOpenDictionary) }
     LaunchedEffect(initialOpenDictionary) {
         if (initialOpenDictionary) showDictionarySheet = true
+    }
+    var showBackupRestoreSheet by remember { mutableStateOf(initialOpenBackup) }
+    LaunchedEffect(initialOpenBackup) {
+        if (initialOpenBackup) showBackupRestoreSheet = true
     }
     var showToolbarSheet by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
@@ -558,6 +574,7 @@ fun LekhaniSettingsScreen(
                     onOpenToolbarCustomizer = { showToolbarSheet = true },
                     onOpenDictionaryManager = { showDictionarySheet = true },
                     onOpenAbout = { showAboutDialog = true },
+                    onOpenBackupRestore = { showBackupRestoreSheet = true },
                     onOpenClipboard = { selectedTab = 3 },
                     onOpenLayoutsTab = { selectedTab = 0 },
                     onAppThemeModeChanged = onAppThemeModeChanged
@@ -646,6 +663,26 @@ fun LekhaniSettingsScreen(
                     dictManager = dictManager,
                     isEnglish = isEnglish,
                     onClose = { showDictionarySheet = false }
+                )
+            }
+        }
+    }
+
+    if (showBackupRestoreSheet) {
+        Dialog(
+            onDismissRequest = { showBackupRestoreSheet = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                BackupRestoreSheet(
+                    dictManager = dictManager,
+                    isEnglish = isEnglish,
+                    onClose = { showBackupRestoreSheet = false }
                 )
             }
         }
