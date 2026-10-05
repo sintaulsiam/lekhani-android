@@ -5,8 +5,10 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,20 +23,27 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +59,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -58,6 +68,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.lekhani.android.ui.components.LekhaniBrandLogo
 
 private const val SUPPORT_EMAIL = "sintaulsiam@gmail.com"
@@ -65,13 +76,13 @@ private const val GITHUB_REPO_URL = "https://github.com/sintaulsiam/lekhani-andr
 
 /**
  * AboutPrivacyTab
- * Clean, user-centric About screen:
- * 1. Brand Header (M3 circle logo, version badge with accessible dev unlock)
- * 2. 100% Offline & Privacy Guarantee (Primary user assurance)
- * 3. What's New in v0.2.0 (Interactive feature highlights)
- * 4. Compact Creator & Institution Credits + Share App Action
- * 5. Open Source & Licensing
- * 6. Collapsible Engineering & Architecture Specifications
+ * Polished, Material 3 Expressive About screen:
+ * 1. Brand Hero Card (M3 circle logo, headline, version badge with accessible dev unlock)
+ * 2. 100% Offline & Privacy Assurance (Icon badges, zero network transmission)
+ * 3. What's New in v0.2.0 (Icon-driven interactive highlights)
+ * 4. Creator & Institution Credits + Responsive Actions
+ * 5. Open Source & Standards Compliance
+ * 6. Collapsible Technical Specifications (Dev Unlocked)
  */
 @Composable
 fun AboutPrivacyTab(
@@ -93,100 +104,135 @@ fun AboutPrivacyTab(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // ── 1. Brand Header ─────────────────────────────────────────────────────
-        LekhaniBrandLogo(size = 68.dp)
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+        // ── 1. Brand Hero Card ──────────────────────────────────────────────────
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
-            Text(
-                text = if (isEnglish) "Fast, private Bengali keyboard for Android"
-                       else "সম্পূর্ণ অফলাইন, নিরাপদ ও দ্রুত বাংলা কীবোর্ড",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+        ) {
+            Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable {
-                        if (devTapCount < 7) {
-                            devTapCount++
-                            if (devTapCount == 7) {
-                                Toast.makeText(
-                                    context,
-                                    if (isEnglish) "Developer specifications unlocked"
-                                    else "ডেভেলপার স্পেসিফিকেশন উন্মুক্ত করা হয়েছে",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LekhaniBrandLogo(size = 72.dp)
+
+                Text(
+                    text = if (isEnglish) "Lekhani Keyboard" else "লেখনী কীবোর্ড",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                )
+
+                Text(
+                    text = if (isEnglish) "Fast, private Bengali keyboard for Android"
+                           else "সম্পূর্ণ অফলাইন, নিরাপদ ও দ্রুত বাংলা কীবোর্ড",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable {
+                            if (devTapCount < 7) {
+                                devTapCount++
+                                if (devTapCount == 7) {
+                                    Toast.makeText(
+                                        context,
+                                        if (isEnglish) "Developer specifications unlocked"
+                                        else "ডেভেলপার স্পেসিফিকেশন উন্মুক্ত করা হয়েছে",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         }
-                    }
-                    .semantics {
-                        role = Role.Button
-                        contentDescription = "Version ${com.lekhani.android.BuildConfig.VERSION_NAME}, 100 percent offline, zero telemetry"
-                    }
-            ) {
-                Text(
-                    text = "v${com.lekhani.android.BuildConfig.VERSION_NAME} • 100% Offline • Zero Telemetry" +
-                        if (devTapCount in 1..6) " (${7 - devTapCount})" else "",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                )
+                        .semantics {
+                            role = Role.Button
+                            contentDescription = "Version ${com.lekhani.android.BuildConfig.VERSION_NAME}, 100 percent offline, zero telemetry"
+                        }
+                ) {
+                    Text(
+                        text = "v${com.lekhani.android.BuildConfig.VERSION_NAME} • 100% Offline • Zero Telemetry" +
+                            if (devTapCount in 1..6) " (${7 - devTapCount})" else "",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                    )
+                }
             }
         }
 
         // ── 2. Primary: 100% Offline & Privacy Assurance ────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.VerifiedUser,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = if (isEnglish) "100% Offline & Private" else "১০০% অফলাইন ও সম্পূর্ণ গোপনীয়",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.VerifiedUser,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "100% Offline & Private" else "১০০% অফলাইন ও সম্পূর্ণ গোপনীয়",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEnglish) "Absolute zero telemetry guarantee" else "কোনো ডেটা কখনোই ডিভাইস থেকে বাইরে যায় না",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                 )
 
                 PrivacyFeatureItem(
+                    icon = Icons.Filled.Security,
                     title = if (isEnglish) "No Internet Permission" else "ইন্টারনেট পারমিশনহীন",
                     desc = if (isEnglish) "Lekhani declares zero network access. No keystrokes or data can ever leave your phone."
-                           else "অ্যাপটিতে কোনো ইন্টারনেট পারমিশন নেই। আপনার কোনো টাইピング বা ক্লিপবোর্ড ডেটা বাইরে যাওয়া সম্ভব নয়।"
+                           else "অ্যাপটিতে কোনো ইন্টারনেট পারমিশন নেই। আপনার কোনো টাইপিং বা ক্লিপবোর্ড ডেটা বাইরে যাওয়া সম্ভব নয়।"
                 )
                 PrivacyFeatureItem(
+                    icon = Icons.Filled.Memory,
                     title = if (isEnglish) "On-Device Engine" else "অন-ডিভাইস প্রসেসিং",
                     desc = if (isEnglish) "Grammar parsing and next-word suggestions run 100% locally on your phone's processor."
                            else "শব্দ সাজেশন ও ব্যাকরণ পার্সিং সবকিছু সরাসরি আপনার ফোনেই প্রসেস হয়।"
                 )
                 PrivacyFeatureItem(
+                    icon = Icons.Filled.Lock,
                     title = if (isEnglish) "Device-Protected Storage" else "ডিভাইসেই সুরক্ষিত সেভ",
                     desc = if (isEnglish) "Personal learned words and clipboard items are stored securely on your device and never shared with anyone."
                            else "ব্যক্তিগত ডিকশনারি ও ক্লিপবোর্ড আপনার ফোনেই সুরক্ষিত থাকে এবং কখনোই কারো সাথে শেয়ার করা হয় না।"
@@ -197,33 +243,48 @@ fun AboutPrivacyTab(
         // ── 3. What's New in v0.2.0 ────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .clickable { showWhatsNew = !showWhatsNew }
                         .padding(vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.NewReleases,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isEnglish) "What's New in v0.2.0" else "নতুন কী কী যোগ হয়েছে (v0.2.0)",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.NewReleases,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = if (isEnglish) "What's New in v0.2.0" else "নতুন কী কী যোগ হয়েছে (v0.2.0)",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Text(
+                                text = if (isEnglish) "Explore recent enhancements" else "সাম্প্রতিক আপডেট ও নতুন ফিচারসমূহ",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     Icon(
                         imageVector = if (showWhatsNew) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
@@ -234,30 +295,34 @@ fun AboutPrivacyTab(
 
                 AnimatedVisibility(visible = showWhatsNew) {
                     Column(
-                        modifier = Modifier.padding(top = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(top = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                         HighlightItem(
+                            icon = Icons.Filled.TouchApp,
                             title = if (isEnglish) "Smart Swipe-to-Delete & Two-Thumb Actions"
                                     else "স্মার্ট সোয়াইপ ডিলিট ও টু-থাম্ব অ্যাকশন",
                             detail = if (isEnglish) "Drag left from Backspace to preview tokens before deleting. Use your second thumb to Copy or Cut selected text instantly."
                                      else "ব্যাকস্পেস চেপে বামে টেনে শব্দ সিলেক্ট করুন। সিলেক্ট থাকা অবস্থায় দ্বিতীয় হাত দিয়ে কপি বা কাট করুন।"
                         )
                         HighlightItem(
+                            icon = Icons.Filled.AutoAwesome,
                             title = if (isEnglish) "Contextual Selection Toolbar"
                                     else "কনটেক্সচুয়াল টেক্সট টুলবার",
                             detail = if (isEnglish) "Instant Cut, Copy, Paste, and Select All buttons appear directly in the suggestion strip when text is selected."
                                      else "টেক্সট সিলেক্ট করা থাকলে ক্যান্ডিডেট বারে স্বয়ংক্রিয়ভাবে কাট, কপি, পেস্ট ও সিলেক্ট অল বাটন ভেসে ওঠে।"
                         )
                         HighlightItem(
+                            icon = Icons.Filled.Mic,
                             title = if (isEnglish) "100% Offline Streaming Voice Typing"
                                     else "১০০% অফলাইন ভয়েস টাইপিং",
                             detail = if (isEnglish) "Speak Bengali or English naturally with live animated audio waveform and real-time on-device transcription."
                                      else "অডিও অ্যানিমেশন ও লাইভ টেক্সট প্রিভিউসহ সম্পূর্ণ ইন্টারনেট ছাড়া ফোনে ভয়েস টাইপিং করুন।"
                         )
                         HighlightItem(
+                            icon = Icons.Filled.Palette,
                             title = if (isEnglish) "Dynamic RGB Chroma & Custom Themes"
                                     else "ডাইনামিক আরজিবি ও কাস্টম থিম",
                             detail = if (isEnglish) "120 FPS chromatic wave animation, custom wallpaper backgrounds, and refined Material 3 Expressive styling."
@@ -271,30 +336,45 @@ fun AboutPrivacyTab(
         // ── 4. Creator, Institution & Actions ──────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
             )
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Business,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = if (isEnglish) "Creator & Organization" else "ডেভেলপার ও প্রতিষ্ঠান",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Business,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Creator & Organization" else "ডেভেলপার ও প্রতিষ্ঠান",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEnglish) "Syntenium • BRUR CSE" else "সিনটেনিয়াম • বেরোবি সিএসই",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 2.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -304,7 +384,7 @@ fun AboutPrivacyTab(
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = if (isEnglish) "Developer: Sintaul Mahdi Siam" else "ডেভেলপার: সিনতাউল মাহদী সিয়াম",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
@@ -318,7 +398,7 @@ fun AboutPrivacyTab(
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = if (isEnglish) "Begum Rokeya University, Rangpur (BRUR) • CSE"
                                else "বেগম রোকেয়া বিশ্ববিদ্যালয়, রংপুর (BRUR) • CSE বিভাগ",
@@ -333,7 +413,7 @@ fun AboutPrivacyTab(
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = if (isEnglish) "Organization: Syntenium" else "প্রতিষ্ঠান: সিনটেনিয়াম (Syntenium)",
                         style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -346,9 +426,9 @@ fun AboutPrivacyTab(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedButton(
+                    FilledTonalButton(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(10.dp),
                         onClick = {
                             val intent = Intent(Intent.ACTION_SENDTO).apply {
                                 data = Uri.parse("mailto:$SUPPORT_EMAIL")
@@ -370,9 +450,9 @@ fun AboutPrivacyTab(
                         Text(if (isEnglish) "Contact" else "ইমেইল")
                     }
 
-                    OutlinedButton(
+                    FilledTonalButton(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(10.dp),
                         onClick = {
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_REPO_URL))
                             val launched = runCatching { context.startActivity(intent) }
@@ -393,7 +473,7 @@ fun AboutPrivacyTab(
 
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     onClick = {
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
@@ -425,33 +505,42 @@ fun AboutPrivacyTab(
         // ── 5. Open Source & Standards ─────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
             )
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Filled.Code,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Code,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = if (isEnglish) "Open Source & Standards" else "ওপেন সোর্স ও লাইসেন্স",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = if (isEnglish)
                         "Lekhani is open source under Apache 2.0 / MIT. Built compliant with BBS National Bengali Standard and OpenBangla keyboard corpus."
                     else
                         "লেখনী Apache 2.0 ও MIT লাইসেন্সে সম্পূর্ণ ওপেন সোর্স। বাংলাদেশ সরকারি বিবিএস জাতীয় মান এবং ওপেনবাংলা স্ট্যান্ডার্ড অনুযায়ী নির্মিত।",
                     style = MaterialTheme.typography.bodySmall.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
                     )
                 )
             }
@@ -461,32 +550,40 @@ fun AboutPrivacyTab(
         if (isDevUnlocked) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
                 )
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .clickable { showTechSpecs = !showTechSpecs }
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Filled.Memory,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Memory,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = if (isEnglish) "Technical Architecture Details" else "ইঞ্জিন ও টেকনিক্যাল স্পেসিফিকেশন",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                         }
                         Icon(
@@ -498,7 +595,7 @@ fun AboutPrivacyTab(
 
                     AnimatedVisibility(visible = showTechSpecs) {
                         Column(
-                            modifier = Modifier.padding(top = 10.dp),
+                            modifier = Modifier.padding(top = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
@@ -530,62 +627,123 @@ fun AboutPrivacyTab(
 }
 
 @Composable
-private fun PrivacyFeatureItem(title: String, desc: String) {
-    Column(modifier = Modifier.padding(vertical = 3.dp)) {
-        Text(
-            text = "• $title",
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+private fun PrivacyFeatureItem(
+    icon: ImageVector,
+    title: String,
+    desc: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
             )
-        )
-        Text(
-            text = desc,
-            style = MaterialTheme.typography.bodySmall.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            modifier = Modifier.padding(start = 14.dp, top = 2.dp)
-        )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = desc,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+            )
+        }
     }
 }
 
 @Composable
-private fun HighlightItem(title: String, detail: String) {
-    Column(modifier = Modifier.padding(vertical = 2.dp)) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+private fun HighlightItem(
+    icon: ImageVector,
+    title: String,
+    detail: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(16.dp)
             )
-        )
-        Text(
-            text = detail,
-            style = MaterialTheme.typography.bodySmall.copy(
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            modifier = Modifier.padding(start = 4.dp, top = 2.dp)
-        )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+            )
+        }
     }
 }
 
 @Composable
 private fun ArchitectureTierItem(tier: String, detail: String) {
-    Column(modifier = Modifier.padding(vertical = 2.dp)) {
-        Text(
-            text = tier,
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = tier,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             )
-        )
-        Text(
-            text = detail,
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            modifier = Modifier.padding(start = 4.dp, top = 2.dp)
-        )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp
+                )
+            )
+        }
     }
 }

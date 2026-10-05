@@ -50,7 +50,7 @@ import java.io.File
  *  - Tab 1: Text Replacements & Custom Auto-Correct Rules (triggers ➔ replacements)
  *  - Tab 2: Learned Typing Memory (frequency stats & history reset)
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DictionaryManagementSheet(
     dictManager: LekhaniDictionaryManager,
@@ -147,7 +147,77 @@ fun DictionaryManagementSheet(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                actions = {
+                    if (selectedSubTab == 0) {
+                        IconButton(
+                            onClick = {
+                                try {
+                                    filePickerLauncher.launch(arrayOf("*/*", "text/plain", "application/json"))
+                                } catch (e: Exception) {
+                                    showImportDialog = true
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.FileDownload,
+                                contentDescription = if (isEnglish) "Import words" else "শব্দ আমদানি করুন",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                val json = dictManager.exportJson()
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/json"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Lekhani_Dictionary_Backup.json")
+                                    putExtra(Intent.EXTRA_TEXT, json)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, if (isEnglish) "Export Backup" else "ব্যাকআপ এক্সপোর্ট করুন"))
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.FileUpload,
+                                contentDescription = if (isEnglish) "Export backup" else "ব্যাকআপ এক্সপোর্ট করুন",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        if (userWords.isNotEmpty()) {
+                            IconButton(onClick = { showClearConfirm = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.DeleteSweep,
+                                    contentDescription = if (isEnglish) "Clear all words" else "সব মুছুন",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    } else if (selectedSubTab == 1) {
+                        IconButton(
+                            onClick = {
+                                val json = dictManager.exportJson()
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/json"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Lekhani_Dictionary_Backup.json")
+                                    putExtra(Intent.EXTRA_TEXT, json)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, if (isEnglish) "Export Backup" else "ব্যাকআপ এক্সপোর্ট করুন"))
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.FileUpload,
+                                contentDescription = if (isEnglish) "Export rules" else "নিয়ম এক্সপোর্ট করুন",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(onClick = { showAddRuleDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = if (isEnglish) "Add rule" else "নিয়ম যোগ করুন",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             )
         }
     ) { padding ->
@@ -250,12 +320,13 @@ fun DictionaryManagementSheet(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Action Buttons Row (Import / Export / Clear)
-                    Row(
+                    // Adaptive Action Chips (FlowRow guarantees scaling on small screens and large accessibility text)
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        OutlinedButton(
+                        AssistChip(
                             onClick = {
                                 try {
                                     filePickerLauncher.launch(arrayOf("*/*", "text/plain", "application/json"))
@@ -263,21 +334,19 @@ fun DictionaryManagementSheet(
                                     showImportDialog = true
                                 }
                             },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.FileDownload,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "Import" else "ইমপোর্ট", fontSize = 12.sp, maxLines = 1)
-                        }
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.FileDownload,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            label = { Text(if (isEnglish) "Import" else "ইমপোর্ট", fontSize = 12.sp) },
+                            shape = RoundedCornerShape(8.dp)
+                        )
 
-                        OutlinedButton(
+                        AssistChip(
                             onClick = {
                                 val json = dictManager.exportJson()
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -287,35 +356,41 @@ fun DictionaryManagementSheet(
                                 }
                                 context.startActivity(Intent.createChooser(shareIntent, if (isEnglish) "Export Backup" else "ব্যাকআপ এক্সপোর্ট করুন"))
                             },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.FileUpload,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "Export" else "এক্সপোর্ট", fontSize = 12.sp, maxLines = 1)
-                        }
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.FileUpload,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            label = { Text(if (isEnglish) "Export" else "এক্সপোর্ট", fontSize = 12.sp) },
+                            shape = RoundedCornerShape(8.dp)
+                        )
 
-                        OutlinedButton(
-                            onClick = { showClearConfirm = true },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.DeleteSweep,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.error
+                        if (userWords.isNotEmpty()) {
+                            AssistChip(
+                                onClick = { showClearConfirm = true },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.DeleteSweep,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = if (isEnglish) "Clear" else "মুছুন",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = AssistChipDefaults.assistChipColors(
+                                    labelColor = MaterialTheme.colorScheme.error
+                                )
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "Clear" else "মুছুন", fontSize = 12.sp, maxLines = 1)
                         }
                     }
 
