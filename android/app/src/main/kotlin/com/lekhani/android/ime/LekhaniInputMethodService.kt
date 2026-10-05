@@ -356,17 +356,22 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // Listen for layout changes from Settings (e.g. LayoutFlowScreen card tap)
         val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
-            when (key) {
-                PREF_LAYOUT -> {
+            when {
+                key == PREF_LAYOUT -> {
                     val newName = sp.getString(key, null)
                     val newLayout = newName?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
                     if (newLayout != null && session.getLayout() != newLayout) {
                         switchLayout(newLayout)
                     }
                 }
-                KeyboardPreferences.KEY_PROBHAT_HASANTA_CONJUNCTS,
-                KeyboardPreferences.KEY_PROBHAT_SMART_INITIAL_KAR,
-                KeyboardPreferences.KEY_PROBHAT_GEMINATE_DOUBLE_TAP -> {
+                key == KeyboardPreferences.KEY_PROBHAT_HASANTA_CONJUNCTS ||
+                key == KeyboardPreferences.KEY_PROBHAT_SMART_INITIAL_KAR ||
+                key == KeyboardPreferences.KEY_PROBHAT_GEMINATE_DOUBLE_TAP ||
+                key == KeyboardPreferences.KEY_SMART_INITIAL_KAR ||
+                key == KeyboardPreferences.KEY_HASANTA_CONJUNCTS ||
+                key == KeyboardPreferences.KEY_GEMINATE_DOUBLE_TAP ||
+                key == KeyboardPreferences.KEY_HASANTA_HAPTIC ||
+                (key != null && key.startsWith("override_")) -> {
                     applyLayoutSpecificPreferences(session.getLayout())
                 }
             }
@@ -2476,7 +2481,7 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
-        if (keyToken == "্" && session.getLayout() == LekhaniLayoutType.PROBHAT && keyboardPrefs.probhatDeadKeyHaptic) {
+        if (keyToken == "্" && keyboardPrefs.isHasantaHapticActive(session.getLayout())) {
             keyboardView?.let { feedbackManager.onTickFeedback(it) }
         }
 
@@ -3130,18 +3135,9 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun applyLayoutSpecificPreferences(layout: LekhaniLayoutType) {
-        when (layout) {
-            LekhaniLayoutType.PROBHAT -> {
-                session.setSmartInitialKarEnabled(keyboardPrefs.probhatSmartInitialKar)
-                session.setGeminateDoubleTapEnabled(keyboardPrefs.probhatGeminateDoubleTap)
-                session.setHasantaConjunctsEnabled(keyboardPrefs.probhatHasantaConjuncts)
-            }
-            else -> {
-                session.setSmartInitialKarEnabled(true)
-                session.setGeminateDoubleTapEnabled(false)
-                session.setHasantaConjunctsEnabled(true)
-            }
-        }
+        session.setSmartInitialKarEnabled(keyboardPrefs.isSmartInitialKarActive(layout))
+        session.setGeminateDoubleTapEnabled(keyboardPrefs.isGeminateDoubleTapActive(layout))
+        session.setHasantaConjunctsEnabled(keyboardPrefs.isHasantaConjunctsActive(layout))
         updateCandidatesVisibility()
     }
 

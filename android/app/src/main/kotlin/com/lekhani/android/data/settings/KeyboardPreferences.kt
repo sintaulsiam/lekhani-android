@@ -116,21 +116,38 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SWIPE_UP_FLICK, true)
         set(value) = prefs.edit().putBoolean(KEY_SWIPE_UP_FLICK, value).apply()
 
-    // ── Probhat Layout Preferences ───────────────────────────────────────────
+    // ── Global Bengali Smart Input Preferences ──────────────────────────────
+    var smartInitialKarEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SMART_INITIAL_KAR, true)
+        set(value) = prefs.edit().putBoolean(KEY_SMART_INITIAL_KAR, value).apply()
+
+    var hasantaConjunctsEnabled: Boolean
+        get() = prefs.getBoolean(KEY_HASANTA_CONJUNCTS, true)
+        set(value) = prefs.edit().putBoolean(KEY_HASANTA_CONJUNCTS, value).apply()
+
+    var geminateDoubleTapEnabled: Boolean
+        get() = prefs.getBoolean(KEY_GEMINATE_DOUBLE_TAP, false)
+        set(value) = prefs.edit().putBoolean(KEY_GEMINATE_DOUBLE_TAP, value).apply()
+
+    var hasantaHapticEnabled: Boolean
+        get() = prefs.getBoolean(KEY_HASANTA_HAPTIC, true)
+        set(value) = prefs.edit().putBoolean(KEY_HASANTA_HAPTIC, value).apply()
+
+    // ── Probhat Layout Preferences (Legacy mappings) ─────────────────────────
     var probhatHasantaConjuncts: Boolean
-        get() = prefs.getBoolean(KEY_PROBHAT_HASANTA_CONJUNCTS, true)
+        get() = isHasantaConjunctsActive(LekhaniLayoutType.PROBHAT)
         set(value) = prefs.edit().putBoolean(KEY_PROBHAT_HASANTA_CONJUNCTS, value).apply()
 
     var probhatSmartInitialKar: Boolean
-        get() = prefs.getBoolean(KEY_PROBHAT_SMART_INITIAL_KAR, true)
+        get() = isSmartInitialKarActive(LekhaniLayoutType.PROBHAT)
         set(value) = prefs.edit().putBoolean(KEY_PROBHAT_SMART_INITIAL_KAR, value).apply()
 
     var probhatGeminateDoubleTap: Boolean
-        get() = prefs.getBoolean(KEY_PROBHAT_GEMINATE_DOUBLE_TAP, false)
+        get() = isGeminateDoubleTapActive(LekhaniLayoutType.PROBHAT)
         set(value) = prefs.edit().putBoolean(KEY_PROBHAT_GEMINATE_DOUBLE_TAP, value).apply()
 
     var probhatDeadKeyHaptic: Boolean
-        get() = prefs.getBoolean(KEY_PROBHAT_DEAD_KEY_HAPTIC, true)
+        get() = isHasantaHapticActive(LekhaniLayoutType.PROBHAT)
         set(value) = prefs.edit().putBoolean(KEY_PROBHAT_DEAD_KEY_HAPTIC, value).apply()
 
     // ── National (BBS) Layout Preferences ─────────────────────────────────
@@ -377,6 +394,79 @@ class KeyboardPreferences private constructor(context: Context) {
         }
     }
 
+    // ── Bengali Smart Input Per-Layout Overrides ──────────────────────────────
+    fun getSmartInitialKarOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_SMART_KAR)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setSmartInitialKarOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_SMART_KAR)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isSmartInitialKarActive(layout: LekhaniLayoutType): Boolean {
+        return when (getSmartInitialKarOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> smartInitialKarEnabled
+        }
+    }
+
+    fun getHasantaConjunctsOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_HASANTA_CONJUNCTS)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setHasantaConjunctsOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_HASANTA_CONJUNCTS)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isHasantaConjunctsActive(layout: LekhaniLayoutType): Boolean {
+        return when (getHasantaConjunctsOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> hasantaConjunctsEnabled
+        }
+    }
+
+    fun getGeminateDoubleTapOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_GEMINATE_DOUBLE_TAP)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setGeminateDoubleTapOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_GEMINATE_DOUBLE_TAP)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isGeminateDoubleTapActive(layout: LekhaniLayoutType): Boolean {
+        return when (getGeminateDoubleTapOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> geminateDoubleTapEnabled
+        }
+    }
+
+    fun getHasantaHapticOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_HASANTA_HAPTIC)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setHasantaHapticOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_HASANTA_HAPTIC)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isHasantaHapticActive(layout: LekhaniLayoutType): Boolean {
+        return when (getHasantaHapticOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> hasantaHapticEnabled
+        }
+    }
+
     private fun getOverrideKey(layout: LekhaniLayoutType, prefix: String): String {
         return "${prefix}_${layout.name.lowercase()}"
     }
@@ -546,6 +636,16 @@ class KeyboardPreferences private constructor(context: Context) {
         const val PREFIX_AUTOCORRECT = "override_autocorrect"
         const val PREFIX_NUMBER_ROW = "override_number_row"
         const val PREFIX_NEXT_WORD = "override_next_word"
+
+        const val KEY_SMART_INITIAL_KAR = "smart_initial_kar"
+        const val KEY_HASANTA_CONJUNCTS = "hasanta_conjuncts"
+        const val KEY_GEMINATE_DOUBLE_TAP = "geminate_double_tap"
+        const val KEY_HASANTA_HAPTIC = "hasanta_haptic"
+
+        const val PREFIX_SMART_KAR = "override_smart_kar"
+        const val PREFIX_HASANTA_CONJUNCTS = "override_hasanta_conjuncts"
+        const val PREFIX_GEMINATE_DOUBLE_TAP = "override_geminate_double_tap"
+        const val PREFIX_HASANTA_HAPTIC = "override_hasanta_haptic"
 
         const val KEY_PROBHAT_HASANTA_CONJUNCTS = "probhat_hasanta_conjuncts"
         const val KEY_PROBHAT_SMART_INITIAL_KAR = "probhat_smart_initial_kar"

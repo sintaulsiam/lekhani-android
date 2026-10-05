@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -146,6 +147,11 @@ fun PreferencesTabContent(
     var showKeyHints by remember { mutableStateOf(prefs.showKeyHints) }
     var swipeUpFlickEnabled by remember { mutableStateOf(prefs.swipeUpFlickEnabled) }
 
+    var smartInitialKarEnabled by remember { mutableStateOf(prefs.smartInitialKarEnabled) }
+    var hasantaConjunctsEnabled by remember { mutableStateOf(prefs.hasantaConjunctsEnabled) }
+    var geminateDoubleTapEnabled by remember { mutableStateOf(prefs.geminateDoubleTapEnabled) }
+    var hasantaHapticEnabled by remember { mutableStateOf(prefs.hasantaHapticEnabled) }
+
     var fontStyle by remember { mutableStateOf(prefs.fontStyle) }
     var fontScale by remember { mutableFloatStateOf(prefs.fontScale) }
     var clipboardRetention by remember { mutableIntStateOf(prefs.clipboardRetentionMinutes) }
@@ -196,7 +202,7 @@ fun PreferencesTabContent(
             matchesSearch("app appearance", "theme mode", "dark", "light", "system", "sync keyboard", "অ্যাপিয়ারেন্স", "থিম", "ডার্ক", "লাইট")
 
     val showTyping = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.TYPING) &&
-            matchesSearch("typing", "number row", "numpad", "spacing", "dari", "spacebar", "autocomplete", "autocorrect", "candidate", "strip", "prediction", "learn", "glide", "code shield", "avro", "probaho", "টাইপিং", "সংখ্যা সারি", "নম্বর", "দাঁড়ি", "সাজেশন", "কোড শিল্ড", "ক্যান্ডিডেট বার", "অটোকারেক্ট", "ভবিষ্যদ্বাণী")
+            matchesSearch("typing", "number row", "numpad", "spacing", "dari", "spacebar", "autocomplete", "autocorrect", "candidate", "strip", "prediction", "learn", "glide", "code shield", "avro", "probaho", "smart initial kar", "hasanta", "conjunct", "geminate", "double tap", "যুক্তবর্ণ", "কার", "হসন্ত", "দ্বিত্ব", "টাইপিং", "সংখ্যা সারি", "নম্বর", "দাঁড়ি", "সাজেশন", "কোড শিল্ড", "ক্যান্ডিডেট বার", "অটোকারেক্ট", "ভবিষ্যদ্বাণী")
 
     val showGestures = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.GESTURES) &&
             matchesSearch("gestures", "swipe", "spacebar swipe", "cursor slide", "delete", "bottom row", "volume", "জেশ্চার", "সোয়াইপ", "স্পেসবার", "কার্সর", "মোছা", "ভলিউম")
@@ -805,6 +811,168 @@ fun PreferencesTabContent(
                             onCheckedChange = {
                                 codeShield = it
                                 prefs.codeShieldEnabled = it
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── 2b. Bengali Smart Input (Global Defaults) ───────────────────────
+        if (showTyping) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Keyboard,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = if (isEnglish) "Bengali Smart Input (Global Defaults)" else "বাংলা স্মার্ট ইনপুট (গ্লোবাল ডিফল্ট)",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                text = if (isEnglish) "Default behaviors across fixed layouts (can be overridden per layout)"
+                                       else "সকল ফিক্সড লেআউটের সাধারণ নিয়ম (লেআউটভিত্তিক পরিবর্তন সম্ভব)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 2.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                    )
+
+                    // 1. Smart Initial Kar to Vowel
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = if (isEnglish) "Auto-Fix Initial Vowels" else "শব্দের শুরুতে কার রূপান্তর",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnglish) "Convert standalone vowel signs at word starts (া -> আ)"
+                                       else "শব্দের শুরুতে কার চিহ্ন চাপলে পূর্ণ স্বরবর্ণে রূপান্তর করবে (যেমন: া -> আ)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = smartInitialKarEnabled,
+                            onCheckedChange = {
+                                smartInitialKarEnabled = it
+                                prefs.smartInitialKarEnabled = it
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    // 2. Conjunct Suggestions on Hasanta
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = if (isEnglish) "Conjunct Suggestions on Hasanta" else "হসন্ত চাপলে যুক্তবর্ণ সাজেশন",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnglish) "Show valid conjuncts when pressing Hasanta (্)"
+                                       else "ব্যঞ্জনবর্ণের পর হসন্ত (্) চাপলে সম্ভাব্য সকল যুক্তবর্ণ দেখাবে",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = hasantaConjunctsEnabled,
+                            onCheckedChange = {
+                                hasantaConjunctsEnabled = it
+                                prefs.hasantaConjunctsEnabled = it
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    // 3. Double-Tap for Geminate Conjuncts
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = if (isEnglish) "Double-Tap for Conjuncts" else "ডাবল ট্যাপে দ্বিত্ব যুক্তবর্ণ",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnglish) "Quickly double-tap consonant to form conjunct (ত x 2 -> ত্ত)"
+                                       else "একই বর্ণ পরপর দুইবার চাপলে দ্বিত্ব যুক্তবর্ণ তৈরি করবে (যেমন: ত x ২ -> ত্ত)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = geminateDoubleTapEnabled,
+                            onCheckedChange = {
+                                geminateDoubleTapEnabled = it
+                                prefs.geminateDoubleTapEnabled = it
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    // 4. Hasanta Key Vibration Feedback
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = if (isEnglish) "Hasanta Vibration Feedback" else "হসন্ত চাপলে হ্যাপটিক ভাইব্রেশন",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnglish) "Distinct tactile tick feedback when pressing Hasanta (্)"
+                                       else "হসন্ত (্) চাপলে আলাদা সূক্ষ্ম স্পর্শ অনুভূতি প্রদান করবে",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = hasantaHapticEnabled,
+                            onCheckedChange = {
+                                hasantaHapticEnabled = it
+                                prefs.hasantaHapticEnabled = it
                             }
                         )
                     }

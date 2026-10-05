@@ -192,6 +192,101 @@ fun LayoutOverrideSection(
 }
 
 /**
+ * Reusable section for configuring Bengali Smart Input features (Kar promotion, Hasanta conjuncts,
+ * Geminate double-taps, Hasanta haptic) with cascading overrides per layout.
+ */
+@Composable
+fun BengaliSmartInputSection(
+    layout: LekhaniLayoutType,
+    prefs: KeyboardPreferences,
+    isEnglish: Boolean
+) {
+    var smartKarOverride by remember { mutableStateOf(prefs.getSmartInitialKarOverride(layout)) }
+    var hasantaConjunctsOverride by remember { mutableStateOf(prefs.getHasantaConjunctsOverride(layout)) }
+    var geminateOverride by remember { mutableStateOf(prefs.getGeminateDoubleTapOverride(layout)) }
+    var hasantaHapticOverride by remember { mutableStateOf(prefs.getHasantaHapticOverride(layout)) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = if (isEnglish) "Bengali Smart Input" else "বাংলা স্মার্ট টাইপিং সেটিংস",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Auto-Fix Initial Vowels
+            LayoutOverrideRow(
+                title = if (isEnglish) "Auto-Fix Initial Vowels" else "শুরুতে স্বরবর্ণ সংশোধন",
+                subtitle = if (isEnglish) "Convert vowel signs at word start to full vowels (া → আ)"
+                       else "শব্দের শুরুতে কার চিহ্ন দিলে স্বরবর্ণে রূপান্তর করবে (া → আ)",
+                override = smartKarOverride,
+                globalActive = prefs.smartInitialKarEnabled,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    smartKarOverride = it
+                    prefs.setSmartInitialKarOverride(layout, it)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Conjunct Suggestions
+            LayoutOverrideRow(
+                title = if (isEnglish) "Conjunct Suggestions" else "যুক্তবর্ণ সাজেশন",
+                subtitle = if (isEnglish) "Show conjunct suggestions when typing Hasanta (্)"
+                       else "হসন্ত (্) চাপলে সম্ভাব্য যুক্তবর্ণের সাজেশন দেখাবে",
+                override = hasantaConjunctsOverride,
+                globalActive = prefs.hasantaConjunctsEnabled,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    hasantaConjunctsOverride = it
+                    prefs.setHasantaConjunctsOverride(layout, it)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Double-Tap for Conjuncts
+            LayoutOverrideRow(
+                title = if (isEnglish) "Double-Tap for Conjuncts" else "ডাবল ট্যাপে দ্বিত্ব বর্ণ",
+                subtitle = if (isEnglish) "Double-tap a consonant for geminates (ত → ত্ত, ব → ব্ব). Tap a 3rd time for separate letters (বলল, তত)."
+                       else "ব্যঞ্জনবর্ণে ডাবল ট্যাপে দ্বিত্ব রূপ (ত → ত্ত, ব → ব্ব)। পৃথক অক্ষরের জন্য ৩য় বার চাপুন (বলল, তত)।",
+                override = geminateOverride,
+                globalActive = prefs.geminateDoubleTapEnabled,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    geminateOverride = it
+                    prefs.setGeminateDoubleTapOverride(layout, it)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Hasanta Vibration
+            LayoutOverrideRow(
+                title = if (isEnglish) "Hasanta Vibration" else "হসন্ত ভাইব্রেশন",
+                subtitle = if (isEnglish) "Subtle vibration when Hasanta (্) is pressed"
+                       else "হসন্ত চাপলে মৃদু ভাইব্রেশন প্রদান করবে",
+                override = hasantaHapticOverride,
+                globalActive = prefs.hasantaHapticEnabled,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    hasantaHapticOverride = it
+                    prefs.setHasantaHapticOverride(layout, it)
+                }
+            )
+        }
+    }
+}
+
+/**
  * Dedicated settings dialog for Lekhani প্রবাহ (Flow) layout.
  */
 @Composable
@@ -288,6 +383,13 @@ fun ProbahoSettingsDialog(
                             }
                         }
                     }
+
+                    // Bengali Smart Input Section
+                    BengaliSmartInputSection(
+                        layout = LekhaniLayoutType.PROBAHO,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
 
                     // Layout Overrides Card
                     LayoutOverrideSection(
@@ -554,11 +656,6 @@ fun ProbhatSettingsDialog(
     isEnglish: Boolean = false,
     onDismiss: () -> Unit
 ) {
-    var probhatHasantaConjuncts by remember { mutableStateOf(prefs.probhatHasantaConjuncts) }
-    var probhatSmartInitialKar by remember { mutableStateOf(prefs.probhatSmartInitialKar) }
-    var probhatGeminateDoubleTap by remember { mutableStateOf(prefs.probhatGeminateDoubleTap) }
-    var probhatDeadKeyHaptic by remember { mutableStateOf(prefs.probhatDeadKeyHaptic) }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -606,132 +703,12 @@ fun ProbhatSettingsDialog(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            // Conjunct Suggestions
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = if (isEnglish) "Conjunct Suggestions" else "যুক্তবর্ণ সাজেশন",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "Show conjunct suggestions when typing Hasanta (্)"
-                                               else "হসন্ত (্) চাপলে সম্ভাব্য যুক্তবর্ণের সাজেশন দেখাবে",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = probhatHasantaConjuncts,
-                                    onCheckedChange = {
-                                        probhatHasantaConjuncts = it
-                                        prefs.probhatHasantaConjuncts = it
-                                    }
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-                            // Auto-Fix Initial Vowels
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = if (isEnglish) "Auto-Fix Initial Vowels" else "শুরুতে স্বরবর্ণ সংশোধন",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "Convert vowel signs at word start to full vowels (া → আ)"
-                                               else "শব্দের শুরুতে কার চিহ্ন দিলে স্বরবর্ণে রূপান্তর করবে (া → আ)",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = probhatSmartInitialKar,
-                                    onCheckedChange = {
-                                        probhatSmartInitialKar = it
-                                        prefs.probhatSmartInitialKar = it
-                                    }
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-                            // Double-Tap for Conjuncts
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = if (isEnglish) "Double-Tap for Conjuncts" else "ডাবল ট্যাপে দ্বিত্ব বর্ণ",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "Double-tap a consonant for geminates (ত → ত্ত, ব → ব্ব). Tap a 3rd time for separate letters (বলল, তত)."
-                                               else "ব্যঞ্জনবর্ণে ডাবল ট্যাপে দ্বিত্ব রূপ (ত → ত্ত, ব → ব্ব)। পৃথক অক্ষরের জন্য ৩য় বার চাপুন (বলল, তত)।",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = probhatGeminateDoubleTap,
-                                    onCheckedChange = {
-                                        probhatGeminateDoubleTap = it
-                                        prefs.probhatGeminateDoubleTap = it
-                                    }
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-                            // Hasanta Vibration
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = if (isEnglish) "Hasanta Vibration" else "হসন্ত ভাইব্রেশন",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "Subtle vibration when Hasanta is pressed"
-                                               else "হসন্ত চাপলে মৃদু ভাইব্রেশন প্রদান করবে",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = probhatDeadKeyHaptic,
-                                    onCheckedChange = {
-                                        probhatDeadKeyHaptic = it
-                                        prefs.probhatDeadKeyHaptic = it
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    // Bengali Smart Input Overrides
+                    BengaliSmartInputSection(
+                        layout = LekhaniLayoutType.PROBHAT,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
 
                     // Layout Overrides Card
                     LayoutOverrideSection(
@@ -873,6 +850,13 @@ fun NationalSettingsDialog(
                         }
                     }
 
+                    // Bengali Smart Input Section
+                    BengaliSmartInputSection(
+                        layout = LekhaniLayoutType.NATIONAL,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
+
                     // Layout Overrides Card
                     LayoutOverrideSection(
                         layout = LekhaniLayoutType.NATIONAL,
@@ -982,6 +966,13 @@ fun GboardSettingsDialog(
                             }
                         }
                     }
+
+                    // Bengali Smart Input (Layout Overrides)
+                    BengaliSmartInputSection(
+                        layout = LekhaniLayoutType.GBOARD,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
 
                     // Layout Specific Overrides
                     LayoutOverrideSection(
