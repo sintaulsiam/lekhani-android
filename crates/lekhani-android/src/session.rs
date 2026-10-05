@@ -119,6 +119,46 @@ pub fn clear_candidate_memory() {
     }
 }
 
+/// Phase 4 — Online Perceptron Feedback Loop.
+///
+/// Called by Kotlin's `onCandidateSelected()` when the user taps a non-top candidate
+/// (i.e. `selectedIndex > 0`). Uses the `RankFeatures` stored from the most recent
+/// `suggest_with_multi_context()` call to perform a single online perceptron weight
+/// update: features of the chosen candidate are up-weighted, features of the top
+/// (rejected) candidate are down-weighted.
+///
+/// After ~10–20 explicit corrections the ranking weights converge to the user's
+/// personal homophone preferences — 100% on-device, persisted in `user_learned.bin`.
+///
+/// # Arguments
+/// * `chosen_index`   — strip index the user actually tapped (>0 to have any effect)
+/// * `rejected_index` — strip index of the candidate that was demoted (typically 0)
+/// * `eta`            — learning rate; pass 0 to use the default safe rate (20.0)
+#[uniffi::export]
+pub fn update_ranking_from_selection(chosen_index: u32, rejected_index: u32, eta: f32) {
+    if chosen_index == rejected_index {
+        return;
+    }
+    let sugg_mutex = get_phonetic_suggestion();
+    let features = {
+        let sugg = match sugg_mutex.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        sugg.get_last_computed_features().to_vec()
+    };
+    let chosen = features.get(chosen_index as usize).copied();
+    let rejected = features.get(rejected_index as usize).copied();
+    if let (Some(c), Some(r)) = (chosen, rejected) {
+        let db = get_core_database();
+        if let Ok(mut learner) = db.learner.write() {
+            let effective_eta = if eta <= 0.0 { 20.0 } else { eta };
+            learner.rank_weights.update_online(&c, &r, effective_eta);
+            learner.dirty = true;
+        }
+    }
+}
+
 pub fn get_custom_dict_dir() -> Option<String> {
     CUSTOM_DICT_DIR.read().ok().and_then(|lock| lock.clone())
 }
@@ -2311,10 +2351,12 @@ impl AndroidLekhaniSession {
                         }
                     }
                     candidates.first().map(|s| s.as_str()).unwrap_or(&raw)
+                } else if let Some(top) = candidates.first() {
+                    top.as_str()
                 } else if !preedit.is_empty() {
                     &preedit
                 } else {
-                    candidates.first().map(|s| s.as_str()).unwrap_or(&raw)
+                    &raw
                 };
                 nfc_normalize(chosen)
             } else {
@@ -2461,8 +2503,32 @@ impl AndroidLekhaniSession {
             && state.auto_learn_enabled
             && state.layout != LekhaniLayoutType::English
         {
+            let sugg_mutex = get_phonetic_suggestion();
+            let (chosen_feat, rejected_feat) = {
+                let sugg = match sugg_mutex.lock() {
+                    Ok(g) => g,
+                    Err(p) => p.into_inner(),
+                };
+                let last_cands = sugg.get_last_computed_candidates();
+                let last_feats = sugg.get_last_computed_features();
+                let chosen_idx = last_cands.iter().position(|c| c == &normalized);
+                if let Some(idx) = chosen_idx {
+                    if idx > 0 {
+                        (last_feats.get(idx).copied(), last_feats.first().copied())
+                    } else {
+                        (None, None)
+                    }
+                } else {
+                    (None, None)
+                }
+            };
+
             let db = get_core_database();
             if let Ok(mut learner) = db.learner.write() {
+                if let (Some(c), Some(r)) = (chosen_feat, rejected_feat) {
+                    learner.rank_weights.update_online(&c, &r, 20.0);
+                    learner.dirty = true;
+                }
                 // Only record candidate selection overrides for inputs > 2 characters
                 // and non-ASCII candidates to prevent Latin/English selections from poisoning Bengali phonetic memory!
                 if typed_buffer.chars().count() > 2

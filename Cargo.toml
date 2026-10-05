@@ -35,11 +35,11 @@ lekhani-neural = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = 
 # Uncomment the block below (and comment the git deps above) when you are
 # actively editing lekhani-engine at the same time as this repo:
 #
-# [patch."https://github.com/sintaulsiam/lekhani-engine"]
-# lekhani-parser = { path = "/mnt/data/lekhani-engine/lekhani-parser" }
-# lekhani-core   = { path = "/mnt/data/lekhani-engine/lekhani-core" }
-# lekhani-ai     = { path = "/mnt/data/lekhani-engine/lekhani-ai" }
-# lekhani-neural = { path = "/mnt/data/lekhani-engine/lekhani-neural" }
+[patch."https://github.com/sintaulsiam/lekhani-engine"]
+lekhani-parser = { path = "/mnt/data/lekhani-engine/lekhani-parser" }
+lekhani-core   = { path = "/mnt/data/lekhani-engine/lekhani-core" }
+lekhani-ai     = { path = "/mnt/data/lekhani-engine/lekhani-ai" }
+lekhani-neural = { path = "/mnt/data/lekhani-engine/lekhani-neural" }
 
 [profile.dev]
 debug = 1
