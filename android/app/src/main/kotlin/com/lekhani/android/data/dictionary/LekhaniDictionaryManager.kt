@@ -307,4 +307,83 @@ class LekhaniDictionaryManager(
             false
         }
     }
+
+    /**
+     * Load bundled system autocorrect rules for reference / viewing.
+     */
+    fun getSystemAutocorrectRules(context: Context): Map<String, String> {
+        return try {
+            val file = java.io.File(context.filesDir, "dictionaries/autocorrect.json")
+            val content = if (file.exists()) {
+                file.readText(Charsets.UTF_8)
+            } else {
+                context.assets.open("dictionaries/autocorrect.json").use {
+                    it.bufferedReader(Charsets.UTF_8).readText()
+                }
+            }
+            val json = org.json.JSONObject(content)
+            val result = mutableMapOf<String, String>()
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                val v = json.optString(k, "")
+                if (k.isNotEmpty() && v.isNotEmpty()) {
+                    result[k] = v
+                }
+            }
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading system autocorrect rules: $e")
+            emptyMap()
+        }
+    }
+
+    /**
+     * Sanitizes user_autocorrect.json and the session's user autocorrect map,
+     * removing any bundled system autocorrect rules that were mistakenly injected into user space.
+     */
+    fun sanitizeUserAutocorrect(context: Context) {
+        try {
+            val acFile = java.io.File(context.filesDir, "user_autocorrect.json")
+            if (!acFile.exists()) return
+
+            val content = acFile.readText(Charsets.UTF_8).trim()
+            if (content.isEmpty() || !content.startsWith("{")) return
+
+            val userJson = org.json.JSONObject(content)
+            val sysRules = getSystemAutocorrectRules(context)
+            if (sysRules.isEmpty()) return
+
+            var contaminated = false
+            val cleanMap = mutableMapOf<String, String>()
+            val keys = userJson.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                val v = userJson.optString(k, "")
+                if (sysRules[k] == v) {
+                    // Contaminated by bundled system rules!
+                    contaminated = true
+                } else if (k.isNotEmpty() && v.isNotEmpty()) {
+                    cleanMap[k] = v
+                }
+            }
+
+            if (contaminated) {
+                Log.i(TAG, "Sanitizing user_autocorrect.json: pruned system rules, keeping ${cleanMap.size} custom shortcuts.")
+                val newJson = org.json.JSONObject()
+                for ((k, v) in cleanMap) {
+                    newJson.put(k, v)
+                }
+                acFile.writeText(newJson.toString(2), Charsets.UTF_8)
+
+                // Refresh in-memory session rules
+                session.clearAutocorrectRules()
+                for ((k, v) in cleanMap) {
+                    session.addAutocorrectRule(k, v)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sanitizing user autocorrect: $e")
+        }
+    }
 }

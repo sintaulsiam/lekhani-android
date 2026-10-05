@@ -68,6 +68,9 @@ import androidx.compose.material.icons.filled.Tune
 import com.lekhani.android.ui.preferences.ProbahoSettingsDialog
 import com.lekhani.android.ui.preferences.AvroSettingsDialog
 import com.lekhani.android.ui.preferences.ProbhatSettingsDialog
+import com.lekhani.android.ui.preferences.NationalSettingsDialog
+import com.lekhani.android.ui.preferences.GboardSettingsDialog
+import com.lekhani.android.ui.preferences.EnglishSettingsDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -146,10 +149,12 @@ class LekhaniSettingsActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_OPEN_CLIPBOARD = "open_clipboard"
+        const val EXTRA_OPEN_DICTIONARY = "open_dictionary"
         const val EXTRA_TAB_INDEX = "tab_index"
     }
 
     private val requestedTabState = mutableStateOf(0)
+    private val requestedOpenDictionaryState = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -163,10 +168,14 @@ class LekhaniSettingsActivity : ComponentActivity() {
             intent?.getIntExtra(EXTRA_TAB_INDEX, 0) ?: 0
         }
         requestedTabState.value = startTab
+        if (intent?.getBooleanExtra(EXTRA_OPEN_DICTIONARY, false) == true) {
+            requestedOpenDictionaryState.value = true
+        }
 
         setContent {
             val context = LocalContext.current
             val currentTab by requestedTabState
+            val openDictionaryReq by requestedOpenDictionaryState
             val keyboardPrefs = remember { KeyboardPreferences.get(context) }
             var currentThemeId by remember { mutableStateOf(keyboardPrefs.themeId) }
             var currentAppThemeMode by remember { mutableStateOf(keyboardPrefs.appThemeMode) }
@@ -179,6 +188,7 @@ class LekhaniSettingsActivity : ComponentActivity() {
                 ) {
                     LekhaniSettingsScreen(
                         initialTab = currentTab,
+                        initialOpenDictionary = openDictionaryReq,
                         onThemeChanged = { newThemeId ->
                             currentThemeId = newThemeId
                         },
@@ -215,6 +225,9 @@ class LekhaniSettingsActivity : ComponentActivity() {
         if (tab != null) {
             requestedTabState.value = tab
         }
+        if (intent.getBooleanExtra(EXTRA_OPEN_DICTIONARY, false)) {
+            requestedOpenDictionaryState.value = true
+        }
     }
 
 
@@ -223,6 +236,7 @@ class LekhaniSettingsActivity : ComponentActivity() {
 @Composable
 fun LekhaniSettingsScreen(
     initialTab: Int = 0,
+    initialOpenDictionary: Boolean = false,
     onThemeChanged: (String) -> Unit = {},
     onAppThemeModeChanged: (KeyboardPreferences.AppThemeMode) -> Unit = {},
     onOpenImeSettings: () -> Unit = {},
@@ -250,13 +264,28 @@ fun LekhaniSettingsScreen(
     }
 
     val keyboardPrefs = remember { KeyboardPreferences.get(context) }
-    val dictManager = remember { LekhaniDictionaryManager() }
+    val dictManager = remember {
+        val dm = LekhaniDictionaryManager()
+        dm.sanitizeUserAutocorrect(context)
+        val userAc = java.io.File(context.filesDir, "user_autocorrect.json")
+        if (userAc.exists()) {
+            dm.loadAutocorrect(userAc.absolutePath)
+        }
+        val userLearned = java.io.File(context.filesDir, "user_learned.bin")
+        if (userLearned.exists()) {
+            dm.loadLearned(userLearned.absolutePath)
+        }
+        dm
+    }
     val clipboardStore = remember { LekhaniClipboardStore(context) }
 
     var uiLanguage by remember { mutableStateOf(keyboardPrefs.uiLanguage) }
     val isEnglish = uiLanguage == "en"
 
-    var showDictionarySheet by remember { mutableStateOf(false) }
+    var showDictionarySheet by remember { mutableStateOf(initialOpenDictionary) }
+    LaunchedEffect(initialOpenDictionary) {
+        if (initialOpenDictionary) showDictionarySheet = true
+    }
     var showToolbarSheet by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLayoutFlowScreen by remember { mutableStateOf(false) }
@@ -621,24 +650,38 @@ fun LekhaniSettingsScreen(
         }
     }
 
-    if (selectedLayoutConfig == LekhaniLayoutType.PROBAHO) {
-        ProbahoSettingsDialog(
+    when (selectedLayoutConfig) {
+        LekhaniLayoutType.PROBAHO -> ProbahoSettingsDialog(
             prefs = keyboardPrefs,
             isEnglish = isEnglish,
             onDismiss = { selectedLayoutConfig = null }
         )
-    } else if (selectedLayoutConfig == LekhaniLayoutType.AVRO) {
-        AvroSettingsDialog(
+        LekhaniLayoutType.AVRO -> AvroSettingsDialog(
             prefs = keyboardPrefs,
             isEnglish = isEnglish,
             onDismiss = { selectedLayoutConfig = null }
         )
-    } else if (selectedLayoutConfig == LekhaniLayoutType.PROBHAT) {
-        ProbhatSettingsDialog(
+        LekhaniLayoutType.PROBHAT -> ProbhatSettingsDialog(
             prefs = keyboardPrefs,
             isEnglish = isEnglish,
             onDismiss = { selectedLayoutConfig = null }
         )
+        LekhaniLayoutType.NATIONAL -> NationalSettingsDialog(
+            prefs = keyboardPrefs,
+            isEnglish = isEnglish,
+            onDismiss = { selectedLayoutConfig = null }
+        )
+        LekhaniLayoutType.GBOARD -> GboardSettingsDialog(
+            prefs = keyboardPrefs,
+            isEnglish = isEnglish,
+            onDismiss = { selectedLayoutConfig = null }
+        )
+        LekhaniLayoutType.ENGLISH -> EnglishSettingsDialog(
+            prefs = keyboardPrefs,
+            isEnglish = isEnglish,
+            onDismiss = { selectedLayoutConfig = null }
+        )
+        null -> Unit
     }
     }
 }
@@ -1078,20 +1121,18 @@ private fun LayoutsTabContent(
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (type == LekhaniLayoutType.PROBAHO || type == LekhaniLayoutType.AVRO || type == LekhaniLayoutType.PROBHAT) {
-                                    IconButton(
-                                        onClick = { onOpenLayoutConfig(type) },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Settings,
-                                            contentDescription = if (isEnglish) "Settings for $title" else "$title সেটিংস",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(19.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { onOpenLayoutConfig(type) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Settings,
+                                        contentDescription = if (isEnglish) "Settings for $title" else "$title সেটিংস",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(19.dp)
+                                    )
                                 }
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Switch(
                                     checked = isChecked,
                                     enabled = !isChecked || enabledLayouts.size > 1,

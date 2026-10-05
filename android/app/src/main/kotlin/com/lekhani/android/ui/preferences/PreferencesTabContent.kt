@@ -1,8 +1,10 @@
 package com.lekhani.android.ui.preferences
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.BrightnessAuto
@@ -162,6 +165,7 @@ fun PreferencesTabContent(
     }
 
     val userWordsCount = remember { dictManager.getUserWords().size }
+    val autocorrectCount = remember { dictManager.getAutocorrectRules().size }
 
     val powerManager = remember { context.getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager }
     val isIgnoringBattery by remember {
@@ -180,6 +184,9 @@ fun PreferencesTabContent(
         if (query.isBlank()) return true
         return terms.any { it.contains(query, ignoreCase = true) }
     }
+
+    val showDictionaryQuickCard = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.TOOLS) &&
+            matchesSearch("dictionary", "vocabulary", "shortcut", "autocorrect", "personal", "শব্দকোষ", "ডিকশনারি", "শর্টকাট", "নিয়ম", "কাস্টম শব্দ")
 
     val showAppearance = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.DISPLAY) &&
             matchesSearch("app appearance", "theme mode", "dark", "light", "system", "sync keyboard", "অ্যাপিয়ারেন্স", "থিম", "ডার্ক", "লাইট")
@@ -205,7 +212,7 @@ fun PreferencesTabContent(
     val showPrivacy = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.TOOLS) &&
             matchesSearch("privacy", "battery", "offline", "about", "telemetry", "নিরাপত্তা", "ব্যাটারি", "অফলাইন", "পরিচিতি")
 
-    val anyCardShown = showAppearance || showTyping || showGestures || showDisplay || showSound || showFormFactor || showTools || showPrivacy
+    val anyCardShown = showDictionaryQuickCard || showAppearance || showTyping || showGestures || showDisplay || showSound || showFormFactor || showTools || showPrivacy
 
     Column(
         modifier = modifier
@@ -313,6 +320,66 @@ fun PreferencesTabContent(
                     )
                     TextButton(onClick = { searchQuery = ""; selectedCategory = PrefCategory.ALL }) {
                         Text(if (isEnglish) "Reset Search" else "অনুসন্ধান রিসেট করুন")
+                    }
+                }
+            }
+        }
+
+        // ── Quick Access: Personal Dictionary & Shortcuts ───────────────────
+        if (showDictionaryQuickCard) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenDictionaryManager() },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEnglish) "Personal Dictionary & Shortcuts" else "ব্যক্তিগত শব্দকোষ ও শর্টকাট",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isEnglish)
+                                "$userWordsCount custom words • $autocorrectCount shortcuts"
+                            else
+                                "$userWordsCount টি কাস্টম শব্দ • $autocorrectCount টি শর্টকাট",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    FilledTonalButton(
+                        onClick = onOpenDictionaryManager,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(if (isEnglish) "Open" else "খুলুন", fontSize = 12.sp)
                     }
                 }
             }

@@ -10,16 +10,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Transform
@@ -31,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
@@ -52,6 +57,7 @@ fun DictionaryManagementSheet(
 ) {
     val context = LocalContext.current
     val acFile = remember { File(context.filesDir, "user_autocorrect.json") }
+    val learnedFile = remember { File(context.filesDir, "user_learned.bin") }
 
     var selectedSubTab by remember { mutableIntStateOf(0) }
 
@@ -65,6 +71,8 @@ fun DictionaryManagementSheet(
 
     // Tab 1: Autocorrect / Shortcuts
     var autocorrectRules by remember { mutableStateOf(dictManager.getAutocorrectRules()) }
+    val systemRules = remember { dictManager.getSystemAutocorrectRules(context) }
+    var shortcutSubTab by remember { mutableIntStateOf(0) } // 0 = My Shortcuts, 1 = Built-in Typo Rules
     var showAddRuleDialog by remember { mutableStateOf(false) }
     var newTriggerInput by remember { mutableStateOf("") }
     var newReplacementInput by remember { mutableStateOf("") }
@@ -79,6 +87,7 @@ fun DictionaryManagementSheet(
     ) { uri ->
         if (uri != null) {
             val (count, message) = dictManager.importFromUri(context, uri)
+            dictManager.saveLearned(learnedFile.absolutePath)
             userWords = dictManager.getUserWords()
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
@@ -98,6 +107,17 @@ fun DictionaryManagementSheet(
         } else {
             val q = searchQuery.trim().lowercase()
             autocorrectRules.filter { (k, v) ->
+                k.lowercase().contains(q) || v.lowercase().contains(q)
+            }.toList()
+        }
+    }
+
+    val filteredSystemRules = remember(searchQuery, systemRules) {
+        if (searchQuery.isBlank()) {
+            systemRules.toList()
+        } else {
+            val q = searchQuery.trim().lowercase()
+            systemRules.filter { (k, v) ->
                 k.lowercase().contains(q) || v.lowercase().contains(q)
             }.toList()
         }
@@ -133,6 +153,7 @@ fun DictionaryManagementSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .padding(horizontal = 16.dp)
         ) {
             // ── Primary Category Tabs ──────────────────────────────────────────
@@ -192,7 +213,20 @@ fun DictionaryManagementSheet(
                             modifier = Modifier.weight(1f),
                             placeholder = { Text(if (isEnglish) "Add new word..." else "নতুন শব্দ লিখুন...") },
                             singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    val word = newWordInput.trim()
+                                    if (word.length >= 2) {
+                                        dictManager.addUserWord(word)
+                                        dictManager.saveLearned(learnedFile.absolutePath)
+                                        userWords = dictManager.getUserWords()
+                                        newWordInput = ""
+                                        Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
@@ -200,13 +234,14 @@ fun DictionaryManagementSheet(
                                 val word = newWordInput.trim()
                                 if (word.length >= 2) {
                                     dictManager.addUserWord(word)
+                                    dictManager.saveLearned(learnedFile.absolutePath)
                                     userWords = dictManager.getUserWords()
                                     newWordInput = ""
                                     Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00A87E))
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                         ) {
                             Icon(Icons.Default.Add, contentDescription = if (isEnglish) "Add" else "যোগ")
                             Spacer(modifier = Modifier.width(4.dp))
@@ -311,13 +346,13 @@ fun DictionaryManagementSheet(
                                         modifier = Modifier
                                             .size(56.dp)
                                             .clip(RoundedCornerShape(16.dp))
-                                            .background(Color(0xFF00E5B8).copy(alpha = 0.12f)),
+                                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.MenuBook,
                                             contentDescription = "Dictionary",
-                                            tint = Color(0xFF00E5B8),
+                                            tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(28.dp)
                                         )
                                     }
@@ -380,6 +415,7 @@ fun DictionaryManagementSheet(
                                         IconButton(
                                             onClick = {
                                                 dictManager.deleteUserWord(word)
+                                                dictManager.saveLearned(learnedFile.absolutePath)
                                                 userWords = dictManager.getUserWords()
                                                 Toast.makeText(context, if (isEnglish) "'$word' deleted" else "'$word' মুছে ফেলা হয়েছে", Toast.LENGTH_SHORT).show()
                                             },
@@ -400,6 +436,42 @@ fun DictionaryManagementSheet(
 
                 // ── TAB 1: Text Replacements & Auto-Correct Rules ───────────────
                 1 -> {
+                    // Filter Chips: My Shortcuts vs Built-in Typo Rules
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = shortcutSubTab == 0,
+                            onClick = { shortcutSubTab = 0 },
+                            label = {
+                                Text(
+                                    if (isEnglish) "My Shortcuts (${autocorrectRules.size})"
+                                    else "আমার শর্টকাট (${autocorrectRules.size})"
+                                )
+                            },
+                            leadingIcon = if (shortcutSubTab == 0) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            } else null
+                        )
+                        FilterChip(
+                            selected = shortcutSubTab == 1,
+                            onClick = { shortcutSubTab = 1 },
+                            label = {
+                                Text(
+                                    if (isEnglish) "Built-in Typo Rules (${systemRules.size})"
+                                    else "বিল্ট-ইন সংশোধন (${systemRules.size})"
+                                )
+                            },
+                            leadingIcon = if (shortcutSubTab == 1) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            } else null
+                        )
+                    }
+
+                    // Search Bar & Add Button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -409,124 +481,223 @@ fun DictionaryManagementSheet(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text(if (isEnglish) "Search rules..." else "শর্টকাট বা নিয়ম খুঁজুন...") },
+                            placeholder = {
+                                Text(
+                                    if (shortcutSubTab == 0) {
+                                        if (isEnglish) "Search my shortcuts..." else "আমার শর্টকাট খুঁজুন..."
+                                    } else {
+                                        if (isEnglish) "Search built-in typo rules..." else "বিল্ট-ইন সংশোধন খুঁজুন..."
+                                    }
+                                )
+                            },
                             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = { showAddRuleDialog = true },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "New" else "নতুন")
+                        if (shortcutSubTab == 0) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = { showAddRuleDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Add")
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (isEnglish) "New" else "নতুন")
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    if (filteredRules.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .padding(horizontal = 24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                                ),
-                                modifier = Modifier.fillMaxWidth()
+                    if (shortcutSubTab == 0) {
+                        // User's custom shortcuts
+                        if (filteredRules.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(horizontal = 24.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(24.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Transform,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(36.dp)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "No Auto-Correct Rules" else "কোনো শর্টকাট নিয়ম নেই",
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                    )
-                                    Text(
-                                        text = if (isEnglish)
-                                            "Add custom text replacements like 'omw' ➔ 'On my way!' or 'কিবর্ড' ➔ 'কীবোর্ড'. They will auto-expand on spacebar."
-                                        else
-                                            "যেকোনো টেক্সট শর্টকাট যোগ করুন, যেমন 'omw' ➔ 'On my way!' বা 'কিবর্ড' ➔ 'কীবোর্ড'। স্পেস চাপলে এগুলো স্বয়ংক্রিয়ভাবে পরিবর্তিত হবে।",
-                                        style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Transform,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                        Text(
+                                            text = if (isEnglish) "No Custom Shortcuts Yet" else "কোনো কাস্টম শর্টকাট নেই",
+                                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        Text(
+                                            text = if (isEnglish)
+                                                "Tap '+ New' above to create custom text expansions like 'omw' ➔ 'On my way!' or 'dh' ➔ 'ধন্যবাদ'. When you type the shortcut and hit space, it expands instantly."
+                                            else
+                                                "উপরে '+ নতুন' চাপুন এবং নিজস্ব শর্টকাট তৈরি করুন, যেমন 'omw' ➔ 'On my way!' বা 'dh' ➔ 'ধন্যবাদ'। শর্টকাট লিখে স্পেস চাপলেই তা স্বয়ংক্রিয়ভাবে পরিবর্তিত হবে।",
+                                            style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(filteredRules, key = { it.first }) { (trigger, replacement) ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.weight(1f),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = trigger,
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(14.dp),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = replacement,
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                )
+                                            }
+
+                                            IconButton(
+                                                onClick = {
+                                                    dictManager.deleteAutocorrectRule(trigger)
+                                                    dictManager.saveAutocorrect(acFile.absolutePath)
+                                                    autocorrectRules = dictManager.getAutocorrectRules()
+                                                    Toast.makeText(context, if (isEnglish) "Shortcut removed" else "শর্টকাটটি মুছে ফেলা হয়েছে", Toast.LENGTH_SHORT).show()
+                                                },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Delete",
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     } else {
-                        LazyColumn(
+                        // Built-in Typo Rules (read-only)
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                .padding(bottom = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
                         ) {
-                            items(filteredRules, key = { it.first }) { (trigger, replacement) ->
-                                Card(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = if (isEnglish)
+                                        "${systemRules.size} built-in phonetic spelling corrections run automatically in the background engine. They don't clutter your personal shortcuts."
+                                    else
+                                        "${systemRules.size} টি বিল্ট-ইন ফোনেটিক বানান সংশোধন ব্যাকগ্রাউন্ড ইঞ্জিনে স্বয়ংক্রিয়ভাবে সক্রিয় থাকে। এগুলো আপনার ব্যক্তিগত শর্টকাটের সাথে মিশে বিভ্রান্তি তৈরি করে না।",
+                                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 16.sp),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        if (filteredSystemRules.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (isEnglish) "No matching built-in rules" else "কোনো মিল পাওয়া যায়নি",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                items(filteredSystemRules, key = { it.first }) { (typo, correction) ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                                     ) {
                                         Row(
-                                            modifier = Modifier.weight(1f),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = trigger,
-                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                                color = MaterialTheme.colorScheme.primary
+                                                text = typo,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Icon(
                                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(14.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                modifier = Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = replacement,
-                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                            )
-                                        }
-
-                                        IconButton(
-                                            onClick = {
-                                                dictManager.deleteAutocorrectRule(trigger)
-                                                dictManager.saveAutocorrect(acFile.absolutePath)
-                                                autocorrectRules = dictManager.getAutocorrectRules()
-                                                Toast.makeText(context, if (isEnglish) "Rule removed" else "নিয়মটি মুছে ফেলা হয়েছে", Toast.LENGTH_SHORT).show()
-                                            },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = "Delete",
-                                                tint = MaterialTheme.colorScheme.error
+                                                text = correction,
+                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
                                     }
@@ -618,7 +789,8 @@ fun DictionaryManagementSheet(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(if (isEnglish) "Shortcut / Typo (e.g. omw, কিবর্ড)" else "শর্টকাট বা ভুল শব্দ (যেমন: omw, কিবর্ড)") },
                         singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                     )
                     OutlinedTextField(
                         value = newReplacementInput,
@@ -626,7 +798,23 @@ fun DictionaryManagementSheet(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(if (isEnglish) "Replacement (e.g. On my way!, কীবোর্ড)" else "প্রতিস্থাপক শব্দ/বাক্য (যেমন: On my way!, কীবোর্ড)") },
                         singleLine = true,
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                val trig = newTriggerInput.trim()
+                                val repl = newReplacementInput.trim()
+                                if (trig.isNotEmpty() && repl.isNotEmpty()) {
+                                    dictManager.addAutocorrectRule(trig, repl)
+                                    dictManager.saveAutocorrect(acFile.absolutePath)
+                                    autocorrectRules = dictManager.getAutocorrectRules()
+                                    showAddRuleDialog = false
+                                    newTriggerInput = ""
+                                    newReplacementInput = ""
+                                    Toast.makeText(context, if (isEnglish) "Shortcut added: $trig ➔ $repl" else "শর্টকাট যোগ হয়েছে: $trig ➔ $repl", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
                     )
                 }
             },
@@ -642,7 +830,7 @@ fun DictionaryManagementSheet(
                             showAddRuleDialog = false
                             newTriggerInput = ""
                             newReplacementInput = ""
-                            Toast.makeText(context, if (isEnglish) "Rule added: $trig ➔ $repl" else "নিয়ম যোগ হয়েছে: $trig ➔ $repl", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (isEnglish) "Shortcut added: $trig ➔ $repl" else "শর্টকাট যোগ হয়েছে: $trig ➔ $repl", Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) {
@@ -687,6 +875,7 @@ fun DictionaryManagementSheet(
                 Button(
                     onClick = {
                         val count = dictManager.importRawWordList(rawImportText)
+                        dictManager.saveLearned(learnedFile.absolutePath)
                         userWords = dictManager.getUserWords()
                         showImportDialog = false
                         rawImportText = ""
@@ -721,6 +910,7 @@ fun DictionaryManagementSheet(
                 Button(
                     onClick = {
                         dictManager.clearDictionary()
+                        dictManager.saveLearned(learnedFile.absolutePath)
                         userWords = dictManager.getUserWords()
                         showClearConfirm = false
                         Toast.makeText(context, if (isEnglish) "Dictionary cleared" else "শব্দভাণ্ডার মুছে ফেলা হয়েছে", Toast.LENGTH_SHORT).show()
@@ -755,6 +945,7 @@ fun DictionaryManagementSheet(
                 Button(
                     onClick = {
                         dictManager.clearLearnedHistory()
+                        dictManager.saveLearned(learnedFile.absolutePath)
                         learnedWordsCount = dictManager.getLearnedWordsCount()
                         showClearLearnedConfirm = false
                         Toast.makeText(context, if (isEnglish) "Typing history reset" else "টাইপিং হিস্টোরি রিসেট করা হয়েছে", Toast.LENGTH_SHORT).show()

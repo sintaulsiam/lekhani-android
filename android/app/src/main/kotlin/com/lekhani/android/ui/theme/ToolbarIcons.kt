@@ -1,6 +1,7 @@
 package com.lekhani.android.ui.theme
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Height
@@ -21,6 +22,7 @@ val ToolbarTool.iconVector: ImageVector
         ToolbarTool.TEXT_EDITOR -> Icons.Filled.OpenWith
         ToolbarTool.VOICE -> Icons.Filled.Mic
         ToolbarTool.CLIPBOARD -> Icons.Filled.ContentPaste
+        ToolbarTool.DICTIONARY -> Icons.AutoMirrored.Filled.MenuBook
         ToolbarTool.NUMPAD -> Icons.Filled.Dialpad
         ToolbarTool.RESIZE -> Icons.Filled.Height
         ToolbarTool.THEME -> Icons.Filled.Palette

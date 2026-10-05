@@ -48,8 +48,6 @@ fun ProbahoSettingsDialog(
     onDismiss: () -> Unit
 ) {
     var showBilateralAura by remember { mutableStateOf(prefs.showBilateralAura) }
-    var showKeyHints by remember { mutableStateOf(prefs.showKeyHints) }
-    var swipeUpFlickEnabled by remember { mutableStateOf(prefs.swipeUpFlickEnabled) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -109,64 +107,6 @@ fun ProbahoSettingsDialog(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            // Key Hints
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = if (isEnglish) "Key Hints" else "কী সহায়িকা",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "Show shifted characters on keys"
-                                               else "কী-এর উপরে সহায়ক বর্ণ দেখাবে",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = showKeyHints,
-                                    onCheckedChange = {
-                                        showKeyHints = it
-                                        prefs.showKeyHints = it
-                                    }
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-                            // Swipe Up Flick
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = if (isEnglish) "Swipe-Up for Shift" else "উপরে সোয়াইপ করে শিফট",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "Flick key upward to type shifted letter"
-                                               else "কী-এর উপর সোয়াইপ করে শিফট বর্ণ লিখুন",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = swipeUpFlickEnabled,
-                                    onCheckedChange = {
-                                        swipeUpFlickEnabled = it
-                                        prefs.swipeUpFlickEnabled = it
-                                    }
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
                             // Bilateral Thumb Aura
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -193,6 +133,34 @@ fun ProbahoSettingsDialog(
                                     }
                                 )
                             }
+                        }
+                    }
+
+                    // Ergonomic Info Card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = if (isEnglish) "Two-Thumb Ergonomic Flow" else "দ্বি-আঙুল এরগনোমিক প্রবাহ",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = if (isEnglish)
+                                    "Lekhani প্রবাহ (Probaho) isolates vowels and matras under your left thumb while grouping high-frequency consonants under your right thumb for smooth alternate-hand typing flow.\n\nUniversal controls like Key Hints and Swipe-Up Flick are globally managed in Preferences."
+                                else
+                                    "লেখনী প্রবাহ লেআউটে স্বরবর্ণ ও কার-চিহ্ন বাম থাম্বে এবং বহুল ব্যবহৃত ব্যঞ্জনবর্ণ ডান থাম্বের আওতায় রাখা হয়েছে, যাতে উভয় হাতে ছন্দময়ভাবে দ্রুত টাইপ করা যায়।\n\nকী সহায়িকা এবং সোয়াইপ-আপ ফ্লিকের মতো সাধারণ সেটিংসগুলো মূল 'পছন্দ' ট্যাবে রয়েছে।",
+                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
@@ -450,8 +418,6 @@ fun ProbhatSettingsDialog(
     var probhatHasantaConjuncts by remember { mutableStateOf(prefs.probhatHasantaConjuncts) }
     var probhatSmartInitialKar by remember { mutableStateOf(prefs.probhatSmartInitialKar) }
     var probhatGeminateDoubleTap by remember { mutableStateOf(prefs.probhatGeminateDoubleTap) }
-    var showKeyHints by remember { mutableStateOf(prefs.showKeyHints) }
-    var swipeUpFlickEnabled by remember { mutableStateOf(prefs.swipeUpFlickEnabled) }
     var probhatDeadKeyHaptic by remember { mutableStateOf(prefs.probhatDeadKeyHaptic) }
 
     Dialog(
@@ -599,64 +565,6 @@ fun ProbhatSettingsDialog(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                            // Key Hints
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = if (isEnglish) "Key Hints" else "কী সহায়িকা",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "Show shifted characters on keys"
-                                               else "কী-এর কোণায় শিফট বর্ণ দেখাবে",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = showKeyHints,
-                                    onCheckedChange = {
-                                        showKeyHints = it
-                                        prefs.showKeyHints = it
-                                    }
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-                            // Swipe-Up Flick
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                    Text(
-                                        text = if (isEnglish) "Swipe-Up Flick" else "সোয়াইপ আপ ফ্লিক",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                                    )
-                                    Text(
-                                        text = if (isEnglish) "Swipe up on any key to quickly insert shifted character"
-                                               else "কী-তে উপরের দিকে সোয়াইপ করে দ্রুত শিফট বর্ণ লিখুন",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = swipeUpFlickEnabled,
-                                    onCheckedChange = {
-                                        swipeUpFlickEnabled = it
-                                        prefs.swipeUpFlickEnabled = it
-                                    }
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
                             // Hasanta Vibration
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -690,3 +598,373 @@ fun ProbhatSettingsDialog(
         }
     }
 }
+
+/**
+ * Dedicated settings dialog for National (জাতীয় - BBS) layout.
+ */
+@Composable
+fun NationalSettingsDialog(
+    prefs: KeyboardPreferences,
+    isEnglish: Boolean = false,
+    onDismiss: () -> Unit
+) {
+    var nationalJuktobornoAssist by remember { mutableStateOf(prefs.nationalJuktobornoAssist) }
+    var nationalNumeralsBengali by remember { mutableStateOf(prefs.nationalNumeralsBengali) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top App Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (isEnglish) "Back" else "ফিরে যান"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "National (BBS) Settings" else "জাতীয় (BBS) লেআউট সেটিংস",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = if (isEnglish) "Official BBS National layout" else "সরকারি মানসম্মত ফিক্সড লেআউট",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // Juktoborno Assist
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Juktoborno Assist" else "যুক্তবর্ণ সহায়িকা",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Show conjunct previews and suggestions when typing Hasanta (্)"
+                                               else "হসন্ত (্) চাপলে সম্ভাব্য যুক্তবর্ণের সাজেশন দেখাবে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = nationalJuktobornoAssist,
+                                    onCheckedChange = {
+                                        nationalJuktobornoAssist = it
+                                        prefs.nationalJuktobornoAssist = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Bengali Numbers in National
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Bengali Numbers (১, ২, ৩)" else "বাংলা সংখ্যা (১, ২, ৩)",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Type Bengali numbers on the number row"
+                                               else "সংখ্যা সারিতে ডিফল্টভাবে বাংলা সংখ্যা লিখবে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = nationalNumeralsBengali,
+                                    onCheckedChange = {
+                                        nationalNumeralsBengali = it
+                                        prefs.nationalNumeralsBengali = it
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dedicated settings dialog for Gboard Style layout.
+ */
+@Composable
+fun GboardSettingsDialog(
+    prefs: KeyboardPreferences,
+    isEnglish: Boolean = false,
+    onDismiss: () -> Unit
+) {
+    var gboardAlternatePopups by remember { mutableStateOf(prefs.gboardAlternatePopups) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top App Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (isEnglish) "Back" else "ফিরে যান"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "Gboard Style Settings" else "জি-বোর্ড স্টাইল সেটিংস",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = if (isEnglish) "Familiar Android Bengali layout" else "অ্যান্ড্রয়েড পরিচিত লেআউট",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // Alternate Popups
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Alternate Character Popups" else "পপআপ সহায়িকা বর্ণ",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Show extended vowel & consonant alternatives on long-press"
+                                               else "কী-তে লং-প্রেস করলে সম্পর্কিত বর্ণ ও চিহ্ন দেখাবে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = gboardAlternatePopups,
+                                    onCheckedChange = {
+                                        gboardAlternatePopups = it
+                                        prefs.gboardAlternatePopups = it
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dedicated settings dialog for English (QWERTY) layout.
+ */
+@Composable
+fun EnglishSettingsDialog(
+    prefs: KeyboardPreferences,
+    isEnglish: Boolean = false,
+    onDismiss: () -> Unit
+) {
+    var englishAutoCapitalize by remember { mutableStateOf(prefs.englishAutoCapitalize) }
+    var englishPredictiveSuggestions by remember { mutableStateOf(prefs.englishPredictiveSuggestions) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top App Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = if (isEnglish) "Back" else "ফিরে যান"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (isEnglish) "English (QWERTY) Settings" else "ইংরেজি (QWERTY) সেটিংস",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = if (isEnglish) "Alphanumeric & password entry" else "ইংরেজি টাইপিং ও টেক্সট এন্ট্রি",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // Auto-Capitalization
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Auto-Capitalization" else "স্বয়ংক্রিয় ক্যাপিটালাইজেশন",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Capitalize the first letter of each sentence automatically"
+                                               else "প্রতিটি বাক্যের প্রথম অক্ষর স্বয়ংক্রিয়ভাবে বড় হাতের করবে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = englishAutoCapitalize,
+                                    onCheckedChange = {
+                                        englishAutoCapitalize = it
+                                        prefs.englishAutoCapitalize = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Predictive Suggestions
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Predictive Suggestions" else "শব্দ সাজেশন্স",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Show next-word predictions and completions while typing English"
+                                               else "ইংরেজি লেখার সময় পরবর্তী সম্ভাব্য শব্দ ও সাজেশন দেখাবে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = englishPredictiveSuggestions,
+                                    onCheckedChange = {
+                                        englishPredictiveSuggestions = it
+                                        prefs.englishPredictiveSuggestions = it
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

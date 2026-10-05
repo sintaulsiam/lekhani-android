@@ -42,6 +42,7 @@ import com.lekhani.android.data.avro.AvroReverseTransliterator
 import com.lekhani.android.data.avro.AvroWordHistory
 import com.lekhani.android.data.clipboard.LekhaniClipboardStore
 import com.lekhani.android.data.dictionary.LekhaniAssetInstaller
+import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
 import com.lekhani.android.data.emoji.EmojiData
 import com.lekhani.android.data.emoji.EmojiRecentsManager
 import com.lekhani.android.data.settings.KeyboardPreferences
@@ -324,11 +325,10 @@ class LekhaniInputMethodService : InputMethodService() {
                     val ok = session.loadUserLearned(f.absolutePath)
                     Log.i(TAG, "User learned dictionary loaded ($ok): ${f.absolutePath}")
                 }
-                val sysAcFile = File(filesDir, "dictionaries/autocorrect.json")
-                if (sysAcFile.exists()) {
-                    val ok = session.loadUserAutocorrect(sysAcFile.absolutePath)
-                    Log.i(TAG, "Bundled system autocorrect rules loaded ($ok): ${sysAcFile.absolutePath}")
-                }
+                // Sanitize user_autocorrect.json so bundled system rules never pollute user shortcuts
+                val dictMgr = LekhaniDictionaryManager(session)
+                dictMgr.sanitizeUserAutocorrect(this@LekhaniInputMethodService)
+
                 val acFile = File(filesDir, "user_autocorrect.json")
                 if (acFile.exists()) {
                     val ok = session.loadUserAutocorrect(acFile.absolutePath)
@@ -3305,6 +3305,10 @@ class LekhaniInputMethodService : InputMethodService() {
             scheduleUndoExpiry()
         }
         val isEngLayout = session.getLayout() == LekhaniLayoutType.ENGLISH
+        if (isEngLayout && !keyboardPrefs.englishPredictiveSuggestions) {
+            clearCandidates()
+            return
+        }
         val filtered = raw.filter { cand ->
             !blacklist.isBlacklisted(cand) &&
             (!isEngLayout || cand.all { it.code < 128 } || EmojiData.isEmoji(cand) || cand.startsWith("="))
@@ -3498,6 +3502,13 @@ class LekhaniInputMethodService : InputMethodService() {
                     KeyboardPreferences.FormFactor.SPLIT
                 }
                 setFormFactor(nextForm)
+            }
+            KeyboardPreferences.ToolbarTool.DICTIONARY -> {
+                val intent = Intent(this, LekhaniSettingsActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    putExtra(LekhaniSettingsActivity.EXTRA_OPEN_DICTIONARY, true)
+                }
+                startActivity(intent)
             }
             KeyboardPreferences.ToolbarTool.SETTINGS -> {
                 val intent = Intent(this, LekhaniSettingsActivity::class.java).apply {
@@ -4062,6 +4073,10 @@ class LekhaniInputMethodService : InputMethodService() {
     fun updateAutoCaps() {
         if (session.getLayout() != LekhaniLayoutType.ENGLISH) return
         val kv = keyboardView ?: return
+        if (!keyboardPrefs.englishAutoCapitalize) {
+            if (!kv.isShiftLocked) kv.setShifted(false)
+            return
+        }
         if (kv.isShiftLocked) return
         val ic = currentInputConnection ?: return
         val info = currentInputEditorInfo ?: return

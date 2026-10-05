@@ -132,6 +132,29 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_PROBHAT_DEAD_KEY_HAPTIC, true)
         set(value) = prefs.edit().putBoolean(KEY_PROBHAT_DEAD_KEY_HAPTIC, value).apply()
 
+    // ── National (BBS) Layout Preferences ─────────────────────────────────
+    var nationalJuktobornoAssist: Boolean
+        get() = prefs.getBoolean(KEY_NATIONAL_JUKTOBORNO_ASSIST, true)
+        set(value) = prefs.edit().putBoolean(KEY_NATIONAL_JUKTOBORNO_ASSIST, value).apply()
+
+    var nationalNumeralsBengali: Boolean
+        get() = prefs.getBoolean(KEY_NATIONAL_NUMERALS_BENGALI, true)
+        set(value) = prefs.edit().putBoolean(KEY_NATIONAL_NUMERALS_BENGALI, value).apply()
+
+    // ── Gboard Style Layout Preferences ──────────────────────────────────
+    var gboardAlternatePopups: Boolean
+        get() = prefs.getBoolean(KEY_GBOARD_ALTERNATE_POPUPS, true)
+        set(value) = prefs.edit().putBoolean(KEY_GBOARD_ALTERNATE_POPUPS, value).apply()
+
+    // ── English Layout Preferences ────────────────────────────────────────
+    var englishAutoCapitalize: Boolean
+        get() = prefs.getBoolean(KEY_ENGLISH_AUTO_CAPITALIZE, true)
+        set(value) = prefs.edit().putBoolean(KEY_ENGLISH_AUTO_CAPITALIZE, value).apply()
+
+    var englishPredictiveSuggestions: Boolean
+        get() = prefs.getBoolean(KEY_ENGLISH_PREDICTIVE_SUGGESTIONS, true)
+        set(value) = prefs.edit().putBoolean(KEY_ENGLISH_PREDICTIVE_SUGGESTIONS, value).apply()
+
     var uiLanguage: String
         get() = prefs.getString(KEY_UI_LANGUAGE, null)
             ?: if (java.util.Locale.getDefault().language == "bn") "bn" else "en"
@@ -351,6 +374,7 @@ class KeyboardPreferences private constructor(context: Context) {
         TEXT_EDITOR("এডিটর", "Editor"),
         VOICE("ভয়েস", "Voice"),
         CLIPBOARD("ক্লিপবোর্ড", "Clipboard"),
+        DICTIONARY("শব্দকোষ", "Dictionary"),
         NUMPAD("নম্বর প্যাড", "Numpad"),
         RESIZE("উচ্চতা", "Height"),
         THEME("থিম", "Theme"),
@@ -417,6 +441,12 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_PROBHAT_SMART_INITIAL_KAR = "probhat_smart_initial_kar"
         const val KEY_PROBHAT_GEMINATE_DOUBLE_TAP = "probhat_geminate_double_tap"
         const val KEY_PROBHAT_DEAD_KEY_HAPTIC = "probhat_dead_key_haptic"
+
+        const val KEY_NATIONAL_JUKTOBORNO_ASSIST = "national_juktoborno_assist"
+        const val KEY_NATIONAL_NUMERALS_BENGALI = "national_numerals_bengali"
+        const val KEY_GBOARD_ALTERNATE_POPUPS = "gboard_alternate_popups"
+        const val KEY_ENGLISH_AUTO_CAPITALIZE = "english_auto_capitalize"
+        const val KEY_ENGLISH_PREDICTIVE_SUGGESTIONS = "english_predictive_suggestions"
 
         const val KEY_HAPTIC_ENABLED = "haptic_enabled"
         const val KEY_HAPTIC_DURATION_MS = "haptic_duration_ms"
