@@ -403,6 +403,12 @@ struct SessionState {
     last_commit_info: Option<(Option<String>, String, std::time::Instant)>,
     /// Bivariate Gaussian spatial touch model for fat-finger correction
     spatial_model: crate::spatial::SpatialTouchModel,
+    /// Whether initial Kar auto-promotion and post-consonant demotion is enabled
+    smart_initial_kar_enabled: bool,
+    /// Whether geminate consonant double-tap shortcut is enabled
+    geminate_double_tap_enabled: bool,
+    /// Whether Hasanta ligature quick-picks are enabled
+    hasanta_conjuncts_enabled: bool,
 }
 
 impl SessionState {
@@ -549,6 +555,9 @@ impl AndroidLekhaniSession {
                 auto_learn_enabled: true,
                 last_commit_info: None,
                 spatial_model: crate::spatial::SpatialTouchModel::new(),
+                smart_initial_kar_enabled: true,
+                geminate_double_tap_enabled: true,
+                hasanta_conjuncts_enabled: true,
             }),
         }
 
@@ -571,6 +580,28 @@ impl AndroidLekhaniSession {
             .lock()
             .map(|s| s.layout)
             .unwrap_or(LekhaniLayoutType::Probaho)
+    }
+
+    /// Enable or disable auto-promotion of word-initial vowel signs (e.g. া -> আ)
+    /// and post-consonant demotion (e.g. ক + আ -> কা).
+    pub fn set_smart_initial_kar_enabled(&self, enabled: bool) {
+        if let Ok(mut state) = self.state.lock() {
+            state.smart_initial_kar_enabled = enabled;
+        }
+    }
+
+    /// Enable or disable double-tap consonant gemination (e.g. ত + ত -> ত্ত).
+    pub fn set_geminate_double_tap_enabled(&self, enabled: bool) {
+        if let Ok(mut state) = self.state.lock() {
+            state.geminate_double_tap_enabled = enabled;
+        }
+    }
+
+    /// Enable or disable dynamic conjunct suggestions on Hasanta (`্`).
+    pub fn set_hasanta_conjuncts_enabled(&self, enabled: bool) {
+        if let Ok(mut state) = self.state.lock() {
+            state.hasanta_conjuncts_enabled = enabled;
+        }
     }
 
     // ── Privacy / incognito policy ───────────────────────────────────────────
@@ -885,8 +916,16 @@ impl AndroidLekhaniSession {
                 } else {
                     (true, false, false)
                 };
-                let promoted = promote_kar_if_needed(&key, is_start || last_is_vowel);
-                let transformed = demote_vowel_to_kar_if_preceded_by_consonant(&promoted, last_is_consonant);
+                let promoted = if state.smart_initial_kar_enabled {
+                    promote_kar_if_needed(&key, is_start || last_is_vowel)
+                } else {
+                    key.clone()
+                };
+                let transformed = if state.smart_initial_kar_enabled {
+                    demote_vowel_to_kar_if_preceded_by_consonant(&promoted, last_is_consonant)
+                } else {
+                    promoted.clone()
+                };
 
                 // 1. Double-Kar Collision Prevention:
                 // If composing buffer already ends in a Kar on a consonant and user types another Kar,
@@ -902,7 +941,8 @@ impl AndroidLekhaniSession {
                 // 2. Geminate Consonant Double-Tap Shortcut:
                 // If buffer ends in the same consonant `c` (and not preceded by Hasanta `্`),
                 // typing `c` again automatically inserts `্` + `c` forming the geminate (e.g. উ + ত + ত -> উত্তর).
-                else if key.chars().count() == 1
+                else if state.geminate_double_tap_enabled
+                    && key.chars().count() == 1
                     && last_ch.is_some_and(|c| key.starts_with(c) && is_bengali_consonant_or_modifier(c) && c != '্' && c != 'ৎ' && c != 'ড়' && c != 'ঢ়' && c != 'য়')
                     && (chars.len() < 2 || chars[chars.len() - 2] != '্')
                 {
@@ -919,7 +959,7 @@ impl AndroidLekhaniSession {
                 // We use codepoints here (not graphemes) because the Unicode
                 // segmentation algorithm immediately merges `ক` + `্` into a
                 // single grapheme cluster.
-                if promoted == "্" {
+                if state.hasanta_conjuncts_enabled && (promoted == "্" || key == "্") {
                     let chars: Vec<char> = state.composing_buffer.chars().collect();
                     let hasanta_pos = chars.len().wrapping_sub(1);
                     if hasanta_pos > 0 {
@@ -2928,6 +2968,51 @@ mod tests {
         session.process_key("ক".into()).unwrap();
         let res = session.process_key("আ".into()).unwrap();
         assert_eq!(res.preedit, "কা");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probhat_configurable_options() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probhat);
+
+        // 1. Test smart initial kar disabled
+        session.set_smart_initial_kar_enabled(false);
+        let res = session.process_key("া".into()).unwrap();
+        assert_eq!(res.preedit, "া", "When smart_initial_kar_enabled is false, 'া' should remain 'া'");
+
+        session.reset();
+        session.set_smart_initial_kar_enabled(true);
+        let res2 = session.process_key("া".into()).unwrap();
+        assert_eq!(res2.preedit, "আ", "When smart_initial_kar_enabled is true, 'া' promotes to 'আ'");
+
+        // 2. Test geminate double tap toggle
+        session.reset();
+        session.set_geminate_double_tap_enabled(false);
+        session.process_key("উ".into()).unwrap();
+        session.process_key("ত".into()).unwrap();
+        let res_no_gem = session.process_key("ত".into()).unwrap();
+        assert_eq!(res_no_gem.preedit, "উতত", "When geminate_double_tap is false, double tap should type 'তত'");
+
+        session.reset();
+        session.set_geminate_double_tap_enabled(true);
+        session.process_key("উ".into()).unwrap();
+        session.process_key("ত".into()).unwrap();
+        let res_gem = session.process_key("ত".into()).unwrap();
+        assert_eq!(res_gem.preedit, "উত্ত", "When geminate_double_tap is true, double tap should insert hasanta 'উত্ত'");
+
+        // 3. Test hasanta conjuncts toggle
+        session.reset();
+        session.set_hasanta_conjuncts_enabled(false);
+        session.process_key("ক".into()).unwrap();
+        let res_no_conj = session.process_key("্".into()).unwrap();
+        assert!(!res_no_conj.candidates.contains(&"ক্ষ".to_string()), "When hasanta_conjuncts is false, quick picks should not be populated");
+
+        session.reset();
+        session.set_hasanta_conjuncts_enabled(true);
+        session.process_key("ক".into()).unwrap();
+        let res_conj = session.process_key("্".into()).unwrap();
+        assert!(res_conj.candidates.contains(&"ক্ষ".to_string()), "When hasanta_conjuncts is true, quick picks should contain 'ক্ষ'");
     }
 
     #[test]

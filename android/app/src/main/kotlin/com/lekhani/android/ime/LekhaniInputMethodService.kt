@@ -343,6 +343,7 @@ class LekhaniInputMethodService : InputMethodService() {
         // Restore the user's last-used layout from Device Protected Storage.
         val savedLayout = getSavedLayout()
         session.setLayout(savedLayout)
+        applyLayoutSpecificPreferences(savedLayout)
         Log.i(TAG, "Lekhani IME created; layout = $savedLayout")
 
         // Listen for system clipboard updates; guard against password field capture
@@ -355,11 +356,18 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // Listen for layout changes from Settings (e.g. LayoutFlowScreen card tap)
         val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
-            if (key == PREF_LAYOUT) {
-                val newName = sp.getString(key, null)
-                val newLayout = newName?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
-                if (newLayout != null && session.getLayout() != newLayout) {
-                    switchLayout(newLayout)
+            when (key) {
+                PREF_LAYOUT -> {
+                    val newName = sp.getString(key, null)
+                    val newLayout = newName?.let { runCatching { LekhaniLayoutType.valueOf(it) }.getOrNull() }
+                    if (newLayout != null && session.getLayout() != newLayout) {
+                        switchLayout(newLayout)
+                    }
+                }
+                KeyboardPreferences.KEY_PROBHAT_HASANTA_CONJUNCTS,
+                KeyboardPreferences.KEY_PROBHAT_SMART_INITIAL_KAR,
+                KeyboardPreferences.KEY_PROBHAT_GEMINATE_DOUBLE_TAP -> {
+                    applyLayoutSpecificPreferences(session.getLayout())
                 }
             }
         }
@@ -524,6 +532,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.setLayout(LayoutRegistry.get(curLayout), curLayout, shifted = false)
             }
         }
+        applyLayoutSpecificPreferences(curLayout)
         feedbackManager.updateCache()
         keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
         applyFloatingCardLayout(keyboardPrefs.formFactor)
@@ -2466,6 +2475,10 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
+        if (keyToken == "্" && session.getLayout() == LekhaniLayoutType.PROBHAT && keyboardPrefs.probhatDeadKeyHaptic) {
+            keyboardView?.let { feedbackManager.onTickFeedback(it) }
+        }
+
         updateGboardDynamicRow(keyToken)
 
         result.commitText?.let { rawText ->
@@ -3100,6 +3113,7 @@ class LekhaniInputMethodService : InputMethodService() {
             isBengaliDigitsMode = false
         }
         session.setLayout(layout)
+        applyLayoutSpecificPreferences(layout)
         emojiSearchSession?.setLayout(layout)
         keyboardView?.setLayout(LayoutRegistry.get(layout), layout, shifted = false)
         keyboardView?.setGboardKarsActive(false)
@@ -3112,6 +3126,21 @@ class LekhaniInputMethodService : InputMethodService() {
         refreshSurroundingContext()
         updateAutoCaps()
         Log.i(TAG, "Layout switched to $layout (persist=$persist)")
+    }
+
+    private fun applyLayoutSpecificPreferences(layout: LekhaniLayoutType) {
+        when (layout) {
+            LekhaniLayoutType.PROBHAT -> {
+                session.setSmartInitialKarEnabled(keyboardPrefs.probhatSmartInitialKar)
+                session.setGeminateDoubleTapEnabled(keyboardPrefs.probhatGeminateDoubleTap)
+                session.setHasantaConjunctsEnabled(keyboardPrefs.probhatHasantaConjuncts)
+            }
+            else -> {
+                session.setSmartInitialKarEnabled(true)
+                session.setGeminateDoubleTapEnabled(true)
+                session.setHasantaConjunctsEnabled(true)
+            }
+        }
     }
 
     private fun updateGboardDynamicRow(keyToken: String) {

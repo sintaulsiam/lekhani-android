@@ -818,6 +818,12 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -917,6 +923,10 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_context(`ptr`: Pointer,`context`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_geminate_double_tap_enabled(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_hasanta_conjuncts_enabled(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_layout(`ptr`: Pointer,`layout`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_learner_autosave_path(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -924,6 +934,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_private_field(`ptr`: Pointer,`isPrivate`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_right_context(`ptr`: Pointer,`context`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_smart_initial_kar_enabled(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_update_keyboard_geometry(`ptr`: Pointer,`configs`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1139,6 +1151,10 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_context(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_geminate_double_tap_enabled(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_hasanta_conjuncts_enabled(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_layout(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_learner_autosave_path(
@@ -1146,6 +1162,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_right_context(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_smart_initial_kar_enabled(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_update_keyboard_geometry(
     ): Short
@@ -1298,6 +1316,12 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_context() != 4383.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_geminate_double_tap_enabled() != 31295.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_hasanta_conjuncts_enabled() != 52819.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_layout() != 8577.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1308,6 +1332,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_right_context() != 7954.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_smart_initial_kar_enabled() != 28226.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_update_keyboard_geometry() != 40694.toShort()) {
@@ -1911,6 +1938,16 @@ public interface AndroidLekhaniSessionInterface {
     fun `setContext`(`context`: kotlin.String)
     
     /**
+     * Enable or disable double-tap consonant gemination (e.g. ত + ত -> ত্ত).
+     */
+    fun `setGeminateDoubleTapEnabled`(`enabled`: kotlin.Boolean)
+    
+    /**
+     * Enable or disable dynamic conjunct suggestions on Hasanta (`্`).
+     */
+    fun `setHasantaConjunctsEnabled`(`enabled`: kotlin.Boolean)
+    
+    /**
      * Set the active typing layout.
      * Clears the composing buffer to prevent carry-over across layout boundaries.
      */
@@ -1938,6 +1975,12 @@ public interface AndroidLekhaniSessionInterface {
      * for bi-directional contextual ranking in the AI scorer.
      */
     fun `setRightContext`(`context`: kotlin.String)
+    
+    /**
+     * Enable or disable auto-promotion of word-initial vowel signs (e.g. া -> আ)
+     * and post-consonant demotion (e.g. ক + আ -> কা).
+     */
+    fun `setSmartInitialKarEnabled`(`enabled`: kotlin.Boolean)
     
     /**
      * Update keyboard geometry for spatial touch error correction.
@@ -2648,6 +2691,34 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Enable or disable double-tap consonant gemination (e.g. ত + ত -> ত্ত).
+     */override fun `setGeminateDoubleTapEnabled`(`enabled`: kotlin.Boolean)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_geminate_double_tap_enabled(
+        it, FfiConverterBoolean.lower(`enabled`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Enable or disable dynamic conjunct suggestions on Hasanta (`্`).
+     */override fun `setHasantaConjunctsEnabled`(`enabled`: kotlin.Boolean)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_hasanta_conjuncts_enabled(
+        it, FfiConverterBoolean.lower(`enabled`),_status)
+}
+    }
+    
+    
+
+    
+    /**
      * Set the active typing layout.
      * Clears the composing buffer to prevent carry-over across layout boundaries.
      */override fun `setLayout`(`layout`: LekhaniLayoutType)
@@ -2706,6 +2777,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_right_context(
         it, FfiConverterString.lower(`context`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Enable or disable auto-promotion of word-initial vowel signs (e.g. া -> আ)
+     * and post-consonant demotion (e.g. ক + আ -> কা).
+     */override fun `setSmartInitialKarEnabled`(`enabled`: kotlin.Boolean)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_smart_initial_kar_enabled(
+        it, FfiConverterBoolean.lower(`enabled`),_status)
 }
     }
     

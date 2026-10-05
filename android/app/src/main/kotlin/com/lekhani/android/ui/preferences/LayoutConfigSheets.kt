@@ -451,6 +451,7 @@ fun ProbhatSettingsDialog(
     var probhatSmartInitialKar by remember { mutableStateOf(prefs.probhatSmartInitialKar) }
     var probhatGeminateDoubleTap by remember { mutableStateOf(prefs.probhatGeminateDoubleTap) }
     var showKeyHints by remember { mutableStateOf(prefs.showKeyHints) }
+    var swipeUpFlickEnabled by remember { mutableStateOf(prefs.swipeUpFlickEnabled) }
     var probhatDeadKeyHaptic by remember { mutableStateOf(prefs.probhatDeadKeyHaptic) }
 
     Dialog(
@@ -621,6 +622,35 @@ fun ProbhatSettingsDialog(
                                     onCheckedChange = {
                                         showKeyHints = it
                                         prefs.showKeyHints = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Swipe-Up Flick
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Swipe-Up Flick" else "সোয়াইপ আপ ফ্লিক",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Swipe up on any key to quickly insert shifted character"
+                                               else "কী-তে উপরের দিকে সোয়াইপ করে দ্রুত শিফট বর্ণ লিখুন",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = swipeUpFlickEnabled,
+                                    onCheckedChange = {
+                                        swipeUpFlickEnabled = it
+                                        prefs.swipeUpFlickEnabled = it
                                     }
                                 )
                             }
