@@ -882,6 +882,11 @@ impl AndroidLekhaniSession {
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
+        if key == " " {
+            drop(state);
+            return self.handle_space();
+        }
+
         // Universal punctuation flush across all layouts:
         // Punctuation and newlines immediately flush the composing buffer as committed text.
         let is_punct = key == "।"

@@ -1140,7 +1140,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     // 3. QWERTY adjacency & transposition auto-correction for fat-finger typos on touchscreen
     let mut common_typos = Vec::new();
     let mut dict_typos = Vec::new();
-    if lower.len() >= 3 {
+    let is_exact_match = is_explicit_common || db.is_exact_dictionary_word(&def);
+    if !is_exact_match && lower.len() >= 3 && lower.len() <= 8 {
         let chars: Vec<char> = lower.chars().collect();
         for (i, &ch) in chars.iter().enumerate() {
             for &adj in crate::english::get_qwerty_adjacent_keys(ch) {
@@ -1172,7 +1173,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
 
         // 3b. 1-step adjacent letter transposition recovery for fast two-thumb typing (e.g. "bhlao" -> "bhalo" -> "ভালো")
-        if common_typos.is_empty() && chars.len() >= 3 {
+        if common_typos.is_empty() && chars.len() >= 3 && chars.len() <= 8 {
             for i in 0..chars.len() - 1 {
                 let mut swapped = chars.clone();
                 swapped.swap(i, i + 1);
