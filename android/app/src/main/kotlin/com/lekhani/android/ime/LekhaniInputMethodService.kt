@@ -1881,9 +1881,10 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun updateCandidatesVisibility() {
         val isSymbols = isNumericMode || isMoreSymbolsMode
-        val show = (currentMode == InputViewMode.KEYBOARD && !isSymbols) ||
+        val isStripActive = keyboardPrefs.isCandidateStripActive(session.getLayout())
+        val show = ((currentMode == InputViewMode.KEYBOARD && !isSymbols && isStripActive) ||
                    currentMode == InputViewMode.EMOJI_SEARCH ||
-                   currentMode == InputViewMode.TOOLS_MENU
+                   currentMode == InputViewMode.TOOLS_MENU)
         candidateStripComposeView?.visibility = if (show) View.VISIBLE else View.GONE
     }
 
@@ -3141,6 +3142,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 session.setHasantaConjunctsEnabled(true)
             }
         }
+        updateCandidatesVisibility()
     }
 
     private fun updateGboardDynamicRow(keyToken: String) {
@@ -4200,7 +4202,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 // It is cleared on the first keystroke of the next word, preventing the
                 // "post-space flash" where predictions briefly overwrite the empty strip.
                 if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() &&
-                    effectiveContext.isNotBlank() && !suppressNextWordAfterCommit) {
+                    effectiveContext.isNotBlank() && !suppressNextWordAfterCommit &&
+                    keyboardPrefs.isNextWordActive(queryLayout)) {
                     val nextWords = try {
                         session.predictNextWords(5u)
                     } catch (_: Exception) {
@@ -4338,7 +4341,8 @@ class LekhaniInputMethodService : InputMethodService() {
 
         if (totalWordLen == 0) {
             val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit) {
+            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit &&
+                keyboardPrefs.isNextWordActive(session.getLayout())) {
                 // Anti-flicker cache: if the strip is already stably showing predictions for this context, do not re-emit
                 val curState = _candidateState.value
                 if (trimmedBefore == lastPredictedContext && curState is CandidateStripState.Candidates && curState.items.isNotEmpty()) {
@@ -4374,7 +4378,8 @@ class LekhaniInputMethodService : InputMethodService() {
         val isAsciiWord = !isBengali && word.isNotEmpty() && word.all { it in 'a'..'z' || it in 'A'..'Z' }
         if (!isBengali && !isAsciiWord) {
             val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit) {
+            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit &&
+                keyboardPrefs.isNextWordActive(session.getLayout())) {
                 session.setContext(trimmedBefore)
                 val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
                 if (nextWords.isNotEmpty()) {
@@ -4402,7 +4407,8 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         if (rawEnglish.isBlank()) {
             val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit) {
+            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit &&
+                keyboardPrefs.isNextWordActive(session.getLayout())) {
                 session.setContext(trimmedBefore)
                 val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
                 if (nextWords.isNotEmpty()) {

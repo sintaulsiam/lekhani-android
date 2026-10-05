@@ -2,6 +2,7 @@ package com.lekhani.android.data.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.lekhani.android.ffi.LekhaniLayoutType
 import com.lekhani.android.theme.ThemeRegistry
 
 /**
@@ -290,6 +291,96 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SMART_PUNCTUATION_SPACING, true)
         set(value) = prefs.edit().putBoolean(KEY_SMART_PUNCTUATION_SPACING, value).apply()
 
+    // ── Global Typing & Suggestion Master Toggles ─────────────────────────────
+    var candidateStripEnabled: Boolean
+        get() = prefs.getBoolean(KEY_CANDIDATE_STRIP_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_CANDIDATE_STRIP_ENABLED, value).apply()
+
+    var autocorrectEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AUTOCORRECT_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTOCORRECT_ENABLED, value).apply()
+
+    var nextWordPredictionEnabled: Boolean
+        get() = prefs.getBoolean(KEY_NEXT_WORD_PREDICTION_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_NEXT_WORD_PREDICTION_ENABLED, value).apply()
+
+    // ── Cascading Layout Overrides & Resolvers ────────────────────────────────
+    fun getCandidateStripOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_CANDIDATE_STRIP)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setCandidateStripOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_CANDIDATE_STRIP)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isCandidateStripActive(layout: LekhaniLayoutType): Boolean {
+        return when (getCandidateStripOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> candidateStripEnabled
+        }
+    }
+
+    fun getAutocorrectOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_AUTOCORRECT)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setAutocorrectOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_AUTOCORRECT)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isAutocorrectActive(layout: LekhaniLayoutType): Boolean {
+        return when (getAutocorrectOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> autocorrectEnabled
+        }
+    }
+
+    fun getNumberRowOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_NUMBER_ROW)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setNumberRowOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_NUMBER_ROW)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isNumberRowActive(layout: LekhaniLayoutType): Boolean {
+        return when (getNumberRowOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> showDedicatedNumberRow
+        }
+    }
+
+    fun getNextWordOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_NEXT_WORD)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setNextWordOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_NEXT_WORD)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isNextWordActive(layout: LekhaniLayoutType): Boolean {
+        return when (getNextWordOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> nextWordPredictionEnabled
+        }
+    }
+
+    private fun getOverrideKey(layout: LekhaniLayoutType, prefix: String): String {
+        return "${prefix}_${layout.name.lowercase()}"
+    }
+
     // ── Clipboard Settings ────────────────────────────────────────────────────
     var clipboardRetentionMinutes: Int
         get() = prefs.getInt(KEY_CLIPBOARD_RETENTION_MINUTES, 60)
@@ -333,6 +424,16 @@ class KeyboardPreferences private constructor(context: Context) {
     fun resetToolsToDefault() {
         setToolbarToolsList(DEFAULT_TOOL_LIST)
         setVaultToolsList(DEFAULT_VAULT_LIST)
+    }
+
+    enum class SettingOverride(val value: Int, val titleBengali: String, val titleEnglish: String) {
+        FOLLOW_GLOBAL(0, "গ্লোবাল ডিফল্ট অনুসরণ", "Follow Global"),
+        ALWAYS_ON(1, "সর্বদা চালু", "Always On"),
+        ALWAYS_OFF(2, "সর্বদা বন্ধ", "Always Off");
+
+        companion object {
+            fun fromInt(v: Int): SettingOverride = entries.firstOrNull { it.value == v } ?: FOLLOW_GLOBAL
+        }
     }
 
     enum class SpacebarSwipeMode(val titleBengali: String, val titleEnglish: String) {
@@ -436,6 +537,15 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SHOW_KEY_HINTS = "show_key_hints"
         const val KEY_SWIPE_UP_FLICK = "swipe_up_flick"
         const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
+
+        const val KEY_CANDIDATE_STRIP_ENABLED = "candidate_strip_enabled"
+        const val KEY_AUTOCORRECT_ENABLED = "autocorrect_enabled"
+        const val KEY_NEXT_WORD_PREDICTION_ENABLED = "next_word_prediction_enabled"
+
+        const val PREFIX_CANDIDATE_STRIP = "override_candidate_strip"
+        const val PREFIX_AUTOCORRECT = "override_autocorrect"
+        const val PREFIX_NUMBER_ROW = "override_number_row"
+        const val PREFIX_NEXT_WORD = "override_next_word"
 
         const val KEY_PROBHAT_HASANTA_CONJUNCTS = "probhat_hasanta_conjuncts"
         const val KEY_PROBHAT_SMART_INITIAL_KAR = "probhat_smart_initial_kar"

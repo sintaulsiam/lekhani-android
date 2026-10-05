@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
+import com.lekhani.android.ffi.LekhaniLayoutType
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -37,6 +39,157 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.lekhani.android.data.settings.KeyboardPreferences
+
+/**
+ * Reusable row displaying a tri-state cascading setting override:
+ * [ Follow Global (On/Off) ] [ Always On ] [ Always Off ]
+ */
+@Composable
+fun LayoutOverrideRow(
+    title: String,
+    subtitle: String,
+    override: KeyboardPreferences.SettingOverride,
+    globalActive: Boolean,
+    isEnglish: Boolean,
+    onOverrideChanged: (KeyboardPreferences.SettingOverride) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+        )
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val globalStateText = if (globalActive) {
+                if (isEnglish) "On" else "চালু"
+            } else {
+                if (isEnglish) "Off" else "বন্ধ"
+            }
+            FilterChip(
+                selected = override == KeyboardPreferences.SettingOverride.FOLLOW_GLOBAL,
+                onClick = { onOverrideChanged(KeyboardPreferences.SettingOverride.FOLLOW_GLOBAL) },
+                label = {
+                    Text(
+                        if (isEnglish) "Follow Global ($globalStateText)"
+                        else "গ্লোবাল ($globalStateText)",
+                        fontSize = 11.sp
+                    )
+                },
+                shape = RoundedCornerShape(8.dp)
+            )
+            FilterChip(
+                selected = override == KeyboardPreferences.SettingOverride.ALWAYS_ON,
+                onClick = { onOverrideChanged(KeyboardPreferences.SettingOverride.ALWAYS_ON) },
+                label = { Text(if (isEnglish) "Always On" else "সর্বদা চালু", fontSize = 11.sp) },
+                shape = RoundedCornerShape(8.dp)
+            )
+            FilterChip(
+                selected = override == KeyboardPreferences.SettingOverride.ALWAYS_OFF,
+                onClick = { onOverrideChanged(KeyboardPreferences.SettingOverride.ALWAYS_OFF) },
+                label = { Text(if (isEnglish) "Always Off" else "সর্বদা বন্ধ", fontSize = 11.sp) },
+                shape = RoundedCornerShape(8.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Reusable section for configuring per-layout overrides with cascading fallback to global defaults.
+ */
+@Composable
+fun LayoutOverrideSection(
+    layout: LekhaniLayoutType,
+    prefs: KeyboardPreferences,
+    isEnglish: Boolean
+) {
+    var stripOverride by remember { mutableStateOf(prefs.getCandidateStripOverride(layout)) }
+    var autocorrectOverride by remember { mutableStateOf(prefs.getAutocorrectOverride(layout)) }
+    var numberRowOverride by remember { mutableStateOf(prefs.getNumberRowOverride(layout)) }
+    var nextWordOverride by remember { mutableStateOf(prefs.getNextWordOverride(layout)) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = if (isEnglish) "Layout Overrides" else "লেআউট ওভাররাইড সেটিংস",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Candidate Strip Override
+            LayoutOverrideRow(
+                title = if (isEnglish) "Candidate & Suggestion Strip" else "সাজেশন ও ক্যান্ডিডেট বার",
+                subtitle = if (isEnglish) "Show word suggestions above the keyboard" else "কীবোর্ডের উপরে শব্দের পরামর্শ দেখাবে",
+                override = stripOverride,
+                globalActive = prefs.candidateStripEnabled,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    stripOverride = it
+                    prefs.setCandidateStripOverride(layout, it)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Auto-Correction Override
+            LayoutOverrideRow(
+                title = if (isEnglish) "Auto-Correction / Typo Recovery" else "স্বয়ংক্রিয় বানান সংশোধন",
+                subtitle = if (isEnglish) "Automatically recover and correct typos" else "ভুল বানানে স্বয়ংক্রিয় সংশোধন করবে",
+                override = autocorrectOverride,
+                globalActive = prefs.autocorrectEnabled,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    autocorrectOverride = it
+                    prefs.setAutocorrectOverride(layout, it)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Dedicated Number Row Override
+            LayoutOverrideRow(
+                title = if (isEnglish) "Dedicated Number Row" else "স্বতন্ত্র সংখ্যা সারি",
+                subtitle = if (isEnglish) "Display dedicated number row on this layout" else "এই লেআউটে উপরে আলাদা সংখ্যা সারি দেখাবে",
+                override = numberRowOverride,
+                globalActive = prefs.showDedicatedNumberRow,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    numberRowOverride = it
+                    prefs.setNumberRowOverride(layout, it)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Next-Word Prediction Override
+            LayoutOverrideRow(
+                title = if (isEnglish) "Next-Word Predictions" else "পরবর্তী শব্দ অনুমান",
+                subtitle = if (isEnglish) "Predict subsequent words as you type" else "বাক্যে পরবর্তী সম্ভাব্য শব্দের পরামর্শ দেবে",
+                override = nextWordOverride,
+                globalActive = prefs.nextWordPredictionEnabled,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    nextWordOverride = it
+                    prefs.setNextWordOverride(layout, it)
+                }
+            )
+        }
+    }
+}
 
 /**
  * Dedicated settings dialog for Lekhani প্রবাহ (Flow) layout.
@@ -136,33 +289,12 @@ fun ProbahoSettingsDialog(
                         }
                     }
 
-                    // Ergonomic Info Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = if (isEnglish) "Two-Thumb Ergonomic Flow" else "দ্বি-আঙুল এরগনোমিক প্রবাহ",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = if (isEnglish)
-                                    "Lekhani প্রবাহ (Probaho) isolates vowels and matras under your left thumb while grouping high-frequency consonants under your right thumb for smooth alternate-hand typing flow.\n\nUniversal controls like Key Hints and Swipe-Up Flick are globally managed in Preferences."
-                                else
-                                    "লেখনী প্রবাহ লেআউটে স্বরবর্ণ ও কার-চিহ্ন বাম থাম্বে এবং বহুল ব্যবহৃত ব্যঞ্জনবর্ণ ডান থাম্বের আওতায় রাখা হয়েছে, যাতে উভয় হাতে ছন্দময়ভাবে দ্রুত টাইপ করা যায়।\n\nকী সহায়িকা এবং সোয়াইপ-আপ ফ্লিকের মতো সাধারণ সেটিংসগুলো মূল 'পছন্দ' ট্যাবে রয়েছে।",
-                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    // Layout Overrides Card
+                    LayoutOverrideSection(
+                        layout = LekhaniLayoutType.PROBAHO,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
                 }
             }
         }
@@ -400,6 +532,13 @@ fun AvroSettingsDialog(
                             }
                         }
                     }
+
+                    // Layout Overrides Card
+                    LayoutOverrideSection(
+                        layout = LekhaniLayoutType.AVRO,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
                 }
             }
         }
@@ -593,6 +732,13 @@ fun ProbhatSettingsDialog(
                             }
                         }
                     }
+
+                    // Layout Overrides Card
+                    LayoutOverrideSection(
+                        layout = LekhaniLayoutType.PROBHAT,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
                 }
             }
         }
@@ -726,6 +872,13 @@ fun NationalSettingsDialog(
                             }
                         }
                     }
+
+                    // Layout Overrides Card
+                    LayoutOverrideSection(
+                        layout = LekhaniLayoutType.NATIONAL,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
                 }
             }
         }
@@ -829,6 +982,13 @@ fun GboardSettingsDialog(
                             }
                         }
                     }
+
+                    // Layout Specific Overrides
+                    LayoutOverrideSection(
+                        layout = LekhaniLayoutType.GBOARD,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
                 }
             }
         }
@@ -962,6 +1122,13 @@ fun EnglishSettingsDialog(
                             }
                         }
                     }
+
+                    // Layout Specific Overrides
+                    LayoutOverrideSection(
+                        layout = LekhaniLayoutType.ENGLISH,
+                        prefs = prefs,
+                        isEnglish = isEnglish
+                    )
                 }
             }
         }

@@ -135,6 +135,9 @@ fun PreferencesTabContent(
     var codeShield by remember { mutableStateOf(prefs.codeShieldEnabled) }
     var smartPunctuationSpacing by remember { mutableStateOf(prefs.smartPunctuationSpacing) }
     var showDedicatedNumberRow by remember { mutableStateOf(prefs.showDedicatedNumberRow) }
+    var candidateStripEnabled by remember { mutableStateOf(prefs.candidateStripEnabled) }
+    var autocorrectEnabled by remember { mutableStateOf(prefs.autocorrectEnabled) }
+    var nextWordPredictionEnabled by remember { mutableStateOf(prefs.nextWordPredictionEnabled) }
     var autoSwitchNumpad by remember { mutableStateOf(prefs.autoSwitchNumpad) }
     var showKeyPreviews by remember { mutableStateOf(prefs.showKeyPreviews) }
     var showLayoutNameOnSpacebar by remember { mutableStateOf(prefs.showLayoutNameOnSpacebar) }
@@ -192,7 +195,7 @@ fun PreferencesTabContent(
             matchesSearch("app appearance", "theme mode", "dark", "light", "system", "sync keyboard", "অ্যাপিয়ারেন্স", "থিম", "ডার্ক", "লাইট")
 
     val showTyping = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.TYPING) &&
-            matchesSearch("typing", "number row", "numpad", "spacing", "dari", "spacebar", "autocomplete", "learn", "glide", "code shield", "avro", "probaho", "টাইপিং", "সংখ্যা সারি", "নম্বর", "দাঁড়ি", "সাজেশন", "কোড শিল্ড")
+            matchesSearch("typing", "number row", "numpad", "spacing", "dari", "spacebar", "autocomplete", "autocorrect", "candidate", "strip", "prediction", "learn", "glide", "code shield", "avro", "probaho", "টাইপিং", "সংখ্যা সারি", "নম্বর", "দাঁড়ি", "সাজেশন", "কোড শিল্ড", "ক্যান্ডিডেট বার", "অটোকারেক্ট", "ভবিষ্যদ্বাণী")
 
     val showGestures = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.GESTURES) &&
             matchesSearch("gestures", "swipe", "spacebar swipe", "cursor slide", "delete", "bottom row", "volume", "জেশ্চার", "সোয়াইপ", "স্পেসবার", "কার্সর", "মোছা", "ভলিউম")
@@ -479,6 +482,93 @@ fun PreferencesTabContent(
                         modifier = Modifier.padding(vertical = 2.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                     )
+
+                    // Candidate & Suggestion Strip (Global Master)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = if (isEnglish) "Candidate & Suggestion Strip" else "সাজেশন ও ক্যান্ডিডেট বার",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnglish) "Show word suggestions & toolbar strip above keyboard"
+                                       else "কীবোর্ডের উপর শব্দ সাজেশন ও ক্যান্ডিডেট বার প্রদর্শন",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = candidateStripEnabled,
+                            onCheckedChange = {
+                                candidateStripEnabled = it
+                                prefs.candidateStripEnabled = it
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    // Auto-Correction (Global Master)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = if (isEnglish) "Auto-Correction" else "স্বয়ংক্রিয় সংশোধন (Auto-Correct)",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnglish) "Automatically correct typos and common mistakes"
+                                       else "টাইপ করার সময় ভুল বানান স্বয়ংক্রিয়ভাবে সংশোধন করবে",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = autocorrectEnabled,
+                            onCheckedChange = {
+                                autocorrectEnabled = it
+                                prefs.autocorrectEnabled = it
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    // Next-Word Prediction (Global Master)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = if (isEnglish) "Next-Word Prediction" else "পরবর্তী শব্দের অনুমান",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnglish) "Predict and suggest upcoming words based on context"
+                                       else "প্রসঙ্গ অনুযায়ী পরবর্তী সম্ভাব্য শব্দ সাজেস্ট করবে",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = nextWordPredictionEnabled,
+                            onCheckedChange = {
+                                nextWordPredictionEnabled = it
+                                prefs.nextWordPredictionEnabled = it
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                     // Dedicated Number Row Toggle
                     Row(

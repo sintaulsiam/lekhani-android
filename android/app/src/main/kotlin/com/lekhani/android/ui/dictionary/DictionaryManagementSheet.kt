@@ -9,9 +9,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -202,22 +204,18 @@ fun DictionaryManagementSheet(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Add Word Row
-                    Row(
+                    // Add Word Input with integrated action
+                    OutlinedTextField(
+                        value = newWordInput,
+                        onValueChange = { newWordInput = it },
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = newWordInput,
-                            onValueChange = { newWordInput = it },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text(if (isEnglish) "Add new word..." else "নতুন শব্দ লিখুন...") },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    val word = newWordInput.trim()
+                        placeholder = { Text(if (isEnglish) "Add custom word..." else "নতুন শব্দ লিখুন...") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        trailingIcon = {
+                            val word = newWordInput.trim()
+                            IconButton(
+                                onClick = {
                                     if (word.length >= 2) {
                                         dictManager.addUserWord(word)
                                         dictManager.saveLearned(learnedFile.absolutePath)
@@ -225,12 +223,19 @@ fun DictionaryManagementSheet(
                                         newWordInput = ""
                                         Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
                                     }
-                                }
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
+                                },
+                                enabled = word.length >= 2
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = if (isEnglish) "Add" else "যোগ",
+                                    tint = if (word.length >= 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
                                 val word = newWordInput.trim()
                                 if (word.length >= 2) {
                                     dictManager.addUserWord(word)
@@ -239,17 +244,11 @@ fun DictionaryManagementSheet(
                                     newWordInput = ""
                                     Toast.makeText(context, if (isEnglish) "'$word' added" else "'$word' যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
                                 }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = if (isEnglish) "Add" else "যোগ")
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "Add" else "যোগ")
-                        }
-                    }
+                            }
+                        )
+                    )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Action Buttons Row (Import / Export / Clear)
                     Row(
@@ -265,16 +264,17 @@ fun DictionaryManagementSheet(
                                 }
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.FileDownload,
-                                contentDescription = "Import",
+                                contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "Import" else "ইমপোর্ট", fontSize = 12.sp)
+                            Text(if (isEnglish) "Import" else "ইমপোর্ট", fontSize = 12.sp, maxLines = 1)
                         }
 
                         OutlinedButton(
@@ -288,36 +288,38 @@ fun DictionaryManagementSheet(
                                 context.startActivity(Intent.createChooser(shareIntent, if (isEnglish) "Export Backup" else "ব্যাকআপ এক্সপোর্ট করুন"))
                             },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.FileUpload,
-                                contentDescription = "Export",
+                                contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "Export" else "এক্সপোর্ট", fontSize = 12.sp)
+                            Text(if (isEnglish) "Export" else "এক্সপোর্ট", fontSize = 12.sp, maxLines = 1)
                         }
 
                         OutlinedButton(
                             onClick = { showClearConfirm = true },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.DeleteSweep,
-                                contentDescription = "Clear",
+                                contentDescription = null,
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.error
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isEnglish) "Clear" else "মুছুন", fontSize = 12.sp)
+                            Text(if (isEnglish) "Clear" else "মুছুন", fontSize = 12.sp, maxLines = 1)
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Word List
                     if (filteredWords.isEmpty()) {
@@ -325,11 +327,11 @@ fun DictionaryManagementSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .padding(horizontal = 24.dp),
+                                .padding(horizontal = 16.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Card(
-                                shape = RoundedCornerShape(20.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                                 ),
@@ -338,28 +340,20 @@ fun DictionaryManagementSheet(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(24.dp),
+                                        .padding(20.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(56.dp)
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                                            contentDescription = "Dictionary",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(32.dp)
+                                    )
 
                                     Text(
                                         text = if (searchQuery.isBlank()) {
-                                            if (isEnglish) "Personal Dictionary is Clean" else "ব্যক্তিগত শব্দভাণ্ডার খালি"
+                                            if (isEnglish) "No Custom Words" else "ব্যক্তিগত শব্দভাণ্ডার খালি"
                                         } else {
                                             if (isEnglish) "No Words Found" else "শব্দ পাওয়া যায়নি"
                                         },
@@ -369,19 +363,14 @@ fun DictionaryManagementSheet(
 
                                     Text(
                                         text = if (searchQuery.isBlank()) {
-                                            if (isEnglish)
-                                                "Only words you explicitly add or import will appear here. No garbage or accidental typos."
-                                            else
-                                                "এখানে কেবল আপনার সরাসরি যোগ করা বা ইমপোর্ট করা শব্দ সংরক্ষিত থাকবে। কোনো অনাকাঙ্ক্ষিত টাইপো জমা হবে না।"
+                                            if (isEnglish) "Words you add or import will appear here."
+                                            else "আপনার যুক্ত করা বা ইমপোর্ট করা শব্দগুলো এখানে থাকবে।"
                                         } else {
-                                            if (isEnglish)
-                                                "No words matching '$searchQuery'. You can add it as a new word above."
-                                            else
-                                                "'$searchQuery' এর সাথে মিল থাকা কোনো শব্দ পাওয়া যায়নি। নতুন শব্দ হিসেবে যোগ করতে পারেন।"
+                                            if (isEnglish) "No words matching '$searchQuery'."
+                                            else "'$searchQuery' এর সাথে কোনো শব্দ মেলেনি।"
                                         },
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            lineHeight = 18.sp
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         ),
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                     )
@@ -471,42 +460,35 @@ fun DictionaryManagementSheet(
                         )
                     }
 
-                    // Search Bar & Add Button
-                    Row(
+                    // Search Bar with integrated Add action for shortcuts
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.weight(1f),
-                            placeholder = {
-                                Text(
-                                    if (shortcutSubTab == 0) {
-                                        if (isEnglish) "Search my shortcuts..." else "আমার শর্টকাট খুঁজুন..."
-                                    } else {
-                                        if (isEnglish) "Search built-in typo rules..." else "বিল্ট-ইন সংশোধন খুঁজুন..."
-                                    }
-                                )
-                            },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        if (shortcutSubTab == 0) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = { showAddRuleDialog = true },
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Add")
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(if (isEnglish) "New" else "নতুন")
+                        placeholder = {
+                            Text(
+                                if (shortcutSubTab == 0) {
+                                    if (isEnglish) "Search shortcuts..." else "শর্টকাট খুঁজুন..."
+                                } else {
+                                    if (isEnglish) "Search built-in rules..." else "সংশোধন খুঁজুন..."
+                                }
+                            )
+                        },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        trailingIcon = if (shortcutSubTab == 0) {
+                            {
+                                IconButton(onClick = { showAddRuleDialog = true }) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = if (isEnglish) "New" else "নতুন",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
-                        }
-                    }
+                        } else null,
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
 
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -517,11 +499,11 @@ fun DictionaryManagementSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .weight(1f)
-                                    .padding(horizontal = 24.dp),
+                                    .padding(horizontal = 16.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Card(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = RoundedCornerShape(16.dp),
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                                     ),
@@ -530,7 +512,7 @@ fun DictionaryManagementSheet(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(24.dp),
+                                            .padding(20.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
@@ -538,20 +520,28 @@ fun DictionaryManagementSheet(
                                             imageVector = Icons.Default.Transform,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(32.dp)
                                         )
                                         Text(
-                                            text = if (isEnglish) "No Custom Shortcuts Yet" else "কোনো কাস্টম শর্টকাট নেই",
+                                            text = if (isEnglish) "No Custom Shortcuts" else "কোনো শর্টকাট নেই",
                                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                         )
                                         Text(
                                             text = if (isEnglish)
-                                                "Tap '+ New' above to create custom text expansions like 'omw' ➔ 'On my way!' or 'dh' ➔ 'ধন্যবাদ'. When you type the shortcut and hit space, it expands instantly."
+                                                "Create shortcuts like 'omw' ➔ 'On my way!' or 'dh' ➔ 'ধন্যবাদ'."
                                             else
-                                                "উপরে '+ নতুন' চাপুন এবং নিজস্ব শর্টকাট তৈরি করুন, যেমন 'omw' ➔ 'On my way!' বা 'dh' ➔ 'ধন্যবাদ'। শর্টকাট লিখে স্পেস চাপলেই তা স্বয়ংক্রিয়ভাবে পরিবর্তিত হবে।",
+                                                "স্বয়ংক্রিয় প্রতিস্থাপনের জন্য শর্টকাট তৈরি করুন (যেমন: 'dh' ➔ 'ধন্যবাদ')।",
                                             style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant),
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                         )
+                                        Button(
+                                            onClick = { showAddRuleDialog = true },
+                                            shape = RoundedCornerShape(10.dp)
+                                        ) {
+                                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(if (isEnglish) "Add Shortcut" else "শর্টকাট যোগ করুন")
+                                        }
                                     }
                                 }
                             }
@@ -624,26 +614,26 @@ fun DictionaryManagementSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(bottom = 8.dp),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
                         ) {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier.padding(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = if (isEnglish)
-                                        "${systemRules.size} built-in phonetic spelling corrections run automatically in the background engine. They don't clutter your personal shortcuts."
+                                        "${systemRules.size} built-in phonetic corrections run automatically in the background."
                                     else
-                                        "${systemRules.size} টি বিল্ট-ইন ফোনেটিক বানান সংশোধন ব্যাকগ্রাউন্ড ইঞ্জিনে স্বয়ংক্রিয়ভাবে সক্রিয় থাকে। এগুলো আপনার ব্যক্তিগত শর্টকাটের সাথে মিশে বিভ্রান্তি তৈরি করে না।",
-                                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 16.sp),
+                                        "${systemRules.size} টি বিল্ট-ইন ফোনেটিক বানান সংশোধন ব্যাকগ্রাউন্ডে সক্রিয় থাকে।",
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -711,21 +701,21 @@ fun DictionaryManagementSheet(
                 2 -> {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.Speed,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
@@ -734,7 +724,7 @@ fun DictionaryManagementSheet(
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                                     )
                                     Text(
-                                        text = if (isEnglish) "$learnedWordsCount auto-learned words" else "$learnedWordsCount টি স্বয়ংক্রিয়ভাবে শেখা শব্দ",
+                                        text = if (isEnglish) "$learnedWordsCount auto-learned words" else "$learnedWordsCount টি নিজে থেকে শেখা শব্দ",
                                         style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     )
                                 }
@@ -744,22 +734,22 @@ fun DictionaryManagementSheet(
 
                             Text(
                                 text = if (isEnglish)
-                                    "Lekhani continuously personalizes predictions on-device without network access. Words are only learned after repeated typing (3+ occurrences) to prevent typos. You can safely clear this cache anytime without losing your custom words or shortcuts."
+                                    "Lekhani adapts to your typing on-device. Frequently typed words are remembered to improve candidate suggestions. Custom words and shortcuts are kept safe."
                                 else
-                                    "লেখনি আপনার লেখার ধরন অনুযায়ী সম্পূর্ণ অন-ডিভাইসে নিজে থেকে শেখে। টাইপো প্রতিরোধে যেকোনো নতুন শব্দ অন্তত ৩ বার টাইপ করার পর মেমোরিতে যুক্ত হয়। কাস্টম শব্দ না হারিয়েই আপনি যেকোনো সময় এই হিস্টোরি রিসেট করতে পারেন।",
-                                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                                    "লেখনি সম্পূর্ণ অফলাইনে আপনার লেখার ধরন অনুযায়ী শেখে। ঘনঘন টাইপ করা শব্দগুলো পরামর্শ তালিকায় এগিয়ে থাকে। রিসেট করলেও কাস্টম শব্দ ও শর্টকাট অক্ষত থাকবে।",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             Button(
                                 onClick = { showClearLearnedConfirm = true },
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(10.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                             ) {
-                                Icon(Icons.Default.DeleteSweep, contentDescription = null)
+                                Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(if (isEnglish) "Reset Typing History / Clear Learned Words" else "টাইপিং হিস্টোরি রিসেট করুন")
+                                Text(if (isEnglish) "Reset Typing History" else "টাইপিং হিস্টোরি রিসেট করুন")
                             }
                         }
                     }
@@ -772,14 +762,17 @@ fun DictionaryManagementSheet(
     if (showAddRuleDialog) {
         AlertDialog(
             onDismissRequest = { showAddRuleDialog = false },
-            title = { Text(if (isEnglish) "Add Auto-Correct Shortcut" else "শর্টকাট বা সংশোধন যোগ করুন") },
+            title = { Text(if (isEnglish) "Add Shortcut" else "শর্টকাট যোগ করুন") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Text(
                         text = if (isEnglish)
-                            "Enter the shortcut or common typo, and the text it should expand to:"
+                            "Enter shortcut and replacement text:"
                         else
-                            "শর্টকাট বা প্রায়শই হওয়া ভুল শব্দটি লিখুন, এবং স্পেস চাপলে যে সঠিক লেখাটি বসবে:",
+                            "শর্টকাট ও প্রতিস্থাপক শব্দ লিখুন:",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -787,7 +780,7 @@ fun DictionaryManagementSheet(
                         value = newTriggerInput,
                         onValueChange = { newTriggerInput = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text(if (isEnglish) "Shortcut / Typo (e.g. omw, কিবর্ড)" else "শর্টকাট বা ভুল শব্দ (যেমন: omw, কিবর্ড)") },
+                        label = { Text(if (isEnglish) "Shortcut (e.g. omw)" else "শর্টকাট (যেমন: omw, dh)") },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
@@ -796,7 +789,7 @@ fun DictionaryManagementSheet(
                         value = newReplacementInput,
                         onValueChange = { newReplacementInput = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text(if (isEnglish) "Replacement (e.g. On my way!, কীবোর্ড)" else "প্রতিস্থাপক শব্দ/বাক্য (যেমন: On my way!, কীবোর্ড)") },
+                        label = { Text(if (isEnglish) "Replacement" else "প্রতিস্থাপক শব্দ/বাক্য") },
                         singleLine = true,
                         shape = RoundedCornerShape(10.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -849,14 +842,14 @@ fun DictionaryManagementSheet(
     if (showImportDialog) {
         AlertDialog(
             onDismissRequest = { showImportDialog = false },
-            title = { Text(if (isEnglish) "Import Dictionary" else "অভিধান ইমপোর্ট (Import Dictionary)") },
+            title = { Text(if (isEnglish) "Import Dictionary" else "শব্দ তালিকা ইমপোর্ট") },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text(
                         if (isEnglish)
-                            "Paste Ridmik backup, Avro user dictionary, or word list below (one word per line):"
+                            "Paste word list below (one word per line):"
                         else
-                            "রিদ্মিক কীবোর্ড ব্যাকআপ, অভ্র ইউজার ডিকশনারি, বা সাধারণ শব্দ তালিকা নিচে পেস্ট করুন (প্রতি লাইনে একটি শব্দ):",
+                            "শব্দ তালিকা বা ব্যাকআপ পেস্ট করুন (প্রতি লাইনে একটি শব্দ):",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -866,8 +859,8 @@ fun DictionaryManagementSheet(
                         onValueChange = { rawImportText = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(150.dp),
-                        placeholder = { Text(if (isEnglish) "word1\nword2\nami=আমি..." else "শব্দ১\nশব্দ২\nami=আমি...") }
+                            .height(140.dp),
+                        placeholder = { Text(if (isEnglish) "word1\nword2..." else "শব্দ১\nশব্দ২...") }
                     )
                 }
             },

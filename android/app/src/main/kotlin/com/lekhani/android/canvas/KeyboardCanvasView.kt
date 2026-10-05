@@ -579,7 +579,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
         this.longPressDelayMs = prefs.longPressDelayMs
         this.showKeyBorders = prefs.showKeyBorders
-        this.showDedicatedNumberRow = prefs.showDedicatedNumberRow
+        this.showDedicatedNumberRow = prefs.isNumberRowActive(layoutType)
         this.avroNumeralsBengali = prefs.avroNumeralsBengali
         this.heightScale = prefs.getHeightScaleForOrientation(resources.configuration.orientation)
         this.marginHDp = prefs.keyMarginH
@@ -749,6 +749,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     ) {
         layout = newLayout
         layoutType = newLayoutType
+        this.showDedicatedNumberRow = KeyboardPreferences.get(context).isNumberRowActive(newLayoutType)
         isShifted = shifted
         isCapsLock = false
         isGboardKarsActive = false
