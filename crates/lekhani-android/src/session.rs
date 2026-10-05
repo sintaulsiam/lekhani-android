@@ -1527,14 +1527,54 @@ impl AndroidLekhaniSession {
             }
 
             _ => {
-                // Fixed / transliteration layouts — accumulate in buffer, query PrefixTrie
+                // Fixed / transliteration layouts (including Gboard) — accumulate in buffer, query PrefixTrie
                 let is_raw_kar = key.chars().count() == 1
                     && ('\u{09BE}'..='\u{09CC}').contains(&key.chars().next().unwrap());
-                if is_raw_kar && state.composing_buffer.ends_with('ঁ') {
-                    // Auto-reorder Kar typed after Chandrabindu (ঁ): e.g. চ + ঁ + া -> চাঁ (Canonical NFC)
+                let chars: Vec<char> = state.composing_buffer.chars().collect();
+                let last_ch = chars.last().copied();
+                let last_is_kar = last_ch.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
+                let prev_is_consonant = chars.len() >= 2
+                    && is_bengali_consonant_or_modifier(chars[chars.len() - 2])
+                    && chars[chars.len() - 2] != '্';
+                let is_same_kar_double_tap = is_raw_kar
+                    && last_is_kar
+                    && prev_is_consonant
+                    && last_ch == key.chars().next();
+
+                // Double-Tap Kar to Independent Vowel Promotion (e.g. কি + ি -> কই, বু + ু -> বউ)
+                if is_same_kar_double_tap && state.smart_initial_kar_enabled {
+                    let iv = match last_ch.unwrap() {
+                        'ি' => Some("ই"),
+                        'ো' => Some("ও"),
+                        'ু' => Some("উ"),
+                        'ে' => Some("এ"),
+                        'ী' => Some("ঈ"),
+                        'ূ' => Some("ঊ"),
+                        'ৈ' => Some("ঐ"),
+                        _ => None,
+                    };
+                    if let Some(independent_vowel) = iv {
+                        state.composing_buffer.pop();
+                        state.composing_buffer.push_str(independent_vowel);
+                    } else {
+                        state.composing_buffer.push_str(&key);
+                    }
+                }
+                // Auto-reorder Kar typed after Chandrabindu (ঁ): e.g. চ + ঁ + া -> চাঁ (Canonical NFC)
+                else if is_raw_kar && state.composing_buffer.ends_with('ঁ') {
                     state.composing_buffer.pop();
                     state.composing_buffer.push_str(&key);
                     state.composing_buffer.push('ঁ');
+                }
+                // Postfix Reph (র্) Workflow: e.g. ধ + ম + র্ -> ধর্ম
+                else if key == "র্"
+                    && last_ch.is_some_and(|c| {
+                        is_bengali_consonant_or_modifier(c) && c != '্' && c != 'র' && c != 'ৎ'
+                    })
+                {
+                    let c = state.composing_buffer.pop().unwrap();
+                    state.composing_buffer.push_str("র্");
+                    state.composing_buffer.push(c);
                 } else {
                     state.composing_buffer.push_str(&key);
                 }
@@ -2363,13 +2403,13 @@ impl AndroidLekhaniSession {
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
-        // ── Probaho & Probhat In-Flight Conjunct Substitution ────────────────
-        // If Probaho or Probhat mode is active and the composing buffer ends with Hasanta (`্`),
+        // ── Fixed Layouts (Probaho, Probhat, Gboard, National) In-Flight Conjunct Substitution ────────────────
+        // If a fixed Bengali layout is active and the composing buffer ends with Hasanta (`্`),
         // selecting a conjunct candidate (e.g. `ক্ষ` or `ক্ত`) replaces the base consonant
         // and Hasanta in-place, keeping the composing buffer alive so the typist can
         // seamlessly continue typing subsequent Kars/consonants (e.g. `শিক্` + `ক্ষ` -> `শিক্ষ` + `া` -> `শিক্ষা`).
-        if (state.layout == LekhaniLayoutType::Probaho
-            || state.layout == LekhaniLayoutType::Probhat)
+        if state.layout != LekhaniLayoutType::Avro
+            && state.layout != LekhaniLayoutType::English
             && state.composing_buffer.ends_with('্')
         {
             let mut chars: Vec<char> = state.composing_buffer.chars().collect();
@@ -3907,6 +3947,50 @@ mod tests {
         assert!(
             res_gboard_ki.candidates.contains(&"কই".to_string()),
             "Gboard: typing 'কি' must proactively surface 'কই' in candidate strip"
+        );
+
+        // 3b. Gboard double-tap Kar promotion: 'ব' + 'ি' + 'ি' -> "বই"
+        session.reset();
+        session.set_smart_initial_kar_enabled(true);
+        session.process_key("ব".into()).unwrap();
+        session.process_key("ি".into()).unwrap();
+        let res_dt_gboard_boi = session.process_key("ি".into()).unwrap();
+        assert_eq!(
+            res_dt_gboard_boi.preedit, "বই",
+            "Gboard: double-tapping 'ি' after 'ব' must promote to 'বই'"
+        );
+
+        // 3c. Gboard postfix Reph: 'ধ' + 'ম' + 'র্' -> "ধর্ম"
+        session.reset();
+        session.process_key("ধ".into()).unwrap();
+        session.process_key("ম".into()).unwrap();
+        let res_gboard_dhormo = session.process_key("র্".into()).unwrap();
+        assert_eq!(
+            res_gboard_dhormo.preedit, "ধর্ম",
+            "Gboard: postfix 'র্' after 'ম' must form 'ধর্ম'"
+        );
+
+        // 3d. Gboard in-flight conjunct candidate substitution: 'শ' + 'ি' + 'ক' + '্' + [select 'ক্ষ'] + 'া' -> "শিক্ষা"
+        session.reset();
+        session.process_key("শ".into()).unwrap();
+        session.process_key("ি".into()).unwrap();
+        session.process_key("ক".into()).unwrap();
+        let res_shik = session.process_key("্".into()).unwrap();
+        assert_eq!(res_shik.preedit, "শিক্");
+        assert!(
+            res_shik.candidates.contains(&"ক্ষ".to_string()),
+            "Candidate strip must suggest 'ক্ষ' after 'শিক্'"
+        );
+        let res_sel_kkh = session.select_candidate("ক্ষ".into()).unwrap();
+        assert_eq!(
+            res_sel_kkh.preedit, "শিক্ষ",
+            "Selecting 'ক্ষ' must substitute in-place keeping composing buffer open"
+        );
+        assert_eq!(res_sel_kkh.commit_text, None, "Must not commit or insert space");
+        let res_shikkha = session.process_key("া".into()).unwrap();
+        assert_eq!(
+            res_shikkha.preedit, "শিক্ষা",
+            "Typist can seamlessly continue typing 'া' to produce 'শিক্ষা'"
         );
     }
 }

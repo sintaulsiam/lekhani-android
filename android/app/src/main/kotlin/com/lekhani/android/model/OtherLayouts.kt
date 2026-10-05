@@ -384,7 +384,7 @@ object GboardBengaliLayout {
             listOf(
                 Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ড়"), Ch("ঢ়", "ঢ়"),
                 Ch("য়", "য়"), Ch("ৎ", "ৎ"),
-                Ch("্", "্", desc = "Hasanta conjunct key"),
+                Ch("্", "্", hint = "ঁ", desc = "Hasanta conjunct key, hint Chandrabindu"),
                 Key(
                     label = jaPhalaLabel,
                     action = KeyAction.Character("\u09CD\u09AF"),
@@ -397,7 +397,7 @@ object GboardBengaliLayout {
                     action = KeyAction.Character("\u09CD\u09B0"),
                     contentDesc = "Ra-phala",
                 ),
-                Ch("ং", "ঁ", hint = "ঁ", desc = "Anusvara, hint Chandrabindu"),
+                Ch("ং", "ঃ", hint = "ঃ", desc = "Anusvara, shifted Visarga, hint Visarga"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
@@ -427,14 +427,16 @@ object GboardBengaliLayout {
             // Row 4 (10 keys: প ফ ব ভ ম য র ল শ ষ)
             listOf(
                 Ch("প", "প"), Ch("ফ", "ফ"), Ch("ব", "ব"), Ch("ভ", "ভ"),
-                Ch("ম", "ম"), Ch("য", "য"), Ch("র", "র"), Ch("ল", "ল"),
+                Ch("ম", "ম"), Ch("য", "য"),
+                Ch("র", "র", hint = "র্", desc = "র, hint Reph র্"),
+                Ch("ল", "ল"),
                 Ch("শ", "শ"), Ch("ষ", "ষ"),
             ),
             // Row 5 (11 keys: স হ ড় ঢ় য় ৎ ্ ং ঃ ঁ ⌫)
             listOf(
                 Ch("স", "স"), Ch("হ", "হ"), Ch("ড়", "ড়"), Ch("ঢ়", "ঢ়"),
                 Ch("য়", "য়"), Ch("ৎ", "ৎ"),
-                Ch("্", "্", desc = "Hasanta conjunct key"),
+                Ch("্", "্", hint = "ঁ", desc = "Hasanta conjunct key, hint Chandrabindu"),
                 Ch("ং", "ং", desc = "Anusvara"),
                 Ch("ঃ", "ঃ", desc = "Visarga"),
                 Ch("ঁ", "ঁ", desc = "Chandrabindu"),
@@ -461,7 +463,8 @@ object GboardBengaliLayout {
                 label = ",", shiftedLabel = ";",
                 action = KeyAction.Character(","),
                 shiftedAction = KeyAction.Character(";"),
-                widthWeight = 1.0f, contentDesc = "Comma",
+                longPressAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.0f, contentDesc = "Comma, long press for emoji",
             ),
             Key(
                 label = "বাংলা", shiftedLabel = "বাংলা",
