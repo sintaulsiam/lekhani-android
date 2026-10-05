@@ -862,8 +862,10 @@ impl AndroidLekhaniSession {
 
         match state.layout {
             LekhaniLayoutType::Probaho | LekhaniLayoutType::Probhat => {
-                let (is_start, last_is_vowel, last_is_consonant) = if let Some(last_ch) = state.composing_buffer.chars().last() {
-                    (false, is_bengali_vowel(last_ch), is_bengali_consonant_or_modifier(last_ch) && last_ch != '্')
+                let chars: Vec<char> = state.composing_buffer.chars().collect();
+                let last_ch = chars.last().copied();
+                let (is_start, last_is_vowel, last_is_consonant) = if let Some(last) = last_ch {
+                    (false, is_bengali_vowel(last), is_bengali_consonant_or_modifier(last) && last != '্')
                 } else if let Some(ctx_ch) = state.surrounding_context.chars().last() {
                     if is_bengali_consonant_or_modifier(ctx_ch) && ctx_ch != '্' {
                         (false, false, true)
@@ -877,7 +879,30 @@ impl AndroidLekhaniSession {
                 };
                 let promoted = promote_kar_if_needed(&key, is_start || last_is_vowel);
                 let transformed = demote_vowel_to_kar_if_preceded_by_consonant(&promoted, last_is_consonant);
-                state.composing_buffer.push_str(&transformed);
+
+                // 1. Double-Kar Collision Prevention:
+                // If composing buffer already ends in a Kar on a consonant and user types another Kar,
+                // replace the previous Kar with the new one instead of stacking invalid modifiers (e.g. কা + ি -> কি).
+                let is_incoming_kar = transformed.chars().all(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
+                let last_is_kar = last_ch.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
+                let prev_is_consonant = chars.len() >= 2 && is_bengali_consonant_or_modifier(chars[chars.len() - 2]) && chars[chars.len() - 2] != '্';
+
+                if is_incoming_kar && last_is_kar && prev_is_consonant {
+                    state.composing_buffer.pop();
+                    state.composing_buffer.push_str(&transformed);
+                }
+                // 2. Geminate Consonant Double-Tap Shortcut:
+                // If buffer ends in the same consonant `c` (and not preceded by Hasanta `্`),
+                // typing `c` again automatically inserts `্` + `c` forming the geminate (e.g. উ + ত + ত -> উত্তর).
+                else if key.chars().count() == 1
+                    && last_ch.is_some_and(|c| key.starts_with(c) && is_bengali_consonant_or_modifier(c) && c != '্' && c != 'ৎ' && c != 'ড়' && c != 'ঢ়' && c != 'য়')
+                    && (chars.len() < 2 || chars[chars.len() - 2] != '্')
+                {
+                    state.composing_buffer.push('্');
+                    state.composing_buffer.push_str(&key);
+                } else {
+                    state.composing_buffer.push_str(&transformed);
+                }
 
                 let mut candidates = Vec::new();
 
@@ -2916,6 +2941,45 @@ mod tests {
         session.process_key("t".into()).unwrap();
         let res_choice = session.handle_space_with_choice(Some("don't".into())).unwrap();
         assert_eq!(res_choice.commit_text.as_deref(), Some("don't "));
+    }
+
+    #[test]
+    #[serial]
+    fn test_probaho_geminate_double_tap() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+
+        // 1. Geminate double-tap: 'উ' + 'ত' + 'ত' + 'র' -> "উত্তর"
+        session.process_key("উ".into()).unwrap();
+        session.process_key("ত".into()).unwrap();
+        let res_tt = session.process_key("ত".into()).unwrap();
+        assert_eq!(res_tt.preedit, "উত্ত");
+        let res_uttor = session.process_key("র".into()).unwrap();
+        assert_eq!(res_uttor.preedit, "উত্তর");
+
+        session.reset();
+
+        // 2. Geminate double-tap: 'আ' + 'ব' + 'ব' + 'া' -> "আব্বা"
+        session.process_key("আ".into()).unwrap();
+        session.process_key("ব".into()).unwrap();
+        let res_bb = session.process_key("ব".into()).unwrap();
+        assert_eq!(res_bb.preedit, "আব্ব");
+        let res_abba = session.process_key("া".into()).unwrap();
+        assert_eq!(res_abba.preedit, "আব্বা");
+
+        session.reset();
+
+        // 3. Geminate double-tap: 'দ' + 'দ' -> "দ্দ"
+        session.process_key("দ".into()).unwrap();
+        let res_dd = session.process_key("দ".into()).unwrap();
+        assert_eq!(res_dd.preedit, "দ্দ");
+
+        session.reset();
+
+        // 4. Geminate double-tap: 'ক' + 'ক' -> "ক্ক"
+        session.process_key("ক".into()).unwrap();
+        let res_kk = session.process_key("ক".into()).unwrap();
+        assert_eq!(res_kk.preedit, "ক্ক");
     }
 }
 

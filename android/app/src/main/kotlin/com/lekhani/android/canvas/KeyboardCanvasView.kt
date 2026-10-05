@@ -225,9 +225,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
         color = 0x44000000
     }
 
-    // Swipe-up flick gesture state (Probaho 2.0 / rapid shifted access)
+    // Swipe flick gestures (Probaho 2.0 / rapid shifted & subscript access)
     private var swipeUpFlickEnabled: Boolean = true
     private var isFlickGestureActive: Boolean = false
+    private var isFlickDownActive: Boolean = false
     private var flickThresholdPx: Float = 0f
 
     // Bilateral Thumb Aura paint (Probaho 2.0 vowel-consonant realm tint)
@@ -1954,6 +1955,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     pressStartTime = SystemClock.uptimeMillis()
                     isLongPressTriggered = false
                     isFlickGestureActive = false
+                    isFlickDownActive = false
                     isSpaceSwiping = false
                     isSpaceCursorMoving = false
                     isBackspaceSwiping = false
@@ -2186,16 +2188,18 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     }
                 }
 
-                // ── Swipe-Up Flick Gesture Detection (Probaho 2.0 / rapid shifted access) ──
+                // ── Swipe Flick Gesture Detection (Probaho 2.0 / rapid shifted & subscript access) ──
                 if (swipeUpFlickEnabled && !isGliding && !isSpaceSwiping && !isSpaceCursorMoving && !isBackspaceSwiping && !alternatePopup.isShowing) {
                     if (pressedKeyIndex in resolvedKeys.indices) {
                         val flickKey = resolvedKeys[pressedKeyIndex].key
+                        val dy = curY - touchStartY
+                        val dx = curX - touchStartX
+                        val absDx = kotlin.math.abs(dx)
+
+                        // 1. Swipe-Up Flick (Shifted character / Aspirated partner)
                         if (flickKey.action is KeyAction.Character && flickKey.shiftedLabel != null && flickKey.shiftedLabel != flickKey.label) {
-                            val dy = curY - touchStartY
-                            val dx = curX - touchStartX
-                            val absDx = kotlin.math.abs(dx)
                             if (-dy > flickThresholdPx && -dy > absDx * 0.75f) {
-                                if (!isFlickGestureActive) {
+                                if (!isFlickGestureActive && !isFlickDownActive) {
                                     isFlickGestureActive = true
                                     removeCallbacks(longPressRunnable)
                                     val bounds = resolvedKeys[pressedKeyIndex].bounds
@@ -2213,6 +2217,42 @@ class KeyboardCanvasView @JvmOverloads constructor(
                                 }
                             } else if (isFlickGestureActive && -dy < flickThresholdPx * 0.35f) {
                                 isFlickGestureActive = false
+                                val bounds = resolvedKeys[pressedKeyIndex].bounds
+                                keyPreviewPopup.show(
+                                    anchor = this,
+                                    label = flickKey.displayLabel(isShifted),
+                                    keyLeft = bounds.left,
+                                    keyTop = bounds.top,
+                                    keyRight = bounds.right,
+                                    keyBottom = bounds.bottom,
+                                    density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
+                                )
+                                feedbackManager?.onTickFeedback(this)
+                                    ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            }
+                        }
+
+                        // 2. Swipe-Down Flick (Subscript numeric digit / secondary symbol)
+                        if (flickKey.hintLabel != null && flickKey.longPressAction != null && !isFlickGestureActive) {
+                            if (dy > flickThresholdPx && dy > absDx * 0.75f) {
+                                if (!isFlickDownActive) {
+                                    isFlickDownActive = true
+                                    removeCallbacks(longPressRunnable)
+                                    val bounds = resolvedKeys[pressedKeyIndex].bounds
+                                    keyPreviewPopup.show(
+                                        anchor = this,
+                                        label = flickKey.hintLabel!!,
+                                        keyLeft = bounds.left,
+                                        keyTop = bounds.top,
+                                        keyRight = bounds.right,
+                                        keyBottom = bounds.bottom,
+                                        density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
+                                    )
+                                    feedbackManager?.onTickFeedback(this)
+                                        ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                }
+                            } else if (isFlickDownActive && dy < flickThresholdPx * 0.35f) {
+                                isFlickDownActive = false
                                 val bounds = resolvedKeys[pressedKeyIndex].bounds
                                 keyPreviewPopup.show(
                                     anchor = this,
@@ -2391,9 +2431,16 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         flickKey.shiftedLabel != flickKey.label &&
                         (isFlickGestureActive || (-upDy >= flickThresholdPx && -upDy > kotlin.math.abs(upDx) * 0.75f))
                 }
+                val isFlickDownRelease = swipeUpFlickEnabled && pressedKeyIndex in resolvedKeys.indices && run {
+                    val flickKey = resolvedKeys[pressedKeyIndex].key
+                    flickKey.hintLabel != null &&
+                        flickKey.longPressAction != null &&
+                        (isFlickDownActive || (upDy >= flickThresholdPx && upDy > kotlin.math.abs(upDx) * 0.75f))
+                }
 
                 if (isFlickGestureActive || isFlickRelease) {
                     isFlickGestureActive = false
+                    isFlickDownActive = false
                     keyPreviewPopup.dismiss()
                     if (pressedKeyIndex in resolvedKeys.indices) {
                         val flickKey = resolvedKeys[pressedKeyIndex].key
@@ -2401,6 +2448,27 @@ class KeyboardCanvasView @JvmOverloads constructor(
                         keyListener?.onKeyWithTouch(flickKey, flickKey.shiftedAction, touchStartX, touchStartY)
                         feedbackManager?.onKeyFeedback(this)
                             ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    }
+                    pressedKeyIndex = -1
+                    pressedPointerId = -1
+                    isLongPressTriggered = false
+                    isSpaceSwiping = false
+                    invalidate()
+                    return true
+                }
+
+                if (isFlickDownActive || isFlickDownRelease) {
+                    isFlickGestureActive = false
+                    isFlickDownActive = false
+                    keyPreviewPopup.dismiss()
+                    if (pressedKeyIndex in resolvedKeys.indices) {
+                        val flickKey = resolvedKeys[pressedKeyIndex].key
+                        flickKey.longPressAction?.let { act ->
+                            keyListener?.onKey(flickKey, act)
+                            keyListener?.onKeyWithTouch(flickKey, act, touchStartX, touchStartY)
+                            feedbackManager?.onKeyFeedback(this)
+                                ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
                     }
                     pressedKeyIndex = -1
                     pressedPointerId = -1
@@ -2485,9 +2553,15 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * operates on pre-computed centre coordinates stored in [resolvedKeys].
      */
     private fun findKeyIndex(x: Float, y: Float): Int {
-        // Fast direct hit-test
+        val w = width.toFloat().coerceAtLeast(1f)
+        val h = height.toFloat().coerceAtLeast(1f)
+        val clampedX = x.coerceIn(0f, w)
+        val clampedY = y.coerceIn(0f, h)
+
+        // Fast direct hit-test with bezel-edge compensation
         for (i in resolvedKeys.indices) {
-            if (resolvedKeys[i].bounds.contains(x, y)) {
+            val b = resolvedKeys[i].bounds
+            if (b.contains(clampedX, clampedY)) {
                 return i
             }
         }
@@ -2499,12 +2573,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
             val bounds = resolvedKeys[i].bounds
             // Only consider keys within a reasonable y-band (improves accuracy
             // for multi-row keyboards — avoids picking keys from the wrong row)
-            if (y < bounds.top - KEY_Y_TOLERANCE || y > bounds.bottom + KEY_Y_TOLERANCE) continue
+            if (clampedY < bounds.top - KEY_Y_TOLERANCE || clampedY > bounds.bottom + KEY_Y_TOLERANCE) continue
 
             val cx = bounds.centerX()
             val cy = bounds.centerY()
-            val dx = x - cx
-            val dy = (y - cy) * ROW_Y_BIAS    // de-emphasise vertical error
+            val dx = clampedX - cx
+            val dy = (clampedY - cy) * ROW_Y_BIAS    // de-emphasise vertical error
             val dist = dx * dx + dy * dy
 
             if (dist < bestScore) {

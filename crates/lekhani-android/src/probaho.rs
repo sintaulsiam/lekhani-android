@@ -118,7 +118,8 @@ pub fn demote_vowel_to_kar_if_preceded_by_consonant(vowel: &str, preceded_by_con
 }
 
 /// Returns dynamic conjunct suggestions for the candidate strip when Hasanta (`্`) is typed.
-/// Powered directly by Tier 1 `lekhani-core`'s authentic Bengali `ConjunctCatalog`.
+/// Powered directly by Tier 1 `lekhani-core`'s authentic Bengali `ConjunctCatalog`
+/// combined with high-frequency pholas (্র, ্য, ্ব, ্ম, ্ল) and geminates.
 pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
     if last_consonant == 'র' {
         return vec![
@@ -151,31 +152,107 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         .map(|info| info.conjunct)
         .collect();
 
-    // Ensure R-phola (্র) is prominently offered for eligible consonants
-    if is_bengali_consonant_or_modifier(last_consonant)
-        && !matches!(last_consonant, 'র' | '্' | 'ৎ' | 'ড়' | 'ঢ়' | 'য়' | '়' | 'ং' | 'ঃ' | 'ঁ')
-    {
-        let rphola = format!("{}্র", last_consonant);
-        if let Some(pos) = results.iter().position(|r| r == &rphola) {
-            results.remove(pos);
-            results.insert(0, rphola);
-        } else {
-            results.insert(0, rphola);
+    let is_eligible = is_bengali_consonant_or_modifier(last_consonant)
+        && !matches!(last_consonant, 'র' | '্' | 'ৎ' | 'ড়' | 'ঢ়' | '়' | 'ং' | 'ঃ' | 'ঁ');
+
+    if is_eligible {
+        // 1. R-phola (্র)
+        if last_consonant != 'য়' {
+            let rphola = format!("{}্র", last_consonant);
+            if !results.contains(&rphola) {
+                results.push(rphola);
+            }
+        }
+
+        // 2. Ya-phola (্য)
+        let yaphola = format!("{}্য", last_consonant);
+        if !results.contains(&yaphola) {
+            results.push(yaphola);
+        }
+
+        // 3. Ba-phola (্ব)
+        if matches!(last_consonant, 'শ' | 'দ' | 'ত' | 'স' | 'ধ' | 'হ' | 'ম' | 'ব' | 'জ' | 'ক' | 'খ' | 'গ' | 'ল') {
+            let baphola = format!("{}্ব", last_consonant);
+            if !results.contains(&baphola) {
+                results.push(baphola);
+            }
+        }
+
+        // 4. Ma-phola (্ম)
+        if matches!(last_consonant, 'ত' | 'দ' | 'স' | 'শ' | 'হ' | 'ম' | 'ল' | 'গ' | 'ষ' | 'ক' | 'ণ' | 'ন') {
+            let maphola = format!("{}্ম", last_consonant);
+            if !results.contains(&maphola) {
+                results.push(maphola);
+            }
+        }
+
+        // 5. La-phola (্ল)
+        if matches!(last_consonant, 'শ' | 'প' | 'ক' | 'গ' | 'ব' | 'ম' | 'ফ' | 'হ' | 'স') {
+            let laphola = format!("{}্ল", last_consonant);
+            if !results.contains(&laphola) {
+                results.push(laphola);
+            }
+        }
+
+        // 6. Geminate conjunct (e.g. ক্ক, ত্ত, ব্ব, ল্ল, প্প, ম্ম, ন্ন, চ্চ, জ্জ, দ্দ, স্স, ট্ট, ড্ড)
+        if matches!(last_consonant, 'ক' | 'গ' | 'চ' | 'জ' | 'ট' | 'ড' | 'ণ' | 'ত' | 'দ' | 'ন' | 'প' | 'ব' | 'ম' | 'ল' | 'শ' | 'ষ' | 'স') {
+            let geminate = nfc_normalize(&format!("{}{}{}", last_consonant, '্', last_consonant));
+            if !results.contains(&geminate) {
+                results.push(geminate);
+            }
+        }
+
+        // 7. Special primary conjunct promotions
+        match last_consonant {
+            'ক' => {
+                if !results.contains(&"ক্ষ".to_string()) { results.push("ক্ষ".to_string()); }
+            }
+            'জ' => {
+                if !results.contains(&"জ্ঞ".to_string()) { results.push("জ্ঞ".to_string()); }
+            }
+            'ঞ' => {
+                if !results.contains(&"ঞ্চ".to_string()) { results.push("ঞ্চ".to_string()); }
+                if !results.contains(&"ঞ্জ".to_string()) { results.push("ঞ্জ".to_string()); }
+            }
+            'দ' => {
+                if !results.contains(&"দ্ধ".to_string()) { results.push("দ্ধ".to_string()); }
+            }
+            'গ' => {
+                if !results.contains(&"গ্ধ".to_string()) { results.push("গ্ধ".to_string()); }
+            }
+            'স' => {
+                if !results.contains(&"স্ত".to_string()) { results.push("স্ত".to_string()); }
+                if !results.contains(&"স্থ".to_string()) { results.push("স্থ".to_string()); }
+                if !results.contains(&"স্প".to_string()) { results.push("স্প".to_string()); }
+                if !results.contains(&"স্ফ".to_string()) { results.push("স্ফ".to_string()); }
+            }
+            'ষ' => {
+                if !results.contains(&"ষ্ট".to_string()) { results.push("ষ্ট".to_string()); }
+                if !results.contains(&"ষ্ঠ".to_string()) { results.push("ষ্ঠ".to_string()); }
+                if !results.contains(&"ষ্ণ".to_string()) { results.push("ষ্ণ".to_string()); }
+            }
+            'হ' => {
+                if !results.contains(&"হ্ন".to_string()) { results.push("হ্ন".to_string()); }
+                if !results.contains(&"হ্ম".to_string()) { results.push("হ্ম".to_string()); }
+                if !results.contains(&"হ্ল".to_string()) { results.push("হ্ল".to_string()); }
+                if !results.contains(&"হৃ".to_string()) { results.push("হৃ".to_string()); }
+            }
+            _ => {}
         }
     }
 
-    // Ensure Ya-phola (্য) is prominently offered for eligible consonants
-    if is_bengali_consonant_or_modifier(last_consonant)
-        && !matches!(last_consonant, 'র' | '্' | 'ৎ' | 'ড়' | 'ঢ়' | '়' | 'ং' | 'ঃ' | 'ঁ')
-    {
+    // Prioritize R-phola and Ya-phola at index 0 & 1 if present
+    if is_eligible {
+        let rphola = format!("{}্র", last_consonant);
+        if let Some(pos) = results.iter().position(|r| r == &rphola) {
+            let item = results.remove(pos);
+            results.insert(0, item);
+        }
         let yaphola = format!("{}্য", last_consonant);
         if let Some(pos) = results.iter().position(|r| r == &yaphola) {
-            results.remove(pos);
-            let insert_idx = if !results.is_empty() { 1 } else { 0 };
-            results.insert(insert_idx, yaphola);
-        } else {
-            let insert_idx = if !results.is_empty() { 1 } else { 0 };
-            results.insert(insert_idx, yaphola);
+            let item = results.remove(pos);
+            let idx = if !results.is_empty() { 1 } else { 0 };
+            results.insert(idx, item);
         }
     }
 
