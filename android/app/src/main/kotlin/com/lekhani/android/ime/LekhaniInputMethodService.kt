@@ -237,11 +237,13 @@ class LekhaniInputMethodService : InputMethodService() {
     private val rawInputBuffer = StringBuilder()
     private val avroHistory = AvroWordHistory(maxEntries = 100)
     private var activeInspectedWord: InspectedWord? = null
-    private val wordInspectionSession: AndroidLekhaniSession by lazy {
-        AndroidLekhaniSession().apply {
+    // Nullable backing field for lazy word-inspection session — allows safe null-check
+    // in onFinishInput() without reflection on a private lazy delegate.
+    private var _wordInspectionSession: AndroidLekhaniSession? = null
+    private val wordInspectionSession: AndroidLekhaniSession
+        get() = _wordInspectionSession ?: AndroidLekhaniSession().apply {
             setLayout(LekhaniLayoutType.AVRO)
-        }
-    }
+        }.also { _wordInspectionSession = it }
     private var activeUndoInfo: UndoInfo? = null
     private var undoDismissJob: kotlinx.coroutines.Job? = null
     private var refreshContextJob: kotlinx.coroutines.Job? = null
@@ -447,7 +449,8 @@ class LekhaniInputMethodService : InputMethodService() {
         rootInputContainer = null
         serviceScope.cancel()
         try {
-            wordInspectionSession.destroy()
+            _wordInspectionSession?.destroy()
+            _wordInspectionSession = null
         } catch (_: Exception) {}
         super.onDestroy()
     }
@@ -478,6 +481,12 @@ class LekhaniInputMethodService : InputMethodService() {
         rawInputBuffer.clear()
         audioManager.cancelStreaming()
         session.reset()
+        // Fix #3: Reset the word-inspection session so stale composing state from
+        // the previous editor field (e.g. tapping into a committed word to inspect it)
+        // never bleeds into the next editor focus. Use nullable backing field to avoid
+        // unnecessary initialisation of the session if it was never used.
+        _wordInspectionSession?.reset()
+        activeInspectedWord = null
         preeditShadow = ""
         cachedSurroundingContext = ""
         activeSwipeSnapshotText = ""

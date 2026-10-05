@@ -700,34 +700,22 @@ impl AndroidLekhaniSession {
         let mut result = self.process_key(key.clone())?;
 
         // If spatial model is populated, check for adjacent fat-finger candidates
-        let spatial_candidates = {
-            let state = self
-                .state
-                .lock()
-                .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
-            if !state.spatial_model.is_empty() {
-                state.spatial_model.rank_keys_at(touch_x, touch_y, 2)
-            } else {
-                Vec::new()
-            }
-        };
+        let state = self
+            .state
+            .lock()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
-        // If the top spatial key differs from the tapped key (touch landed closer to neighbor)
-        // or neighbor has high likelihood within 2.8 log-prob, explore neighbor
-        if spatial_candidates.len() >= 2 {
-            let neighbor = if spatial_candidates[0].key == key {
-                &spatial_candidates[1]
-            } else {
-                &spatial_candidates[0]
-            };
+        if !state.spatial_model.is_empty() {
+            let spatial_candidates = state.spatial_model.rank_keys_at(touch_x, touch_y, 2);
+            if spatial_candidates.len() >= 2 {
+                let neighbor = if spatial_candidates[0].key == key {
+                    &spatial_candidates[1]
+                } else {
+                    &spatial_candidates[0]
+                };
 
-            let key_prob = self.get_spatial_log_prob(key, touch_x, touch_y);
-            if (neighbor.log_prob - key_prob).abs() <= 2.8 {
-                let state = self
-                    .state
-                    .lock()
-                    .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
-                if !state.composing_buffer.is_empty() {
+                let key_prob = state.spatial_model.log_prob_for_key(&key, touch_x, touch_y);
+                if (neighbor.log_prob - key_prob).abs() <= 2.8 && !state.composing_buffer.is_empty() {
                     let mut alt_buf = state.composing_buffer.clone();
                     alt_buf.pop();
                     alt_buf.push_str(&neighbor.key);
@@ -746,6 +734,20 @@ impl AndroidLekhaniSession {
                             for cand in alt_cands {
                                 if !result.candidates.contains(&cand) && result.candidates.len() < 7 {
                                     result.candidates.push(cand);
+                                }
+                            }
+                        }
+                        // Fix #2: Extend spatial fat-finger correction to Probaho/Probhat —
+                        // the primary layout was previously silently discarding spatial data.
+                        // Query the prefix trie with the neighbor-key buffer to surface
+                        // Bengali words that differ by one spatially-adjacent key.
+                        LekhaniLayoutType::Probaho | LekhaniLayoutType::Probhat => {
+                            let db = get_core_database();
+                            let prefix_matches = db.trie.find_prefix_entries(&alt_buf, 3);
+                            for (word, _) in prefix_matches {
+                                let w = word.to_string();
+                                if !result.candidates.contains(&w) && result.candidates.len() < 7 {
+                                    result.candidates.push(w);
                                 }
                             }
                         }
@@ -846,7 +848,13 @@ impl AndroidLekhaniSession {
             state.append_to_context(&committed);
 
             let next_words = if state.layout == LekhaniLayoutType::English {
-                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                // Fix #1: Filter surrounding_context to only ASCII words so Bengali
+                // context accumulated from a previous layout session never leaks into
+                // English next-word predictions after punctuation flush.
+                let words: Vec<&str> = state.surrounding_context
+                    .split_whitespace()
+                    .filter(|w| w.is_ascii())
+                    .collect();
                 crate::english::get_english_next_words(&words, 5)
             } else {
                 get_bengali_next_words(&state.surrounding_context, Some(&state.right_context))
@@ -926,12 +934,27 @@ impl AndroidLekhaniSession {
 
                 if candidates.is_empty() {
                     let db = get_core_database();
-                    let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 4);
+                    let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 6);
                     if !prefix_matches.is_empty() {
                         candidates.push(state.composing_buffer.clone());
                         for (word, _) in prefix_matches {
                             if !candidates.iter().any(|c| c == word) {
                                 candidates.push(word.to_string());
+                            }
+                        }
+                    }
+                }
+                // Fix #9: Morphological suffix expansion for Probaho/Probhat
+                // (mirrors what the Gboard/National arm already does)
+                if candidates.len() < 5 {
+                    let db = get_core_database();
+                    let stems = lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
+                    for stem in stems {
+                        if stem.len() >= 2 {
+                            let stem_matches = db.trie.find_prefix_matches(&stem, 3);
+                            for w in stem_matches {
+                                if candidates.len() >= 8 { break; }
+                                if !candidates.contains(&w) { candidates.push(w); }
                             }
                         }
                     }
@@ -1664,6 +1687,7 @@ impl AndroidLekhaniSession {
                 // Key-by-key char deletion for all Bengali fixed layouts
                 // (Probaho, National, Probhat, Gboard) inside active composing buffer
                 state.composing_buffer.pop();
+
                 if state.composing_buffer.is_empty() {
                     Ok(TypingResult {
                         preedit: String::new(),
