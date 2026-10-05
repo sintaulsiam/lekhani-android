@@ -3,7 +3,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use lekhani_core::phonetic::PhoneticDatabase;
 use crate::error::LekhaniError;
 use crate::layout::LekhaniLayoutType;
-use crate::probaho::{demote_vowel_to_kar_if_preceded_by_consonant, get_conjunct_suggestions, is_bengali_consonant_or_modifier, is_bengali_punctuation_or_space, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
+use crate::probaho::{demote_vowel_to_kar_if_preceded_by_consonant, generate_inflectional_suffixes, get_conjunct_suggestions, is_bengali_consonant_or_modifier, is_bengali_punctuation_or_space, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
 
 static CORE_DB: RwLock<Option<&'static PhoneticDatabase>> = RwLock::new(None);
 static CUSTOM_DICT_DIR: RwLock<Option<String>> = RwLock::new(None);
@@ -938,7 +938,17 @@ impl AndroidLekhaniSession {
                     state.composing_buffer.pop();
                     state.composing_buffer.push_str(&transformed);
                 }
-                // 2. Geminate Consonant Double-Tap Shortcut:
+                // 2. Postfix Reph (র্) Workflow:
+                // If user types Reph ("র্" or "র\u{09CD}") after a consonant `c` (e.g. ধ + ম + র্),
+                // automatically transpose them to form the valid syllable (e.g. ধর্ম).
+                else if key == "র্"
+                    && last_ch.is_some_and(|c| is_bengali_consonant_or_modifier(c) && c != '্' && c != 'র' && c != 'ৎ')
+                {
+                    let c = state.composing_buffer.pop().unwrap();
+                    state.composing_buffer.push_str("র্");
+                    state.composing_buffer.push(c);
+                }
+                // 3. Geminate Consonant Double-Tap Shortcut:
                 // If buffer ends in the same consonant `c` (and not preceded by Hasanta `্`),
                 // typing `c` again automatically inserts `্` + `c` forming the geminate (e.g. উ + ত + ত -> উত্তর).
                 else if state.geminate_double_tap_enabled
@@ -980,6 +990,23 @@ impl AndroidLekhaniSession {
                         for (word, _) in prefix_matches {
                             if !candidates.iter().any(|c| c == word) {
                                 candidates.push(word.to_string());
+                            }
+                        }
+                    }
+                }
+
+                // Agglutinative inflectional suffix expansion:
+                // When composing buffer forms a valid base word (e.g. মানুষ, বই, দেশ, কথা),
+                // surface its high-frequency grammatical inflections (e.g. মানুষের, মানুষকে, মানুষগুলো, মানুষটি).
+                if !state.composing_buffer.ends_with('্') && state.composing_buffer.chars().count() >= 2 {
+                    let db = get_core_database();
+                    let is_exact_word = db.trie.contains_exact(&state.composing_buffer);
+                    if is_exact_word || candidates.len() < 5 {
+                        let inflections = generate_inflectional_suffixes(&state.composing_buffer);
+                        for inf in inflections {
+                            if candidates.len() >= 8 { break; }
+                            if (db.trie.contains_exact(&inf) || candidates.len() < 4) && !candidates.contains(&inf) {
+                                candidates.push(inf);
                             }
                         }
                     }
@@ -1250,6 +1277,20 @@ impl AndroidLekhaniSession {
                         for (word, _) in prefix_matches {
                             if !candidates.iter().any(|c| c == word) {
                                 candidates.push(word.to_string());
+                            }
+                        }
+                    }
+                }
+
+                // Agglutinative inflectional suffix expansion for fixed layouts
+                if !state.composing_buffer.ends_with('্') && state.composing_buffer.chars().count() >= 2 {
+                    let is_exact_word = db.trie.contains_exact(&state.composing_buffer);
+                    if is_exact_word || candidates.len() < 5 {
+                        let inflections = generate_inflectional_suffixes(&state.composing_buffer);
+                        for inf in inflections {
+                            if candidates.len() >= 8 { break; }
+                            if (db.trie.contains_exact(&inf) || candidates.len() < 4) && !candidates.contains(&inf) {
+                                candidates.push(inf);
                             }
                         }
                     }
@@ -2876,6 +2917,51 @@ mod tests {
         let select_res = session.select_candidate("র্ম".into()).unwrap();
         assert_eq!(select_res.commit_text, None);
         assert_eq!(select_res.preedit, "ধর্ম");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probaho_postfix_reph() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+
+        // 1. Typing 'ধ' + 'ম' + 'র্' transposes to "ধর্ম"
+        session.process_key("ধ".into()).unwrap();
+        session.process_key("ম".into()).unwrap();
+        let res = session.process_key("র্".into()).unwrap();
+        assert_eq!(res.preedit, "ধর্ম", "Postfix 'র্' after 'ম' must form 'ধর্ম'");
+
+        // 2. Typing 'ক' + 'ম' + 'র্' transposes to "কর্ম"
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        session.process_key("ম".into()).unwrap();
+        let res2 = session.process_key("র্".into()).unwrap();
+        assert_eq!(res2.preedit, "কর্ম", "Postfix 'র্' after 'ম' must form 'কর্ম'");
+
+        // 3. Typing 'ক' + 'ম' + '্' suggests 'র্ম'
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        session.process_key("ম".into()).unwrap();
+        let res3 = session.process_key("্".into()).unwrap();
+        assert!(res3.candidates.contains(&"র্ম".to_string()), "ম + ্ must suggest র্ম");
+        let select_res = session.select_candidate("র্ম".into()).unwrap();
+        assert_eq!(select_res.preedit, "কর্ম");
+    }
+
+    #[test]
+    #[serial]
+    fn test_probaho_agglutinative_suffix_strip() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Probaho);
+
+        // Typing "মানুষ" produces inflected candidates in strip
+        for ch in ["ম", "া", "ন", "ু", "ষ"] {
+            session.process_key(ch.into()).unwrap();
+        }
+        let res = session.process_key("".into()).unwrap();
+        assert_eq!(res.preedit, "মানুষ");
+        assert!(res.candidates.iter().any(|c| c == "মানুষের"), "Candidates must surface 'মানুষের'");
+        assert!(res.candidates.iter().any(|c| c == "মানুষকে"), "Candidates must surface 'মানুষকে'");
     }
 
     #[test]

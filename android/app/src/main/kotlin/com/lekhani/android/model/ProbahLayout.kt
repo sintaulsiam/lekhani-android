@@ -39,7 +39,7 @@ object ProbahLayout {
                 Ch("ি", shifted = "ই", homeRow = true, desc = "ি, shifted ই"),
                 Ch("ু", shifted = "উ", homeRow = true, desc = "ু, shifted উ"),
                 Ch("ে", shifted = "এ", homeRow = true, desc = "ে, shifted এ"),
-                Ch("র", shifted = "ড়", homeRow = true, desc = "র, shifted ড়"),
+                Ch("র", shifted = "ড়", hint = "র্", homeRow = true, desc = "র, shifted ড়, hold or flick-down for Reph র্"),
                 Ch("ত", shifted = "থ", homeRow = true, desc = "ত, shifted থ"),
                 Ch("ন", shifted = "ণ", homeRow = true, desc = "ন, shifted ণ"),
                 Ch("স", shifted = "ষ", homeRow = true, desc = "স, shifted ষ"),

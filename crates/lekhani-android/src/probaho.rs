@@ -239,6 +239,14 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
             }
             _ => {}
         }
+
+        // 8. Reph on this consonant (e.g. র্ম, র্ক, র্ষ, র্ণ, র্ত, র্দ, র্ধ, র্ব, র্শ, র্গ)
+        if matches!(last_consonant, 'ক'..='হ' | 'ড়'..='ঢ়') && last_consonant != 'র' {
+            let reph = format!("র্{}", last_consonant);
+            if !results.contains(&reph) {
+                results.push(reph);
+            }
+        }
     }
 
     // Prioritize R-phola and Ya-phola at index 0 & 1 if present
@@ -257,6 +265,93 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
     }
 
     results
+}
+
+/// Generate high-frequency agglutinative inflectional suffixes for a given base word.
+///
+/// In Bengali, roots attach specific case markers (বিভক্তি) and enclitics (প্রত্যয়):
+/// - Genitive: `-এর` after consonants (`মানুষের`, `দেশের`), `-র` / `-য়ের` after vowels (`কথার`, `পানির`, `বইয়ের`)
+/// - Locative: `-এ` after consonants (`দেশে`, `ঘরে`), `-তে` / `-য়ে` after vowels (`পানিতে`, `বইয়ে`, `মাথায়`)
+/// - Accusative/Dative: `-কে` (`মানুষকে`, `তোমাকে`)
+/// - Definite articles: `-টি`, `-টা` (`মানুষটি`, `বইটি`, `দেশটা`)
+/// - Plural: `-গুলো`, `-দের` (`মানুষগুলো`, `বইগুলো`, `মানুষদের`)
+pub fn generate_inflectional_suffixes(root: &str) -> Vec<String> {
+    if root.is_empty() || root.chars().count() < 2 {
+        return Vec::new();
+    }
+
+    let last_ch = match root.chars().last() {
+        Some(c) => c,
+        None => return Vec::new(),
+    };
+
+    // If root already ends with Hasanta, modifier (ং, ঃ, ঁ, ৎ), or punctuation, do not inflect
+    if matches!(last_ch, '্' | 'ং' | 'ঃ' | 'ঁ' | 'ৎ' | '।' | ',' | '?' | '!') {
+        return Vec::new();
+    }
+
+    let is_vowel = is_bengali_vowel(last_ch);
+    let mut inflected = Vec::with_capacity(8);
+
+    if is_vowel {
+        // Root ends in vowel or vowel sign (া, ি, ী, ু, ূ, ৃ, ে, ৈ, ো, ঔ, or independent vowel)
+        match last_ch {
+            'া' | 'আ' => {
+                // কথা -> কথার, কথায়, কথাটি, কথাগুলো, কথাকে
+                inflected.push(format!("{}র", root));
+                inflected.push(format!("{}য়", root));
+                inflected.push(format!("{}টি", root));
+                inflected.push(format!("{}গুলো", root));
+                inflected.push(format!("{}কে", root));
+                inflected.push(format!("{}তে", root));
+                inflected.push(format!("{}টা", root));
+            }
+            'ি' | 'ই' | 'ী' | 'ঈ' => {
+                // পানি -> পানির, পানিতে, পানিটা, পানিটি, পানিগুলো
+                // বই -> বইয়ের, বইয়ে, বইটি, বইগুলো, বইকে
+                if matches!(last_ch, 'ই' | 'ঈ') {
+                    inflected.push(format!("{}য়ের", root));
+                    inflected.push(format!("{}য়ে", root));
+                } else {
+                    inflected.push(format!("{}র", root));
+                    inflected.push(format!("{}তে", root));
+                }
+                inflected.push(format!("{}টি", root));
+                inflected.push(format!("{}গুলো", root));
+                inflected.push(format!("{}কে", root));
+                inflected.push(format!("{}টা", root));
+            }
+            'ে' | 'এ' | 'ো' | 'ও' => {
+                // আলো -> আলোর, আলোতে, আলোটি, আলোটা
+                inflected.push(format!("{}র", root));
+                inflected.push(format!("{}তে", root));
+                inflected.push(format!("{}টি", root));
+                inflected.push(format!("{}গুলো", root));
+                inflected.push(format!("{}কে", root));
+                inflected.push(format!("{}টা", root));
+            }
+            _ => {
+                inflected.push(format!("{}র", root));
+                inflected.push(format!("{}তে", root));
+                inflected.push(format!("{}টি", root));
+                inflected.push(format!("{}গুলো", root));
+                inflected.push(format!("{}কে", root));
+            }
+        }
+    } else {
+        // Root ends in a consonant (e.g. মানুষ, দেশ, ঘর, কাজ, দিন)
+        // মানুষ -> মানুষের, মানুষকে, মানুষগুলো, মানুষটি, মানুষদের
+        // দেশ -> দেশের, দেশে, দেশকে, দেশগুলো, দেশটি
+        inflected.push(format!("{}ের", root));
+        inflected.push(format!("{}ে", root));
+        inflected.push(format!("{}কে", root));
+        inflected.push(format!("{}গুলো", root));
+        inflected.push(format!("{}টি", root));
+        inflected.push(format!("{}টা", root));
+        inflected.push(format!("{}দের", root));
+    }
+
+    inflected
 }
 
 #[cfg(test)]
@@ -324,6 +419,36 @@ mod tests {
         assert!(reph_suggestions.contains(&"র্ক".to_string()));
         assert!(reph_suggestions.contains(&"র্ম".to_string()));
         assert!(reph_suggestions.contains(&"র্ষ".to_string()));
+
+        // Consonant + Hasanta gives Reph on that consonant
+        assert!(suggestions.contains(&"র্ক".to_string()), "ক + ্ must suggest র্ক");
+        let m_suggestions = get_conjunct_suggestions('ম');
+        assert!(m_suggestions.contains(&"র্ম".to_string()), "ম + ্ must suggest র্ম");
+    }
+
+    #[test]
+    fn test_generate_inflectional_suffixes() {
+        let manush = generate_inflectional_suffixes("মানুষ");
+        assert!(manush.contains(&"মানুষের".to_string()));
+        assert!(manush.contains(&"মানুষকে".to_string()));
+        assert!(manush.contains(&"মানুষগুলো".to_string()));
+        assert!(manush.contains(&"মানুষটি".to_string()));
+
+        let desh = generate_inflectional_suffixes("দেশ");
+        assert!(desh.contains(&"দেশের".to_string()));
+        assert!(desh.contains(&"দেশে".to_string()));
+        assert!(desh.contains(&"দেশকে".to_string()));
+        assert!(desh.contains(&"দেশগুলো".to_string()));
+
+        let boi = generate_inflectional_suffixes("বই");
+        assert!(boi.contains(&"বইটি".to_string()));
+        assert!(boi.contains(&"বইগুলো".to_string()));
+        assert!(boi.contains(&"বইয়ের".to_string()));
+
+        let kotha = generate_inflectional_suffixes("কথা");
+        assert!(kotha.contains(&"কথার".to_string()));
+        assert!(kotha.contains(&"কথায়".to_string()));
+        assert!(kotha.contains(&"কথাটি".to_string()));
     }
 
     #[test]
