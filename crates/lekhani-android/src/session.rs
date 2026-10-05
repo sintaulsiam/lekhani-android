@@ -584,7 +584,7 @@ impl AndroidLekhaniSession {
                 last_commit_info: None,
                 spatial_model: crate::spatial::SpatialTouchModel::new(),
                 smart_initial_kar_enabled: true,
-                geminate_double_tap_enabled: true,
+                geminate_double_tap_enabled: false,
                 hasanta_conjuncts_enabled: true,
             }),
         }
@@ -1058,8 +1058,24 @@ impl AndroidLekhaniSession {
                     state.composing_buffer.push_str("র্");
                     state.composing_buffer.push(c);
                 }
-                // 3. Geminate Consonant Double-Tap Shortcut:
-                // If buffer ends in the same consonant `c` (and not preceded by Hasanta `্`),
+                // 3. Geminate Consonant Double-Tap Shortcut & 3rd-Tap Reversion:
+                // Case A: 3rd-Tap Reversion
+                // If buffer ends in `c` + `্` + `c` (from previous geminate double-tap),
+                // typing `c` a 3rd time reverts the conjunct back to separate identical consonants `c` + `c`
+                // (e.g. বলল, বললে, বললেও, বললাম, চলল, চললে, চললেও, তত, ততটুকু).
+                else if state.geminate_double_tap_enabled
+                    && key.chars().count() == 1
+                    && last_ch == key.chars().next()
+                    && chars.len() >= 3
+                    && chars[chars.len() - 2] == '্'
+                    && chars[chars.len() - 3] == chars[chars.len() - 1]
+                {
+                    state.composing_buffer.pop();
+                    state.composing_buffer.pop();
+                    state.composing_buffer.push_str(&key);
+                }
+                // Case B: 2nd-Tap Geminate Shortcut
+                // If buffer ends in consonant `c` (not preceded by Hasanta `্` and not already double `c`),
                 // typing `c` again automatically inserts `্` + `c` forming the geminate (e.g. উ + ত + ত -> উত্তর).
                 else if state.geminate_double_tap_enabled
                     && key.chars().count() == 1
@@ -1072,7 +1088,9 @@ impl AndroidLekhaniSession {
                             && c != 'ঢ়'
                             && c != 'য়'
                     })
-                    && (chars.len() < 2 || chars[chars.len() - 2] != '্')
+                    && (chars.len() < 2
+                        || (chars[chars.len() - 2] != '্'
+                            && chars[chars.len() - 2] != key.chars().next().unwrap()))
                 {
                     state.composing_buffer.push('্');
                     state.composing_buffer.push_str(&key);
@@ -3559,6 +3577,7 @@ mod tests {
     fn test_probaho_geminate_double_tap() {
         let session = AndroidLekhaniSession::new();
         session.set_layout(LekhaniLayoutType::Probaho);
+        session.set_geminate_double_tap_enabled(true);
 
         // 1. Geminate double-tap: 'উ' + 'ত' + 'ত' + 'র' -> "উত্তর"
         session.process_key("উ".into()).unwrap();
@@ -3591,6 +3610,60 @@ mod tests {
         session.process_key("ক".into()).unwrap();
         let res_kk = session.process_key("ক".into()).unwrap();
         assert_eq!(res_kk.preedit, "ক্ক");
+
+        session.reset();
+
+        // 5. 3rd-tap cycle reversion when geminate double-tap is enabled:
+        // Typing 'ব' + 'ল' + 'ল' (geminate 'বল্ল') + 'ল' (3rd tap reverts to 'বলল') + 'ে' + 'ও' -> "বললেও"
+        session.process_key("ব".into()).unwrap();
+        session.process_key("ল".into()).unwrap();
+        let res_gem = session.process_key("ল".into()).unwrap();
+        assert_eq!(res_gem.preedit, "বল্ল", "2nd tap forms geminate conjunct 'বল্ল'");
+        let res_revert = session.process_key("ল".into()).unwrap();
+        assert_eq!(res_revert.preedit, "বলল", "3rd tap cycles back to separate letters 'বলল'");
+        let res_e = session.process_key("ে".into()).unwrap();
+        assert_eq!(res_e.preedit, "বললে");
+        let res_bolleo = session.process_key("ও".into()).unwrap();
+        assert_eq!(res_bolleo.preedit, "বললেও", "User can cleanly write 'বললেও'");
+
+        session.reset();
+
+        // 6. 3rd-tap cycle reversion for "তত" and "ততটুকু":
+        session.process_key("ত".into()).unwrap();
+        let res_t2 = session.process_key("ত".into()).unwrap();
+        assert_eq!(res_t2.preedit, "ত্ত", "2nd tap of 'ত' produces 'ত্ত'");
+        let res_t3 = session.process_key("ত".into()).unwrap();
+        assert_eq!(res_t3.preedit, "তত", "3rd tap of 'ত' reverts to 'তত'");
+    }
+
+    #[test]
+    #[serial]
+    fn test_bolleo_and_consecutive_consonants_with_default_settings() {
+        let session = AndroidLekhaniSession::new();
+        // Default session must have geminate_double_tap_enabled == false
+        // Across fixed layouts (Probhat, National, Gboard), typing 'ব' + 'ল' + 'ল' + 'ে' + 'ও'
+        // must naturally type "বললেও" without inserting an unwanted hasanta!
+
+        for layout in [LekhaniLayoutType::Probhat, LekhaniLayoutType::National, LekhaniLayoutType::Probaho] {
+            session.reset();
+            session.set_layout(layout);
+
+            session.process_key("ব".into()).unwrap();
+            session.process_key("ল".into()).unwrap();
+            let res_ll = session.process_key("ল".into()).unwrap();
+            assert_eq!(
+                res_ll.preedit, "বলল",
+                "By default, double-tapping 'ল' in layout {:?} should produce 'বলল'",
+                layout
+            );
+            session.process_key("ে".into()).unwrap();
+            let res_bolleo = session.process_key("ও".into()).unwrap();
+            assert_eq!(
+                res_bolleo.preedit, "বললেও",
+                "By default, layout {:?} must seamlessly produce 'বললেও'",
+                layout
+            );
+        }
     }
 
     #[test]

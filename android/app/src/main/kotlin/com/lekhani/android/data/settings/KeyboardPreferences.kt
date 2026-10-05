@@ -126,7 +126,7 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_PROBHAT_SMART_INITIAL_KAR, value).apply()
 
     var probhatGeminateDoubleTap: Boolean
-        get() = prefs.getBoolean(KEY_PROBHAT_GEMINATE_DOUBLE_TAP, true)
+        get() = prefs.getBoolean(KEY_PROBHAT_GEMINATE_DOUBLE_TAP, false)
         set(value) = prefs.edit().putBoolean(KEY_PROBHAT_GEMINATE_DOUBLE_TAP, value).apply()
 
     var probhatDeadKeyHaptic: Boolean

@@ -3138,7 +3138,7 @@ class LekhaniInputMethodService : InputMethodService() {
             }
             else -> {
                 session.setSmartInitialKarEnabled(true)
-                session.setGeminateDoubleTapEnabled(true)
+                session.setGeminateDoubleTapEnabled(false)
                 session.setHasantaConjunctsEnabled(true)
             }
         }

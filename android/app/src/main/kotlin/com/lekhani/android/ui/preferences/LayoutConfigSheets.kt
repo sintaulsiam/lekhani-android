@@ -687,8 +687,8 @@ fun ProbhatSettingsDialog(
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Double-tap a consonant to type twin letters (ত → ত্ত, ব → ব্ব)"
-                                               else "ব্যঞ্জনবর্ণে ডাবল ট্যাপ করে দ্বিত্ব রূপ লিখুন (ত → ত্ত, ব → ব্ব)",
+                                        text = if (isEnglish) "Double-tap a consonant for geminates (ত → ত্ত, ব → ব্ব). Tap a 3rd time for separate letters (বলল, তত)."
+                                               else "ব্যঞ্জনবর্ণে ডাবল ট্যাপে দ্বিত্ব রূপ (ত → ত্ত, ব → ব্ব)। পৃথক অক্ষরের জন্য ৩য় বার চাপুন (বলল, তত)।",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
