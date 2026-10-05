@@ -1378,9 +1378,25 @@ impl AndroidLekhaniSession {
                                 .lookup_override(&state.composing_buffer.to_lowercase())
                                 .is_some();
 
+                        let freq_preedit = db.get_frequency(&preedit);
+                        let freq_top = db.get_frequency(top);
+                        let is_archaic_preedit = freq_preedit == 0 && freq_top > 0;
+
+                        let has_strong_context_preference = {
+                            let scorer = get_context_scorer();
+                            let prev1 = words.last().copied();
+                            let prev2 = if words.len() >= 2 { Some(words[words.len() - 2]) } else { None };
+                            let lm_top = scorer.lm().score_candidate(prev2, prev1, top);
+                            let lm_pre = scorer.lm().score_candidate(prev2, prev1, &preedit);
+                            (lm_top - lm_pre) >= 2.0
+                        };
+
                         if !has_candidate_memory
                             && !is_explicit_common
                             && !has_override
+                            && !is_archaic_preedit
+                            && !has_strong_context_preference
+                            && db.is_exact_dictionary_word(&preedit)
                             && (!crate::avro::are_phonetically_compatible(&preedit, top)
                                 || !db.is_exact_dictionary_word(top))
                         {

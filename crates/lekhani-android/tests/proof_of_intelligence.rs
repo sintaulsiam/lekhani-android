@@ -152,7 +152,88 @@ fn test_live_proof_of_intelligence() {
     assert!(avg_latency < 3000, "Average latency must be well under 3000 µs (3 ms)");
     println!("  [PASS] Sub-millisecond performance budget strictly upheld!\n");
 
+    // ── TEST 7: Phonological Fault-Tolerant Transducer (Lazy Avro) ───────────────
+    println!("▶ TEST 7: Phonological Fault-Tolerant Transducer (Lazy Avro)");
+    let lazy_cases = [
+        ("balobasa", "", "ভালোবাসা"),
+        ("sundor", "", "সুন্দর"),
+        ("protom", "", "প্রথম"),
+        ("takbo", "আমি বাসায়", "থাকবো"),
+        ("kabar", "দুপুরের", "খাবার"),
+    ];
+    for (input, ctx, expected) in lazy_cases {
+        session.reset();
+        if !ctx.is_empty() {
+            session.set_context(ctx.to_string());
+        }
+        for ch in input.chars() {
+            res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+        let cands = res.as_ref().unwrap().candidates.clone();
+        let top = cands.first().map(|s| s.as_str()).unwrap_or("");
+        println!("  Context: [{}] + typed '{:<10}' -> Top Candidate: '{}' (expected '{}')", ctx, input, top, expected);
+        println!("    Candidates: {:?}", &cands[..5.min(cands.len())]);
+        assert!(
+            top == expected || (input == "takbo" && (top == "থাকবো" || top == "থাকব")),
+            "Expected top candidate '{}' for input '{}', but got '{}'",
+            expected, input, top
+        );
+    }
+    println!("  [PASS] Phonological fault tolerance accurately resolves lazy Avro inputs!\n");
+
+    // ── TEST 8: Conversational Texting & Slang Register Verification ─────────────
+    println!("▶ TEST 8: Conversational Texting, Slang & Chat Shortforms (Dual Register)");
+    let slang_cases = [
+        ("chill", "", "চিল"),
+        ("kop", "", "কোপ"),
+        ("disi", "", "দিছি"),
+        ("dhuktesi", "", "ঢুকতেছি"),
+        ("kmn", "", "কেমন"),
+        ("aso", "", "আছো"),
+        ("peranai", "", "প্যারা নাই"),
+        ("chillbro", "", "চিল ব্রো"),
+    ];
+    for (input, ctx, expected) in slang_cases {
+        session.reset();
+        if !ctx.is_empty() {
+            session.set_context(ctx.to_string());
+        }
+        for ch in input.chars() {
+            res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+        let cands = res.as_ref().unwrap().candidates.clone();
+        let top = cands.first().map(|s| s.as_str()).unwrap_or("");
+        println!("  Context: [{}] + typed '{:<10}' -> Top Candidate: '{}' (expected '{}')", ctx, input, top, expected);
+        println!("    Candidates: {:?}", &cands[..5.min(cands.len())]);
+        assert_eq!(top, expected, "Expected top candidate '{}' for input '{}', but got '{}'", expected, input, top);
+    }
+
+    // Conversational Next-Word Prediction
+    let conversational_triggers = [
+        ("প্যারা", "নাই"),
+        ("কি", "অবস্থা"),
+        ("চিল", "ব্রো"),
+    ];
+    for (trigger, expected_next) in conversational_triggers {
+        session.reset();
+        session.set_context(trigger.to_string());
+        let predictions = session.predict_next_words(5);
+        println!("  Trigger: '{:<16}' -> Next-Word Predictions: {:?}", trigger, predictions);
+        let exp_nfc = lekhani_android::probaho::nfc_normalize(expected_next);
+        assert!(
+            predictions.iter().any(|p| {
+                let p_nfc = lekhani_android::probaho::nfc_normalize(p);
+                p_nfc.contains(&exp_nfc) || exp_nfc.contains(&p_nfc)
+            }),
+            "Trigger '{}' must predict '{}', got: {:?}",
+            trigger,
+            expected_next,
+            predictions
+        );
+    }
+    println!("  [PASS] Modern texting, slang, and chat continuations type 100% fluently!\n");
+
     println!("================================================================================");
-    println!("           ALL 6 PRACTICAL REAL-WORLD PROOFS PASSED WITH 100% SUCCESS           ");
+    println!("           ALL PRACTICAL REAL-WORLD PROOFS PASSED WITH 100% SUCCESS            ");
     println!("================================================================================\n");
 }
