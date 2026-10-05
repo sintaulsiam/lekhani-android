@@ -26,20 +26,20 @@ memmap2 = "0.9"
 edit-distance = "2.1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 bincode = "1.3"
-lekhani-parser = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.1.0" }
-lekhani-ai     = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.1.0" }
-lekhani-core   = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.1.0" }
-lekhani-neural = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.1.0" }
+lekhani-parser = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.0" }
+lekhani-ai     = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.0" }
+lekhani-core   = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.0" }
+lekhani-neural = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.0" }
 
 # ── Local override for simultaneous engine development ───────────────────────
 # Uncomment the block below (and comment the git deps above) when you are
 # actively editing lekhani-engine at the same time as this repo:
 #
-[patch."https://github.com/sintaulsiam/lekhani-engine"]
-lekhani-parser = { path = "/mnt/data/lekhani-engine/lekhani-parser" }
-lekhani-core   = { path = "/mnt/data/lekhani-engine/lekhani-core" }
-lekhani-ai     = { path = "/mnt/data/lekhani-engine/lekhani-ai" }
-lekhani-neural = { path = "/mnt/data/lekhani-engine/lekhani-neural" }
+# [patch."https://github.com/sintaulsiam/lekhani-engine"]
+# lekhani-parser = { path = "/mnt/data/lekhani-engine/lekhani-parser" }
+# lekhani-core   = { path = "/mnt/data/lekhani-engine/lekhani-core" }
+# lekhani-ai     = { path = "/mnt/data/lekhani-engine/lekhani-ai" }
+# lekhani-neural = { path = "/mnt/data/lekhani-engine/lekhani-neural" }
 
 [profile.dev]
 debug = 1
