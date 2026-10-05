@@ -42,7 +42,6 @@ pub fn nfc_normalize(text: &str) -> String {
     out
 }
 
-
 /// Returns true if the character is a Bengali vowel (independent or dependent Kar).
 #[inline]
 pub fn is_bengali_vowel(c: char) -> bool {
@@ -68,7 +67,30 @@ pub fn is_bengali_consonant_or_modifier(c: char) -> bool {
 /// Returns true if the character is a delimiter, whitespace, or punctuation.
 #[inline]
 pub fn is_bengali_punctuation_or_space(c: char) -> bool {
-    c.is_whitespace() || matches!(c, '।' | '॥' | ',' | ';' | ':' | '?' | '!' | '.' | '"' | '\'' | '(' | ')' | '[' | ']' | '{' | '}' | '-' | '—' | '–' | '/' | '\\')
+    c.is_whitespace()
+        || matches!(
+            c,
+            '।' | '॥'
+                | ','
+                | ';'
+                | ':'
+                | '?'
+                | '!'
+                | '.'
+                | '"'
+                | '\''
+                | '('
+                | ')'
+                | '['
+                | ']'
+                | '{'
+                | '}'
+                | '-'
+                | '—'
+                | '–'
+                | '/'
+                | '\\'
+        )
 }
 
 /// When a vowel modifier (Kar) is typed at the beginning of a word, after whitespace/punctuation,
@@ -97,7 +119,10 @@ pub fn promote_kar_if_needed(kar: &str, should_promote: bool) -> String {
 /// When an independent vowel is typed immediately following a consonant,
 /// Bengali orthography dictates that it automatically converts into its corresponding Kar sign
 /// (e.g. ব + ঋ -> বৃ, ক + আ -> কা, ন + ঔ -> নৌ, ব + ঐ -> বৈ).
-pub fn demote_vowel_to_kar_if_preceded_by_consonant(vowel: &str, preceded_by_consonant: bool) -> String {
+pub fn demote_vowel_to_kar_if_preceded_by_consonant(
+    vowel: &str,
+    preceded_by_consonant: bool,
+) -> String {
     if !preceded_by_consonant {
         return vowel.to_string();
     }
@@ -153,7 +178,10 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         .collect();
 
     let is_eligible = is_bengali_consonant_or_modifier(last_consonant)
-        && !matches!(last_consonant, 'র' | '্' | 'ৎ' | 'ড়' | 'ঢ়' | '়' | 'ং' | 'ঃ' | 'ঁ');
+        && !matches!(
+            last_consonant,
+            'র' | '্' | 'ৎ' | 'ড়' | 'ঢ়' | '়' | 'ং' | 'ঃ' | 'ঁ'
+        );
 
     if is_eligible {
         // 1. R-phola (্র)
@@ -171,7 +199,21 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         }
 
         // 3. Ba-phola (্ব)
-        if matches!(last_consonant, 'শ' | 'দ' | 'ত' | 'স' | 'ধ' | 'হ' | 'ম' | 'ব' | 'জ' | 'ক' | 'খ' | 'গ' | 'ল') {
+        if matches!(
+            last_consonant,
+            'শ' | 'দ'
+                | 'ত'
+                | 'স'
+                | 'ধ'
+                | 'হ'
+                | 'ম'
+                | 'ব'
+                | 'জ'
+                | 'ক'
+                | 'খ'
+                | 'গ'
+                | 'ল'
+        ) {
             let baphola = format!("{}্ব", last_consonant);
             if !results.contains(&baphola) {
                 results.push(baphola);
@@ -179,7 +221,10 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         }
 
         // 4. Ma-phola (্ম)
-        if matches!(last_consonant, 'ত' | 'দ' | 'স' | 'শ' | 'হ' | 'ম' | 'ল' | 'গ' | 'ষ' | 'ক' | 'ণ' | 'ন') {
+        if matches!(
+            last_consonant,
+            'ত' | 'দ' | 'স' | 'শ' | 'হ' | 'ম' | 'ল' | 'গ' | 'ষ' | 'ক' | 'ণ' | 'ন'
+        ) {
             let maphola = format!("{}্ম", last_consonant);
             if !results.contains(&maphola) {
                 results.push(maphola);
@@ -187,7 +232,10 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         }
 
         // 5. La-phola (্ল)
-        if matches!(last_consonant, 'শ' | 'প' | 'ক' | 'গ' | 'ব' | 'ম' | 'ফ' | 'হ' | 'স') {
+        if matches!(
+            last_consonant,
+            'শ' | 'প' | 'ক' | 'গ' | 'ব' | 'ম' | 'ফ' | 'হ' | 'স'
+        ) {
             let laphola = format!("{}্ল", last_consonant);
             if !results.contains(&laphola) {
                 results.push(laphola);
@@ -195,7 +243,25 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         }
 
         // 6. Geminate conjunct (e.g. ক্ক, ত্ত, ব্ব, ল্ল, প্প, ম্ম, ন্ন, চ্চ, জ্জ, দ্দ, স্স, ট্ট, ড্ড)
-        if matches!(last_consonant, 'ক' | 'গ' | 'চ' | 'জ' | 'ট' | 'ড' | 'ণ' | 'ত' | 'দ' | 'ন' | 'প' | 'ব' | 'ম' | 'ল' | 'শ' | 'ষ' | 'স') {
+        if matches!(
+            last_consonant,
+            'ক' | 'গ'
+                | 'চ'
+                | 'জ'
+                | 'ট'
+                | 'ড'
+                | 'ণ'
+                | 'ত'
+                | 'দ'
+                | 'ন'
+                | 'প'
+                | 'ব'
+                | 'ম'
+                | 'ল'
+                | 'শ'
+                | 'ষ'
+                | 'স'
+        ) {
             let geminate = nfc_normalize(&format!("{}{}{}", last_consonant, '্', last_consonant));
             if !results.contains(&geminate) {
                 results.push(geminate);
@@ -205,37 +271,71 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
         // 7. Special primary conjunct promotions
         match last_consonant {
             'ক' => {
-                if !results.contains(&"ক্ষ".to_string()) { results.push("ক্ষ".to_string()); }
+                if !results.contains(&"ক্ষ".to_string()) {
+                    results.push("ক্ষ".to_string());
+                }
             }
             'জ' => {
-                if !results.contains(&"জ্ঞ".to_string()) { results.push("জ্ঞ".to_string()); }
+                if !results.contains(&"জ্ঞ".to_string()) {
+                    results.push("জ্ঞ".to_string());
+                }
             }
             'ঞ' => {
-                if !results.contains(&"ঞ্চ".to_string()) { results.push("ঞ্চ".to_string()); }
-                if !results.contains(&"ঞ্জ".to_string()) { results.push("ঞ্জ".to_string()); }
+                if !results.contains(&"ঞ্চ".to_string()) {
+                    results.push("ঞ্চ".to_string());
+                }
+                if !results.contains(&"ঞ্জ".to_string()) {
+                    results.push("ঞ্জ".to_string());
+                }
             }
             'দ' => {
-                if !results.contains(&"দ্ধ".to_string()) { results.push("দ্ধ".to_string()); }
+                if !results.contains(&"দ্ধ".to_string()) {
+                    results.push("দ্ধ".to_string());
+                }
             }
             'গ' => {
-                if !results.contains(&"গ্ধ".to_string()) { results.push("গ্ধ".to_string()); }
+                if !results.contains(&"গ্ধ".to_string()) {
+                    results.push("গ্ধ".to_string());
+                }
             }
             'স' => {
-                if !results.contains(&"স্ত".to_string()) { results.push("স্ত".to_string()); }
-                if !results.contains(&"স্থ".to_string()) { results.push("স্থ".to_string()); }
-                if !results.contains(&"স্প".to_string()) { results.push("স্প".to_string()); }
-                if !results.contains(&"স্ফ".to_string()) { results.push("স্ফ".to_string()); }
+                if !results.contains(&"স্ত".to_string()) {
+                    results.push("স্ত".to_string());
+                }
+                if !results.contains(&"স্থ".to_string()) {
+                    results.push("স্থ".to_string());
+                }
+                if !results.contains(&"স্প".to_string()) {
+                    results.push("স্প".to_string());
+                }
+                if !results.contains(&"স্ফ".to_string()) {
+                    results.push("স্ফ".to_string());
+                }
             }
             'ষ' => {
-                if !results.contains(&"ষ্ট".to_string()) { results.push("ষ্ট".to_string()); }
-                if !results.contains(&"ষ্ঠ".to_string()) { results.push("ষ্ঠ".to_string()); }
-                if !results.contains(&"ষ্ণ".to_string()) { results.push("ষ্ণ".to_string()); }
+                if !results.contains(&"ষ্ট".to_string()) {
+                    results.push("ষ্ট".to_string());
+                }
+                if !results.contains(&"ষ্ঠ".to_string()) {
+                    results.push("ষ্ঠ".to_string());
+                }
+                if !results.contains(&"ষ্ণ".to_string()) {
+                    results.push("ষ্ণ".to_string());
+                }
             }
             'হ' => {
-                if !results.contains(&"হ্ন".to_string()) { results.push("হ্ন".to_string()); }
-                if !results.contains(&"হ্ম".to_string()) { results.push("হ্ম".to_string()); }
-                if !results.contains(&"হ্ল".to_string()) { results.push("হ্ল".to_string()); }
-                if !results.contains(&"হৃ".to_string()) { results.push("হৃ".to_string()); }
+                if !results.contains(&"হ্ন".to_string()) {
+                    results.push("হ্ন".to_string());
+                }
+                if !results.contains(&"হ্ম".to_string()) {
+                    results.push("হ্ম".to_string());
+                }
+                if !results.contains(&"হ্ল".to_string()) {
+                    results.push("হ্ল".to_string());
+                }
+                if !results.contains(&"হৃ".to_string()) {
+                    results.push("হৃ".to_string());
+                }
             }
             _ => {}
         }
@@ -374,8 +474,14 @@ mod tests {
         assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঔ", true), "ৌ");
         assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঐ", true), "ৈ");
         assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("আ", true), "া");
-        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঋ", false), "ঋ");
-        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঔ", false), "ঔ");
+        assert_eq!(
+            demote_vowel_to_kar_if_preceded_by_consonant("ঋ", false),
+            "ঋ"
+        );
+        assert_eq!(
+            demote_vowel_to_kar_if_preceded_by_consonant("ঔ", false),
+            "ঔ"
+        );
     }
 
     #[test]
@@ -421,9 +527,15 @@ mod tests {
         assert!(reph_suggestions.contains(&"র্ষ".to_string()));
 
         // Consonant + Hasanta gives Reph on that consonant
-        assert!(suggestions.contains(&"র্ক".to_string()), "ক + ্ must suggest র্ক");
+        assert!(
+            suggestions.contains(&"র্ক".to_string()),
+            "ক + ্ must suggest র্ক"
+        );
         let m_suggestions = get_conjunct_suggestions('ম');
-        assert!(m_suggestions.contains(&"র্ম".to_string()), "ম + ্ must suggest র্ম");
+        assert!(
+            m_suggestions.contains(&"র্ম".to_string()),
+            "ম + ্ must suggest র্ম"
+        );
     }
 
     #[test]

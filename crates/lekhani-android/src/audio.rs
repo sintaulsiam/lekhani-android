@@ -1,6 +1,6 @@
-use std::sync::Mutex;
 use crate::error::LekhaniError;
 use crate::probaho::nfc_normalize;
+use std::sync::Mutex;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // UniFFI Data Records
@@ -85,9 +85,10 @@ impl AsrAudioProcessor {
     /// Hot-path calculation: Computes RMS amplitude and tracks VAD state.
     /// Zero allocations on the heap except for the returned struct.
     pub fn process_pcm(&self, samples: Vec<i16>) -> Result<AudioAnalysisResult, LekhaniError> {
-        let mut state = self.state.lock().map_err(|e| {
-            LekhaniError::SessionError(format!("Lock poisoned: {e}"))
-        })?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|e| LekhaniError::SessionError(format!("Lock poisoned: {e}")))?;
 
         if samples.is_empty() {
             return Ok(AudioAnalysisResult {
@@ -134,9 +135,10 @@ impl AsrAudioProcessor {
 
     /// Reset all audio and VAD state for a new recording session.
     pub fn reset(&self) -> Result<(), LekhaniError> {
-        let mut state = self.state.lock().map_err(|e| {
-            LekhaniError::SessionError(format!("Lock poisoned: {e}"))
-        })?;
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|e| LekhaniError::SessionError(format!("Lock poisoned: {e}")))?;
         *state = AudioProcessorState::default();
         Ok(())
     }
@@ -149,7 +151,10 @@ impl AsrAudioProcessor {
 
     /// Returns whether speech has been detected in the current stream.
     pub fn has_detected_speech(&self) -> bool {
-        self.state.lock().map(|s| s.has_detected_speech).unwrap_or(false)
+        self.state
+            .lock()
+            .map(|s| s.has_detected_speech)
+            .unwrap_or(false)
     }
 }
 
@@ -160,13 +165,34 @@ impl AsrAudioProcessor {
 /// Bengali interrogative markers (প্রশ্নবোধক শব্দ).
 /// If a sentence contains any of these markers, it ends in '?' instead of '।'.
 const INTERROGATIVES: &[&str] = &[
-    "কী", "কি", "কেন", "কোথায়", "কোথায়", "কিভাবে", "কীভাবে",
-    "কবে", "কে", "কার", "কাকে", "কখন", "কিসের", "কীসের", "কত",
+    "কী",
+    "কি",
+    "কেন",
+    "কোথায়",
+    "কোথায়",
+    "কিভাবে",
+    "কীভাবে",
+    "কবে",
+    "কে",
+    "কার",
+    "কাকে",
+    "কখন",
+    "কিসের",
+    "কীসের",
+    "কত",
 ];
 
 /// Coordinating conjunctions that introduce clauses deserving a preceding comma.
 const CONJUNCTIONS: &[&str] = &[
-    "এবং", "কিন্তু", "অথবা", "তবে", "সুতরাং", "বরং", "নতুবা", "নচেৎ", "আর",
+    "এবং",
+    "কিন্তু",
+    "অথবা",
+    "তবে",
+    "সুতরাং",
+    "বরং",
+    "নতুবা",
+    "নচেৎ",
+    "আর",
 ];
 
 /// Restores Bengali punctuation to raw ASR transcript output.
@@ -200,7 +226,8 @@ pub fn restore_bengali_punctuation(text: &str) -> String {
         if i > 0 && CONJUNCTIONS.contains(&word) {
             if let Some(prev) = result.last_mut() {
                 let prev_str: &str = prev.as_str();
-                if !prev_str.ends_with(',') && !prev_str.ends_with('।') && !prev_str.ends_with('?') {
+                if !prev_str.ends_with(',') && !prev_str.ends_with('।') && !prev_str.ends_with('?')
+                {
                     *prev = format!("{},", prev_str);
                 }
             }
@@ -212,7 +239,8 @@ pub fn restore_bengali_punctuation(text: &str) -> String {
 
     if !already_punctuated {
         let is_question = words.iter().any(|&w| {
-            let stripped = w.trim_matches(|c: char| c.is_ascii_punctuation() || c == '।' || c == ',');
+            let stripped =
+                w.trim_matches(|c: char| c.is_ascii_punctuation() || c == '।' || c == ',');
             INTERROGATIVES.contains(&stripped)
         });
 
@@ -254,7 +282,11 @@ mod tests {
         // 16000 samples (1 second at 16kHz) of high amplitude square wave (speech)
         let mut speech_samples = Vec::with_capacity(16000);
         for i in 0..16000 {
-            speech_samples.push(if (i / 100) % 2 == 0 { 15000i16 } else { -15000i16 });
+            speech_samples.push(if (i / 100) % 2 == 0 {
+                15000i16
+            } else {
+                -15000i16
+            });
         }
 
         let speech_res = processor.process_pcm(speech_samples).unwrap();
@@ -273,7 +305,10 @@ mod tests {
             }
         }
 
-        assert!(timeout_hit, "1.5s silence should trigger timeout after speech was detected");
+        assert!(
+            timeout_hit,
+            "1.5s silence should trigger timeout after speech was detected"
+        );
     }
 
     #[test]

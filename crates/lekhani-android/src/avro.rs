@@ -4,9 +4,9 @@
 //! classic Avro Phonetic muscle memory standards using the upstream
 //! zero-allocation L1 Trie grammar compiler from `lekhani-parser`.
 
+use edit_distance::edit_distance;
 use hashbrown::HashMap;
 use std::sync::OnceLock;
-use edit_distance::edit_distance;
 
 static PARSER: OnceLock<lekhani_parser::LekhaniParser> = OnceLock::new();
 static COMMON_WORDS: OnceLock<HashMap<&'static str, &'static [&'static str]>> = OnceLock::new();
@@ -33,7 +33,10 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     if let Some(common_list) = get_common_word_candidates(input) {
         if common_list.len() == 1 {
             let target_nfc = crate::probaho::nfc_normalize(common_list[0]);
-            if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+            if let Some(pos) = candidates
+                .iter()
+                .position(|c| crate::probaho::nfc_normalize(c) == target_nfc)
+            {
                 let _ = candidates.remove(pos);
                 candidates.insert(0, target_nfc);
                 return;
@@ -43,13 +46,19 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
             // If the top candidate is ALREADY in the common_list (e.g. ranked by context LM), keep it at position 0!
             if let Some(first_cand) = candidates.first() {
                 let first_nfc = crate::probaho::nfc_normalize(first_cand);
-                if common_list.iter().any(|&w| crate::probaho::nfc_normalize(w) == first_nfc) {
+                if common_list
+                    .iter()
+                    .any(|&w| crate::probaho::nfc_normalize(w) == first_nfc)
+                {
                     return;
                 }
             }
             for &target in common_list {
                 let target_nfc = crate::probaho::nfc_normalize(target);
-                if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+                if let Some(pos) = candidates
+                    .iter()
+                    .position(|c| crate::probaho::nfc_normalize(c) == target_nfc)
+                {
                     let _ = candidates.remove(pos);
                     candidates.insert(0, target_nfc);
                     return;
@@ -69,7 +78,10 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     let db = crate::session::get_core_database();
     let is_title_case = input.len() >= 3
         && input.chars().next().is_some_and(|c| c.is_uppercase())
-        && input.chars().skip(1).all(|c| c.is_lowercase() || !c.is_alphabetic());
+        && input
+            .chars()
+            .skip(1)
+            .all(|c| c.is_lowercase() || !c.is_alphabetic());
     let override_opt = db.lookup_override(input).or_else(|| {
         if is_title_case {
             db.lookup_override(&lower)
@@ -384,8 +396,14 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("sothik", &["সঠিক"][..]);
         m.insert("bissho", &["বিশ্ব"][..]);
         m.insert("bishsho", &["বিশ্ব"][..]);
-        m.insert("ryab", &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}"][..]);
-        m.insert("rab", &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}", "রব"][..]);
+        m.insert(
+            "ryab",
+            &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}"][..],
+        );
+        m.insert(
+            "rab",
+            &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}", "রব"][..],
+        );
 
         // ── Phase 2: Missing-vowel chat shorthand verb families ─────────────
         // 'kr' family (কর-)
@@ -767,7 +785,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let lower = input.to_lowercase();
     let db = crate::session::get_core_database();
 
-    let is_explicit_common = get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
+    let is_explicit_common =
+        get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
 
     // -1. User-defined explicit autocorrect / shortcut rules
     if let Ok(uac) = db.user_autocorrect.read() {
@@ -790,10 +809,17 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let mut remembered_choice: Option<String> = None;
     if !is_short_input {
         if let Ok(learner) = db.learner.read() {
-            if let Some(error_override) = learner.lookup_input_error(input).or_else(|| learner.lookup_input_error(&lower)) {
+            if let Some(error_override) = learner
+                .lookup_input_error(input)
+                .or_else(|| learner.lookup_input_error(&lower))
+            {
                 candidate_memory.insert(input.to_string(), error_override.to_string());
                 remembered_choice = Some(error_override.to_string());
-            } else if let Some(user_choice) = learner.candidate_memory.get(input).or_else(|| learner.candidate_memory.get(&lower)) {
+            } else if let Some(user_choice) = learner
+                .candidate_memory
+                .get(input)
+                .or_else(|| learner.candidate_memory.get(&lower))
+            {
                 candidate_memory.insert(input.to_string(), user_choice.clone());
                 remembered_choice = Some(user_choice.clone());
             }
@@ -803,7 +829,11 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     // -1b. Bundled system autocorrect (only if no user choice override and not an explicit common word)
     let mut autocorrect_replacement: Option<String> = None;
     if remembered_choice.is_none() && !is_explicit_common {
-        if let Some(replacement) = db.autocorrect.get(input).or_else(|| db.autocorrect.get(&lower)) {
+        if let Some(replacement) = db
+            .autocorrect
+            .get(input)
+            .or_else(|| db.autocorrect.get(&lower))
+        {
             autocorrect_replacement = Some(replacement.clone());
         }
     }
@@ -824,7 +854,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
         // 2a. Short English words, digits & Latin escape hatch (e.g. "ok", "hi", "fb", "id", "to", "no")
         let is_passthrough = (crate::english::is_recognized_english_word(input)
-            && !short_candidates.iter().any(|c| c.eq_ignore_ascii_case(input)))
+            && !short_candidates
+                .iter()
+                .any(|c| c.eq_ignore_ascii_case(input)))
             || (input.chars().all(|c| c.is_ascii_digit())
                 && !short_candidates.contains(&input.to_string()));
         if is_passthrough {
@@ -832,7 +864,10 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
 
         // 2. Shorthand & Common Contractions (offered as secondary suggestions)
-        if let Some(&words) = get_common_words().get(input).or_else(|| get_common_words().get(lower.as_str())) {
+        if let Some(&words) = get_common_words()
+            .get(input)
+            .or_else(|| get_common_words().get(lower.as_str()))
+        {
             for &w in words {
                 if !short_candidates.iter().any(|c| c == w) {
                     short_candidates.push(w.to_string());
@@ -898,7 +933,6 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         return (primary, short_candidates);
     }
 
-
     // 1. Upstream PhoneticSuggestion Engine:
     // Performs Chandra Bindu normalization ("c^ad" -> "চাঁদ"),
     // Sanskrit and sound-law conjuncts ("sotyo" -> "সত্য", "mrittu" -> "মৃত্যু", "shuryo" -> "সূর্য"),
@@ -911,13 +945,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
         };
-        sugg.suggest_with_multi_context(
-            input,
-            context,
-            false,
-            true,
-            &candidate_memory,
-        )
+        sugg.suggest_with_multi_context(input, context, false, true, &candidate_memory)
     };
 
     if candidates.is_empty() {
@@ -947,7 +975,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // Digits / Currency Symbols dual candidate surfacing (e.g. "1234" -> ["১২৩৪", "1234"], "$100" -> ["৳১০০", "$100"])
-    let is_numeric_or_currency = input.chars().all(|c| c.is_ascii_digit()) || input.starts_with('$');
+    let is_numeric_or_currency =
+        input.chars().all(|c| c.is_ascii_digit()) || input.starts_with('$');
     if is_numeric_or_currency && !candidates.iter().any(|c| c == input) {
         let insert_pos = candidates.len().min(1);
         candidates.insert(insert_pos, input.to_string());
@@ -965,8 +994,12 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // 2. Ensure core common words are prioritized at the top of candidate list
-    let is_explicit_common = get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
-    if let Some(&words) = get_common_words().get(input).or_else(|| get_common_words().get(lower.as_str())) {
+    let is_explicit_common =
+        get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
+    if let Some(&words) = get_common_words()
+        .get(input)
+        .or_else(|| get_common_words().get(lower.as_str()))
+    {
         for (i, &w) in words.iter().enumerate() {
             let ws = w.to_string();
             if let Some(pos) = candidates.iter().position(|c| c == &ws) {
@@ -991,7 +1024,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 candidates.insert(i.min(candidates.len()), ws);
             }
             selected_idx = 0;
-        } else if let Some((bn_loan, _)) = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(collapsed) {
+        } else if let Some((bn_loan, _)) =
+            lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(collapsed)
+        {
             let ws = bn_loan.to_string();
             if let Some(pos) = candidates.iter().position(|c| c == &ws) {
                 candidates.remove(pos);
@@ -1003,7 +1038,10 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
     // 2b. If the user explicitly typed an inflection ending in 'bo' or 'cho' (e.g. khabo -> খাবো, korcho -> করছো),
     // prioritize the matching 'ো'-inflected form from candidates (unless explicitly ordered in COMMON_WORDS)
-    if !is_explicit_common && (lower.ends_with("bo") || lower.ends_with("cho")) && !candidates.is_empty() {
+    if !is_explicit_common
+        && (lower.ends_with("bo") || lower.ends_with("cho"))
+        && !candidates.is_empty()
+    {
         if let Some(pos) = candidates.iter().position(|c| c.ends_with('ো')) {
             let o_cand = candidates.remove(pos);
             candidates.insert(0, o_cand);
@@ -1027,9 +1065,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // 2d. Exact case-sensitivity fidelity, All-Caps normalization & Sentence-initial Titlecase smart promotion:
-    let has_explicit_avro_case = input.chars().any(|c| {
-        c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c)
-    });
+    let has_explicit_avro_case = input
+        .chars()
+        .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
     let is_all_caps = input.chars().count() >= 2 && input.chars().all(|c| c.is_ascii_uppercase());
     if is_all_caps {
         // All-Caps input (e.g. "AMI", "TUMI", "DESH"):
@@ -1070,7 +1108,11 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             let freq_lower = get_word_frequency(resolved_lower.as_str());
             let freq_def = get_word_frequency(def.as_str());
 
-            if is_common_lower || freq_lower >= freq_def * 3 || (!db.is_exact_dictionary_word(&def) && db.is_exact_dictionary_word(&resolved_lower)) {
+            if is_common_lower
+                || freq_lower >= freq_def * 3
+                || (!db.is_exact_dictionary_word(&def)
+                    && db.is_exact_dictionary_word(&resolved_lower))
+            {
                 if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
                     candidates.remove(pos);
                 }
@@ -1175,7 +1217,10 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 with_caret.push('^');
                 with_caret.push_str(&lower[i..]);
                 let conv = parser.convert(&with_caret);
-                if conv.contains('ঁ') && db.is_exact_dictionary_word(&conv) && !candidates.contains(&conv) {
+                if conv.contains('ঁ')
+                    && db.is_exact_dictionary_word(&conv)
+                    && !candidates.contains(&conv)
+                {
                     let insert_pos = 1.min(candidates.len());
                     candidates.insert(insert_pos, conv);
                 }
@@ -1186,7 +1231,10 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                     c_caret.push_str("c^");
                     c_caret.push_str(&lower[2..]);
                     let conv_c = parser.convert(&c_caret);
-                    if conv_c.contains('ঁ') && db.is_exact_dictionary_word(&conv_c) && !candidates.contains(&conv_c) {
+                    if conv_c.contains('ঁ')
+                        && db.is_exact_dictionary_word(&conv_c)
+                        && !candidates.contains(&conv_c)
+                    {
                         let insert_pos = 1.min(candidates.len());
                         candidates.insert(insert_pos, conv_c);
                     }
@@ -1243,15 +1291,22 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         // by checking if it differs from slot0 and slot1 by edit distance > 1.
         // We do this heuristically: candidates after the first 3 positions that are Bengali
         // and not identical to candidates[0..3] are rescue candidates.
-        let typo_rescue: Option<String> = candidates.iter().skip(3).find(|c| {
-            let c_chars: Vec<char> = c.chars().collect();
-            // Must be Bengali (not ASCII) and differ meaningfully from slot 1
-            let is_bengali = c_chars.iter().any(|ch| ('\u{0980}'..='\u{09FF}').contains(ch));
-            let differs_from_slot1 = slot1.as_deref().map(|s| {
-                edit_distance(s, c) > 1
-            }).unwrap_or(true);
-            is_bengali && differs_from_slot1
-        }).cloned();
+        let typo_rescue: Option<String> = candidates
+            .iter()
+            .skip(3)
+            .find(|c| {
+                let c_chars: Vec<char> = c.chars().collect();
+                // Must be Bengali (not ASCII) and differ meaningfully from slot 1
+                let is_bengali = c_chars
+                    .iter()
+                    .any(|ch| ('\u{0980}'..='\u{09FF}').contains(ch));
+                let differs_from_slot1 = slot1
+                    .as_deref()
+                    .map(|s| edit_distance(s, c) > 1)
+                    .unwrap_or(true);
+                is_bengali && differs_from_slot1
+            })
+            .cloned();
 
         if let Some(rescue) = typo_rescue {
             // Remove from its current position and place at index 3
@@ -1485,23 +1540,44 @@ mod tests {
         let (shuryo, _) = transliterate_avro("shuryo");
         assert_eq!(shuryo, "সূর্য", "shuryo should transliterate to সূর্য");
         let (nomoshkar, _) = transliterate_avro("nomoshkar");
-        assert_eq!(nomoshkar, "নমস্কার", "nomoshkar should transliterate to নমস্কার");
+        assert_eq!(
+            nomoshkar, "নমস্কার",
+            "nomoshkar should transliterate to নমস্কার"
+        );
         let (porishkar, _) = transliterate_avro("porishkar");
-        assert_eq!(porishkar, "পরিষ্কার", "porishkar should transliterate to পরিষ্কার");
+        assert_eq!(
+            porishkar, "পরিষ্কার",
+            "porishkar should transliterate to পরিষ্কার"
+        );
         let (puroshkar, _) = transliterate_avro("puroshkar");
-        assert_eq!(puroshkar, "পুরস্কার", "puroshkar should transliterate to পুরস্কার");
+        assert_eq!(
+            puroshkar, "পুরস্কার",
+            "puroshkar should transliterate to পুরস্কার"
+        );
         let (abishkar, _) = transliterate_avro("abishkar");
-        assert_eq!(abishkar, "আবিষ্কার", "abishkar should transliterate to আবিষ্কার");
+        assert_eq!(
+            abishkar, "আবিষ্কার",
+            "abishkar should transliterate to আবিষ্কার"
+        );
         let (lokkhi, _) = transliterate_avro("lokkhi");
         assert_eq!(lokkhi, "লক্ষ্মী", "lokkhi should transliterate to লক্ষ্মী");
         let (rokkha, _) = transliterate_avro("rokkha");
         assert_eq!(rokkha, "রক্ষা", "rokkha should transliterate to রক্ষা");
         let (bhabishshot, _) = transliterate_avro("bhabishshot");
-        assert_eq!(bhabishshot, "ভবিষ্যৎ", "bhabishshot should transliterate to ভবিষ্যৎ");
+        assert_eq!(
+            bhabishshot, "ভবিষ্যৎ",
+            "bhabishshot should transliterate to ভবিষ্যৎ"
+        );
         let (shobcheye, _) = transliterate_avro("shobcheye");
-        assert!(shobcheye == "সবচেয়ে" || shobcheye == "সবচেয়ে", "shobcheye should transliterate to সবচেয়ে");
+        assert!(
+            shobcheye == "সবচেয়ে" || shobcheye == "সবচেয়ে",
+            "shobcheye should transliterate to সবচেয়ে"
+        );
         let (chikitshok, _) = transliterate_avro("chikitshok");
-        assert_eq!(chikitshok, "চিকিৎসক", "chikitshok should transliterate to চিকিৎসক");
+        assert_eq!(
+            chikitshok, "চিকিৎসক",
+            "chikitshok should transliterate to চিকিৎসক"
+        );
         let (ahban, _) = transliterate_avro("ahban");
         assert_eq!(ahban, "আহ্বান", "ahban should transliterate to আহ্বান");
         let (jihba, _) = transliterate_avro("jihba");
@@ -1513,11 +1589,20 @@ mod tests {
         let (ucchash, _) = transliterate_avro("ucchash");
         assert_eq!(ucchash, "উচ্ছ্বাস", "ucchash should transliterate to উচ্ছ্বাস");
         let (protiddhoni, _) = transliterate_avro("protiddhoni");
-        assert_eq!(protiddhoni, "প্রতিধ্বনি", "protiddhoni should transliterate to প্রতিধ্বনি");
+        assert_eq!(
+            protiddhoni, "প্রতিধ্বনি",
+            "protiddhoni should transliterate to প্রতিধ্বনি"
+        );
         let (bhalobasha, _) = transliterate_avro("bhalobasha");
-        assert_eq!(bhalobasha, "ভালোবাসা", "bhalobasha should transliterate to ভালোবাসা");
+        assert_eq!(
+            bhalobasha, "ভালোবাসা",
+            "bhalobasha should transliterate to ভালোবাসা"
+        );
         let (valobasha, _) = transliterate_avro("valobasha");
-        assert_eq!(valobasha, "ভালোবাসা", "valobasha should transliterate to ভালোবাসা");
+        assert_eq!(
+            valobasha, "ভালোবাসা",
+            "valobasha should transliterate to ভালোবাসা"
+        );
     }
 
     #[test]
@@ -1568,7 +1653,10 @@ mod tests {
 
         // 2. Strict uppercase Avro muscle memory: "Daktar" -> "ডাক্তার", "poRa" -> "পড়া"
         let (d_aktar, _) = transliterate_avro("Daktar");
-        assert_eq!(d_aktar, "ডাক্তার", "Daktar with capital D must prioritize ডাক্তার");
+        assert_eq!(
+            d_aktar, "ডাক্তার",
+            "Daktar with capital D must prioritize ডাক্তার"
+        );
 
         let (pora_upper, _) = transliterate_avro("poRa");
         assert_eq!(pora_upper, "পড়া", "poRa with capital R must prioritize পড়া");
@@ -1593,25 +1681,43 @@ mod tests {
 
         // 5. Fat-finger QWERTY proximity recovery: "bhslo" ('s' next to 'a') -> offers "ভালো"
         let (_, bhslo_cands) = transliterate_avro("bhslo");
-        assert!(bhslo_cands.contains(&"ভালো".to_string()), "bhslo must recover ভালো via QWERTY proximity");
+        assert!(
+            bhslo_cands.contains(&"ভালো".to_string()),
+            "bhslo must recover ভালো via QWERTY proximity"
+        );
 
         // 6. Sentence-initial Titlecase smart promotion: "Tomar" -> "তোমার", "Tumi" -> "তুমি"
         let (tomar_title, _) = transliterate_avro("Tomar");
-        assert_eq!(tomar_title, "তোমার", "Titlecase 'Tomar' must promote তোমার over টোমার");
+        assert_eq!(
+            tomar_title, "তোমার",
+            "Titlecase 'Tomar' must promote তোমার over টোমার"
+        );
 
         let (tumi_title, _) = transliterate_avro("Tumi");
-        assert_eq!(tumi_title, "তুমি", "Titlecase 'Tumi' must promote তুমি over টুমি");
+        assert_eq!(
+            tumi_title, "তুমি",
+            "Titlecase 'Tumi' must promote তুমি over টুমি"
+        );
 
         // 7. 1-step adjacent letter transposition recovery: "bhlao" ('l' and 'a' swapped) -> offers "ভালো"
         let (_, bhlao_cands) = transliterate_avro("bhlao");
-        assert!(bhlao_cands.contains(&"ভালো".to_string()), "bhlao must recover ভালো via transposition");
+        assert!(
+            bhlao_cands.contains(&"ভালো".to_string()),
+            "bhlao must recover ভালো via transposition"
+        );
 
         // 8. Implicit Chandra Bindu (nasalization) auto-inference: "chad" -> "চাঁদ", "bash" -> "বাঁশ", "dat" -> "দাঁত", "pac" -> "পাঁচ", "has" -> "হাঁস"
         let (_, chad_cands) = transliterate_avro("chad");
-        assert!(chad_cands.contains(&"চাঁদ".to_string()), "chad should offer চাঁদ");
+        assert!(
+            chad_cands.contains(&"চাঁদ".to_string()),
+            "chad should offer চাঁদ"
+        );
 
         let (_, bash_cands) = transliterate_avro("bash");
-        assert!(bash_cands.contains(&"বাঁশ".to_string()), "bash should offer বাঁশ");
+        assert!(
+            bash_cands.contains(&"বাঁশ".to_string()),
+            "bash should offer বাঁশ"
+        );
 
         let (_, dat_cands) = transliterate_avro("dat");
         assert!(dat_cands.contains(&"দাঁত".to_string()), "dat should offer দাঁত");
@@ -1624,11 +1730,19 @@ mod tests {
 
         // 9. Multi-word fluid phrase segmentation: "kemonaso" -> "কেমন আছো"
         let (_, kemonaso_cands) = transliterate_avro("kemonaso");
-        assert!(kemonaso_cands.iter().any(|c| c == "কেমন আছো" || c == "কেমন আছেন"), "kemonaso should offer segmented phrase");
+        assert!(
+            kemonaso_cands
+                .iter()
+                .any(|c| c == "কেমন আছো" || c == "কেমন আছেন"),
+            "kemonaso should offer segmented phrase"
+        );
 
         // 10. Standalone chat words: "r" -> offers "আর" alongside "র"
         let (_, r_cands) = transliterate_avro("r");
-        assert!(r_cands.contains(&"আর".to_string()), "r should offer আর as candidate");
+        assert!(
+            r_cands.contains(&"আর".to_string()),
+            "r should offer আর as candidate"
+        );
 
         // 11. Khanda-Ta (ৎ) auto-words: "biddut" -> "বিদ্যুৎ", "utshob" -> "উৎসব", "hotat" -> "হঠাৎ"
         let (biddut, _) = transliterate_avro("biddut");
@@ -1649,7 +1763,10 @@ mod tests {
 
         // 13. Currency symbols: "tk" -> offers "৳"
         let (_, tk_cands) = transliterate_avro("tk");
-        assert!(tk_cands.contains(&"৳".to_string()), "tk should offer ৳ as candidate");
+        assert!(
+            tk_cands.contains(&"৳".to_string()),
+            "tk should offer ৳ as candidate"
+        );
 
         // 14. Soft apostrophe escape: "k'kh" -> "কখ", while "kkh" -> "ক্ষ"
         let (k_kh, _) = transliterate_avro("k'kh");
@@ -1660,7 +1777,10 @@ mod tests {
 
         // 15. ZWJ Ya-phala with Ra: "ryab" -> "র‍্যাব"
         let (ryab, _) = transliterate_avro("ryab");
-        assert_eq!(ryab, "\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}", "ryab should produce র‍্যাব");
+        assert_eq!(
+            ryab, "\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}",
+            "ryab should produce র‍্যাব"
+        );
     }
 
     #[test]

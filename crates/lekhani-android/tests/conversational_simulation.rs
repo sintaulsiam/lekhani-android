@@ -49,7 +49,11 @@ fn test_sentence_and_conversational_simulation() {
             println!("       Actual:   '{}'", full_output);
         }
     }
-    println!("\nSentences Passed: {}/{}", passed_sentences, sentences.len());
+    println!(
+        "\nSentences Passed: {}/{}",
+        passed_sentences,
+        sentences.len()
+    );
 
     // ── Conversational Words Simulation ──────────────────────────────
     println!("\n========================================================");
@@ -131,9 +135,16 @@ fn test_sentence_and_conversational_simulation() {
         }
     }
 
-    println!("Conversational Words Passed: {}/{}", conv_passed, conversational_words.len());
+    println!(
+        "Conversational Words Passed: {}/{}",
+        conv_passed,
+        conversational_words.len()
+    );
     if !conv_failed.is_empty() {
-        println!("\nFailures in Conversational Words ({}):", conv_failed.len());
+        println!(
+            "\nFailures in Conversational Words ({}):",
+            conv_failed.len()
+        );
         for (input, exp, actual, trace) in &conv_failed {
             println!("\n  Input:    '{}'", input);
             println!("  Expected: '{}'", exp);
@@ -169,7 +180,10 @@ fn test_sentence_and_conversational_simulation() {
         let r_sp = session.handle_space().unwrap();
         let final_word = r_sp.commit_text.unwrap_or_default().trim().to_string();
         println!("Committed word: '{}' (Expected: 'ভাই')", final_word);
-        assert_eq!(final_word, "ভাই", "Backspace edit 'bhal' -> BS -> 'i' should produce 'ভাই'");
+        assert_eq!(
+            final_word, "ভাই",
+            "Backspace edit 'bhal' -> BS -> 'i' should produce 'ভাই'"
+        );
     }
 
     println!("\n========================================================\n");

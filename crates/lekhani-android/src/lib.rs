@@ -7,11 +7,10 @@ pub mod probaho;
 pub mod session;
 pub mod spatial;
 
-pub use audio::{AsrAudioProcessor, AudioAnalysisResult, restore_bengali_punctuation};
+pub use audio::{restore_bengali_punctuation, AsrAudioProcessor, AudioAnalysisResult};
 pub use error::LekhaniError;
 pub use layout::LekhaniLayoutType;
-pub use session::{AndroidLekhaniSession, TypingResult, set_dictionary_directory};
+pub use session::{set_dictionary_directory, AndroidLekhaniSession, TypingResult};
 pub use spatial::{KeyGeometryConfig, SpatialKeyCandidate, SpatialTouchModel};
 
 uniffi::setup_scaffolding!("lekhani_android");
-

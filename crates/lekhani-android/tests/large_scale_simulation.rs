@@ -40,7 +40,10 @@ fn test_large_scale_typing_simulation() {
             autocorrect_data = parsed;
         }
     }
-    println!("Loaded {} entries from autocorrect.json", autocorrect_data.len());
+    println!(
+        "Loaded {} entries from autocorrect.json",
+        autocorrect_data.len()
+    );
 
     // ─── 2. Curated Phonological & Conversational Test Set ───────────────────
     let curated_tests: Vec<(&str, &str)> = vec![
@@ -75,7 +78,6 @@ fn test_large_scale_typing_simulation() {
         ("kokhon", "কখন"),
         ("kibhabe", "কিভাবে"),
         ("koto", "কত"),
-
         // Common Conversational Verbs (Present, Past, Future, Continuous)
         ("khabo", "খাবো"),
         ("khacchi", "খাচ্ছি"),
@@ -171,7 +173,6 @@ fn test_large_scale_typing_simulation() {
         ("hoyeche", "হয়েছে"),
         ("hoy", "হয়"),
         ("hoye", "হয়ে"),
-
         // Complex Juktoborno (Conjuncts)
         ("kkh", "ক্ষ"),
         ("shikkha", "শিক্ষা"),
@@ -267,7 +268,6 @@ fn test_large_scale_typing_simulation() {
         ("shonkha", "সংখ্যা"),
         ("shongkha", "সংখ্যা"),
         ("songkha", "সংখ্যা"),
-
         // Special Modifiers
         ("c^ad", "চাঁদ"),
         ("b^ash", "বাঁশ"),
@@ -281,7 +281,6 @@ fn test_large_scale_typing_simulation() {
         ("biddut", "বিদ্যুৎ"),
         ("du:kho", "দুঃখ"),
         ("bipod:jonok", "বিপদঃজনক"),
-
         // English Loanwords in Bengali
         ("school", "স্কুল"),
         ("college", "কলেজ"),
@@ -309,7 +308,6 @@ fn test_large_scale_typing_simulation() {
         ("driver", "ড্রাইভার"),
         ("office", "অফিস"),
         ("post", "পোস্ট"),
-
         // Chat Contractions & Slang
         ("kmn", "কেমন"),
         ("kemn", "কেমন"),
@@ -355,13 +353,19 @@ fn test_large_scale_typing_simulation() {
 
     // Add clean words from autocorrect dataset
     for (inp, exp) in autocorrect_data.iter() {
-        if inp.chars().all(|c| c.is_ascii_alphabetic()) && inp.len() >= 2 && inp.len() <= 12
-            && seen_inputs.insert(inp.clone()) {
+        if inp.chars().all(|c| c.is_ascii_alphabetic())
+            && inp.len() >= 2
+            && inp.len() <= 12
+            && seen_inputs.insert(inp.clone())
+        {
             test_pairs.push((inp.clone(), exp.clone()));
         }
     }
 
-    println!("Total distinct test words to simulate letter-by-letter: {}\n", test_pairs.len());
+    println!(
+        "Total distinct test words to simulate letter-by-letter: {}\n",
+        test_pairs.len()
+    );
 
     // ─── 3. Run Simulation on Every Word ─────────────────────────────────────
     let mut passed_exact = 0;
@@ -378,7 +382,9 @@ fn test_large_scale_typing_simulation() {
         let mut glitches = Vec::new();
 
         for ch in inp.chars() {
-            let res = session.process_key(ch.to_string()).expect("process_key panic");
+            let res = session
+                .process_key(ch.to_string())
+                .expect("process_key panic");
             let preedit = res.preedit.clone();
 
             // Glitch 1: Buffer unexpectedly wiped or became empty mid-word
@@ -457,8 +463,16 @@ fn test_large_scale_typing_simulation() {
     println!("--------------------------------------------------------------------------------");
     let total = test_pairs.len();
     println!("Total Words Tested:           {}", total);
-    println!("Exact Matches (#1 Commit):    {} ({:.1}%)", passed_exact, (passed_exact as f64 / total as f64) * 100.0);
-    println!("Top-3 Recall (Target In Top 3):{} ({:.1}%)", passed_top3, (passed_top3 as f64 / total as f64) * 100.0);
+    println!(
+        "Exact Matches (#1 Commit):    {} ({:.1}%)",
+        passed_exact,
+        (passed_exact as f64 / total as f64) * 100.0
+    );
+    println!(
+        "Top-3 Recall (Target In Top 3):{} ({:.1}%)",
+        passed_top3,
+        (passed_top3 as f64 / total as f64) * 100.0
+    );
     println!("Mid-typing Glitches Detected: {}", total_glitches);
     println!("--------------------------------------------------------------------------------\n");
 
@@ -468,12 +482,17 @@ fn test_large_scale_typing_simulation() {
     for (cat, list) in &anomaly_categories {
         println!("\n▶ Category: {} (count: {})", cat, list.len());
         for item in list.iter() {
-            println!("   Input:    '{:15}' -> Expected: '{:12}' | Committed: '{:12}'", item.input, item.expected, item.committed);
+            println!(
+                "   Input:    '{:15}' -> Expected: '{:12}' | Committed: '{:12}'",
+                item.input, item.expected, item.committed
+            );
             println!("   Top Cands: {:?}", item.top_candidates);
             if !item.glitches.is_empty() {
                 println!("   Glitches:  {:?}", item.glitches);
             }
         }
     }
-    println!("\n================================================================================\n");
+    println!(
+        "\n================================================================================\n"
+    );
 }

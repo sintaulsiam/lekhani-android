@@ -37,7 +37,10 @@ fn test_probaho_simulation() {
     session2.process_key("া".into()).unwrap();
     let res2 = session2.handle_space().unwrap();
     let word2 = res2.commit_text.unwrap_or_default().trim().to_string();
-    println!("Probaho 'শিক্ষা' -> space commit: '{}' (Expected: 'শিক্ষা')", word2);
+    println!(
+        "Probaho 'শিক্ষা' -> space commit: '{}' (Expected: 'শিক্ষা')",
+        word2
+    );
     assert_eq!(word2, "শিক্ষা");
 
     println!("\n========================================================\n");

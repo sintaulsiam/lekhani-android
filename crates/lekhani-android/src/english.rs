@@ -6,8 +6,8 @@
 //! - Casing preservation (lowercase, Titlecase, UPPERCASE)
 //! - Conversational next-word predictive bigrams
 
-use std::sync::OnceLock;
 use lekhani_core::trie::PrefixTrie;
+use std::sync::OnceLock;
 
 static ENGLISH_TRIE: OnceLock<PrefixTrie> = OnceLock::new();
 static ENGLISH_LM: OnceLock<lekhani_ai::LanguageModel> = OnceLock::new();
@@ -124,8 +124,8 @@ pub fn set_test_english_trie(trie: PrefixTrie) {
 
 pub const STATIC_SHORT_ENGLISH_WORDS: &[&str] = &[
     "a", "i", "ok", "hi", "to", "no", "go", "in", "on", "at", "is", "am", "he", "me", "we", "fb",
-    "id", "ai", "pc", "tv", "so", "my", "by", "up", "it", "as", "or", "if", "do", "an", "us",
-    "ex", "vs", "app", "web", "api", "otp", "dev", "doc", "ui", "ux", "os", "ip",
+    "id", "ai", "pc", "tv", "so", "my", "by", "up", "it", "as", "or", "if", "do", "an", "us", "ex",
+    "vs", "app", "web", "api", "otp", "dev", "doc", "ui", "ux", "os", "ip",
 ];
 
 /// Returns true if the given token is a recognized word in the English dictionary or common short words whitelist.
@@ -183,7 +183,9 @@ pub fn match_casing(source: &str, target: &str) -> String {
     if source.is_empty() || target.is_empty() {
         return target.to_string();
     }
-    let is_all_upper = source.chars().all(|c| !c.is_alphabetic() || c.is_uppercase());
+    let is_all_upper = source
+        .chars()
+        .all(|c| !c.is_alphabetic() || c.is_uppercase());
     if is_all_upper && source.len() > 1 {
         return target.to_uppercase();
     }
@@ -205,22 +207,195 @@ pub fn match_casing(source: &str, target: &str) -> String {
 }
 
 pub const FALLBACK_ENGLISH_WORDS: &[&str] = &[
-    "the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for", "not", "on", "with",
-    "he", "as", "you", "do", "at", "this", "but", "his", "by", "from", "they", "we", "say", "her",
-    "she", "or", "an", "will", "my", "one", "all", "would", "there", "their", "what", "so", "up",
-    "out", "if", "about", "who", "get", "which", "go", "me", "when", "make", "can", "like", "time",
-    "no", "just", "him", "know", "take", "people", "into", "year", "your", "good", "some", "could",
-    "them", "see", "other", "than", "then", "now", "look", "only", "come", "its", "over", "think",
-    "also", "back", "after", "use", "two", "how", "our", "work", "first", "well", "way", "even",
-    "new", "want", "because", "any", "these", "give", "day", "most", "us", "hello", "help", "here",
-    "home", "house", "hand", "high", "hold", "hope", "hard", "head", "hear", "heart", "happy", "great",
-    "world", "where", "while", "water", "word", "write", "without", "before", "right", "still", "small",
-    "should", "number", "system", "tell", "same", "place", "point", "program", "play", "please", "part",
-    "problem", "question", "power", "person", "phone", "post", "page", "put", "public", "present",
-    "read", "really", "reason", "run", "remember", "result", "school", "state", "study", "student",
-    "something", "start", "set", "show", "side", "seem", "service", "stand", "story", "sure", "talk",
-    "today", "together", "try", "thing", "think", "turn", "under", "understand", "until", "value",
-    "very", "view", "voice", "wait", "walk", "watch", "week", "woman", "work", "yes", "young",
+    "the",
+    "be",
+    "to",
+    "of",
+    "and",
+    "a",
+    "in",
+    "that",
+    "have",
+    "i",
+    "it",
+    "for",
+    "not",
+    "on",
+    "with",
+    "he",
+    "as",
+    "you",
+    "do",
+    "at",
+    "this",
+    "but",
+    "his",
+    "by",
+    "from",
+    "they",
+    "we",
+    "say",
+    "her",
+    "she",
+    "or",
+    "an",
+    "will",
+    "my",
+    "one",
+    "all",
+    "would",
+    "there",
+    "their",
+    "what",
+    "so",
+    "up",
+    "out",
+    "if",
+    "about",
+    "who",
+    "get",
+    "which",
+    "go",
+    "me",
+    "when",
+    "make",
+    "can",
+    "like",
+    "time",
+    "no",
+    "just",
+    "him",
+    "know",
+    "take",
+    "people",
+    "into",
+    "year",
+    "your",
+    "good",
+    "some",
+    "could",
+    "them",
+    "see",
+    "other",
+    "than",
+    "then",
+    "now",
+    "look",
+    "only",
+    "come",
+    "its",
+    "over",
+    "think",
+    "also",
+    "back",
+    "after",
+    "use",
+    "two",
+    "how",
+    "our",
+    "work",
+    "first",
+    "well",
+    "way",
+    "even",
+    "new",
+    "want",
+    "because",
+    "any",
+    "these",
+    "give",
+    "day",
+    "most",
+    "us",
+    "hello",
+    "help",
+    "here",
+    "home",
+    "house",
+    "hand",
+    "high",
+    "hold",
+    "hope",
+    "hard",
+    "head",
+    "hear",
+    "heart",
+    "happy",
+    "great",
+    "world",
+    "where",
+    "while",
+    "water",
+    "word",
+    "write",
+    "without",
+    "before",
+    "right",
+    "still",
+    "small",
+    "should",
+    "number",
+    "system",
+    "tell",
+    "same",
+    "place",
+    "point",
+    "program",
+    "play",
+    "please",
+    "part",
+    "problem",
+    "question",
+    "power",
+    "person",
+    "phone",
+    "post",
+    "page",
+    "put",
+    "public",
+    "present",
+    "read",
+    "really",
+    "reason",
+    "run",
+    "remember",
+    "result",
+    "school",
+    "state",
+    "study",
+    "student",
+    "something",
+    "start",
+    "set",
+    "show",
+    "side",
+    "seem",
+    "service",
+    "stand",
+    "story",
+    "sure",
+    "talk",
+    "today",
+    "together",
+    "try",
+    "thing",
+    "think",
+    "turn",
+    "under",
+    "understand",
+    "until",
+    "value",
+    "very",
+    "view",
+    "voice",
+    "wait",
+    "walk",
+    "watch",
+    "week",
+    "woman",
+    "work",
+    "yes",
+    "young",
 ];
 
 pub const ENGLISH_CONTRACTIONS: &[(&str, &str)] = &[
@@ -287,7 +462,11 @@ pub fn get_english_candidates(buffer: &str, limit: usize) -> Vec<String> {
 }
 
 /// Computes candidates using an explicitly provided PrefixTrie reference.
-pub fn get_english_candidates_with_trie(buffer: &str, trie: Option<&PrefixTrie>, limit: usize) -> Vec<String> {
+pub fn get_english_candidates_with_trie(
+    buffer: &str,
+    trie: Option<&PrefixTrie>,
+    limit: usize,
+) -> Vec<String> {
     if buffer.is_empty() {
         return Vec::new();
     }
@@ -404,17 +583,29 @@ pub const ENGLISH_PREDICTIVE_PAIRS: &[(&[&str], &[&str])] = &[
     (&["thanks"], &["for", "a lot", "everyone"]),
     (&["what"], &["is", "are", "do", "about", "happened"]),
     (&["what", "is"], &["your", "the", "that", "this"]),
-    (&["i"], &["am", "will", "have", "would", "think", "can", "want"]),
-    (&["i", "am"], &["fine", "doing", "working", "happy", "sorry"]),
+    (
+        &["i"],
+        &["am", "will", "have", "would", "think", "can", "want"],
+    ),
+    (
+        &["i", "am"],
+        &["fine", "doing", "working", "happy", "sorry"],
+    ),
     (&["i", "have"], &["been", "a", "no", "to", "done"]),
     (&["you"], &["are", "can", "have", "will", "know", "need"]),
     (&["let"], &["me", "us", "it", "them"]),
     (&["nice"], &["to", "meeting", "day", "work"]),
-    (&["good"], &["morning", "afternoon", "evening", "night", "luck", "job"]),
+    (
+        &["good"],
+        &["morning", "afternoon", "evening", "night", "luck", "job"],
+    ),
     (&["see"], &["you", "later", "soon"]),
     (&["take"], &["care", "time", "your time"]),
     (&["looking"], &["forward", "for", "at"]),
-    (&["please"], &["let", "find", "check", "help", "let me know"]),
+    (
+        &["please"],
+        &["let", "find", "check", "help", "let me know"],
+    ),
     (&["have"], &["a", "been", "to", "you"]),
     (&["do"], &["not", "you", "it"]),
     (&["it"], &["is", "was", "will", "would"]),
@@ -579,7 +770,11 @@ pub fn decode_english_glide_with_trie(
     }
 
     scored_candidates.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
-    scored_candidates.into_iter().take(limit).map(|(w, _)| w).collect()
+    scored_candidates
+        .into_iter()
+        .take(limit)
+        .map(|(w, _)| w)
+        .collect()
 }
 
 /// Checks whether `word` can be traced as an in-order subsequence along `path_chars`,
@@ -679,8 +874,12 @@ mod tests {
         let trie = sample_trie();
         // User swiped across: h -> j -> u -> i -> e -> r -> l -> o (for "hello")
         let gesture = vec![
-            "h".to_string(), "j".to_string(), "e".to_string(),
-            "r".to_string(), "l".to_string(), "o".to_string(),
+            "h".to_string(),
+            "j".to_string(),
+            "e".to_string(),
+            "r".to_string(),
+            "l".to_string(),
+            "o".to_string(),
         ];
         let cands = decode_english_glide_with_trie(&gesture, Some(&trie), 5);
         assert!(!cands.is_empty());
@@ -688,8 +887,12 @@ mod tests {
 
         // Gesture: w -> e -> r -> t -> y -> u -> i -> o -> r -> l -> d (for "world")
         let gesture_world = vec![
-            "w".to_string(), "e".to_string(), "o".to_string(),
-            "r".to_string(), "l".to_string(), "d".to_string(),
+            "w".to_string(),
+            "e".to_string(),
+            "o".to_string(),
+            "r".to_string(),
+            "l".to_string(),
+            "d".to_string(),
         ];
         let cands_world = decode_english_glide_with_trie(&gesture_world, Some(&trie), 5);
         assert!(!cands_world.is_empty());
@@ -699,7 +902,12 @@ mod tests {
     #[test]
     fn test_english_lm_predictions() {
         if let Some(lm) = get_english_lm() {
-            println!("Loaded English LM unigrams: {}, bigrams: {}, trigrams: {}", lm.unigram_count(), lm.bigram_count(), lm.trigram_count());
+            println!(
+                "Loaded English LM unigrams: {}, bigrams: {}, trigrams: {}",
+                lm.unigram_count(),
+                lm.bigram_count(),
+                lm.trigram_count()
+            );
             let next = get_english_next_words(&["how", "are"], 5);
             println!("ENGLISH LM 'how are' -> {:?}", next);
             assert!(next.contains(&"you".to_string()));

@@ -1,15 +1,21 @@
-use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use unicode_segmentation::UnicodeSegmentation;
-use lekhani_core::phonetic::PhoneticDatabase;
 use crate::error::LekhaniError;
 use crate::layout::LekhaniLayoutType;
-use crate::probaho::{demote_vowel_to_kar_if_preceded_by_consonant, generate_inflectional_suffixes, get_conjunct_suggestions, is_bengali_consonant_or_modifier, is_bengali_punctuation_or_space, is_bengali_vowel, nfc_normalize, promote_kar_if_needed};
+use crate::probaho::{
+    demote_vowel_to_kar_if_preceded_by_consonant, generate_inflectional_suffixes,
+    get_conjunct_suggestions, is_bengali_consonant_or_modifier, is_bengali_punctuation_or_space,
+    is_bengali_vowel, nfc_normalize, promote_kar_if_needed,
+};
+use lekhani_core::phonetic::PhoneticDatabase;
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use unicode_segmentation::UnicodeSegmentation;
 
 static CORE_DB: RwLock<Option<&'static PhoneticDatabase>> = RwLock::new(None);
 static CUSTOM_DICT_DIR: RwLock<Option<String>> = RwLock::new(None);
 static CONTEXT_SCORER: RwLock<Option<&'static lekhani_ai::ContextScorer>> = RwLock::new(None);
-static NEXT_WORD_PREDICTOR: RwLock<Option<&'static lekhani_ai::NextWordPredictor>> = RwLock::new(None);
-static NEURAL_PREDICTOR: RwLock<Option<&'static lekhani_neural::NeuralContextPredictor>> = RwLock::new(None);
+static NEXT_WORD_PREDICTOR: RwLock<Option<&'static lekhani_ai::NextWordPredictor>> =
+    RwLock::new(None);
+static NEURAL_PREDICTOR: RwLock<Option<&'static lekhani_neural::NeuralContextPredictor>> =
+    RwLock::new(None);
 
 /// Maximum characters kept in the in-session surrounding_context buffer.
 /// This matches the Kotlin-side CONTEXT_CHAR_LIMIT (256 chars from IPC)
@@ -58,11 +64,15 @@ pub fn set_dictionary_directory(path: String) {
         let mut lm = lekhani_ai::LanguageModel::new();
         let lm_path = dir.join("bengali_lm.bin");
         if lm_path.is_file() && lm.load_binary_file(&lm_path).is_ok() {
-            let static_scorer: &'static lekhani_ai::ContextScorer = Box::leak(Box::new(lekhani_ai::ContextScorer::with_language_model(lm.clone())));
+            let static_scorer: &'static lekhani_ai::ContextScorer = Box::leak(Box::new(
+                lekhani_ai::ContextScorer::with_language_model(lm.clone()),
+            ));
             if let Ok(mut lock) = CONTEXT_SCORER.write() {
                 *lock = Some(static_scorer);
             }
-            let static_pred: &'static lekhani_ai::NextWordPredictor = Box::leak(Box::new(lekhani_ai::NextWordPredictor::with_language_model(lm)));
+            let static_pred: &'static lekhani_ai::NextWordPredictor = Box::leak(Box::new(
+                lekhani_ai::NextWordPredictor::with_language_model(lm),
+            ));
             if let Ok(mut lock) = NEXT_WORD_PREDICTOR.write() {
                 *lock = Some(static_pred);
             }
@@ -171,7 +181,8 @@ pub fn get_context_scorer() -> &'static lekhani_ai::ContextScorer {
             }
         }
     }
-    let static_scorer: &'static lekhani_ai::ContextScorer = Box::leak(Box::new(lekhani_ai::ContextScorer::with_language_model(lm)));
+    let static_scorer: &'static lekhani_ai::ContextScorer =
+        Box::leak(Box::new(lekhani_ai::ContextScorer::with_language_model(lm)));
     *guard = Some(static_scorer);
     static_scorer
 }
@@ -182,12 +193,16 @@ pub fn get_next_word_predictor() -> &'static lekhani_ai::NextWordPredictor {
             return pred;
         }
     }
-    let mut guard = NEXT_WORD_PREDICTOR.write().unwrap_or_else(|e| e.into_inner());
+    let mut guard = NEXT_WORD_PREDICTOR
+        .write()
+        .unwrap_or_else(|e| e.into_inner());
     if let Some(pred) = *guard {
         return pred;
     }
     let scorer = get_context_scorer();
-    let static_pred: &'static lekhani_ai::NextWordPredictor = Box::leak(Box::new(lekhani_ai::NextWordPredictor::with_language_model(scorer.lm().clone())));
+    let static_pred: &'static lekhani_ai::NextWordPredictor = Box::leak(Box::new(
+        lekhani_ai::NextWordPredictor::with_language_model(scorer.lm().clone()),
+    ));
     *guard = Some(static_pred);
     static_pred
 }
@@ -273,7 +288,9 @@ pub fn get_neural_predictor() -> &'static lekhani_neural::NeuralContextPredictor
 
     let vocab = vocab_opt.unwrap_or_else(|| {
         let db = get_core_database();
-        let word_list: Vec<String> = db.trie.iter()
+        let word_list: Vec<String> = db
+            .trie
+            .iter()
             .take(2048)
             .map(|(w, _)| w.to_string())
             .collect();
@@ -298,17 +315,17 @@ pub fn get_neural_predictor() -> &'static lekhani_neural::NeuralContextPredictor
     };
 
     let predictor: &'static lekhani_neural::NeuralContextPredictor = Box::leak(Box::new(
-        NeuralContextPredictor::try_new(model.clone(), vocab.clone())
-            .unwrap_or_else(|_| {
-                let matched = Arc::new(MicroGruModel::new(vocab.len(), 64, 64));
-                NeuralContextPredictor::new(matched, vocab)
-            })
+        NeuralContextPredictor::try_new(model.clone(), vocab.clone()).unwrap_or_else(|_| {
+            let matched = Arc::new(MicroGruModel::new(vocab.len(), 64, 64));
+            NeuralContextPredictor::new(matched, vocab)
+        }),
     ));
     *guard = Some(predictor);
     predictor
 }
 
-static PHONETIC_SUGGESTION: OnceLock<Mutex<lekhani_core::phonetic::PhoneticSuggestion>> = OnceLock::new();
+static PHONETIC_SUGGESTION: OnceLock<Mutex<lekhani_core::phonetic::PhoneticSuggestion>> =
+    OnceLock::new();
 
 pub fn get_phonetic_suggestion() -> &'static Mutex<lekhani_core::phonetic::PhoneticSuggestion> {
     PHONETIC_SUGGESTION.get_or_init(|| {
@@ -323,11 +340,21 @@ pub fn get_phonetic_suggestion() -> &'static Mutex<lekhani_core::phonetic::Phone
 
         let layout_candidates = [
             std::path::Path::new("/data/data/com.lekhani.android/files/layouts/avrophonetic.json"),
-            std::path::Path::new("/data/data/com.lekhani.android.debug/files/layouts/avrophonetic.json"),
-            std::path::Path::new("/data/user/0/com.lekhani.android/files/layouts/avrophonetic.json"),
-            std::path::Path::new("/data/user/0/com.lekhani.android.debug/files/layouts/avrophonetic.json"),
-            std::path::Path::new("/data/user_de/0/com.lekhani.android/files/layouts/avrophonetic.json"),
-            std::path::Path::new("/data/user_de/0/com.lekhani.android.debug/files/layouts/avrophonetic.json"),
+            std::path::Path::new(
+                "/data/data/com.lekhani.android.debug/files/layouts/avrophonetic.json",
+            ),
+            std::path::Path::new(
+                "/data/user/0/com.lekhani.android/files/layouts/avrophonetic.json",
+            ),
+            std::path::Path::new(
+                "/data/user/0/com.lekhani.android.debug/files/layouts/avrophonetic.json",
+            ),
+            std::path::Path::new(
+                "/data/user_de/0/com.lekhani.android/files/layouts/avrophonetic.json",
+            ),
+            std::path::Path::new(
+                "/data/user_de/0/com.lekhani.android.debug/files/layouts/avrophonetic.json",
+            ),
             std::path::Path::new("./data/layouts/avrophonetic.json"),
             std::path::Path::new("../data/layouts/avrophonetic.json"),
             std::path::Path::new("../../data/layouts/avrophonetic.json"),
@@ -421,7 +448,8 @@ impl SessionState {
         self.surrounding_context_len += text.chars().count();
         if self.surrounding_context_len > MAX_CONTEXT_CHARS {
             let trim_chars = self.surrounding_context_len - MAX_CONTEXT_CHARS;
-            let trim_at = self.surrounding_context
+            let trim_at = self
+                .surrounding_context
                 .char_indices()
                 .nth(trim_chars)
                 .map(|(i, _)| i)
@@ -431,7 +459,6 @@ impl SessionState {
         }
     }
 }
-
 
 fn get_context_words<'a>(context: &'a str, buffer: &mut [&'a str; 16]) -> usize {
     let mut count = 0;
@@ -500,10 +527,11 @@ fn get_bengali_next_words(context: &str, right_context: Option<&str>) -> Vec<Str
     if !neural_cands.is_empty() {
         let alpha = lekhani_neural::predictor::compute_neural_alpha(
             ngram_top_log_prob,
-            true, // get_bengali_next_words is always called after a word boundary
+            true,  // get_bengali_next_words is always called after a word boundary
             count, // context_word_count: number of words in context
         );
-        neural.blend_candidates(&ngram_results, &neural_cands, alpha)
+        neural
+            .blend_candidates(&ngram_results, &neural_cands, alpha)
             .into_iter()
             .take(5)
             .collect()
@@ -560,7 +588,6 @@ impl AndroidLekhaniSession {
                 hasanta_conjuncts_enabled: true,
             }),
         }
-
     }
 
     // ── Layout management ────────────────────────────────────────────────────
@@ -715,7 +742,10 @@ impl AndroidLekhaniSession {
     ) -> Vec<crate::spatial::SpatialKeyCandidate> {
         self.state
             .lock()
-            .map(|s| s.spatial_model.rank_keys_at(touch_x, touch_y, top_k as usize))
+            .map(|s| {
+                s.spatial_model
+                    .rank_keys_at(touch_x, touch_y, top_k as usize)
+            })
             .unwrap_or_default()
     }
 
@@ -746,7 +776,8 @@ impl AndroidLekhaniSession {
                 };
 
                 let key_prob = state.spatial_model.log_prob_for_key(&key, touch_x, touch_y);
-                if (neighbor.log_prob - key_prob).abs() <= 2.8 && !state.composing_buffer.is_empty() {
+                if (neighbor.log_prob - key_prob).abs() <= 2.8 && !state.composing_buffer.is_empty()
+                {
                     let mut alt_buf = state.composing_buffer.clone();
                     alt_buf.pop();
                     alt_buf.push_str(&neighbor.key);
@@ -755,7 +786,8 @@ impl AndroidLekhaniSession {
                         LekhaniLayoutType::English => {
                             let alt_cands = crate::english::get_english_candidates(&alt_buf, 2);
                             for cand in alt_cands {
-                                if !result.candidates.contains(&cand) && result.candidates.len() < 7 {
+                                if !result.candidates.contains(&cand) && result.candidates.len() < 7
+                                {
                                     result.candidates.push(cand);
                                 }
                             }
@@ -763,7 +795,8 @@ impl AndroidLekhaniSession {
                         LekhaniLayoutType::Avro => {
                             let (_, alt_cands) = crate::avro::transliterate_avro(&alt_buf);
                             for cand in alt_cands {
-                                if !result.candidates.contains(&cand) && result.candidates.len() < 7 {
+                                if !result.candidates.contains(&cand) && result.candidates.len() < 7
+                                {
                                     result.candidates.push(cand);
                                 }
                             }
@@ -793,7 +826,6 @@ impl AndroidLekhaniSession {
 
     // ── Key processing hot path ──────────────────────────────────────────────
 
-
     /// Process a typed character or key token.
     ///
     /// # Performance contract
@@ -819,28 +851,38 @@ impl AndroidLekhaniSession {
             || key == "\n";
 
         if is_punct {
-            let mut committed = if state.layout == LekhaniLayoutType::Avro && !state.composing_buffer.is_empty() {
-                let raw = std::mem::take(&mut state.composing_buffer);
-                let words: Vec<&str> = if !state.surrounding_context.is_empty() {
-                    state.surrounding_context.split_whitespace().collect()
+            let mut committed =
+                if state.layout == LekhaniLayoutType::Avro && !state.composing_buffer.is_empty() {
+                    let raw = std::mem::take(&mut state.composing_buffer);
+                    let words: Vec<&str> = if !state.surrounding_context.is_empty() {
+                        state.surrounding_context.split_whitespace().collect()
+                    } else {
+                        Vec::new()
+                    };
+                    let (preedit, mut candidates) =
+                        crate::avro::transliterate_avro_with_context(&raw, &words);
+                    if !words.is_empty() && candidates.len() > 1 {
+                        let scorer = get_context_scorer();
+                        let right_word = state.right_context.split_whitespace().next();
+                        scorer.rank_candidates_in_place_bidirectional(
+                            &words,
+                            right_word,
+                            &mut candidates,
+                        );
+                    }
+                    crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
+                    candidates.first().cloned().unwrap_or(preedit)
                 } else {
-                    Vec::new()
+                    std::mem::take(&mut state.composing_buffer)
                 };
-                let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw, &words);
-                if !words.is_empty() && candidates.len() > 1 {
-                    let scorer = get_context_scorer();
-                    let right_word = state.right_context.split_whitespace().next();
-                    scorer.rank_candidates_in_place_bidirectional(&words, right_word, &mut candidates);
-                }
-                crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
-                candidates.first().cloned().unwrap_or(preedit)
-            } else {
-                std::mem::take(&mut state.composing_buffer)
-            };
             state.composing_buffer = String::with_capacity(64);
 
             let word = committed.clone();
-            if !word.is_empty() && !state.is_private_field && state.auto_learn_enabled && state.layout != LekhaniLayoutType::English {
+            if !word.is_empty()
+                && !state.is_private_field
+                && state.auto_learn_enabled
+                && state.layout != LekhaniLayoutType::English
+            {
                 let prev_word = state
                     .surrounding_context
                     .split_whitespace()
@@ -854,8 +896,7 @@ impl AndroidLekhaniSession {
                         }
                     }
                 }
-                state.last_commit_info =
-                    Some((prev_word, word.clone(), std::time::Instant::now()));
+                state.last_commit_info = Some((prev_word, word.clone(), std::time::Instant::now()));
             }
 
             let punct_str: &str = if key == "." && state.layout != LekhaniLayoutType::English {
@@ -882,7 +923,8 @@ impl AndroidLekhaniSession {
                 // Fix #1: Filter surrounding_context to only ASCII words so Bengali
                 // context accumulated from a previous layout session never leaks into
                 // English next-word predictions after punctuation flush.
-                let words: Vec<&str> = state.surrounding_context
+                let words: Vec<&str> = state
+                    .surrounding_context
                     .split_whitespace()
                     .filter(|w| w.is_ascii())
                     .collect();
@@ -904,14 +946,22 @@ impl AndroidLekhaniSession {
                 let chars: Vec<char> = state.composing_buffer.chars().collect();
                 let last_ch = chars.last().copied();
                 let (is_start, last_is_vowel, last_is_consonant) = if let Some(last) = last_ch {
-                    (false, is_bengali_vowel(last), is_bengali_consonant_or_modifier(last) && last != '্')
+                    (
+                        false,
+                        is_bengali_vowel(last),
+                        is_bengali_consonant_or_modifier(last) && last != '্',
+                    )
                 } else if let Some(ctx_ch) = state.surrounding_context.chars().last() {
                     if is_bengali_consonant_or_modifier(ctx_ch) && ctx_ch != '্' {
                         (false, false, true)
                     } else if is_bengali_vowel(ctx_ch) {
                         (false, true, false)
                     } else {
-                        (ctx_ch.is_whitespace() || is_bengali_punctuation_or_space(ctx_ch), false, false)
+                        (
+                            ctx_ch.is_whitespace() || is_bengali_punctuation_or_space(ctx_ch),
+                            false,
+                            false,
+                        )
                     }
                 } else {
                     (true, false, false)
@@ -930,9 +980,13 @@ impl AndroidLekhaniSession {
                 // 1. Double-Kar Collision Prevention:
                 // If composing buffer already ends in a Kar on a consonant and user types another Kar,
                 // replace the previous Kar with the new one instead of stacking invalid modifiers (e.g. কা + ি -> কি).
-                let is_incoming_kar = transformed.chars().all(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
+                let is_incoming_kar = transformed
+                    .chars()
+                    .all(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
                 let last_is_kar = last_ch.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
-                let prev_is_consonant = chars.len() >= 2 && is_bengali_consonant_or_modifier(chars[chars.len() - 2]) && chars[chars.len() - 2] != '্';
+                let prev_is_consonant = chars.len() >= 2
+                    && is_bengali_consonant_or_modifier(chars[chars.len() - 2])
+                    && chars[chars.len() - 2] != '্';
 
                 if is_incoming_kar && last_is_kar && prev_is_consonant {
                     state.composing_buffer.pop();
@@ -942,7 +996,9 @@ impl AndroidLekhaniSession {
                 // If user types Reph ("র্" or "র\u{09CD}") after a consonant `c` (e.g. ধ + ম + র্),
                 // automatically transpose them to form the valid syllable (e.g. ধর্ম).
                 else if key == "র্"
-                    && last_ch.is_some_and(|c| is_bengali_consonant_or_modifier(c) && c != '্' && c != 'র' && c != 'ৎ')
+                    && last_ch.is_some_and(|c| {
+                        is_bengali_consonant_or_modifier(c) && c != '্' && c != 'র' && c != 'ৎ'
+                    })
                 {
                     let c = state.composing_buffer.pop().unwrap();
                     state.composing_buffer.push_str("র্");
@@ -953,7 +1009,15 @@ impl AndroidLekhaniSession {
                 // typing `c` again automatically inserts `্` + `c` forming the geminate (e.g. উ + ত + ত -> উত্তর).
                 else if state.geminate_double_tap_enabled
                     && key.chars().count() == 1
-                    && last_ch.is_some_and(|c| key.starts_with(c) && is_bengali_consonant_or_modifier(c) && c != '্' && c != 'ৎ' && c != 'ড়' && c != 'ঢ়' && c != 'য়')
+                    && last_ch.is_some_and(|c| {
+                        key.starts_with(c)
+                            && is_bengali_consonant_or_modifier(c)
+                            && c != '্'
+                            && c != 'ৎ'
+                            && c != 'ড়'
+                            && c != 'ঢ়'
+                            && c != 'য়'
+                    })
                     && (chars.len() < 2 || chars[chars.len() - 2] != '্')
                 {
                     state.composing_buffer.push('্');
@@ -998,14 +1062,20 @@ impl AndroidLekhaniSession {
                 // Agglutinative inflectional suffix expansion:
                 // When composing buffer forms a valid base word (e.g. মানুষ, বই, দেশ, কথা),
                 // surface its high-frequency grammatical inflections (e.g. মানুষের, মানুষকে, মানুষগুলো, মানুষটি).
-                if !state.composing_buffer.ends_with('্') && state.composing_buffer.chars().count() >= 2 {
+                if !state.composing_buffer.ends_with('্')
+                    && state.composing_buffer.chars().count() >= 2
+                {
                     let db = get_core_database();
                     let is_exact_word = db.trie.contains_exact(&state.composing_buffer);
                     if is_exact_word || candidates.len() < 5 {
                         let inflections = generate_inflectional_suffixes(&state.composing_buffer);
                         for inf in inflections {
-                            if candidates.len() >= 8 { break; }
-                            if (db.trie.contains_exact(&inf) || candidates.len() < 4) && !candidates.contains(&inf) {
+                            if candidates.len() >= 8 {
+                                break;
+                            }
+                            if (db.trie.contains_exact(&inf) || candidates.len() < 4)
+                                && !candidates.contains(&inf)
+                            {
                                 candidates.push(inf);
                             }
                         }
@@ -1015,13 +1085,18 @@ impl AndroidLekhaniSession {
                 // (mirrors what the Gboard/National arm already does)
                 if candidates.len() < 5 {
                     let db = get_core_database();
-                    let stems = lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
+                    let stems =
+                        lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
                     for stem in stems {
                         if stem.len() >= 2 {
                             let stem_matches = db.trie.find_prefix_matches(&stem, 3);
                             for w in stem_matches {
-                                if candidates.len() >= 8 { break; }
-                                if !candidates.contains(&w) { candidates.push(w); }
+                                if candidates.len() >= 8 {
+                                    break;
+                                }
+                                if !candidates.contains(&w) {
+                                    candidates.push(w);
+                                }
                             }
                         }
                     }
@@ -1032,7 +1107,11 @@ impl AndroidLekhaniSession {
                     let words = &words_buf[..count];
                     let scorer = get_context_scorer();
                     let right_word = state.right_context.split_whitespace().next();
-                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
+                    scorer.rank_candidates_in_place_bidirectional(
+                        words,
+                        right_word,
+                        &mut candidates,
+                    );
                 }
                 // In fixed layouts, the exact typed buffer is guaranteed to stay at position 0
                 if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
@@ -1058,7 +1137,8 @@ impl AndroidLekhaniSession {
                     0
                 };
                 let words = &words_buf[..count];
-                let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, words);
+                let (preedit, mut candidates) =
+                    crate::avro::transliterate_avro_with_context(&state.composing_buffer, words);
                 let has_candidate_memory = {
                     if state.composing_buffer.chars().count() <= 2 {
                         false
@@ -1067,20 +1147,36 @@ impl AndroidLekhaniSession {
                         db.learner.read().ok().is_some_and(|l| {
                             l.lookup_input_error(&state.composing_buffer).is_some()
                                 || l.candidate_memory.contains_key(&state.composing_buffer)
-                                || l.candidate_memory.contains_key(&state.composing_buffer.to_lowercase())
+                                || l.candidate_memory
+                                    .contains_key(&state.composing_buffer.to_lowercase())
                         })
                     }
                 };
                 if count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     let right_word = state.right_context.split_whitespace().next();
-                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
+                    scorer.rank_candidates_in_place_bidirectional(
+                        words,
+                        right_word,
+                        &mut candidates,
+                    );
                     if has_candidate_memory {
                         let db = get_core_database();
                         if let Ok(learner) = db.learner.read() {
-                            let preferred = learner.lookup_input_error(&state.composing_buffer)
-                                .or_else(|| learner.candidate_memory.get(&state.composing_buffer).map(|s| s.as_str()))
-                                .or_else(|| learner.candidate_memory.get(&state.composing_buffer.to_lowercase()).map(|s| s.as_str()));
+                            let preferred = learner
+                                .lookup_input_error(&state.composing_buffer)
+                                .or_else(|| {
+                                    learner
+                                        .candidate_memory
+                                        .get(&state.composing_buffer)
+                                        .map(|s| s.as_str())
+                                })
+                                .or_else(|| {
+                                    learner
+                                        .candidate_memory
+                                        .get(&state.composing_buffer.to_lowercase())
+                                        .map(|s| s.as_str())
+                                });
                             if let Some(pref) = preferred {
                                 if let Some(pos) = candidates.iter().position(|c| c == pref) {
                                     let cand = candidates.remove(pos);
@@ -1089,18 +1185,26 @@ impl AndroidLekhaniSession {
                             }
                         }
                     } else {
-                        crate::avro::prioritize_common_or_override_candidate(&state.composing_buffer, &mut candidates);
+                        crate::avro::prioritize_common_or_override_candidate(
+                            &state.composing_buffer,
+                            &mut candidates,
+                        );
                     }
                     if let Some(top) = candidates.first() {
-                        let is_explicit_common = crate::avro::get_common_word_candidates(&state.composing_buffer).is_some();
+                        let is_explicit_common =
+                            crate::avro::get_common_word_candidates(&state.composing_buffer)
+                                .is_some();
                         let db = get_core_database();
                         let has_override = db.lookup_override(&state.composing_buffer).is_some()
-                            || db.lookup_override(&state.composing_buffer.to_lowercase()).is_some();
+                            || db
+                                .lookup_override(&state.composing_buffer.to_lowercase())
+                                .is_some();
 
                         if !has_candidate_memory
                             && !is_explicit_common
                             && !has_override
-                            && (!crate::avro::are_phonetically_compatible(&preedit, top) || !db.is_exact_dictionary_word(top))
+                            && (!crate::avro::are_phonetically_compatible(&preedit, top)
+                                || !db.is_exact_dictionary_word(top))
                         {
                             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                                 let cand = candidates.remove(pos);
@@ -1136,10 +1240,13 @@ impl AndroidLekhaniSession {
                 }
 
                 // If key is a word character (letters, apostrophe, hyphen)
-                let is_word_char = key.chars().all(|c| c.is_alphabetic() || c == '\'' || c == '-');
+                let is_word_char = key
+                    .chars()
+                    .all(|c| c.is_alphabetic() || c == '\'' || c == '-');
                 if is_word_char {
                     state.composing_buffer.push_str(&key);
-                    let candidates = crate::english::get_english_candidates(&state.composing_buffer, 5);
+                    let candidates =
+                        crate::english::get_english_candidates(&state.composing_buffer, 5);
                     let len = state.composing_buffer.len() as u32;
                     Ok(TypingResult {
                         preedit: state.composing_buffer.clone(),
@@ -1235,7 +1342,11 @@ impl AndroidLekhaniSession {
                     let words = &words_buf[..count];
                     let scorer = get_context_scorer();
                     let right_word = state.right_context.split_whitespace().next();
-                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
+                    scorer.rank_candidates_in_place_bidirectional(
+                        words,
+                        right_word,
+                        &mut candidates,
+                    );
                 }
                 // In fixed layouts, the exact typed buffer is guaranteed to stay at position 0
                 if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
@@ -1283,13 +1394,19 @@ impl AndroidLekhaniSession {
                 }
 
                 // Agglutinative inflectional suffix expansion for fixed layouts
-                if !state.composing_buffer.ends_with('্') && state.composing_buffer.chars().count() >= 2 {
+                if !state.composing_buffer.ends_with('্')
+                    && state.composing_buffer.chars().count() >= 2
+                {
                     let is_exact_word = db.trie.contains_exact(&state.composing_buffer);
                     if is_exact_word || candidates.len() < 5 {
                         let inflections = generate_inflectional_suffixes(&state.composing_buffer);
                         for inf in inflections {
-                            if candidates.len() >= 8 { break; }
-                            if (db.trie.contains_exact(&inf) || candidates.len() < 4) && !candidates.contains(&inf) {
+                            if candidates.len() >= 8 {
+                                break;
+                            }
+                            if (db.trie.contains_exact(&inf) || candidates.len() < 4)
+                                && !candidates.contains(&inf)
+                            {
                                 candidates.push(inf);
                             }
                         }
@@ -1297,13 +1414,18 @@ impl AndroidLekhaniSession {
                 }
                 // Morphological suffix expansion for Gboard/Probhat fixed layouts
                 if candidates.len() < 5 {
-                    let stems = lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
+                    let stems =
+                        lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
                     for stem in stems {
                         if stem.len() >= 2 {
                             let stem_matches = db.trie.find_prefix_matches(&stem, 3);
                             for w in stem_matches {
-                                if candidates.len() >= 8 { break; }
-                                if !candidates.contains(&w) { candidates.push(w); }
+                                if candidates.len() >= 8 {
+                                    break;
+                                }
+                                if !candidates.contains(&w) {
+                                    candidates.push(w);
+                                }
                             }
                         }
                     }
@@ -1314,7 +1436,11 @@ impl AndroidLekhaniSession {
                     let words = &words_buf[..count];
                     let scorer = get_context_scorer();
                     let right_word = state.right_context.split_whitespace().next();
-                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
+                    scorer.rank_candidates_in_place_bidirectional(
+                        words,
+                        right_word,
+                        &mut candidates,
+                    );
                 }
                 // In fixed layouts, the exact typed buffer is guaranteed to stay at position 0
                 if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
@@ -1362,11 +1488,16 @@ impl AndroidLekhaniSession {
                     0
                 };
                 let words = &words_buf[..count];
-                let (_preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw_token, words);
+                let (_preedit, mut candidates) =
+                    crate::avro::transliterate_avro_with_context(&raw_token, words);
                 if count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     let right_word = state.right_context.split_whitespace().next();
-                    scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
+                    scorer.rank_candidates_in_place_bidirectional(
+                        words,
+                        right_word,
+                        &mut candidates,
+                    );
                 }
 
                 if candidates.is_empty() {
@@ -1434,20 +1565,31 @@ impl AndroidLekhaniSession {
                 let entries = db.trie.find_prefix_entries(start_key, 250);
                 let mut scored: Vec<(String, i64)> = Vec::new();
                 for (word, freq) in entries {
-                    if !word.ends_with(end_key.as_str()) { continue; }
+                    if !word.ends_with(end_key.as_str()) {
+                        continue;
+                    }
                     let word_graphemes: Vec<&str> = word.graphemes(true).collect();
                     let mut key_idx = 0;
                     let mut matched = true;
                     let mut prev = "";
                     for g in word_graphemes {
-                        if g == prev { continue; }
+                        if g == prev {
+                            continue;
+                        }
                         prev = g;
                         let mut found = false;
                         while key_idx < keys.len() {
-                            if keys[key_idx] == g { key_idx += 1; found = true; break; }
+                            if keys[key_idx] == g {
+                                key_idx += 1;
+                                found = true;
+                                break;
+                            }
                             key_idx += 1;
                         }
-                        if !found { matched = false; break; }
+                        if !found {
+                            matched = false;
+                            break;
+                        }
                     }
                     if matched {
                         let len_diff = (word.len() as isize - keys.len() as isize).abs();
@@ -1455,7 +1597,8 @@ impl AndroidLekhaniSession {
                     }
                 }
                 scored.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
-                let mut candidates: Vec<String> = scored.into_iter().take(5).map(|(w, _)| w).collect();
+                let mut candidates: Vec<String> =
+                    scored.into_iter().take(5).map(|(w, _)| w).collect();
 
                 if candidates.len() > 1 {
                     let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
@@ -1587,9 +1730,15 @@ impl AndroidLekhaniSession {
         if let Ok(mut learner) = db.learner.write() {
             *learner = lekhani_core::phonetic::AutonomousLearner::load_from_path(path_ref);
             let warm_candidates = [
-                std::path::Path::new("/data/data/com.lekhani.android/files/dictionaries/rank_weights_v2.json"),
-                std::path::Path::new("/data/data/com.lekhani.android.debug/files/dictionaries/rank_weights_v2.json"),
-                std::path::Path::new("/data/user/0/com.lekhani.android/files/dictionaries/rank_weights_v2.json"),
+                std::path::Path::new(
+                    "/data/data/com.lekhani.android/files/dictionaries/rank_weights_v2.json",
+                ),
+                std::path::Path::new(
+                    "/data/data/com.lekhani.android.debug/files/dictionaries/rank_weights_v2.json",
+                ),
+                std::path::Path::new(
+                    "/data/user/0/com.lekhani.android/files/dictionaries/rank_weights_v2.json",
+                ),
                 std::path::Path::new("./data/dictionaries/rank_weights_v2.json"),
                 std::path::Path::new("../data/dictionaries/rank_weights_v2.json"),
                 std::path::Path::new("../../data/dictionaries/rank_weights_v2.json"),
@@ -1632,7 +1781,11 @@ impl AndroidLekhaniSession {
     }
 
     /// Add a custom user autocorrect / shortcut rule.
-    pub fn add_autocorrect_rule(&self, trigger: String, replacement: String) -> Result<bool, LekhaniError> {
+    pub fn add_autocorrect_rule(
+        &self,
+        trigger: String,
+        replacement: String,
+    ) -> Result<bool, LekhaniError> {
         let clean_trig = trigger.trim();
         let clean_repl = replacement.trim();
         if clean_trig.is_empty() || clean_repl.is_empty() {
@@ -1658,7 +1811,9 @@ impl AndroidLekhaniSession {
     }
 
     /// Retrieve all custom user autocorrect rules as a key-value map.
-    pub fn get_autocorrect_rules(&self) -> Result<std::collections::HashMap<String, String>, LekhaniError> {
+    pub fn get_autocorrect_rules(
+        &self,
+    ) -> Result<std::collections::HashMap<String, String>, LekhaniError> {
         let db = get_core_database();
         let map = db.get_user_autocorrect_map();
         Ok(map.into_iter().collect())
@@ -1702,7 +1857,8 @@ impl AndroidLekhaniSession {
                 // Grapheme-safe removal: pop the last Unicode grapheme cluster,
                 // not just the last char code-point. Safe for any future Unicode
                 // input into the Avro composing buffer.
-                let new_len = state.composing_buffer
+                let new_len = state
+                    .composing_buffer
                     .grapheme_indices(true)
                     .next_back()
                     .map(|(i, _)| i)
@@ -1721,15 +1877,27 @@ impl AndroidLekhaniSession {
                     } else {
                         Vec::new()
                     };
-                    let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&state.composing_buffer, &words);
+                    let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(
+                        &state.composing_buffer,
+                        &words,
+                    );
                     if !words.is_empty() && candidates.len() > 1 {
                         let scorer = get_context_scorer();
                         let right_word = state.right_context.split_whitespace().next();
-                        scorer.rank_candidates_in_place_bidirectional(&words, right_word, &mut candidates);
-                        crate::avro::prioritize_common_or_override_candidate(&state.composing_buffer, &mut candidates);
+                        scorer.rank_candidates_in_place_bidirectional(
+                            &words,
+                            right_word,
+                            &mut candidates,
+                        );
+                        crate::avro::prioritize_common_or_override_candidate(
+                            &state.composing_buffer,
+                            &mut candidates,
+                        );
                         if let Some(top) = candidates.first() {
                             let db = get_core_database();
-                            if !crate::avro::are_phonetically_compatible(&preedit, top) && db.is_exact_dictionary_word(&preedit) {
+                            if !crate::avro::are_phonetically_compatible(&preedit, top)
+                                && db.is_exact_dictionary_word(&preedit)
+                            {
                                 if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                                     let cand = candidates.remove(pos);
                                     candidates.insert(0, cand);
@@ -1755,7 +1923,8 @@ impl AndroidLekhaniSession {
                         cursor_position: 0,
                     })
                 } else {
-                    let candidates = crate::english::get_english_candidates(&state.composing_buffer, 5);
+                    let candidates =
+                        crate::english::get_english_candidates(&state.composing_buffer, 5);
                     let len = state.composing_buffer.len() as u32;
                     Ok(TypingResult {
                         preedit: state.composing_buffer.clone(),
@@ -1873,16 +2042,22 @@ impl AndroidLekhaniSession {
                         })
                     }
                 };
-                let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(&raw, &context_words);
+                let (preedit, mut candidates) =
+                    crate::avro::transliterate_avro_with_context(&raw, &context_words);
                 let chosen = if !has_candidate_memory && candidates.len() > 1 {
                     if !context_words.is_empty() {
                         let scorer = get_context_scorer();
                         let right_word = state.right_context.split_whitespace().next();
-                        candidates = scorer.rank_candidates_bidirectional(&context_words, right_word, &candidates);
+                        candidates = scorer.rank_candidates_bidirectional(
+                            &context_words,
+                            right_word,
+                            &candidates,
+                        );
                     }
                     crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
                     if let Some(top) = candidates.first() {
-                        let is_explicit_common = crate::avro::get_common_word_candidates(&raw).is_some();
+                        let is_explicit_common =
+                            crate::avro::get_common_word_candidates(&raw).is_some();
                         let db = get_core_database();
                         let has_override = db.lookup_override(&raw).is_some()
                             || db.lookup_override(&raw.to_lowercase()).is_some();
@@ -1890,7 +2065,8 @@ impl AndroidLekhaniSession {
                         if !has_candidate_memory
                             && !is_explicit_common
                             && !has_override
-                            && (!crate::avro::are_phonetically_compatible(&preedit, top) || !db.is_exact_dictionary_word(top))
+                            && (!crate::avro::are_phonetically_compatible(&preedit, top)
+                                || !db.is_exact_dictionary_word(top))
                         {
                             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                                 let cand = candidates.remove(pos);
@@ -1922,7 +2098,10 @@ impl AndroidLekhaniSession {
             let word = normalized.clone();
             normalized.push(' ');
 
-            if !state.is_private_field && state.auto_learn_enabled && state.layout != LekhaniLayoutType::English {
+            if !state.is_private_field
+                && state.auto_learn_enabled
+                && state.layout != LekhaniLayoutType::English
+            {
                 let db = get_core_database();
                 if let Ok(mut learner) = db.learner.write() {
                     if !word.is_ascii() {
@@ -1932,8 +2111,7 @@ impl AndroidLekhaniSession {
                         }
                     }
                 }
-                state.last_commit_info =
-                    Some((prev_word, word.clone(), std::time::Instant::now()));
+                state.last_commit_info = Some((prev_word, word.clone(), std::time::Instant::now()));
             } else {
                 state.last_commit_info = None;
             }
@@ -1994,7 +2172,8 @@ impl AndroidLekhaniSession {
         // selecting a conjunct candidate (e.g. `ক্ষ` or `ক্ত`) replaces the base consonant
         // and Hasanta in-place, keeping the composing buffer alive so the typist can
         // seamlessly continue typing subsequent Kars/consonants (e.g. `শিক্` + `ক্ষ` -> `শিক্ষ` + `া` -> `শিক্ষা`).
-        if (state.layout == LekhaniLayoutType::Probaho || state.layout == LekhaniLayoutType::Probhat)
+        if (state.layout == LekhaniLayoutType::Probaho
+            || state.layout == LekhaniLayoutType::Probhat)
             && state.composing_buffer.ends_with('্')
         {
             let mut chars: Vec<char> = state.composing_buffer.chars().collect();
@@ -2041,12 +2220,18 @@ impl AndroidLekhaniSession {
             .last()
             .map(|s| s.to_string());
 
-        if !state.is_private_field && state.auto_learn_enabled && state.layout != LekhaniLayoutType::English {
+        if !state.is_private_field
+            && state.auto_learn_enabled
+            && state.layout != LekhaniLayoutType::English
+        {
             let db = get_core_database();
             if let Ok(mut learner) = db.learner.write() {
                 // Only record candidate selection overrides for inputs > 2 characters
                 // and non-ASCII candidates to prevent Latin/English selections from poisoning Bengali phonetic memory!
-                if typed_buffer.chars().count() > 2 && !normalized.is_ascii() && !typed_buffer.eq_ignore_ascii_case(&normalized) {
+                if typed_buffer.chars().count() > 2
+                    && !normalized.is_ascii()
+                    && !typed_buffer.eq_ignore_ascii_case(&normalized)
+                {
                     learner.record_candidate_selection(&typed_buffer, &normalized);
                     learner.record_input_error(&typed_buffer, &normalized);
                 }
@@ -2201,7 +2386,7 @@ mod tests {
         let _ = session.process_key("ক".into()).unwrap();
         let _ = session.process_key("্".into()).unwrap(); // ক্
         let _ = session.process_key("ষ".into()).unwrap(); // ক্ষ
-        // Backspace pops the last character 'ষ', leaving 'ক্'
+                                                          // Backspace pops the last character 'ষ', leaving 'ক্'
         let r1 = session.handle_backspace().unwrap();
         assert_eq!(r1.preedit, "ক্");
 
@@ -2245,7 +2430,6 @@ mod tests {
         assert_eq!(select_res.commit_text, Some("বাংলাদেশ ".into()));
         assert!(!session.is_composing());
     }
-
 
     #[test]
     fn test_hasanta_conjunct_suggestions() {
@@ -2339,7 +2523,10 @@ mod tests {
         session2.process_key("o".into()).unwrap();
         session2.process_key("r".into()).unwrap();
         let res_cont = session2.process_key("a".into()).unwrap();
-        println!("Continuous boi -> pora: preedit={}, candidates={:?}", res_cont.preedit, res_cont.candidates);
+        println!(
+            "Continuous boi -> pora: preedit={}, candidates={:?}",
+            res_cont.preedit, res_cont.candidates
+        );
         assert_eq!(res_cont.preedit, "পরা");
         assert_eq!(res_cont.candidates.first().map(|s| s.as_str()), Some("পড়া"));
         let commit_cont = session2.handle_space().unwrap();
@@ -2360,7 +2547,10 @@ mod tests {
         session3.process_key("o".into()).unwrap();
         session3.process_key("r".into()).unwrap();
         let res_shirt_pora = session3.process_key("a".into()).unwrap();
-        println!("Continuous shirt -> pora: preedit={}, candidates={:?}", res_shirt_pora.preedit, res_shirt_pora.candidates);
+        println!(
+            "Continuous shirt -> pora: preedit={}, candidates={:?}",
+            res_shirt_pora.preedit, res_shirt_pora.candidates
+        );
         assert_eq!(res_shirt_pora.preedit, "পরা");
     }
 
@@ -2368,7 +2558,9 @@ mod tests {
     fn test_glide_decoding() {
         let session = AndroidLekhaniSession::new();
         session.set_layout(LekhaniLayoutType::Avro);
-        let res = session.decode_glide(vec!["a".into(), "m".into(), "i".into()]).unwrap();
+        let res = session
+            .decode_glide(vec!["a".into(), "m".into(), "i".into()])
+            .unwrap();
         assert_eq!(res.preedit, "আমি");
         assert_eq!(res.commit_text, Some("আমি ".into()));
     }
@@ -2386,11 +2578,19 @@ mod tests {
 
         let deleted = session.delete_user_word("টেস্টওয়ার্ড".into()).unwrap();
         assert!(deleted);
-        assert!(!session.get_user_words().unwrap().contains(&"টেস্টওয়ার্ড".to_string()));
+        assert!(!session
+            .get_user_words()
+            .unwrap()
+            .contains(&"টেস্টওয়ার্ড".to_string()));
 
-        let imported = session.import_raw_words(vec!["শব্দএক".into(), "শব্দদুই".into()]).unwrap();
+        let imported = session
+            .import_raw_words(vec!["শব্দএক".into(), "শব্দদুই".into()])
+            .unwrap();
         assert_eq!(imported, 2);
-        assert!(session.get_user_words().unwrap().contains(&"শব্দএক".to_string()));
+        assert!(session
+            .get_user_words()
+            .unwrap()
+            .contains(&"শব্দএক".to_string()));
     }
 
     #[test]
@@ -2516,7 +2716,10 @@ mod tests {
             let learner = db.learner.read().unwrap();
             // Single tap is NOT yet pinned to candidate_memory!
             assert_eq!(learner.candidate_memory.get("kormo"), None);
-            assert_eq!(learner.candidate_selection_counts.get("kormo\tকৰ্ম"), Some(&1));
+            assert_eq!(
+                learner.candidate_selection_counts.get("kormo\tকৰ্ম"),
+                Some(&1)
+            );
         }
 
         // 2nd selection (count = 2 >= 2): user explicitly confirms preference, now remembered!
@@ -2530,7 +2733,10 @@ mod tests {
 
         {
             let learner = db.learner.read().unwrap();
-            assert_eq!(learner.candidate_memory.get("kormo"), Some(&"কৰ্ম".to_string()));
+            assert_eq!(
+                learner.candidate_memory.get("kormo"),
+                Some(&"কৰ্ম".to_string())
+            );
             assert!(learner.observed_counts.contains_key("কৰ্ম"));
         }
 
@@ -2553,7 +2759,10 @@ mod tests {
         let _ = session.process_key("m".into()).unwrap();
         let retype_res = session.process_key("o".into()).unwrap();
         assert_eq!(retype_res.preedit, "কৰ্ম");
-        assert_eq!(retype_res.candidates.first().map(|s| s.as_str()), Some("কৰ্ম"));
+        assert_eq!(
+            retype_res.candidates.first().map(|s| s.as_str()),
+            Some("কৰ্ম")
+        );
         let retype_space = session.handle_space().unwrap();
         assert_eq!(retype_space.commit_text, Some("কৰ্ম ".into()));
 
@@ -2582,7 +2791,10 @@ mod tests {
 
         // 4. Persistence test: save and load roundtrip
         let temp_dir = std::env::temp_dir();
-        let test_path = temp_dir.join("lekhani_test_user_learned.bin").to_string_lossy().to_string();
+        let test_path = temp_dir
+            .join("lekhani_test_user_learned.bin")
+            .to_string_lossy()
+            .to_string();
         let save_ok = session.save_user_learned(test_path.clone()).unwrap();
         assert!(save_ok);
 
@@ -2685,7 +2897,10 @@ mod tests {
 
         let prob_t = session.get_spatial_log_prob("t".into(), 100.0, 204.0);
         let prob_y = session.get_spatial_log_prob("y".into(), 100.0, 204.0);
-        assert!(prob_t > prob_y, "Center of 't' must have higher probability for 't' than 'y'");
+        assert!(
+            prob_t > prob_y,
+            "Center of 't' must have higher probability for 't' than 'y'"
+        );
 
         let ranked = session.rank_spatial_keys(135.0, 204.0, 2);
         assert_eq!(ranked.len(), 2);
@@ -2693,7 +2908,9 @@ mod tests {
         assert_eq!(ranked[1].key, "t");
 
         // Touch slightly to the left of 'y' (x = 138), should include 't' / 'y' suggestions
-        let res = session.process_key_with_touch("y".into(), 138.0, 204.0).unwrap();
+        let res = session
+            .process_key_with_touch("y".into(), 138.0, 204.0)
+            .unwrap();
         assert_eq!(res.preedit, "y");
     }
 
@@ -2704,15 +2921,23 @@ mod tests {
         session.set_context("how are".into());
 
         let preds = session.predict_next_words(3);
-        assert!(!preds.is_empty(), "English context 'how are' should produce next words");
+        assert!(
+            !preds.is_empty(),
+            "English context 'how are' should produce next words"
+        );
         assert!(preds.contains(&"you".to_string()));
 
         // Bengali layout next-word prediction test
         session.set_layout(LekhaniLayoutType::Avro);
         session.set_context("আমি ভাত".into());
         let bn_preds = session.predict_next_words(5);
-        assert!(!bn_preds.is_empty(), "Bengali context 'আমি ভাত' should produce predictions");
-        assert!(bn_preds.iter().any(|w| w == "খাচ্ছি" || w == "খাব" || w == "খেয়েছি" || w == "খেতে"));
+        assert!(
+            !bn_preds.is_empty(),
+            "Bengali context 'আমি ভাত' should produce predictions"
+        );
+        assert!(bn_preds
+            .iter()
+            .any(|w| w == "খাচ্ছি" || w == "খাব" || w == "খেয়েছি" || w == "খেতে"));
     }
 
     #[test]
@@ -2749,13 +2974,19 @@ mod tests {
         session.reset();
         session.set_context("মনুষ".into());
         let res = session.process_key("া".into()).unwrap();
-        assert_eq!(res.preedit, "া", "Kar 'া' after consonant 'ষ' must NOT promote to 'আ'");
+        assert_eq!(
+            res.preedit, "া",
+            "Kar 'া' after consonant 'ষ' must NOT promote to 'আ'"
+        );
 
         // Context-aware Hasanta conjunct suggestion after consonant in context
         session.reset();
         session.set_context("এক".into());
         let res = session.process_key("্".into()).unwrap();
-        assert!(res.candidates.iter().any(|c| c == "ক্ক" || c == "ক্ত"), "Hasanta after 'ক' in context must suggest conjuncts");
+        assert!(
+            res.candidates.iter().any(|c| c == "ক্ক" || c == "ক্ত"),
+            "Hasanta after 'ক' in context must suggest conjuncts"
+        );
     }
 
     /// Verifies that the AI context scorer re-ranks Probaho prefix candidates.
@@ -2772,7 +3003,10 @@ mod tests {
 
         // Type 'প' then 'ড়' — should produce prefix candidates
         let r1 = session.process_key("প".into()).unwrap();
-        assert!(!r1.preedit.is_empty(), "Probaho 'প' should produce a preedit");
+        assert!(
+            !r1.preedit.is_empty(),
+            "Probaho 'প' should produce a preedit"
+        );
 
         let r2 = session.process_key("ড়".into()).unwrap();
         // Candidates should be non-empty and each be valid strings
@@ -2852,13 +3086,19 @@ mod tests {
     fn test_learner_autosave_path_and_reset() {
         let session = AndroidLekhaniSession::new();
         let temp_dir = std::env::temp_dir();
-        let save_path = temp_dir.join("lekhani_test_user_learned.bin").to_string_lossy().to_string();
+        let save_path = temp_dir
+            .join("lekhani_test_user_learned.bin")
+            .to_string_lossy()
+            .to_string();
 
         session.set_learner_autosave_path(save_path.clone());
         session.set_context("আজকে আমি ভাত খাব ".into());
         session.set_right_context("না".into());
 
-        assert_eq!(session.state.lock().unwrap().surrounding_context_len, "আজকে আমি ভাত খাব ".chars().count());
+        assert_eq!(
+            session.state.lock().unwrap().surrounding_context_len,
+            "আজকে আমি ভাত খাব ".chars().count()
+        );
         assert_eq!(session.state.lock().unwrap().right_context, "না");
 
         session.reset();
@@ -2911,8 +3151,14 @@ mod tests {
         session.process_key("ধ".into()).unwrap();
         session.process_key("র".into()).unwrap();
         let res = session.process_key("্".into()).unwrap();
-        assert!(res.candidates.contains(&"র্ম".to_string()), "Candidates must contain র্ম after ধর্");
-        assert!(res.candidates.contains(&"র্ষ".to_string()), "Candidates must contain র্ষ after ধর্");
+        assert!(
+            res.candidates.contains(&"র্ম".to_string()),
+            "Candidates must contain র্ম after ধর্"
+        );
+        assert!(
+            res.candidates.contains(&"র্ষ".to_string()),
+            "Candidates must contain র্ষ after ধর্"
+        );
 
         let select_res = session.select_candidate("র্ম".into()).unwrap();
         assert_eq!(select_res.commit_text, None);
@@ -2943,7 +3189,10 @@ mod tests {
         session.process_key("ক".into()).unwrap();
         session.process_key("ম".into()).unwrap();
         let res3 = session.process_key("্".into()).unwrap();
-        assert!(res3.candidates.contains(&"র্ম".to_string()), "ম + ্ must suggest র্ম");
+        assert!(
+            res3.candidates.contains(&"র্ম".to_string()),
+            "ম + ্ must suggest র্ম"
+        );
         let select_res = session.select_candidate("র্ম".into()).unwrap();
         assert_eq!(select_res.preedit, "কর্ম");
     }
@@ -2960,8 +3209,14 @@ mod tests {
         }
         let res = session.process_key("".into()).unwrap();
         assert_eq!(res.preedit, "মানুষ");
-        assert!(res.candidates.iter().any(|c| c == "মানুষের"), "Candidates must surface 'মানুষের'");
-        assert!(res.candidates.iter().any(|c| c == "মানুষকে"), "Candidates must surface 'মানুষকে'");
+        assert!(
+            res.candidates.iter().any(|c| c == "মানুষের"),
+            "Candidates must surface 'মানুষের'"
+        );
+        assert!(
+            res.candidates.iter().any(|c| c == "মানুষকে"),
+            "Candidates must surface 'মানুষকে'"
+        );
     }
 
     #[test]
@@ -2976,7 +3231,10 @@ mod tests {
         session.reset();
         session.process_key("ন".into()).unwrap();
         let res2 = session.process_key("ঔ".into()).unwrap();
-        assert_eq!(res2.preedit, "নৌ", "ঔ after ন must automatically demote to নৌ");
+        assert_eq!(
+            res2.preedit, "নৌ",
+            "ঔ after ন must automatically demote to নৌ"
+        );
     }
 
     #[test]
@@ -2986,7 +3244,10 @@ mod tests {
         session.set_layout(LekhaniLayoutType::Probaho);
         session.process_key("ন".into()).unwrap();
         let res = session.process_key("্".into()).unwrap();
-        assert!(res.candidates.contains(&"ন্য".to_string()), "Hasanta after ন must suggest ন্য");
+        assert!(
+            res.candidates.contains(&"ন্য".to_string()),
+            "Hasanta after ন must suggest ন্য"
+        );
     }
 
     #[test]
@@ -2996,7 +3257,11 @@ mod tests {
         session.set_layout(LekhaniLayoutType::Probaho);
         session.process_key("প".into()).unwrap();
         let res = session.process_key("্".into()).unwrap();
-        assert_eq!(res.candidates.first().map(|s| s.as_str()), Some("প্র"), "First candidate after প + ্ must be প্র");
+        assert_eq!(
+            res.candidates.first().map(|s| s.as_str()),
+            Some("প্র"),
+            "First candidate after প + ্ must be প্র"
+        );
 
         let select_res = session.select_candidate("প্র".into()).unwrap();
         assert_eq!(select_res.commit_text, None);
@@ -3021,11 +3286,17 @@ mod tests {
         session.process_key("ক".into()).unwrap();
         let res_hasanta = session.process_key("্".into()).unwrap();
         assert_eq!(res_hasanta.preedit, "শিক্");
-        assert!(res_hasanta.candidates.contains(&"ক্ষ".to_string()), "Candidates must contain 'ক্ষ' after 'ক' + '্'");
+        assert!(
+            res_hasanta.candidates.contains(&"ক্ষ".to_string()),
+            "Candidates must contain 'ক্ষ' after 'ক' + '্'"
+        );
 
         // Select 'ক্ষ' -> in-flight substitution replaces 'ক্' with 'ক্ষ' -> 'শিক্ষ'
         let res_select = session.select_candidate("ক্ষ".into()).unwrap();
-        assert_eq!(res_select.commit_text, None, "In-flight conjunct selection should not commit immediately");
+        assert_eq!(
+            res_select.commit_text, None,
+            "In-flight conjunct selection should not commit immediately"
+        );
         assert_eq!(res_select.preedit, "শিক্ষ");
 
         // Continue typing 'া' -> 'শিক্ষা'
@@ -3065,12 +3336,18 @@ mod tests {
         // 1. Test smart initial kar disabled
         session.set_smart_initial_kar_enabled(false);
         let res = session.process_key("া".into()).unwrap();
-        assert_eq!(res.preedit, "া", "When smart_initial_kar_enabled is false, 'া' should remain 'া'");
+        assert_eq!(
+            res.preedit, "া",
+            "When smart_initial_kar_enabled is false, 'া' should remain 'া'"
+        );
 
         session.reset();
         session.set_smart_initial_kar_enabled(true);
         let res2 = session.process_key("া".into()).unwrap();
-        assert_eq!(res2.preedit, "আ", "When smart_initial_kar_enabled is true, 'া' promotes to 'আ'");
+        assert_eq!(
+            res2.preedit, "আ",
+            "When smart_initial_kar_enabled is true, 'া' promotes to 'আ'"
+        );
 
         // 2. Test geminate double tap toggle
         session.reset();
@@ -3078,27 +3355,39 @@ mod tests {
         session.process_key("উ".into()).unwrap();
         session.process_key("ত".into()).unwrap();
         let res_no_gem = session.process_key("ত".into()).unwrap();
-        assert_eq!(res_no_gem.preedit, "উতত", "When geminate_double_tap is false, double tap should type 'তত'");
+        assert_eq!(
+            res_no_gem.preedit, "উতত",
+            "When geminate_double_tap is false, double tap should type 'তত'"
+        );
 
         session.reset();
         session.set_geminate_double_tap_enabled(true);
         session.process_key("উ".into()).unwrap();
         session.process_key("ত".into()).unwrap();
         let res_gem = session.process_key("ত".into()).unwrap();
-        assert_eq!(res_gem.preedit, "উত্ত", "When geminate_double_tap is true, double tap should insert hasanta 'উত্ত'");
+        assert_eq!(
+            res_gem.preedit, "উত্ত",
+            "When geminate_double_tap is true, double tap should insert hasanta 'উত্ত'"
+        );
 
         // 3. Test hasanta conjuncts toggle
         session.reset();
         session.set_hasanta_conjuncts_enabled(false);
         session.process_key("ক".into()).unwrap();
         let res_no_conj = session.process_key("্".into()).unwrap();
-        assert!(!res_no_conj.candidates.contains(&"ক্ষ".to_string()), "When hasanta_conjuncts is false, quick picks should not be populated");
+        assert!(
+            !res_no_conj.candidates.contains(&"ক্ষ".to_string()),
+            "When hasanta_conjuncts is false, quick picks should not be populated"
+        );
 
         session.reset();
         session.set_hasanta_conjuncts_enabled(true);
         session.process_key("ক".into()).unwrap();
         let res_conj = session.process_key("্".into()).unwrap();
-        assert!(res_conj.candidates.contains(&"ক্ষ".to_string()), "When hasanta_conjuncts is true, quick picks should contain 'ক্ষ'");
+        assert!(
+            res_conj.candidates.contains(&"ক্ষ".to_string()),
+            "When hasanta_conjuncts is true, quick picks should contain 'ক্ষ'"
+        );
     }
 
     #[test]
@@ -3134,7 +3423,9 @@ mod tests {
         session.process_key("o".into()).unwrap();
         session.process_key("n".into()).unwrap();
         session.process_key("t".into()).unwrap();
-        let res_choice = session.handle_space_with_choice(Some("don't".into())).unwrap();
+        let res_choice = session
+            .handle_space_with_choice(Some("don't".into()))
+            .unwrap();
         assert_eq!(res_choice.commit_text.as_deref(), Some("don't "));
     }
 
@@ -3177,6 +3468,3 @@ mod tests {
         assert_eq!(res_kk.preedit, "ক্ক");
     }
 }
-
-
-
