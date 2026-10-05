@@ -17,18 +17,18 @@ This document tracks and categorizes all proposed enhancements, architectural op
 
 ## 🔴 Tier 1: Critical & Immediate High-Impact (Game Changers)
 
-### 1. Geminate Double-Tap (দ্বিত্ব ব্যঞ্জন শর্টকাট)
+### 1. Geminate Double-Tap (দ্বিত্ব ব্যঞ্জন শর্টকাট) — `[COMPLETED]`
 - **Problem**: Typing geminate consonants (`ক্ক`, `চ্চ`, `ত্ত`, `ন্ন`, `ব্ব`, `ম্ম`, `ল্ল`, `স্স`, `প্প`) in Bengali requires 3 distinct taps: `[Consonant] + [্] + [Consonant]`.
-- **Solution**: Rapidly tapping the same consonant key twice within 220 ms automatically forms its geminate conjunct:
+- **Solution**: Rapidly tapping the same consonant key twice automatically forms its geminate conjunct:
   - `ত` $\times 2 \rightarrow$ **`ত্ত`** (e.g. `উ` + `ত` + `ত` + `র` $\rightarrow$ **উত্তর**)
   - `ব` $\times 2 \rightarrow$ **`ব্ব`** (e.g. `আ` + `ব` + `ব` + `া` $\rightarrow$ **আব্বা**)
   - `প` $\times 2 \rightarrow$ **`প্প`** (e.g. `গ` + `প` + `প` $\rightarrow$ **গপ্প**)
   - `ল` $\times 2 \rightarrow$ **`ল্ল`** (e.g. `উ` + `ল` + `ল` + `া` + `স` $\rightarrow$ **উল্লাস**)
 - **Impact**: Cuts keystrokes by 33% for hundreds of common Bengali words.
 
-### 2. Extended Phola Quick-Picks on Hasanta (্ব, ্ম, ্ল)
+### 2. Extended Phola Quick-Picks on Hasanta (্ব, ্ম, ্ল) — `[COMPLETED]`
 - **Problem**: Hasanta (`্`) now surfaces R-phola (`্র`) and Ya-phola (`্য`), but Ba-phola (`্ব`), Ma-phola (`্ম`), and La-phola (`্ল`) still require manual chaining.
-- **Solution**: In `crates/lekhani-android/src/probaho.rs`, dynamically synthesize all valid Bengali pholas at the front of the candidate strip:
+- **Solution**: In `crates/lekhani-android/src/probaho.rs`, dynamically synthesize all valid Bengali pholas and primary conjuncts at the front of the candidate strip:
   - `শ` + `্` $\rightarrow$ `[ শ্র, শ্য, শ্ব, শ্ল ]` (for `শ্বাস`, `ঈশ্বর`)
   - `দ` + `্` $\rightarrow$ `[ দ্র, দ্য, দ্ব, দ্ধ ]` (for `দ্বিতীয়`, `দ্বার`)
   - `ত` + `্` $\rightarrow$ `[ ত্র, ত্য, ত্ব, ত্ম ]` (for `আত্মা`, `মহত্ত্ব`)
@@ -45,13 +45,11 @@ This document tracks and categorizes all proposed enhancements, architectural op
 - **Problem**: In Bengali handwriting and reading, short-I (`ি`) and E-kar (`ে`) appear visually *before* the consonant, so fast typists often inadvertently tap `ি` then `ক` instead of `ক` then `ি`.
 - **Solution**: If a Kar is typed immediately preceding a consonant (`ি + ক`), the engine automatically transposes them to valid Unicode canonical order (`ক + ি` $\rightarrow$ `কি`).
 
-### 5. Multi-Directional 4-Way Flick Gestures
-- **Problem**: Currently only Swipe-Up (Shift) is enabled.
+### 5. Multi-Directional Flick Gestures (Flick Down for Subscript Digits/Symbols) — `[COMPLETED]`
 - **Solution**:
   - **Flick Up**: Shift / Aspirated partner (`ক` $\rightarrow$ `খ`, `প` $\rightarrow$ `ফ`).
-  - **Flick Down**: Numeric digit or diacritic (`1–0` or `ং`, `ঃ`, `ঁ`).
-  - **Flick Left**: Delete preceding character.
-  - **Flick Right**: Commit top candidate / insert space.
+  - **Flick Down**: Direct input of subscript numeric digit or secondary symbol (`1–0` or `ং`, `ঃ`, `ঁ`) without switching to `?123` panel.
+  - **Outer Bezel Calibration**: Clamped and extended touch coordinates preventing edge key drops on curved displays.
 
 ### 6. TalkBack Phonetic Bengali Accessibility Disambiguation
 - **Problem**: Screen readers announce homophonous letters identically ("ন" and "ণ", "শ" and "ষ" and "স").
