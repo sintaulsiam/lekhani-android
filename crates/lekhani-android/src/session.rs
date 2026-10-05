@@ -966,6 +966,17 @@ impl AndroidLekhaniSession {
                 } else {
                     (true, false, false)
                 };
+                let is_raw_kar = key.chars().count() == 1
+                    && ('\u{09BE}'..='\u{09CC}').contains(&key.chars().next().unwrap());
+                let last_is_kar = last_ch.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
+                let prev_is_consonant = chars.len() >= 2
+                    && is_bengali_consonant_or_modifier(chars[chars.len() - 2])
+                    && chars[chars.len() - 2] != '্';
+                let is_same_kar_double_tap = is_raw_kar
+                    && last_is_kar
+                    && prev_is_consonant
+                    && last_ch == key.chars().next();
+
                 let promoted = if state.smart_initial_kar_enabled {
                     promote_kar_if_needed(&key, is_start || last_is_vowel)
                 } else {
@@ -977,18 +988,61 @@ impl AndroidLekhaniSession {
                     promoted.clone()
                 };
 
-                // 1. Double-Kar Collision Prevention:
-                // If composing buffer already ends in a Kar on a consonant and user types another Kar,
-                // replace the previous Kar with the new one instead of stacking invalid modifiers (e.g. কা + ি -> কি).
-                let is_incoming_kar = transformed
-                    .chars()
-                    .all(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
-                let last_is_kar = last_ch.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
-                let prev_is_consonant = chars.len() >= 2
-                    && is_bengali_consonant_or_modifier(chars[chars.len() - 2])
-                    && chars[chars.len() - 2] != '্';
-
-                if is_incoming_kar && last_is_kar && prev_is_consonant {
+                // 1. Double-Tap Kar to Independent Vowel Promotion (Zero-Shift Ergonomic Flow):
+                // If composing buffer already ends in a Kar on a consonant and user taps the EXACT SAME Kar again:
+                //   ক + ি + ি -> কই
+                //   ক + ো + ো -> কও
+                //   ব + ি + ি -> বই
+                //   ব + ু + ু -> বউ
+                //   হ + ি + ি -> হই
+                //   হ + ো + ো -> হও
+                //   ল + ো + ো -> লও
+                //   র + ো + ো -> রও
+                //   দ + ি + ি -> দই
+                //   খ + ি + ি -> খই
+                //   স + ি + ি -> সই
+                //   ন + ি + ি -> নই
+                //   ম + ু + ু -> মউ
+                if is_same_kar_double_tap {
+                    let iv = match last_ch.unwrap() {
+                        'ি' => Some("ই"),
+                        'ো' => Some("ও"),
+                        'ু' => Some("উ"),
+                        'ে' => Some("এ"),
+                        'ী' => Some("ঈ"),
+                        'ূ' => Some("ঊ"),
+                        'ৈ' => Some("ঐ"),
+                        _ => None,
+                    };
+                    if let Some(independent_vowel) = iv {
+                        state.composing_buffer.pop();
+                        state.composing_buffer.push_str(independent_vowel);
+                    } else {
+                        state.composing_buffer.pop();
+                        state.composing_buffer.push_str(&transformed);
+                    }
+                }
+                // Toggle cycling back to Kar on 3rd tap (e.g. কি -> কই -> কি)
+                else if is_raw_kar
+                    && prev_is_consonant
+                    && last_ch.is_some_and(|c| {
+                        matches!(
+                            (c, key.as_str()),
+                            ('ই', "ি")
+                                | ('ও', "ো")
+                                | ('উ', "ু")
+                                | ('এ', "ে")
+                                | ('ঈ', "ী")
+                                | ('ঊ', "ূ")
+                                | ('ঐ', "ৈ")
+                        )
+                    })
+                {
+                    state.composing_buffer.pop();
+                    state.composing_buffer.push_str(&key);
+                }
+                // Collision replacement: typing a DIFFERENT Kar on a consonant replaces the old Kar (e.g. কা + ু -> কু)
+                else if is_raw_kar && last_is_kar && prev_is_consonant && !last_is_vowel {
                     state.composing_buffer.pop();
                     state.composing_buffer.push_str(&transformed);
                 }
@@ -1055,6 +1109,31 @@ impl AndroidLekhaniSession {
                             if !candidates.iter().any(|c| c == word) {
                                 candidates.push(word.to_string());
                             }
+                        }
+                    }
+                }
+
+                // Proactively surface authentic independent-vowel counterpart words for consonant + Kar combinations
+                // (e.g. typing 'কি' surfaces 'কই', 'কো' surfaces 'কও', 'বি' surfaces 'বই',
+                // 'বু' surfaces 'বউ', 'হি' surfaces 'হই', 'হো' surfaces 'হও', 'লো' surfaces 'লও'):
+                let cb_chars: Vec<char> = state.composing_buffer.chars().collect();
+                if cb_chars.len() == 2 && is_bengali_consonant_or_modifier(cb_chars[0]) && cb_chars[0] != '্' {
+                    let iv_partner = match cb_chars[1] {
+                        'ি' => Some('ই'),
+                        'ো' => Some('ও'),
+                        'ু' => Some('উ'),
+                        'ে' => Some('এ'),
+                        'ী' => Some('ঈ'),
+                        'ূ' => Some('ঊ'),
+                        'ৈ' => Some('ঐ'),
+                        _ => None,
+                    };
+                    if let Some(iv) = iv_partner {
+                        let iv_word = format!("{}{}", cb_chars[0], iv);
+                        let db = get_core_database();
+                        if db.trie.contains_exact(&iv_word) && !candidates.contains(&iv_word) {
+                            let insert_pos = if candidates.is_empty() { 0 } else { 1 };
+                            candidates.insert(insert_pos, iv_word);
                         }
                     }
                 }
@@ -1336,6 +1415,29 @@ impl AndroidLekhaniSession {
                     }
                 }
 
+                // Proactively surface authentic independent-vowel counterpart words for National layout
+                let nat_chars: Vec<char> = state.composing_buffer.chars().collect();
+                if nat_chars.len() == 2 && is_bengali_consonant_or_modifier(nat_chars[0]) && nat_chars[0] != '্' {
+                    let iv_partner = match nat_chars[1] {
+                        'ি' => Some('ই'),
+                        'ো' => Some('ও'),
+                        'ু' => Some('উ'),
+                        'ে' => Some('এ'),
+                        'ী' => Some('ঈ'),
+                        'ূ' => Some('ঊ'),
+                        'ৈ' => Some('ঐ'),
+                        _ => None,
+                    };
+                    if let Some(iv) = iv_partner {
+                        let iv_word = format!("{}{}", nat_chars[0], iv);
+                        let db = get_core_database();
+                        if db.trie.contains_exact(&iv_word) && !candidates.contains(&iv_word) {
+                            let insert_pos = if candidates.is_empty() { 0 } else { 1 };
+                            candidates.insert(insert_pos, iv_word);
+                        }
+                    }
+                }
+
                 if !state.surrounding_context.is_empty() && candidates.len() > 1 {
                     let mut words_buf = [""; 16];
                     let count = get_context_words(&state.surrounding_context, &mut words_buf);
@@ -1389,6 +1491,29 @@ impl AndroidLekhaniSession {
                             if !candidates.iter().any(|c| c == word) {
                                 candidates.push(word.to_string());
                             }
+                        }
+                    }
+                }
+
+                // Proactively surface authentic independent-vowel counterpart words for Gboard & fixed layouts
+                let fix_chars: Vec<char> = state.composing_buffer.chars().collect();
+                if fix_chars.len() == 2 && is_bengali_consonant_or_modifier(fix_chars[0]) && fix_chars[0] != '্' {
+                    let iv_partner = match fix_chars[1] {
+                        'ি' => Some('ই'),
+                        'ো' => Some('ও'),
+                        'ু' => Some('উ'),
+                        'ে' => Some('এ'),
+                        'ী' => Some('ঈ'),
+                        'ূ' => Some('ঊ'),
+                        'ৈ' => Some('ঐ'),
+                        _ => None,
+                    };
+                    if let Some(iv) = iv_partner {
+                        let iv_word = format!("{}{}", fix_chars[0], iv);
+                        let db = get_core_database();
+                        if db.trie.contains_exact(&iv_word) && !candidates.contains(&iv_word) {
+                            let insert_pos = if candidates.is_empty() { 0 } else { 1 };
+                            candidates.insert(insert_pos, iv_word);
                         }
                     }
                 }
@@ -3467,4 +3592,136 @@ mod tests {
         let res_kk = session.process_key("ক".into()).unwrap();
         assert_eq!(res_kk.preedit, "ক্ক");
     }
+
+    #[test]
+    #[serial]
+    fn test_fixed_layout_koi_kao_and_independent_vowel_words() {
+        let session = AndroidLekhaniSession::new();
+
+        // ── 1. Probaho Layout ──────────────────────────────────────────────
+        session.set_layout(LekhaniLayoutType::Probaho);
+
+        // 1a. Direct typing with independent vowels (e.g. via Shift / Flick)
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        let res_koi = session.process_key("ই".into()).unwrap();
+        assert_eq!(res_koi.preedit, "কই", "ক + ই must produce 'কই', not 'কি'");
+
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        let res_kao = session.process_key("ও".into()).unwrap();
+        assert_eq!(res_kao.preedit, "কও", "ক + ও must produce 'কও', not 'কো'");
+
+        session.reset();
+        session.process_key("ব".into()).unwrap();
+        let res_boi = session.process_key("ই".into()).unwrap();
+        assert_eq!(res_boi.preedit, "বই", "ব + ই must produce 'বই', not 'বি'");
+
+        session.reset();
+        session.process_key("ব".into()).unwrap();
+        let res_bou = session.process_key("উ".into()).unwrap();
+        assert_eq!(res_bou.preedit, "বউ", "ব + উ must produce 'বউ', not 'বু'");
+
+        session.reset();
+        session.process_key("হ".into()).unwrap();
+        let res_hoi = session.process_key("ই".into()).unwrap();
+        assert_eq!(res_hoi.preedit, "হই", "হ + ই must produce 'হই', not 'হি'");
+
+        session.reset();
+        session.process_key("হ".into()).unwrap();
+        let res_hao = session.process_key("ও".into()).unwrap();
+        assert_eq!(res_hao.preedit, "হও", "হ + ও must produce 'হও', not 'হো'");
+
+        // 1b. Double-tap Kar shortcut (zero-shift ergonomic mobile flow)
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        session.process_key("ি".into()).unwrap();
+        let res_dt_koi = session.process_key("ি".into()).unwrap();
+        assert_eq!(res_dt_koi.preedit, "কই", "Double-tapping 'ি' after 'ক' must promote to 'কই'");
+
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        session.process_key("ো".into()).unwrap();
+        let res_dt_kao = session.process_key("ো".into()).unwrap();
+        assert_eq!(res_dt_kao.preedit, "কও", "Double-tapping 'ো' after 'ক' must promote to 'কও'");
+
+        session.reset();
+        session.process_key("ব".into()).unwrap();
+        session.process_key("ি".into()).unwrap();
+        let res_dt_boi = session.process_key("ি".into()).unwrap();
+        assert_eq!(res_dt_boi.preedit, "বই", "Double-tapping 'ি' after 'ব' must promote to 'বই'");
+
+        session.reset();
+        session.process_key("ব".into()).unwrap();
+        session.process_key("ু".into()).unwrap();
+        let res_dt_bou = session.process_key("ু".into()).unwrap();
+        assert_eq!(res_dt_bou.preedit, "বউ", "Double-tapping 'ু' after 'ব' must promote to 'বউ'");
+
+        // 1c. Proactive candidate surfacing for consonant + Kar combinations
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        let res_ki = session.process_key("ি".into()).unwrap();
+        assert_eq!(res_ki.preedit, "কি");
+        assert!(
+            res_ki.candidates.contains(&"কই".to_string()),
+            "Typing 'কি' must proactively surface 'কই' in candidate strip"
+        );
+
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        let res_ko = session.process_key("ো".into()).unwrap();
+        assert_eq!(res_ko.preedit, "কো");
+        assert!(
+            res_ko.candidates.contains(&"কও".to_string()),
+            "Typing 'কো' must proactively surface 'কও' in candidate strip"
+        );
+
+        session.reset();
+        session.process_key("ব".into()).unwrap();
+        let res_bi = session.process_key("ি".into()).unwrap();
+        assert_eq!(res_bi.preedit, "বি");
+        assert!(
+            res_bi.candidates.contains(&"বই".to_string()),
+            "Typing 'বি' must proactively surface 'বই' in candidate strip"
+        );
+
+        session.reset();
+        session.process_key("ব".into()).unwrap();
+        let res_bu = session.process_key("ু".into()).unwrap();
+        assert_eq!(res_bu.preedit, "বু");
+        assert!(
+            res_bu.candidates.contains(&"বউ".to_string()),
+            "Typing 'বু' must proactively surface 'বউ' in candidate strip"
+        );
+
+        // ── 2. Probhat Layout ──────────────────────────────────────────────
+        session.set_layout(LekhaniLayoutType::Probhat);
+
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        let res_probhat_kao = session.process_key("ও".into()).unwrap();
+        assert_eq!(res_probhat_kao.preedit, "কও", "Probhat: 'ক' + 'ও' must produce 'কও'");
+
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        let res_probhat_koi = session.process_key("ই".into()).unwrap();
+        assert_eq!(res_probhat_koi.preedit, "কই", "Probhat: 'ক' + 'ই' must produce 'কই'");
+
+        // ── 3. Gboard Layout ───────────────────────────────────────────────
+        session.set_layout(LekhaniLayoutType::Gboard);
+
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        let res_gboard_koi = session.process_key("ই".into()).unwrap();
+        assert_eq!(res_gboard_koi.preedit, "কই", "Gboard: 'ক' + 'ই' must produce 'কই'");
+
+        session.reset();
+        session.process_key("ক".into()).unwrap();
+        let res_gboard_ki = session.process_key("ি".into()).unwrap();
+        assert!(
+            res_gboard_ki.candidates.contains(&"কই".to_string()),
+            "Gboard: typing 'কি' must proactively surface 'কই' in candidate strip"
+        );
+    }
 }
+

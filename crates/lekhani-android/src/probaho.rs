@@ -116,9 +116,17 @@ pub fn promote_kar_if_needed(kar: &str, should_promote: bool) -> String {
     }
 }
 
-/// When an independent vowel is typed immediately following a consonant,
-/// Bengali orthography dictates that it automatically converts into its corresponding Kar sign
-/// (e.g. ব + ঋ -> বৃ, ক + আ -> কা, ন + ঔ -> নৌ, ব + ঐ -> বৈ).
+/// When a rare / proxy vowel that lacks a dedicated unshifted Kar key on mobile layouts
+/// (e.g. ঋ and ঔ on Probaho) is typed immediately following a consonant,
+/// it converts into its corresponding Kar sign (e.g. ব + ঋ -> বৃ for বৃষ্টি, ন + ঔ -> নৌ for নৌকা).
+///
+/// NOTE: Independent vowels 'ই', 'ও', 'উ', 'এ', 'ঈ', 'ঊ', 'ঐ' MUST NOT be demoted after a consonant,
+/// because Bengali has high-frequency authentic words like:
+/// - কই, কও (e.g. কই যাবে, কথা কও)
+/// - বই, বউ (e.g. বই পড়া, নতুন বউ)
+/// - হই, হও (e.g. বড় হই, মানুষ হও)
+/// - লও, রও (e.g. বিদায় লও, একটু রও)
+/// - সই, খই, দই, নই, মউ, হওয়া, কওয়া, ইত্যাদি!
 pub fn demote_vowel_to_kar_if_preceded_by_consonant(
     vowel: &str,
     preceded_by_consonant: bool,
@@ -128,16 +136,9 @@ pub fn demote_vowel_to_kar_if_preceded_by_consonant(
     }
 
     match vowel {
-        "আ" => "া".to_string(),
-        "ই" => "ি".to_string(),
-        "ঈ" => "ী".to_string(),
-        "উ" => "ু".to_string(),
-        "ঊ" => "ূ".to_string(),
         "ঋ" => "ৃ".to_string(),
-        "এ" => "ে".to_string(),
-        "ঐ" => "ৈ".to_string(),
-        "ও" => "ো".to_string(),
         "ঔ" => "ৌ".to_string(),
+        "আ" => "া".to_string(),
         _ => vowel.to_string(),
     }
 }
@@ -472,8 +473,12 @@ mod tests {
     fn test_vowel_demotion_to_kar() {
         assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঋ", true), "ৃ");
         assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঔ", true), "ৌ");
-        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ঐ", true), "ৈ");
         assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("আ", true), "া");
+        // Independent vowels that must NEVER be demoted after a consonant:
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ই", true), "ই");
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("ও", true), "ও");
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("উ", true), "উ");
+        assert_eq!(demote_vowel_to_kar_if_preceded_by_consonant("এ", true), "এ");
         assert_eq!(
             demote_vowel_to_kar_if_preceded_by_consonant("ঋ", false),
             "ঋ"
