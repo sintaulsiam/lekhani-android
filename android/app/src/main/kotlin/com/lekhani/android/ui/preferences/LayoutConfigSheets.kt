@@ -1,6 +1,10 @@
 package com.lekhani.android.ui.preferences
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,7 +36,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -63,40 +70,72 @@ fun LayoutOverrideRow(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val globalStateText = if (globalActive) {
+            if (isEnglish) "On" else "চালু"
+        } else {
+            if (isEnglish) "Off" else "বন্ধ"
+        }
+
+        val items = listOf(
+            Triple(
+                KeyboardPreferences.SettingOverride.FOLLOW_GLOBAL,
+                if (isEnglish) "Global ($globalStateText)" else "গ্লোবাল ($globalStateText)",
+                override == KeyboardPreferences.SettingOverride.FOLLOW_GLOBAL
+            ),
+            Triple(
+                KeyboardPreferences.SettingOverride.ALWAYS_ON,
+                if (isEnglish) "Always On" else "সর্বদা চালু",
+                override == KeyboardPreferences.SettingOverride.ALWAYS_ON
+            ),
+            Triple(
+                KeyboardPreferences.SettingOverride.ALWAYS_OFF,
+                if (isEnglish) "Always Off" else "সর্বদা বন্ধ",
+                override == KeyboardPreferences.SettingOverride.ALWAYS_OFF
+            )
+        )
+
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(10.dp)
+                )
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            val globalStateText = if (globalActive) {
-                if (isEnglish) "On" else "চালু"
-            } else {
-                if (isEnglish) "Off" else "বন্ধ"
-            }
-            FilterChip(
-                selected = override == KeyboardPreferences.SettingOverride.FOLLOW_GLOBAL,
-                onClick = { onOverrideChanged(KeyboardPreferences.SettingOverride.FOLLOW_GLOBAL) },
-                label = {
+            items.forEach { (option, label, isSelected) ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                            else Color.Transparent
+                        )
+                        .clickable { onOverrideChanged(option) }
+                        .padding(vertical = 7.dp, horizontal = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        if (isEnglish) "Follow Global ($globalStateText)"
-                        else "গ্লোবাল ($globalStateText)",
-                        fontSize = 11.sp
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                            fontSize = 11.sp
+                        ),
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
                     )
-                },
-                shape = RoundedCornerShape(8.dp)
-            )
-            FilterChip(
-                selected = override == KeyboardPreferences.SettingOverride.ALWAYS_ON,
-                onClick = { onOverrideChanged(KeyboardPreferences.SettingOverride.ALWAYS_ON) },
-                label = { Text(if (isEnglish) "Always On" else "সর্বদা চালু", fontSize = 11.sp) },
-                shape = RoundedCornerShape(8.dp)
-            )
-            FilterChip(
-                selected = override == KeyboardPreferences.SettingOverride.ALWAYS_OFF,
-                onClick = { onOverrideChanged(KeyboardPreferences.SettingOverride.ALWAYS_OFF) },
-                label = { Text(if (isEnglish) "Always Off" else "সর্বদা বন্ধ", fontSize = 11.sp) },
-                shape = RoundedCornerShape(8.dp)
-            )
+                }
+            }
         }
     }
 }
@@ -224,8 +263,8 @@ fun BengaliSmartInputSection(
             // Auto-Fix Initial Vowels
             LayoutOverrideRow(
                 title = if (isEnglish) "Auto-Fix Initial Vowels" else "শুরুতে স্বরবর্ণ সংশোধন",
-                subtitle = if (isEnglish) "Convert vowel signs at word start to full vowels (া → আ)"
-                       else "শব্দের শুরুতে কার চিহ্ন দিলে স্বরবর্ণে রূপান্তর করবে (া → আ)",
+                subtitle = if (isEnglish) "Convert vowel signs at word start to full vowels\u00A0(া → আ)"
+                       else "শব্দের শুরুতে কার চিহ্ন দিলে স্বরবর্ণে রূপান্তর করবে\u00A0(া → আ)",
                 override = smartKarOverride,
                 globalActive = prefs.smartInitialKarEnabled,
                 isEnglish = isEnglish,
@@ -240,8 +279,8 @@ fun BengaliSmartInputSection(
             // Conjunct Suggestions
             LayoutOverrideRow(
                 title = if (isEnglish) "Conjunct Suggestions" else "যুক্তবর্ণ সাজেশন",
-                subtitle = if (isEnglish) "Show conjunct suggestions when typing Hasanta (্)"
-                       else "হসন্ত (্) চাপলে সম্ভাব্য যুক্তবর্ণের সাজেশন দেখাবে",
+                subtitle = if (isEnglish) "Show conjunct suggestions when typing Hasanta\u00A0(্)"
+                       else "হসন্ত\u00A0(্) চাপলে সম্ভাব্য যুক্তবর্ণের সাজেশন দেখাবে",
                 override = hasantaConjunctsOverride,
                 globalActive = prefs.hasantaConjunctsEnabled,
                 isEnglish = isEnglish,
@@ -256,8 +295,8 @@ fun BengaliSmartInputSection(
             // Double-Tap for Conjuncts
             LayoutOverrideRow(
                 title = if (isEnglish) "Double-Tap for Conjuncts" else "ডাবল ট্যাপে দ্বিত্ব বর্ণ",
-                subtitle = if (isEnglish) "Double-tap a consonant for geminates (ত → ত্ত, ব → ব্ব). Tap a 3rd time for separate letters (বলল, তত)."
-                       else "ব্যঞ্জনবর্ণে ডাবল ট্যাপে দ্বিত্ব রূপ (ত → ত্ত, ব → ব্ব)। পৃথক অক্ষরের জন্য ৩য় বার চাপুন (বলল, তত)।",
+                subtitle = if (isEnglish) "Double-tap a consonant for geminates\u00A0(ত → ত্ত, ব → ব্ব). Tap a 3rd time for separate letters\u00A0(বলল, তত)."
+                       else "ব্যঞ্জনবর্ণে ডাবল ট্যাপে দ্বিত্ব রূপ\u00A0(ত → ত্ত, ব → ব্ব)। পৃথক অক্ষরের জন্য ৩য় বার চাপুন\u00A0(বলল, তত)।",
                 override = geminateOverride,
                 globalActive = prefs.geminateDoubleTapEnabled,
                 isEnglish = isEnglish,
@@ -272,8 +311,8 @@ fun BengaliSmartInputSection(
             // Hasanta Vibration
             LayoutOverrideRow(
                 title = if (isEnglish) "Hasanta Vibration" else "হসন্ত ভাইব্রেশন",
-                subtitle = if (isEnglish) "Subtle vibration when Hasanta (্) is pressed"
-                       else "হসন্ত চাপলে মৃদু ভাইব্রেশন প্রদান করবে",
+                subtitle = if (isEnglish) "Subtle vibration when Hasanta\u00A0(্) is pressed"
+                       else "হসন্ত\u00A0(্) চাপলে মৃদু ভাইব্রেশন প্রদান করবে",
                 override = hasantaHapticOverride,
                 globalActive = prefs.hasantaHapticEnabled,
                 isEnglish = isEnglish,
@@ -546,32 +585,54 @@ fun AvroSettingsDialog(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                val priorityOptions = listOf(
+                                    Pair(KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST, if (isEnglish) "Bengali First" else "বাংলা আগে"),
+                                    Pair(KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST, if (isEnglish) "English First" else "ইংরেজি আগে")
+                                )
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                                        .border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                        .padding(3.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                                 ) {
-                                    FilterChip(
-                                        selected = avroStripOrder == KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST,
-                                        onClick = {
-                                            avroStripOrder = KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
-                                            prefs.avroStripOrder = KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
-                                        },
-                                        label = {
-                                            Text(if (isEnglish) "Bengali First" else "বাংলা আগে", fontSize = 12.sp)
-                                        },
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    FilterChip(
-                                        selected = avroStripOrder == KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST,
-                                        onClick = {
-                                            avroStripOrder = KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST
-                                            prefs.avroStripOrder = KeyboardPreferences.STRIP_ORDER_ENGLISH_FIRST
-                                        },
-                                        label = {
-                                            Text(if (isEnglish) "English First" else "ইংরেজি আগে", fontSize = 12.sp)
-                                        },
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
+                                    priorityOptions.forEach { (order, label) ->
+                                        val isSel = avroStripOrder == order
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(7.dp))
+                                                .background(
+                                                    if (isSel) MaterialTheme.colorScheme.primaryContainer
+                                                    else Color.Transparent
+                                                )
+                                                .clickable {
+                                                    avroStripOrder = order
+                                                    prefs.avroStripOrder = order
+                                                }
+                                                .padding(vertical = 7.dp, horizontal = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Medium,
+                                                    fontSize = 12.sp
+                                                ),
+                                                color = if (isSel) MaterialTheme.colorScheme.onPrimaryContainer
+                                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
                                 }
                             }
 
@@ -804,8 +865,8 @@ fun NationalSettingsDialog(
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(
-                                        text = if (isEnglish) "Show conjunct previews and suggestions when typing Hasanta (্)"
-                                               else "হসন্ত (্) চাপলে সম্ভাব্য যুক্তবর্ণের সাজেশন দেখাবে",
+                                        text = if (isEnglish) "Show conjunct previews and suggestions when typing Hasanta\u00A0(্)"
+                                               else "হসন্ত\u00A0(্) চাপলে সম্ভাব্য যুক্তবর্ণের সাজেশন দেখাবে",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -829,7 +890,7 @@ fun NationalSettingsDialog(
                             ) {
                                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
-                                        text = if (isEnglish) "Bengali Numbers (১, ২, ৩)" else "বাংলা সংখ্যা (১, ২, ৩)",
+                                        text = if (isEnglish) "Bengali Numbers\u00A0(১, ২, ৩)" else "বাংলা সংখ্যা\u00A0(১, ২, ৩)",
                                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                                     )
                                     Text(

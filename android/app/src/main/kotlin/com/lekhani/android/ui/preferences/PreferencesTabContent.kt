@@ -1,6 +1,7 @@
 package com.lekhani.android.ui.preferences
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -76,6 +77,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
@@ -685,11 +688,11 @@ fun PreferencesTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
-                                text = if (isEnglish) "Double Space Dari (।)" else "ডাবল স্পেসে দাঁড়ি (।)",
+                                text = if (isEnglish) "Double Space Dari\u00A0(।)" else "ডাবল স্পেসে দাঁড়ি\u00A0(।)",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Double-tap space to insert Dari (।)" else "টানা দুইবার স্পেস চাপলে দাঁড়ি (।) বসবে",
+                                text = if (isEnglish) "Double-tap space to insert Dari\u00A0(।)" else "টানা দুইবার স্পেস চাপলে দাঁড়ি\u00A0(।) বসবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -875,8 +878,8 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Convert standalone vowel signs at word starts (া -> আ)"
-                                       else "শব্দের শুরুতে কার চিহ্ন চাপলে পূর্ণ স্বরবর্ণে রূপান্তর করবে (যেমন: া -> আ)",
+                                text = if (isEnglish) "Convert standalone vowel signs at word starts\u00A0(া → আ)"
+                                       else "শব্দের শুরুতে কার চিহ্ন চাপলে পূর্ণ স্বরবর্ণে রূপান্তর করবে\u00A0(যেমন: া → আ)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -904,8 +907,8 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Show valid conjuncts when pressing Hasanta (্)"
-                                       else "ব্যঞ্জনবর্ণের পর হসন্ত (্) চাপলে সম্ভাব্য সকল যুক্তবর্ণ দেখাবে",
+                                text = if (isEnglish) "Show valid conjuncts when pressing Hasanta\u00A0(্)"
+                                       else "ব্যঞ্জনবর্ণের পর হসন্ত\u00A0(্) চাপলে সম্ভাব্য সকল যুক্তবর্ণ দেখাবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -933,8 +936,8 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Quickly double-tap consonant to form conjunct (ত x 2 -> ত্ত)"
-                                       else "একই বর্ণ পরপর দুইবার চাপলে দ্বিত্ব যুক্তবর্ণ তৈরি করবে (যেমন: ত x ২ -> ত্ত)",
+                                text = if (isEnglish) "Quickly double-tap consonant to form conjunct\u00A0(ত x 2 → ত্ত)"
+                                       else "একই বর্ণ পরপর দুইবার চাপলে দ্বিত্ব যুক্তবর্ণ তৈরি করবে\u00A0(যেমন: ত x ২ → ত্ত)",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -962,8 +965,8 @@ fun PreferencesTabContent(
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
                             Text(
-                                text = if (isEnglish) "Distinct tactile tick feedback when pressing Hasanta (্)"
-                                       else "হসন্ত (্) চাপলে আলাদা সূক্ষ্ম স্পর্শ অনুভূতি প্রদান করবে",
+                                text = if (isEnglish) "Distinct tactile tick feedback when pressing Hasanta\u00A0(্)"
+                                       else "হসন্ত\u00A0(্) চাপলে আলাদা সূক্ষ্ম স্পর্শ অনুভূতি প্রদান করবে",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1231,26 +1234,55 @@ fun PreferencesTabContent(
                             text = if (isEnglish) "Font Style" else "কী ফন্ট স্টাইল",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
+                        val fonts = listOf(
+                            Pair(KeyboardPreferences.FONT_SYSTEM, if (isEnglish) "System" else "সিস্টেম"),
+                            Pair(KeyboardPreferences.FONT_SANS_SERIF, "Sans"),
+                            Pair(KeyboardPreferences.FONT_SERIF, "Serif"),
+                            Pair(KeyboardPreferences.FONT_MONOSPACE, "Mono")
+                        )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val fonts = listOf(
-                                Pair(KeyboardPreferences.FONT_SYSTEM, if (isEnglish) "System" else "সিস্টেম"),
-                                Pair(KeyboardPreferences.FONT_SANS_SERIF, "Sans"),
-                                Pair(KeyboardPreferences.FONT_SERIF, "Serif"),
-                                Pair(KeyboardPreferences.FONT_MONOSPACE, "Mono")
-                            )
-                            fonts.forEach { (style, label) ->
-                                FilterChip(
-                                    selected = fontStyle == style,
-                                    onClick = {
-                                        fontStyle = style
-                                        prefs.fontStyle = style
-                                    },
-                                    label = { Text(label, fontSize = 12.sp) },
-                                    shape = RoundedCornerShape(8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(10.dp)
                                 )
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            fonts.forEach { (style, label) ->
+                                val isSel = fontStyle == style
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(7.dp))
+                                        .background(
+                                            if (isSel) MaterialTheme.colorScheme.primaryContainer
+                                            else Color.Transparent
+                                        )
+                                        .clickable {
+                                            fontStyle = style
+                                            prefs.fontStyle = style
+                                        }
+                                        .padding(vertical = 7.dp, horizontal = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Medium,
+                                            fontSize = 11.5.sp
+                                        ),
+                                        color = if (isSel) MaterialTheme.colorScheme.onPrimaryContainer
+                                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     }
@@ -1573,27 +1605,56 @@ fun PreferencesTabContent(
                             text = if (isEnglish) "Sound Pack" else "সাউন্ড প্যাক",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
+                        val packs = listOf(
+                            Pair(KeyboardPreferences.SOUND_SYSTEM, if (isEnglish) "System" else "সিস্টেম"),
+                            Pair(KeyboardPreferences.SOUND_BUBBLE, if (isEnglish) "Bubble" else "বাবল"),
+                            Pair(KeyboardPreferences.SOUND_MECHANICAL, if (isEnglish) "Mechanical" else "মেকানিক্যাল")
+                        )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val packs = listOf(
-                                Pair(KeyboardPreferences.SOUND_SYSTEM, if (isEnglish) "System" else "সিস্টেম"),
-                                Pair(KeyboardPreferences.SOUND_BUBBLE, if (isEnglish) "Bubble" else "বাবল"),
-                                Pair(KeyboardPreferences.SOUND_MECHANICAL, if (isEnglish) "Mechanical" else "মেকানিক্যাল")
-                            )
-                            packs.forEach { (pack, label) ->
-                                FilterChip(
-                                    selected = activeSoundPack == pack,
-                                    onClick = {
-                                        activeSoundPack = pack
-                                        prefs.soundPack = pack
-                                        feedbackManager.updateCache()
-                                        feedbackManager.onKeyFeedback(view)
-                                    },
-                                    label = { Text(label, fontSize = 12.sp) },
-                                    shape = RoundedCornerShape(8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(10.dp)
                                 )
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            packs.forEach { (pack, label) ->
+                                val isSel = activeSoundPack == pack
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(7.dp))
+                                        .background(
+                                            if (isSel) MaterialTheme.colorScheme.primaryContainer
+                                            else Color.Transparent
+                                        )
+                                        .clickable {
+                                            activeSoundPack = pack
+                                            prefs.soundPack = pack
+                                            feedbackManager.updateCache()
+                                            feedbackManager.onKeyFeedback(view)
+                                        }
+                                        .padding(vertical = 7.dp, horizontal = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Medium,
+                                            fontSize = 11.5.sp
+                                        ),
+                                        color = if (isSel) MaterialTheme.colorScheme.onPrimaryContainer
+                                               else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
 

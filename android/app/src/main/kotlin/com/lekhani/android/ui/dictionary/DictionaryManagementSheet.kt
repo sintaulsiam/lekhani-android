@@ -6,6 +6,8 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,6 +40,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
@@ -500,39 +504,53 @@ fun DictionaryManagementSheet(
 
                 // ── TAB 1: Text Replacements & Auto-Correct Rules ───────────────
                 1 -> {
-                    // Filter Chips: My Shortcuts vs Built-in Typo Rules
+                    // Segmented Button Row: My Shortcuts vs Built-in Typo Rules
+                    val subTabs = listOf(
+                        Pair(0, if (isEnglish) "My Shortcuts (${autocorrectRules.size})" else "আমার শর্টকাট (${autocorrectRules.size})"),
+                        Pair(1, if (isEnglish) "Built-in Rules (${systemRules.size})" else "বিল্ট-ইন সংশোধন (${systemRules.size})")
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(bottom = 10.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        FilterChip(
-                            selected = shortcutSubTab == 0,
-                            onClick = { shortcutSubTab = 0 },
-                            label = {
+                        subTabs.forEach { (index, label) ->
+                            val isSel = shortcutSubTab == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(
+                                        if (isSel) MaterialTheme.colorScheme.primaryContainer
+                                        else Color.Transparent
+                                    )
+                                    .clickable { shortcutSubTab = index }
+                                    .padding(vertical = 7.dp, horizontal = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
-                                    if (isEnglish) "My Shortcuts (${autocorrectRules.size})"
-                                    else "আমার শর্টকাট (${autocorrectRules.size})"
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Medium,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = if (isSel) MaterialTheme.colorScheme.onPrimaryContainer
+                                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center
                                 )
-                            },
-                            leadingIcon = if (shortcutSubTab == 0) {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null
-                        )
-                        FilterChip(
-                            selected = shortcutSubTab == 1,
-                            onClick = { shortcutSubTab = 1 },
-                            label = {
-                                Text(
-                                    if (isEnglish) "Built-in Typo Rules (${systemRules.size})"
-                                    else "বিল্ট-ইন সংশোধন (${systemRules.size})"
-                                )
-                            },
-                            leadingIcon = if (shortcutSubTab == 1) {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null
-                        )
+                            }
+                        }
                     }
 
                     // Search Bar with integrated Add action for shortcuts

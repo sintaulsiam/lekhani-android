@@ -1,8 +1,10 @@
 package com.lekhani.android.ui.theme
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -231,10 +233,12 @@ fun HapticsSoundSheet(
                                 }
 
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    soundPacks.take(3).forEach { (id, label) ->
+                                    soundPacks.forEach { (id, label) ->
                                         FilterChip(
                                             selected = soundPack == id,
                                             onClick = {
@@ -242,24 +246,8 @@ fun HapticsSoundSheet(
                                                 prefs.soundPack = id
                                                 feedbackManager.onKeyFeedback(view)
                                             },
-                                            label = { Text(label, fontSize = 11.sp) }
-                                        )
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    soundPacks.drop(3).forEach { (id, label) ->
-                                        FilterChip(
-                                            selected = soundPack == id,
-                                            onClick = {
-                                                soundPack = id
-                                                prefs.soundPack = id
-                                                feedbackManager.onKeyFeedback(view)
-                                            },
-                                            label = { Text(label, fontSize = 11.sp) }
+                                            label = { Text(label, fontSize = 12.sp) },
+                                            shape = RoundedCornerShape(8.dp)
                                         )
                                     }
                                 }
