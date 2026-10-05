@@ -426,7 +426,14 @@ pub const ENGLISH_PREDICTIVE_PAIRS: &[(&[&str], &[&str])] = &[
 
 /// Returns next-word predictions given preceding sentence tokens.
 pub fn get_english_next_words(context: &[&str], limit: usize) -> Vec<String> {
-    if context.is_empty() {
+    // Filter context to only ASCII words so preceding Bengali words don't confuse the English LM
+    let ascii_context: Vec<&str> = context
+        .iter()
+        .copied()
+        .filter(|w| w.is_ascii() && !w.trim().is_empty())
+        .collect();
+
+    if ascii_context.is_empty() {
         return vec!["I", "The", "How", "Thank", "What"]
             .into_iter()
             .take(limit)
@@ -437,7 +444,7 @@ pub fn get_english_next_words(context: &[&str], limit: usize) -> Vec<String> {
     let mut matches: Vec<String> = Vec::with_capacity(limit);
 
     // Normalize context to lowercase for pattern matching
-    let lower_context: Vec<String> = context.iter().map(|s| s.to_lowercase()).collect();
+    let lower_context: Vec<String> = ascii_context.iter().map(|s| s.to_lowercase()).collect();
     let lower_slices: Vec<&str> = lower_context.iter().map(|s| s.as_str()).collect();
 
     // 1. High-confidence conversational idioms/pairs

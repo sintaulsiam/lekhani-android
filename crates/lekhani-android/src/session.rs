@@ -807,7 +807,7 @@ impl AndroidLekhaniSession {
             state.composing_buffer = String::with_capacity(64);
 
             let word = committed.clone();
-            if !word.is_empty() && !state.is_private_field && state.auto_learn_enabled {
+            if !word.is_empty() && !state.is_private_field && state.auto_learn_enabled && state.layout != LekhaniLayoutType::English {
                 let prev_word = state
                     .surrounding_context
                     .split_whitespace()
@@ -815,8 +815,10 @@ impl AndroidLekhaniSession {
                     .map(|s| s.to_string());
                 let db = get_core_database();
                 if let Ok(mut learner) = db.learner.write() {
-                    if let Some(ref p) = prev_word {
-                        learner.observe_committed_pair(p, &word);
+                    if !word.is_ascii() {
+                        if let Some(ref p) = prev_word {
+                            learner.observe_committed_pair(p, &word);
+                        }
                     }
                 }
                 state.last_commit_info =
@@ -1726,6 +1728,8 @@ impl AndroidLekhaniSession {
 
             let mut normalized = if let Some(ref cand) = chosen_candidate {
                 nfc_normalize(cand)
+            } else if state.layout == LekhaniLayoutType::English {
+                nfc_normalize(&raw)
             } else if state.layout == LekhaniLayoutType::Avro {
                 let has_candidate_memory = {
                     if raw.chars().count() <= 2 {
@@ -1788,7 +1792,7 @@ impl AndroidLekhaniSession {
             let word = normalized.clone();
             normalized.push(' ');
 
-            if !state.is_private_field && state.auto_learn_enabled {
+            if !state.is_private_field && state.auto_learn_enabled && state.layout != LekhaniLayoutType::English {
                 let db = get_core_database();
                 if let Ok(mut learner) = db.learner.write() {
                     if !word.is_ascii() {
@@ -1907,7 +1911,7 @@ impl AndroidLekhaniSession {
             .last()
             .map(|s| s.to_string());
 
-        if !state.is_private_field && state.auto_learn_enabled {
+        if !state.is_private_field && state.auto_learn_enabled && state.layout != LekhaniLayoutType::English {
             let db = get_core_database();
             if let Ok(mut learner) = db.learner.write() {
                 // Only record candidate selection overrides for inputs > 2 characters
@@ -1916,9 +1920,11 @@ impl AndroidLekhaniSession {
                     learner.record_candidate_selection(&typed_buffer, &normalized);
                     learner.record_input_error(&typed_buffer, &normalized);
                 }
-                learner.observe_and_learn(&normalized, &db.trie);
-                if let Some(ref p) = prev_word {
-                    learner.observe_committed_pair(p, &normalized);
+                if !normalized.is_ascii() {
+                    learner.observe_and_learn(&normalized, &db.trie);
+                    if let Some(ref p) = prev_word {
+                        learner.observe_committed_pair(p, &normalized);
+                    }
                 }
             }
             state.last_commit_info =
@@ -2873,6 +2879,43 @@ mod tests {
         session.process_key("ক".into()).unwrap();
         let res = session.process_key("আ".into()).unwrap();
         assert_eq!(res.preedit, "কা");
+    }
+
+    #[test]
+    #[serial]
+    fn test_english_spacebar_no_bangla_leakage() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::English);
+
+        // 1. Typing 'm' + 'm' and pressing space in English MUST commit "mm " and never "মিমি. "
+        session.process_key("m".into()).unwrap();
+        session.process_key("m".into()).unwrap();
+        let res_space = session.handle_space().unwrap();
+        assert_eq!(res_space.commit_text.as_deref(), Some("mm "));
+
+        // 2. Typing 'a' + 'm' + 'i' in English MUST commit "ami " and never "আমি "
+        session.process_key("a".into()).unwrap();
+        session.process_key("m".into()).unwrap();
+        session.process_key("i".into()).unwrap();
+        let res_space2 = session.handle_space().unwrap();
+        assert_eq!(res_space2.commit_text.as_deref(), Some("ami "));
+
+        // 3. Typing English contraction 'dont' and pressing space commits "dont " without force-correcting
+        session.process_key("d".into()).unwrap();
+        session.process_key("o".into()).unwrap();
+        session.process_key("n".into()).unwrap();
+        let res_cand = session.process_key("t".into()).unwrap();
+        assert!(res_cand.candidates.contains(&"don't".to_string()));
+        let res_space3 = session.handle_space().unwrap();
+        assert_eq!(res_space3.commit_text.as_deref(), Some("dont "));
+
+        // 4. Typing 'dont' and selecting the 'don't' candidate on space commits "don't "
+        session.process_key("d".into()).unwrap();
+        session.process_key("o".into()).unwrap();
+        session.process_key("n".into()).unwrap();
+        session.process_key("t".into()).unwrap();
+        let res_choice = session.handle_space_with_choice(Some("don't".into())).unwrap();
+        assert_eq!(res_choice.commit_text.as_deref(), Some("don't "));
     }
 }
 

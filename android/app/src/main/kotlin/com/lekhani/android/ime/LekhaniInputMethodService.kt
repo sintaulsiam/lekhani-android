@@ -3076,11 +3076,14 @@ class LekhaniInputMethodService : InputMethodService() {
         // Finalize and seal any active composing text in the target editor before switching layouts
         // to prevent setComposingText in the new layout from wiping out the previously typed word!
         currentInputConnection?.finishComposingText()
+        refreshContextJob?.cancel()
         session.reset()
         preeditShadow = ""
         rawInputBuffer.clear()
         clearCandidates()
         clearUndo()
+        activeInspectedWord = null
+        lastPredictedContext = ""
 
         isNumericMode = false
         isMoreSymbolsMode = false
@@ -3263,7 +3266,11 @@ class LekhaniInputMethodService : InputMethodService() {
             activeUndoInfo = undo
             scheduleUndoExpiry()
         }
-        val filtered = raw.filter { !blacklist.isBlacklisted(it) }.distinct().toMutableList()
+        val isEngLayout = session.getLayout() == LekhaniLayoutType.ENGLISH
+        val filtered = raw.filter { cand ->
+            !blacklist.isBlacklisted(cand) &&
+            (!isEngLayout || cand.all { it.code < 128 } || EmojiData.isEmoji(cand) || cand.startsWith("="))
+        }.distinct().toMutableList()
 
         // 1. Avro Verbatim Token & Code Shield:
         // Configurable positioning: Bengali First (Recommended) vs English First (Classic)
@@ -4127,6 +4134,7 @@ class LekhaniInputMethodService : InputMethodService() {
             }
             cachedSurroundingContext = contextText
             val effectiveContext = contextText
+            val queryLayout = session.getLayout()
             withContext(Dispatchers.Default) {
                 // Only overwrite session context if IPC returned genuine text;
                 // never erase valid shadow context accumulated from committed words.
@@ -4148,7 +4156,8 @@ class LekhaniInputMethodService : InputMethodService() {
                     if (nextWords.isNotEmpty()) {
                         withContext(Dispatchers.Main) {
                             if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() &&
-                                activeInspectedWord == null && !suppressNextWordAfterCommit) {
+                                activeInspectedWord == null && !suppressNextWordAfterCommit &&
+                                session.getLayout() == queryLayout) {
                                 if (_candidateState.value !is CandidateStripState.Undo) {
                                     val curCandidates = (_candidateState.value as? CandidateStripState.Candidates)?.items
                                     val trimmedCtx = effectiveContext.trimEnd()
