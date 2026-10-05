@@ -72,7 +72,7 @@ object BengaliAlternates {
         put("ং", arrayOf("ঁ", "ঃ", "ঙ"))
         put("ঃ", arrayOf("ং", "ঁ"))
         put("ঁ", arrayOf("ং", "ঃ"))
-        put("্", arrayOf("্‌", "‌", "‍")) // Hasanta, ZWNJ, ZWJ
+        put("্", arrayOf("ঁ", "্‌", "‌", "‍")) // Chandrabindu, Hasanta, ZWNJ, ZWJ
 
         // ── Bengali Digits & Numeric Shortcuts ──────────────────────────────────
         put("১", arrayOf("1", "১"))

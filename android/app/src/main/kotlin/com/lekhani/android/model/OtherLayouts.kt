@@ -149,7 +149,7 @@ object NationalLayout {
                     isHomeRow = true, contentDesc = "I-kar, shifted II-kar, hint I",
                 ),
                 Ch("ব", "ভ", homeRow = true),
-                Ch("্", "।", homeRow = true, desc = "Hasanta linker, shifted Dari"),
+                Ch("্", "।", hint = "ঁ", homeRow = true, desc = "Hasanta linker, shifted Dari, hint Chandrabindu"),
                 Ch("া", "অ", homeRow = true, desc = "Aa-kar, shifted A"),
                 Ch("ক", "খ", homeRow = true),
                 Ch("ত", "থ", homeRow = true),

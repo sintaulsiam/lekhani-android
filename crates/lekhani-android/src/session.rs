@@ -436,6 +436,8 @@ struct SessionState {
     geminate_double_tap_enabled: bool,
     /// Whether Hasanta ligature quick-picks are enabled
     hasanta_conjuncts_enabled: bool,
+    /// Timestamp and character of last consonant keystroke for rapid double-tap geminates
+    last_consonant_tap: Option<(char, std::time::Instant)>,
 }
 
 impl SessionState {
@@ -586,6 +588,7 @@ impl AndroidLekhaniSession {
                 smart_initial_kar_enabled: true,
                 geminate_double_tap_enabled: false,
                 hasanta_conjuncts_enabled: true,
+                last_consonant_tap: None,
             }),
         }
     }
@@ -598,6 +601,7 @@ impl AndroidLekhaniSession {
         if let Ok(mut state) = self.state.lock() {
             state.layout = layout;
             state.composing_buffer.clear();
+            state.last_consonant_tap = None;
         }
     }
 
@@ -918,6 +922,7 @@ impl AndroidLekhaniSession {
 
             committed.push_str(punct_str);
             state.append_to_context(&committed);
+            state.last_consonant_tap = None;
 
             let next_words = if state.layout == LekhaniLayoutType::English {
                 // Fix #1: Filter surrounding_context to only ASCII words so Bengali
@@ -943,6 +948,13 @@ impl AndroidLekhaniSession {
 
         match state.layout {
             LekhaniLayoutType::Probaho | LekhaniLayoutType::Probhat => {
+                let now = std::time::Instant::now();
+                let is_rapid_consonant_double_tap = state
+                    .last_consonant_tap
+                    .map(|(c, t)| key.starts_with(c) && now.duration_since(t).as_millis() <= 280)
+                    .unwrap_or(false);
+                let mut did_geminate_or_revert = false;
+
                 let chars: Vec<char> = state.composing_buffer.chars().collect();
                 let last_ch = chars.last().copied();
                 let (is_start, last_is_vowel, last_is_consonant) = if let Some(last) = last_ch {
@@ -1046,6 +1058,12 @@ impl AndroidLekhaniSession {
                     state.composing_buffer.pop();
                     state.composing_buffer.push_str(&transformed);
                 }
+                // Auto-reorder Kar typed after Chandrabindu (ঁ): e.g. চ + ঁ + া -> চাঁ (Canonical NFC order)
+                else if (is_raw_kar || transformed != key) && last_ch == Some('ঁ') {
+                    state.composing_buffer.pop();
+                    state.composing_buffer.push_str(&transformed);
+                    state.composing_buffer.push('ঁ');
+                }
                 // 2. Postfix Reph (র্) Workflow:
                 // If user types Reph ("র্" or "র\u{09CD}") after a consonant `c` (e.g. ধ + ম + র্),
                 // automatically transpose them to form the valid syllable (e.g. ধর্ম).
@@ -1073,11 +1091,14 @@ impl AndroidLekhaniSession {
                     state.composing_buffer.pop();
                     state.composing_buffer.pop();
                     state.composing_buffer.push_str(&key);
+                    did_geminate_or_revert = true;
+                    state.last_consonant_tap = None;
                 }
                 // Case B: 2nd-Tap Geminate Shortcut
                 // If buffer ends in consonant `c` (not preceded by Hasanta `্` and not already double `c`),
-                // typing `c` again automatically inserts `্` + `c` forming the geminate (e.g. উ + ত + ত -> উত্তর).
+                // and user rapidly double taps within 280ms, automatically insert `্` + `c` forming the geminate (e.g. উ + ত + ত -> উত্তর).
                 else if state.geminate_double_tap_enabled
+                    && is_rapid_consonant_double_tap
                     && key.chars().count() == 1
                     && last_ch.is_some_and(|c| {
                         key.starts_with(c)
@@ -1094,8 +1115,23 @@ impl AndroidLekhaniSession {
                 {
                     state.composing_buffer.push('্');
                     state.composing_buffer.push_str(&key);
+                    did_geminate_or_revert = true;
+                    state.last_consonant_tap = None;
                 } else {
                     state.composing_buffer.push_str(&transformed);
+                }
+
+                if !did_geminate_or_revert {
+                    if key.chars().count() == 1 {
+                        let ch = key.chars().next().unwrap();
+                        if is_bengali_consonant_or_modifier(ch) && ch != '্' && ch != 'ৎ' {
+                            state.last_consonant_tap = Some((ch, now));
+                        } else {
+                            state.last_consonant_tap = None;
+                        }
+                    } else {
+                        state.last_consonant_tap = None;
+                    }
                 }
 
                 let mut candidates = Vec::new();
@@ -1382,6 +1418,8 @@ impl AndroidLekhaniSession {
             }
 
             LekhaniLayoutType::National => {
+                let is_raw_kar = key.chars().count() == 1
+                    && ('\u{09BE}'..='\u{09CC}').contains(&key.chars().next().unwrap());
                 // Bijoy / BBS Dead-key Linker for Independent Vowels:
                 // When buffer ends with Hasanta '্' and the new key is a vowel Kar,
                 // transform [্ + Kar] into the corresponding independent vowel.
@@ -1406,6 +1444,11 @@ impl AndroidLekhaniSession {
                 if let Some(vowel) = transformed_vowel {
                     state.composing_buffer.pop();
                     state.composing_buffer.push_str(vowel);
+                } else if is_raw_kar && state.composing_buffer.ends_with('ঁ') {
+                    // Auto-reorder Kar typed after Chandrabindu (ঁ): e.g. চ + ঁ + া -> চাঁ (Canonical NFC)
+                    state.composing_buffer.pop();
+                    state.composing_buffer.push_str(&key);
+                    state.composing_buffer.push('ঁ');
                 } else {
                     state.composing_buffer.push_str(&key);
                 }
@@ -1485,7 +1528,16 @@ impl AndroidLekhaniSession {
 
             _ => {
                 // Fixed / transliteration layouts — accumulate in buffer, query PrefixTrie
-                state.composing_buffer.push_str(&key);
+                let is_raw_kar = key.chars().count() == 1
+                    && ('\u{09BE}'..='\u{09CC}').contains(&key.chars().next().unwrap());
+                if is_raw_kar && state.composing_buffer.ends_with('ঁ') {
+                    // Auto-reorder Kar typed after Chandrabindu (ঁ): e.g. চ + ঁ + া -> চাঁ (Canonical NFC)
+                    state.composing_buffer.pop();
+                    state.composing_buffer.push_str(&key);
+                    state.composing_buffer.push('ঁ');
+                } else {
+                    state.composing_buffer.push_str(&key);
+                }
                 let mut candidates = Vec::new();
                 let db = get_core_database();
                 if key == "্" {
@@ -1994,6 +2046,7 @@ impl AndroidLekhaniSession {
             .state
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        state.last_consonant_tap = None;
 
         if !state.composing_buffer.is_empty() {
             if state.layout == LekhaniLayoutType::Avro {
@@ -2354,6 +2407,7 @@ impl AndroidLekhaniSession {
 
         let typed_buffer = std::mem::take(&mut state.composing_buffer);
         state.composing_buffer = String::with_capacity(64);
+        state.last_consonant_tap = None;
         let normalized = nfc_normalize(&candidate);
         let commit = format!("{} ", normalized);
 
@@ -2453,6 +2507,7 @@ impl AndroidLekhaniSession {
             state.right_context.clear();
             state.is_private_field = false;
             state.last_commit_info = None;
+            state.last_consonant_tap = None;
         }
     }
 
@@ -3634,6 +3689,64 @@ mod tests {
         assert_eq!(res_t2.preedit, "ত্ত", "2nd tap of 'ত' produces 'ত্ত'");
         let res_t3 = session.process_key("ত".into()).unwrap();
         assert_eq!(res_t3.preedit, "তত", "3rd tap of 'ত' reverts to 'তত'");
+
+        session.reset();
+
+        // 7. Slow double-tap (> 280ms) should NOT form geminate, even with geminate_double_tap_enabled == true
+        session.process_key("ব".into()).unwrap();
+        session.process_key("ল".into()).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let res_slow = session.process_key("ল".into()).unwrap();
+        assert_eq!(res_slow.preedit, "বলল", "Slow tap (>280ms) must produce separate consonants 'বলল'");
+    }
+
+    #[test]
+    #[serial]
+    fn test_chandrabindu_auto_reordering() {
+        let session = AndroidLekhaniSession::new();
+
+        for layout in [
+            LekhaniLayoutType::Probaho,
+            LekhaniLayoutType::Probhat,
+            LekhaniLayoutType::National,
+        ] {
+            session.reset();
+            session.set_layout(layout);
+
+            // Canonical typing: চ + া + ঁ -> চাঁ
+            session.process_key("চ".into()).unwrap();
+            session.process_key("া".into()).unwrap();
+            let res_canonical = session.process_key("ঁ".into()).unwrap();
+            assert_eq!(
+                res_canonical.preedit, "চাঁ",
+                "Layout {:?} canonical চ + া + ঁ should produce 'চাঁ'",
+                layout
+            );
+
+            session.reset();
+
+            // Reverse typing: চ + ঁ + া -> চাঁ (auto-reordered to canonical Indic Unicode NFC)
+            session.process_key("চ".into()).unwrap();
+            session.process_key("ঁ".into()).unwrap();
+            let res_reordered = session.process_key("া".into()).unwrap();
+            assert_eq!(
+                res_reordered.preedit, "চাঁ",
+                "Layout {:?} reverse চ + ঁ + া must auto-reorder to canonical 'চাঁ'",
+                layout
+            );
+
+            session.reset();
+
+            // Reverse typing with ি: ক + ঁ + ি -> কিঁ
+            session.process_key("ক".into()).unwrap();
+            session.process_key("ঁ".into()).unwrap();
+            let res_ki = session.process_key("ি".into()).unwrap();
+            assert_eq!(
+                res_ki.preedit, "কিঁ",
+                "Layout {:?} reverse ক + ঁ + ি must auto-reorder to canonical 'কিঁ'",
+                layout
+            );
+        }
     }
 
     #[test]

@@ -1,9 +1,12 @@
 package com.lekhani.android.ui.emoji
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -189,7 +192,7 @@ fun EmojiPickerView(
         }
     }
 
-    // Handle jump to category with smooth fluid 120 FPS animation
+    // Handle jump to category with instantaneous zero-allocation 120 FPS jump
     val onCategoryClick: (Int) -> Unit = { catIndex ->
         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         activeCategoryIdx = catIndex
@@ -202,18 +205,7 @@ fun EmojiPickerView(
             isProgrammaticScroll = true
             scrollJob = coroutineScope.launch {
                 try {
-                    val currentOffset = gridState.firstVisibleItemIndex
-                    val diff = targetOffset - currentOffset
-                    // If jump distance is large (> 24 items), pre-jump close first, then animate the final stretch for high FPS
-                    if (Math.abs(diff) > 24) {
-                        val preJumpOffset = if (diff > 0) {
-                            (targetOffset - 16).coerceAtLeast(0)
-                        } else {
-                            (targetOffset + 16).coerceAtMost((totalItemCount - 1).coerceAtLeast(0))
-                        }
-                        gridState.scrollToItem(preJumpOffset)
-                    }
-                    gridState.animateScrollToItem(targetOffset)
+                    gridState.scrollToItem(targetOffset, 0)
                 } finally {
                     activeCategoryIdx = catIndex
                     isProgrammaticScroll = false
@@ -326,8 +318,16 @@ fun EmojiPickerView(
                     )
                 },
         ) {
-            when (selectedTabIdx) {
-                0 -> {
+            AnimatedContent(
+                targetState = selectedTabIdx,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(140)) togetherWith fadeOut(animationSpec = tween(140))
+                },
+                label = "EmojiPaletteTabContent",
+                modifier = Modifier.fillMaxSize(),
+            ) { targetTab ->
+                when (targetTab) {
+                    0 -> {
                     // Recents Tab
                     if (recents.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -515,8 +515,9 @@ fun EmojiPickerView(
                     }
                 }
             }
+        }
 
-            // Anchored Floating Skin Tone Selector Callout
+        // Anchored Floating Skin Tone Selector Callout
             skinToneTarget?.let { item ->
                 AnchoredSkinToneSelector(
                     item = item,

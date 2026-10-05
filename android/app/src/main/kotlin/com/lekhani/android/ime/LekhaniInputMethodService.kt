@@ -1414,12 +1414,20 @@ class LekhaniInputMethodService : InputMethodService() {
         for (view in otherViews) {
             view?.animate()?.cancel()
             view?.visibility = View.GONE
-            view?.alpha = 1f
+            view?.alpha = 0f
         }
         activeView?.let { view ->
+            if (view.visibility == View.VISIBLE && view.alpha == 1f) {
+                return
+            }
             view.animate()?.cancel()
-            view.alpha = 1f
+            view.alpha = 0f
             view.visibility = View.VISIBLE
+            view.animate()
+                .alpha(1f)
+                .setDuration(120)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
         }
     }
 
