@@ -13,6 +13,9 @@ Cargo.lock          # Lock file is tracked for binary crates, excluded here
 *.dex
 *.class
 local.properties
+keystore.properties
+*.jks
+*.keystore
 .gradle/
 build/
 captures/

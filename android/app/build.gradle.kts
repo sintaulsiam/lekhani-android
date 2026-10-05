@@ -1,4 +1,7 @@
 // app/build.gradle.kts — Lekhani Android
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -25,20 +28,44 @@ android {
 
     signingConfigs {
         create("release") {
+            val keystorePropsFile = listOf(
+                rootProject.file("keystore.properties"),
+                file("keystore.properties"),
+                File(System.getProperty("user.home"), ".gradle/lekhani-keystore.properties")
+            ).firstOrNull { it.exists() }
+
+            val keystoreProps = Properties().apply {
+                if (keystorePropsFile != null) {
+                    FileInputStream(keystorePropsFile).use { load(it) }
+                }
+            }
+
             val keystorePath = findProperty("LEKHANI_KEYSTORE_PATH") as? String
                 ?: System.getenv("LEKHANI_KEYSTORE_PATH")
+                ?: keystoreProps.getProperty("LEKHANI_KEYSTORE_PATH")
             val keystorePass = findProperty("LEKHANI_KEYSTORE_PASSWORD") as? String
                 ?: System.getenv("LEKHANI_KEYSTORE_PASSWORD")
+                ?: keystoreProps.getProperty("LEKHANI_KEYSTORE_PASSWORD")
             val keyAliasStr = findProperty("LEKHANI_KEY_ALIAS") as? String
                 ?: System.getenv("LEKHANI_KEY_ALIAS")
+                ?: keystoreProps.getProperty("LEKHANI_KEY_ALIAS")
             val keyPass = findProperty("LEKHANI_KEY_PASSWORD") as? String
                 ?: System.getenv("LEKHANI_KEY_PASSWORD")
+                ?: keystoreProps.getProperty("LEKHANI_KEY_PASSWORD")
 
-            if (keystorePath != null && file(keystorePath).exists()) {
-                storeFile = file(keystorePath)
+            val resolvedKeystore = keystorePath?.let {
+                listOf(
+                    rootProject.file(it),
+                    file(it),
+                    File(it)
+                ).firstOrNull { f -> f.exists() }
+            }
+
+            if (resolvedKeystore != null && resolvedKeystore.exists() && !keystorePass.isNullOrEmpty()) {
+                storeFile = resolvedKeystore
                 storePassword = keystorePass
-                keyAlias = keyAliasStr
-                keyPassword = keyPass
+                keyAlias = keyAliasStr ?: "lekhani"
+                keyPassword = keyPass ?: keystorePass
             } else {
                 // Fallback to debug keystore if no release keystore is supplied
                 val debugKeystore = signingConfigs.getByName("debug").storeFile

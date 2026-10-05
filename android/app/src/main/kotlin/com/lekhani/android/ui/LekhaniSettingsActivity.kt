@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -957,8 +958,37 @@ private fun LayoutsTabContent(
                         }
                     }
 
-                    if (!isEnabled && Build.VERSION.SDK_INT >= 33) {
+                    if (!isEnabled) {
                         Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Lock,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = if (isEnglish)
+                                        "Android displays a standard security alert for every custom keyboard. Lekhani has 0 internet permissions and operates 100% offline."
+                                    else
+                                        "যেকোনো কীবোর্ড চালুর সময় অ্যান্ড্রয়েড একটি সতর্কবার্তা দেখায়। লেখনীতে কোনো ইন্টারনেট পারমিশন নেই এবং এটি শতভাগ অফলাইন ও নিরাপদ।",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    if (!isEnabled && Build.VERSION.SDK_INT >= 33) {
+                        Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
