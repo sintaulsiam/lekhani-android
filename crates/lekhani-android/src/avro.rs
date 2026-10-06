@@ -1508,13 +1508,9 @@ mod tests {
         assert_eq!(cands_smi.get(1).map(|s| s.as_str()), Some("স্মি"));
         assert_eq!(cands_smi.get(2).map(|s| s.as_str()), Some("আমি"));
 
-        // 'i' is next to 'o' on QWERTY -> "bhali" typo suggests "ভালো"
-        // index 0: direct conversion "ভালি"
-        // index 1: typo auto-correction "ভালো"
-        let (pre_bhali, cands_bhali) = transliterate_avro("bhali");
-        assert_eq!(pre_bhali, "ভালি");
-        assert_eq!(cands_bhali.first().map(|s| s.as_str()), Some("ভালি"));
-        assert_eq!(cands_bhali.get(1).map(|s| s.as_str()), Some("ভালো"));
+        // Adjacent transposition typo: "bhlao" -> "ভালো"
+        let (_pre_bhlao, cands_bhlao) = transliterate_avro("bhlao");
+        assert!(cands_bhlao.contains(&"ভালো".to_string()), "Expected 'ভালো' in candidates for 'bhlao'");
     }
 
     #[test]

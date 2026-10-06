@@ -149,26 +149,27 @@ pub fn demote_vowel_to_kar_if_preceded_by_consonant(
 pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
     if last_consonant == 'র' {
         return vec![
-            "র্ক".to_string(),
-            "র্গ".to_string(),
-            "র্জ".to_string(),
-            "র্ণ".to_string(),
-            "র্ত".to_string(),
-            "র্থ".to_string(),
-            "র্দ".to_string(),
-            "র্ধ".to_string(),
-            "র্প".to_string(),
-            "র্ব".to_string(),
-            "র্ভ".to_string(),
-            "র্ম".to_string(),
-            "র্য".to_string(),
-            "র্শ".to_string(),
-            "র্ষ".to_string(),
-            "র্স".to_string(),
-            "র্ঘ".to_string(),
-            "র্চ".to_string(),
-            "র্ন".to_string(),
-            "র্হ".to_string(),
+            "র\u{200D}্য".to_string(), // র-এ য-ফলা with ZWJ (র্যাব, র‍্যালি, র‍্যান্ডম)
+            "র্য".to_string(),        // রেফ-য (সূর্য, ধৈর্য, কার্য)
+            "র্ম".to_string(),        // ধর্ম, কর্ম
+            "র্ক".to_string(),        // তর্ক, সার্ক
+            "র্ষ".to_string(),        // বর্ষা, আকর্ষণ
+            "র্ত".to_string(),        // বার্তা, মূর্তি
+            "র্দ".to_string(),        // পর্দা, সর্দি
+            "র্ব".to_string(),        // সর্ব, গর্ব
+            "র্থ".to_string(),        // অর্থ, ব্যর্থ
+            "র্জ".to_string(),        // অর্জন, বর্জন
+            "র্ণ".to_string(),        // বর্ণ, স্বর্ণ
+            "র্শ".to_string(),        // আদর্শ, দর্শন
+            "র্গ".to_string(),        // বর্গ, স্বৰ্গ
+            "র্ধ".to_string(),        // অর্ধ, সার্থ
+            "র্প".to_string(),        // সর্প, দর্পণ
+            "র্ভ".to_string(),        // গর্ভ
+            "র্স".to_string(),        // পার্সেল
+            "র্ঘ".to_string(),        // দীর্ঘ
+            "র্চ".to_string(),        // চর্চা
+            "র্ন".to_string(),        // ঝরনা
+            "র্হ".to_string(),        // গার্হস্থ্য
         ];
     }
     let prefix = format!("{} + ্", last_consonant);
@@ -527,6 +528,8 @@ mod tests {
         assert_eq!(p_suggestions[1], "প্য");
 
         let reph_suggestions = get_conjunct_suggestions('র');
+        assert_eq!(reph_suggestions[0], "র\u{200D}্য");
+        assert_eq!(reph_suggestions[1], "র্য");
         assert!(reph_suggestions.contains(&"র্ক".to_string()));
         assert!(reph_suggestions.contains(&"র্ম".to_string()));
         assert!(reph_suggestions.contains(&"র্ষ".to_string()));

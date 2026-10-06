@@ -417,27 +417,26 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 ?: performHapticFeedback(
                     HapticFeedbackConstants.LONG_PRESS)
             val longAction = key.activeLongPressAction(isShifted)
+            val actionToken = (key.action as? KeyAction.Character)?.token
+            val rawChar = key.displayLabel(isShifted)
+            val alts = (actionToken?.let { com.lekhani.android.model.BengaliAlternates.getAlternates(it) })
+                ?: com.lekhani.android.model.BengaliAlternates.getAlternates(rawChar)
             when {
                 key.action == KeyAction.Space || key.action == KeyAction.SwitchLayout -> {
                     keyListener?.onSpaceLongPress()
+                }
+                !alts.isNullOrEmpty() -> {
+                    showAlternatePopup(resolvedKeys[pressedKeyIndex], alts)
                 }
                 longAction != null -> {
                     keyListener?.onKey(key, longAction)
                 }
                 else -> {
-                    val actionToken = (key.action as? KeyAction.Character)?.token
-                    val rawChar = key.displayLabel(isShifted)
-                    val alts = (actionToken?.let { com.lekhani.android.model.BengaliAlternates.getAlternates(it) })
-                        ?: com.lekhani.android.model.BengaliAlternates.getAlternates(rawChar)
-                    if (!alts.isNullOrEmpty()) {
-                        showAlternatePopup(resolvedKeys[pressedKeyIndex], alts)
-                    } else {
-                        val activeHint = key.displayHint(isShifted)
-                        if (activeHint != null) {
-                            keyListener?.onKey(key, KeyAction.Character(activeHint))
-                        } else if (key.shiftedLabel != null && key.shiftedLabel != key.label) {
-                            keyListener?.onKey(key, key.shiftedAction)
-                        }
+                    val activeHint = key.displayHint(isShifted)
+                    if (activeHint != null) {
+                        keyListener?.onKey(key, KeyAction.Character(activeHint))
+                    } else if (key.shiftedLabel != null && key.shiftedLabel != key.label) {
+                        keyListener?.onKey(key, key.shiftedAction)
                     }
                 }
             }
