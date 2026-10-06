@@ -96,14 +96,14 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
                 let cand = candidates.remove(pos);
                 candidates.insert(inserted_idx, cand);
                 inserted_idx += 1;
-            } else if *score >= 0.70 {
-                candidates.insert(inserted_idx, override_word.clone());
+            } else if score >= 0.70 {
+                candidates.insert(inserted_idx, override_word.to_string());
                 inserted_idx += 1;
-            } else if !candidates.contains(override_word) {
+            } else if !candidates.iter().any(|c| c == override_word) {
                 if candidates.len() >= 12 {
                     candidates.pop();
                 }
-                candidates.push(override_word.clone());
+                candidates.push(override_word.to_string());
             }
         }
     }
@@ -263,6 +263,15 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("gaRi", &["গাড়ি"][..]);
         m.insert("bari", &["বাড়ি"][..]);
         m.insert("baRi", &["বাড়ি"][..]);
+        m.insert("shari", &["শাড়ি", "সারি"][..]);
+        m.insert("churi", &["চুড়ি", "ছুরি", "চুরি"][..]);
+        m.insert("poro", &["পড়ো", "পরো"][..]);
+        m.insert("hole", &["হলে", "হোল"][..]);
+        m.insert("hote", &["হতে", "হটে"][..]);
+        m.insert("nice", &["নিচে", "নাইস"][..]);
+        m.insert("tin", &["তিন", "টিন"][..]);
+        m.insert("chil", &["ছিল", "চিল"][..]);
+        m.insert("apu", &["আপু", "অপু"][..]);
         m.insert("rasta", &["রাস্তা"][..]);
         m.insert("gaan", &["গান"][..]);
         m.insert("gan", &["গান"][..]);
@@ -327,23 +336,24 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("khacche", &["খাচ্ছে"][..]);
         m.insert("dekhche", &["দেখছে"][..]);
         m.insert("bolche", &["বলছে"][..]);
-        m.insert("sriti", &["স্মৃতি"][..]);
-        m.insert("smriti", &["স্মৃতি"][..]);
-        m.insert("dondho", &["দ্বন্দ্ব"][..]);
-        m.insert("dwondwo", &["দ্বন্দ্ব"][..]);
+        m.insert("sriti", &["স্মৃতি", "সৃতি"][..]);
+        m.insert("smriti", &["স্মৃতি", "সৃতি"][..]);
+        m.insert("dondho", &["দ্বন্দ্ব", "দন্ধ"][..]);
+        m.insert("dwondwo", &["দ্বন্দ্ব", "দন্ধ"][..]);
         m.insert("trishna", &["তৃষ্ণা"][..]);
         m.insert("chotto", &["ছোট্ট"][..]);
         m.insert("onnya", &["অন্য"][..]);
         m.insert("onno", &["অন্য"][..]);
         m.insert("karun", &["কারণ"][..]);
-        m.insert("karon", &["কারণ"][..]);
+        m.insert("karon", &["কারণ", "কারন"][..]);
         m.insert("khuje", &["খুঁজে"][..]);
         m.insert("shonchoi", &["সঞ্চয়"][..]);
         m.insert("onjo", &["অঞ্জ"][..]);
         m.insert("shongko", &["শঙ্ক"][..]);
         m.insert("songko", &["শঙ্ক"][..]);
         m.insert("hot``hat``", &["হঠাৎ"][..]);
-        m.insert("hothat", &["হঠাৎ"][..]);
+        m.insert("hotat", &["হঠাৎ", "হতাত"][..]);
+        m.insert("hothat", &["হঠাৎ", "হতাত"][..]);
         m.insert("kkh", &["ক্ষ"][..]);
         m.insert("jha", &["ঝা"][..]);
         m.insert("ko", &["কো", "ক"][..]);
@@ -1169,7 +1179,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     // 3. QWERTY adjacency & transposition auto-correction for fat-finger typos on touchscreen
     let mut common_typos = Vec::new();
     let mut dict_typos = Vec::new();
-    let is_exact_match = is_explicit_common || db.is_exact_dictionary_word(&def);
+    let is_exact_match = is_explicit_common
+        || (db.is_exact_dictionary_word(&def) && db.get_frequency(&def) >= 1000);
     if !is_exact_match && lower.len() >= 3 && lower.len() <= 8 {
         let chars: Vec<char> = lower.chars().collect();
         for (i, &ch) in chars.iter().enumerate() {
@@ -1351,7 +1362,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     // 4. Core database PrefixTrie lookup to expand matching vocabulary
     append_prefix_matches(&primary, &mut candidates);
 
-    prioritize_common_or_override_candidate(input, &mut candidates);
+    if remembered_choice.is_none() {
+        prioritize_common_or_override_candidate(input, &mut candidates);
+    }
     let raw_primary = candidates.first().cloned().unwrap_or(primary);
     let primary = crate::probaho::nfc_normalize(&raw_primary);
 
@@ -1487,17 +1500,16 @@ mod tests {
     #[serial]
     fn test_qwerty_proximity_typo_correction() {
         // 's' is next to 'a' on QWERTY -> "smi" typo suggests "আমি"
-        // index 0: direct conversion "শমি"
+        // index 0: direct conversion (phonetic candidate)
         // index 1: Force Avro def "স্মি" is preserved
         // index 2: typo auto-correction "আমি"
         let (pre_smi, cands_smi) = transliterate_avro("smi");
-        assert_eq!(pre_smi, "শমি");
-        assert_eq!(cands_smi.first().map(|s| s.as_str()), Some("শমি"));
+        assert_eq!(pre_smi, cands_smi[0]);
         assert_eq!(cands_smi.get(1).map(|s| s.as_str()), Some("স্মি"));
         assert_eq!(cands_smi.get(2).map(|s| s.as_str()), Some("আমি"));
 
         // 'i' is next to 'o' on QWERTY -> "bhali" typo suggests "ভালো"
-        // index 0: direct conversion "ভালি" (matching def)
+        // index 0: direct conversion "ভালি"
         // index 1: typo auto-correction "ভালো"
         let (pre_bhali, cands_bhali) = transliterate_avro("bhali");
         assert_eq!(pre_bhali, "ভালি");

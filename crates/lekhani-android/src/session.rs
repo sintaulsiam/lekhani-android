@@ -1394,11 +1394,12 @@ impl AndroidLekhaniSession {
                         if !has_candidate_memory
                             && !is_explicit_common
                             && !has_override
-                            && !is_archaic_preedit
-                            && !has_strong_context_preference
                             && db.is_exact_dictionary_word(&preedit)
-                            && (!crate::avro::are_phonetically_compatible(&preedit, top)
-                                || !db.is_exact_dictionary_word(top))
+                            && (top.chars().count() > preedit.chars().count()
+                                || (!is_archaic_preedit
+                                    && !has_strong_context_preference
+                                    && (!crate::avro::are_phonetically_compatible(&preedit, top)
+                                        || !db.is_exact_dictionary_word(top))))
                         {
                             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                                 let cand = candidates.remove(pos);
@@ -2192,8 +2193,9 @@ impl AndroidLekhaniSession {
                         );
                         if let Some(top) = candidates.first() {
                             let db = get_core_database();
-                            if !crate::avro::are_phonetically_compatible(&preedit, top)
-                                && db.is_exact_dictionary_word(&preedit)
+                            if db.is_exact_dictionary_word(&preedit)
+                                && (top.chars().count() > preedit.chars().count()
+                                    || !crate::avro::are_phonetically_compatible(&preedit, top))
                             {
                                 if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                                     let cand = candidates.remove(pos);
@@ -2362,7 +2364,9 @@ impl AndroidLekhaniSession {
                         if !has_candidate_memory
                             && !is_explicit_common
                             && !has_override
-                            && (!crate::avro::are_phonetically_compatible(&preedit, top)
+                            && db.is_exact_dictionary_word(&preedit)
+                            && (top.chars().count() > preedit.chars().count()
+                                || !crate::avro::are_phonetically_compatible(&preedit, top)
                                 || !db.is_exact_dictionary_word(top))
                         {
                             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
