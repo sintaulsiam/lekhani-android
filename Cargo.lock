@@ -489,6 +489,7 @@ dependencies = [
  "edit-distance",
  "hashbrown",
  "lekhani-ai",
+ "lekhani-neural",
  "lekhani-parser",
  "rayon",
  "serde",
