@@ -319,7 +319,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 Log.e(TAG, "Error installing offline assets: ${e.message}")
             }
             try {
-                val f = File(filesDir, "user_learned.bin")
+                val f = getUserLearnedFile()
                 session.setLearnerAutosavePath(f.absolutePath)
                 if (f.exists()) {
                     val ok = session.loadUserLearned(f.absolutePath)
@@ -329,7 +329,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 val dictMgr = LekhaniDictionaryManager(session)
                 dictMgr.sanitizeUserAutocorrect(this@LekhaniInputMethodService)
 
-                val acFile = File(filesDir, "user_autocorrect.json")
+                val acFile = getUserAutocorrectFile()
                 if (acFile.exists()) {
                     val ok = session.loadUserAutocorrect(acFile.absolutePath)
                     Log.i(TAG, "User autocorrect rules loaded ($ok): ${acFile.absolutePath}")
@@ -441,7 +441,7 @@ class LekhaniInputMethodService : InputMethodService() {
             layoutPrefListener = null
         }
         // Launch persist on a separate IO scope so it finishes even as service tears down
-        val file = File(filesDir, "user_learned.bin")
+        val file = getUserLearnedFile()
         CoroutineScope(Dispatchers.IO).launch {
             persistUserLearnedInternal(file)
         }
@@ -3262,11 +3262,49 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     /**
+     * Resolves storage directory resilient to Direct Boot.
+     * Uses Device Protected Storage context so user data is accessible on lock screen before decryption.
+     */
+    private val directBootFilesDir: File by lazy {
+        createDeviceProtectedStorageContext().filesDir
+    }
+
+    private fun getUserLearnedFile(): File {
+        val dpsFile = File(directBootFilesDir, "user_learned.bin")
+        try {
+            val oldFile = File(filesDir, "user_learned.bin")
+            if (!dpsFile.exists() && oldFile.exists()) {
+                oldFile.copyTo(dpsFile, overwrite = true)
+                oldFile.delete()
+                Log.i(TAG, "Migrated user_learned.bin to Device Protected Storage")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Migration check for user_learned.bin: ${e.message}")
+        }
+        return dpsFile
+    }
+
+    private fun getUserAutocorrectFile(): File {
+        val dpsFile = File(directBootFilesDir, "user_autocorrect.json")
+        try {
+            val oldFile = File(filesDir, "user_autocorrect.json")
+            if (!dpsFile.exists() && oldFile.exists()) {
+                oldFile.copyTo(dpsFile, overwrite = true)
+                oldFile.delete()
+                Log.i(TAG, "Migrated user_autocorrect.json to Device Protected Storage")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Migration check for user_autocorrect.json: ${e.message}")
+        }
+        return dpsFile
+    }
+
+    /**
      * Persists user-learned vocabulary, candidate memory, and bigrams to local private storage
      * asynchronously on Dispatchers.IO. Skips I/O if no in-memory mutations occurred.
      */
     fun persistUserLearnedAsync() {
-        val file = File(filesDir, "user_learned.bin")
+        val file = getUserLearnedFile()
         serviceScope.launch(Dispatchers.IO) {
             persistUserLearnedInternal(file)
         }
