@@ -200,6 +200,7 @@ val RUNTIME_DICTIONARIES = listOf(
     "autocorrect.json",        //  72 KB – Autocorrect rules
     "suffix.json",             //  24 KB – Morphological suffixes
     "rank_weights_v2.json",    //   4 KB – Perceptron rank weights
+    "bengali_embeddings.bin",   // 594 KB – 32-D dense semantic word embeddings
     "english_dict.bin"         // 996 KB – English prefix trie for QWERTY mode
 )
 
