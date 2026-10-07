@@ -61,11 +61,16 @@ internal class AlternatePopupWindow(context: Context) {
         alternateView.applyTheme(theme)
     }
 
+    // Reusable coordinate array (zero allocation during show)
+    private val viewLocation = IntArray(2)
+
     /**
      * Show the alternate popup anchored to a key.
+     * Candidate #0 (e.g. Shift alternative) is positioned directly above the key center.
+     * Remaining candidates fan inward towards the screen center for effortless reachability.
      *
      * @param anchor    The [KeyboardCanvasView] that owns this popup.
-     * @param alts      Array of up to 8 alternate character strings.
+     * @param alts      Array of alternate character strings (capped at 4).
      * @param keyLeft   Key left edge in view-local px.
      * @param keyTop    Key top edge in view-local px.
      * @param keyRight  Key right edge in view-local px.
@@ -81,34 +86,61 @@ internal class AlternatePopupWindow(context: Context) {
         keyBottom: Float,
         density: Float,
     ) {
-        val displayAlts = alts.take(8)
-        alternateView.setAlternates(displayAlts, density)
+        val displayAlts = alts.take(4)
+        if (displayAlts.isEmpty()) return
 
+        val count = displayAlts.size
         val keyW = keyRight - keyLeft
         val pillW = (keyW * 0.95f).coerceAtLeast(36f * density)
         val pillH = ((keyBottom - keyTop) * 0.95f).coerceAtLeast(42f * density)
         val spacing = 4f * density
         val pad = 6f * density
-        val totalW = (displayAlts.size * pillW + (displayAlts.size - 1) * spacing + pad * 2).toInt()
+        val totalW = (count * pillW + (count - 1) * spacing + pad * 2).toInt()
         val totalH = (pillH + pad * 2).toInt()
 
-        // Convert key center to screen coordinates
-        val viewLocation = IntArray(2)
+        // Convert key center to screen coordinates (using pre-allocated viewLocation)
         anchor.getLocationInWindow(viewLocation)
         val viewX = viewLocation[0]
         val viewY = viewLocation[1]
 
         val keyCenterX = viewX + keyLeft + keyW / 2f
-        // Always float above the key — in screen/window space so no clipping
+        val screenWidth = anchor.rootView.width.takeIf { it > 0 } ?: (anchor.width.takeIf { it > 0 } ?: 1080)
+        val margin = 6f * density
+
+        // Zone-aware layout: ensure candidate #0 (Shift alternative) is anchored directly
+        // above the key center so releasing commits it immediately. Remaining candidates fan inward.
+        val (arrangedLabels, anchorIndex) = when {
+            keyCenterX < screenWidth * 0.35f -> {
+                // Left zone: Candidate 0 at index 0 (above key), variants fan right
+                displayAlts to 0
+            }
+            keyCenterX > screenWidth * 0.65f -> {
+                // Right zone: Candidate 0 at rightmost index (above key), variants fan left
+                displayAlts.reversed() to (count - 1)
+            }
+            else -> {
+                // Center zone: Candidate 0 centered above key
+                when (count) {
+                    1 -> displayAlts to 0
+                    2 -> if (keyCenterX <= screenWidth * 0.5f) displayAlts to 0 else displayAlts.reversed() to 1
+                    3 -> listOf(displayAlts[1], displayAlts[0], displayAlts[2]) to 1
+                    else -> listOf(displayAlts[1], displayAlts[0], displayAlts[2], displayAlts[3]) to 1
+                }
+            }
+        }
+
+        alternateView.setAlternates(arrangedLabels, density, initialIndex = anchorIndex)
+
+        val anchorPillCenterInPopup = pad + anchorIndex * (pillW + spacing) + pillW / 2f
         val popupScreenTop = (viewY + keyTop - 8f * density - totalH).toInt()
-        val popupScreenLeft = (keyCenterX - totalW / 2f)
-            .coerceAtLeast(6f * density)
-            .coerceAtMost(anchor.rootView.width - totalW - 6f * density)
+        val popupScreenLeft = (keyCenterX - anchorPillCenterInPopup)
+            .coerceAtLeast(margin)
+            .coerceAtMost(screenWidth - totalW - margin)
             .toInt()
 
         // Pass pill layout to the view before showing (so onDraw has correct geometry)
         alternateView.setPillLayout(
-            displayAlts.size,
+            count,
             pillW,
             pillH,
             spacing,
@@ -217,11 +249,11 @@ internal class AlternatePopupWindow(context: Context) {
             invalidate()
         }
 
-        fun setAlternates(alts: List<String>, density: Float) {
+        fun setAlternates(alts: List<String>, density: Float, initialIndex: Int = 0) {
             this.density = density
             labels.clear()
             labels.addAll(alts)
-            selectedIndex = 0
+            selectedIndex = initialIndex.coerceIn(0, (alts.size - 1).coerceAtLeast(0))
             pillCount = alts.size
         }
 

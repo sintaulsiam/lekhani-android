@@ -152,6 +152,7 @@ fun PreferencesTabContent(
     var keyGlowRipple by remember { mutableStateOf(prefs.keyGlowRippleEnabled) }
     var showKeyHints by remember { mutableStateOf(prefs.showKeyHints) }
     var swipeUpFlickEnabled by remember { mutableStateOf(prefs.swipeUpFlickEnabled) }
+    var longPressClipboardShortcuts by remember { mutableStateOf(prefs.longPressClipboardShortcuts) }
 
     var smartInitialKarEnabled by remember { mutableStateOf(prefs.smartInitialKarEnabled) }
     var hasantaConjunctsEnabled by remember { mutableStateOf(prefs.hasantaConjunctsEnabled) }
@@ -214,7 +215,7 @@ fun PreferencesTabContent(
             matchesSearch("gestures", "swipe", "spacebar swipe", "cursor slide", "delete", "bottom row", "volume", "জেশ্চার", "সোয়াইপ", "স্পেসবার", "কার্সর", "মোছা", "ভলিউম")
 
     val showDisplay = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.DISPLAY) &&
-            matchesSearch("display", "font", "scale", "borders", "popups", "previews", "spacebar label", "hints", "subscripts", "flick", "ripple", "ডিসপ্লে", "ফন্ট", "স্কেল", "বর্ডার", "প্রিভিউ", "সংকেত", "সাবস্ক্রিপ্ট", "ফ্লিক")
+            matchesSearch("display", "font", "scale", "borders", "popups", "previews", "spacebar label", "hints", "subscripts", "flick", "ripple", "copy", "paste", "clipboard", "ডিসপ্লে", "ফন্ট", "স্কেল", "বর্ডার", "প্রিভিউ", "সংকেত", "সাবস্ক্রিপ্ট", "ফ্লিক", "কপি", "পেস্ট")
 
     val showSound = (selectedCategory == PrefCategory.ALL || selectedCategory == PrefCategory.SOUND) &&
             matchesSearch("sound", "haptics", "vibration", "volume", "bubble", "mechanical", "system", "সাউন্ড", "ভাইব্রেশন", "কম্পন", "শব্দ", "ভলিউম")
@@ -1424,6 +1425,35 @@ fun PreferencesTabContent(
                             onCheckedChange = {
                                 swipeUpFlickEnabled = it
                                 prefs.swipeUpFlickEnabled = it
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    // Long-Press Clipboard Shortcuts (C, V, X, A)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = if (isEnglish) "Long-Press Copy & Paste" else "লং প্রেসে কপি ও পেস্ট",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                            Text(
+                                text = if (isEnglish) "Long-press C to copy, V to paste, X to cut on English / Avro"
+                                       else "ইংরেজি ও অভ্রতে C চেপে কপি, V চেপে পেস্ট, X চেপে কাট",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = longPressClipboardShortcuts,
+                            onCheckedChange = {
+                                longPressClipboardShortcuts = it
+                                prefs.longPressClipboardShortcuts = it
                             }
                         )
                     }

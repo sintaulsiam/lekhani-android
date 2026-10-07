@@ -231,6 +231,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private var isFlickDownActive: Boolean = false
     private var flickThresholdPx: Float = 0f
 
+    // Power-user long-press clipboard shortcuts (C=Copy, V=Paste, X=Cut, A=SelectAll) on Latin layouts
+    private var longPressClipboardShortcuts: Boolean = false
+
     // Bilateral Thumb Aura paint (Probaho 2.0 vowel-consonant realm tint)
     private var showBilateralAura: Boolean = false
     private val vowelAuraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -417,15 +420,31 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 ?: performHapticFeedback(
                     HapticFeedbackConstants.LONG_PRESS)
             val longAction = key.activeLongPressAction(isShifted)
+
+            // Optional clipboard shortcuts on English/Avro Latin layouts (C=Copy, V=Paste, X=Cut, A=SelectAll)
+            if (longPressClipboardShortcuts && (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO)) {
+                val clipboardAction = when (key.label.lowercase()) {
+                    "c" -> KeyAction.Copy
+                    "v" -> KeyAction.Paste
+                    "x" -> KeyAction.Cut
+                    "a" -> KeyAction.SelectAll
+                    else -> null
+                }
+                if (clipboardAction != null) {
+                    keyPreviewPopup.dismiss()
+                    keyListener?.onKey(key, clipboardAction)
+                    invalidate()
+                    return@Runnable
+                }
+            }
+
             val actionToken = (key.action as? KeyAction.Character)?.token
-            val rawChar = key.displayLabel(isShifted)
-            val alts = (actionToken?.let { com.lekhani.android.model.BengaliAlternates.getAlternates(it) })
-                ?: com.lekhani.android.model.BengaliAlternates.getAlternates(rawChar)
+            val alts = getResolvedAlternates(key, isShifted)
             when {
                 key.action == KeyAction.Space || key.action == KeyAction.SwitchLayout -> {
                     keyListener?.onSpaceLongPress()
                 }
-                !alts.isNullOrEmpty() -> {
+                alts.isNotEmpty() -> {
                     showAlternatePopup(resolvedKeys[pressedKeyIndex], alts)
                 }
                 longAction != null -> {
@@ -442,6 +461,60 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
             invalidate()
         }
+    }
+
+    /**
+     * Resolves up to 4 alternate characters for long-press popups.
+     * Prioritizes the layout-specific Shift character as Candidate #0 on fixed and
+     * Bengali layouts (where Shift is a distinct letter or modifier, e.g. ক -> খ, া -> অ).
+     * For Latin letters (English/Avro), numbers and diacritics are prioritized.
+     */
+    private fun getResolvedAlternates(key: Key, isShifted: Boolean): Array<String> {
+        if (key.action !is KeyAction.Character) return emptyArray()
+
+        val activeChar = key.displayLabel(isShifted)
+        val candidates = ArrayList<String>(4)
+
+        // 1. Shift alternative (Primary on fixed & flow layouts where shift is a distinct character)
+        val shiftedChar = if (isShifted) key.label else key.shiftedLabel
+        if (!shiftedChar.isNullOrEmpty() && shiftedChar != activeChar) {
+            val isCaseShiftOnly = shiftedChar.equals(activeChar, ignoreCase = true)
+            if (!isCaseShiftOnly) {
+                candidates.add(shiftedChar)
+            }
+        }
+
+        // 2. Explicit key longPressAction character (if configured)
+        val explicitLongChar = (key.activeLongPressAction(isShifted) as? KeyAction.Character)?.token
+        if (!explicitLongChar.isNullOrEmpty() && explicitLongChar != activeChar && !candidates.contains(explicitLongChar)) {
+            candidates.add(explicitLongChar)
+        }
+
+        // 3. Key hint label (e.g. top-row numbers or dead-key shortcuts like ৎ, ঁ)
+        val hint = key.displayHint(isShifted)
+        if (!hint.isNullOrEmpty() && hint != activeChar && !candidates.contains(hint)) {
+            candidates.add(hint)
+        }
+
+        // 4. Secondary variants & conjuncts from BengaliAlternates dictionary
+        val rawToken = (key.action as? KeyAction.Character)?.token
+        val rawAlts = (rawToken?.let { com.lekhani.android.model.BengaliAlternates.getAlternates(it) })
+            ?: com.lekhani.android.model.BengaliAlternates.getAlternates(activeChar)
+        if (rawAlts != null) {
+            for (alt in rawAlts) {
+                if (candidates.size >= 4) break
+                if (alt.isNotEmpty() && alt != activeChar && !candidates.contains(alt)) {
+                    candidates.add(alt)
+                }
+            }
+        }
+
+        // 5. Fallback for Latin keys without hint: add uppercase shift if no other alternate exists
+        if (candidates.isEmpty() && !shiftedChar.isNullOrEmpty() && shiftedChar != activeChar) {
+            candidates.add(shiftedChar)
+        }
+
+        return if (candidates.isEmpty()) emptyArray() else candidates.toTypedArray()
     }
 
     private fun showAlternatePopup(resolvedKey: ResolvedKey, alts: Array<String>) {
@@ -599,6 +672,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.showBilateralAura = prefs.showBilateralAura
         this.showKeyHints = prefs.showKeyHints
         this.swipeUpFlickEnabled = prefs.swipeUpFlickEnabled
+        this.longPressClipboardShortcuts = prefs.longPressClipboardShortcuts
 
         val tf = when (prefs.fontStyle) {
             KeyboardPreferences.FONT_SERIF -> Typeface.SERIF

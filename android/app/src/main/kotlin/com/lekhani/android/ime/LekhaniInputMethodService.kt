@@ -1241,7 +1241,8 @@ class LekhaniInputMethodService : InputMethodService() {
                     updateNumberSymbolsKeyboard()
                     return
                 }
-                KeyAction.CursorLeft, KeyAction.CursorRight, KeyAction.Tab, KeyAction.ToggleGboardVowels -> return
+                KeyAction.CursorLeft, KeyAction.CursorRight, KeyAction.Tab, KeyAction.ToggleGboardVowels,
+                KeyAction.Copy, KeyAction.Paste, KeyAction.Cut, KeyAction.SelectAll -> return
             }
         }
 
@@ -1308,6 +1309,31 @@ class LekhaniInputMethodService : InputMethodService() {
             KeyAction.ToggleGboardVowels -> {
                 val current = keyboardView?.isGboardKarsActive ?: false
                 keyboardView?.setGboardKarsActive(!current, consonant = "")
+            }
+            KeyAction.Copy -> {
+                val ic = currentInputConnection
+                ic?.performContextMenuAction(android.R.id.copy)
+                keyboardView?.let { feedbackManager?.onKeyFeedback(it) }
+            }
+            KeyAction.Paste -> {
+                val ic = currentInputConnection
+                ic?.performContextMenuAction(android.R.id.paste)
+                keyboardView?.let { feedbackManager?.onKeyFeedback(it) }
+            }
+            KeyAction.Cut -> {
+                val ic = currentInputConnection
+                ic?.performContextMenuAction(android.R.id.cut)
+                keyboardView?.let { feedbackManager?.onKeyFeedback(it) }
+            }
+            KeyAction.SelectAll -> {
+                val ic = currentInputConnection
+                if (ic?.performContextMenuAction(android.R.id.selectAll) != true) {
+                    val text = ic?.getExtractedText(android.view.inputmethod.ExtractedTextRequest(), 0)?.text
+                    if (!text.isNullOrEmpty()) {
+                        ic.setSelection(0, text.length)
+                    }
+                }
+                keyboardView?.let { feedbackManager?.onKeyFeedback(it) }
             }
         }
     }

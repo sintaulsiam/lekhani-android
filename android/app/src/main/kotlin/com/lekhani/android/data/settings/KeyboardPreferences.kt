@@ -116,6 +116,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_SWIPE_UP_FLICK, true)
         set(value) = prefs.edit().putBoolean(KEY_SWIPE_UP_FLICK, value).apply()
 
+    var longPressClipboardShortcuts: Boolean
+        get() = prefs.getBoolean(KEY_LONG_PRESS_CLIPBOARD_SHORTCUTS, false)
+        set(value) = prefs.edit().putBoolean(KEY_LONG_PRESS_CLIPBOARD_SHORTCUTS, value).apply()
+
     // ── Global Bengali Smart Input Preferences ──────────────────────────────
     var smartInitialKarEnabled: Boolean
         get() = prefs.getBoolean(KEY_SMART_INITIAL_KAR, true)
@@ -626,6 +630,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SHOW_BILATERAL_AURA = "show_bilateral_aura"
         const val KEY_SHOW_KEY_HINTS = "show_key_hints"
         const val KEY_SWIPE_UP_FLICK = "swipe_up_flick"
+        const val KEY_LONG_PRESS_CLIPBOARD_SHORTCUTS = "long_press_clipboard_shortcuts"
         const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
 
         const val KEY_CANDIDATE_STRIP_ENABLED = "candidate_strip_enabled"

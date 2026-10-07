@@ -42,6 +42,14 @@ sealed class KeyAction {
     data object Tab : KeyAction()
     /** Toggle Gboard dynamic kars layer back to independent vowels layer */
     data object ToggleGboardVowels : KeyAction()
+    /** Context menu action: Copy selected text to clipboard */
+    data object Copy : KeyAction()
+    /** Context menu action: Paste text from clipboard */
+    data object Paste : KeyAction()
+    /** Context menu action: Cut selected text to clipboard */
+    data object Cut : KeyAction()
+    /** Context menu action: Select all text */
+    data object SelectAll : KeyAction()
 }
 
 /**
