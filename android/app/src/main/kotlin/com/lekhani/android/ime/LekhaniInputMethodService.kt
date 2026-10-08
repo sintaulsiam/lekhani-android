@@ -206,7 +206,6 @@ class LekhaniInputMethodService : InputMethodService() {
     private var lastMeasuredKeyboardHeightPx: Int = 0
     private var lastMeasuredStripHeightPx: Int = 0
     private var lastTouchCoordinates: Pair<Float, Float>? = null
-    private var lastNavBarBottomInset: Int = 0
     private var lastNavBarLeftInset: Int = 0
     private var lastNavBarRightInset: Int = 0
 
@@ -3976,18 +3975,16 @@ class LekhaniInputMethodService : InputMethodService() {
         if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
             root.setPadding(0, 0, 0, 0)
         } else {
-            root.setPadding(lastNavBarLeftInset, 0, lastNavBarRightInset, lastNavBarBottomInset)
+            root.setPadding(lastNavBarLeftInset, 0, lastNavBarRightInset, 0)
         }
         root.requestLayout()
     }
 
     private fun updateNavBarInsets(windowInsets: WindowInsetsCompat) {
         val navBars = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
-        if (lastNavBarBottomInset != navBars.bottom ||
-            lastNavBarLeftInset != navBars.left ||
+        if (lastNavBarLeftInset != navBars.left ||
             lastNavBarRightInset != navBars.right
         ) {
-            lastNavBarBottomInset = navBars.bottom
             lastNavBarLeftInset = navBars.left
             lastNavBarRightInset = navBars.right
             applyNavBarPadding()

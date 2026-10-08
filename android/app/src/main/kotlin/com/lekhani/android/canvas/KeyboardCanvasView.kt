@@ -908,7 +908,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 else -> 220f
             }
         }
-        val defaultHeightDp = baseHeightDp * heightScale + bottomChinPaddingDp
+        val effectiveChinDp = if (isLandscape || formFactor == KeyboardPreferences.FormFactor.FLOATING) 0f else bottomChinPaddingDp
+        val defaultHeightDp = baseHeightDp * heightScale + effectiveChinDp
         val rawDesiredHeight = (defaultHeightDp * density).toInt()
         val desiredHeight = if (isLandscape) {
             val maxLandscapeHeight = (resources.displayMetrics.heightPixels * 0.42f).toInt()
@@ -955,7 +956,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val currentLayout = layout ?: return
         val hasExtraNumberRow = showDedicatedNumberRow && !isNumberSymbolsActive()
         val rowCount = currentLayout.rows.size + (if (hasExtraNumberRow) 1 else 0)
-        val chinPx = bottomChinPaddingDp * density
+        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val effectiveChinDp = if (isLandscape || formFactor == KeyboardPreferences.FormFactor.FLOATING) 0f else bottomChinPaddingDp
+        val chinPx = effectiveChinDp * density
         val availableH = (h - chinPx).coerceAtLeast(100f)
         val totalRows = rowCount + 1
         val effectiveMarginV = if (availableH / totalRows < 40f * density) {
@@ -994,7 +997,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
         if (w <= 0f || h <= 0f) return
 
         val density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
-        val chinPx = bottomChinPaddingDp * density
+        val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val effectiveChinDp = if (isLandscape || formFactor == KeyboardPreferences.FormFactor.FLOATING) 0f else bottomChinPaddingDp
+        val chinPx = effectiveChinDp * density
         val availableH = (h - chinPx).coerceAtLeast(100f)
 
         when (formFactor) {

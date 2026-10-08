@@ -69,7 +69,7 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putFloat(KEY_MARGIN_V, value).apply()
 
     var bottomChinPadding: Float
-        get() = prefs.getFloat(KEY_BOTTOM_CHIN, 0f)
+        get() = prefs.getFloat(KEY_BOTTOM_CHIN, 16f)
         set(value) = prefs.edit().putFloat(KEY_BOTTOM_CHIN, value).apply()
 
     var longPressDelayMs: Long
