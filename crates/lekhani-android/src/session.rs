@@ -443,6 +443,27 @@ pub struct TypingResult {
     pub cursor_position: u32,
 }
 
+/// Project "পশ্চাৎ-শোধন" (Retro-Correction) Suggestion
+///
+/// Surfaces a discrete, 1-tap contextual fix chip when a grammatical agreement
+/// clash (e.g. আপনি + আছো -> আছেন) or homophone error (e.g. বই পরা -> পড়া)
+/// is detected in the surrounding sentence context.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct RetroCorrection {
+    /// The misspelled or grammatically clashing original word
+    pub original_word: String,
+    /// The recommended contextual replacement
+    pub replacement_word: String,
+    /// Explanation of why the correction is proposed
+    pub reason: String,
+    /// Formatted UI chip label (e.g. "🪄 আছেন")
+    pub chip_label: String,
+    /// Number of Unicode grapheme characters to delete backwards before committing replacement
+    pub chars_to_backspace: u32,
+    /// The text to commit after backspacing
+    pub text_to_commit: String,
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Internal session state  (never crosses the FFI boundary)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -2671,6 +2692,247 @@ impl AndroidLekhaniSession {
     pub fn load_english_dictionary(&self, path: String) -> bool {
         crate::english::load_english_dictionary_from_path(&path)
     }
+
+    /// Evaluates the active clause for Project "পশ্চাৎ-শোধন" (Retro-Correction).
+    pub fn get_retro_correction(&self) -> Option<RetroCorrection> {
+        let state = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        evaluate_retro_correction(&state.surrounding_context)
+    }
+
+    /// Atomically applies a retro-correction to the active editor.
+    pub fn apply_retro_correction(
+        &self,
+        correction: RetroCorrection,
+    ) -> Result<TypingResult, LekhaniError> {
+        let mut state = match self.state.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+
+        if state.surrounding_context_len >= correction.chars_to_backspace as usize {
+            let trim_chars = state.surrounding_context_len - correction.chars_to_backspace as usize;
+            let byte_idx = state
+                .surrounding_context
+                .char_indices()
+                .nth(trim_chars)
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            state.surrounding_context.truncate(byte_idx);
+            state.surrounding_context_len = trim_chars;
+        }
+
+        state.append_to_context(&correction.text_to_commit);
+
+        Ok(TypingResult {
+            preedit: String::new(),
+            commit_text: Some(correction.text_to_commit),
+            candidates: Vec::new(),
+            cursor_position: 0,
+        })
+    }
+}
+
+/// Project "পশ্চাৎ-শোধন" (Retro-Correction) Engine
+///
+/// Analyzes the active clause in the surrounding context to surface discrete, 1-tap
+/// corrections for honorific clashes, intimate clashes, and contextual homophones.
+pub fn evaluate_retro_correction(surrounding_context: &str) -> Option<RetroCorrection> {
+    if surrounding_context.is_empty() {
+        return None;
+    }
+
+    let clause = surrounding_context
+        .rsplit(['।', '?', '!', '\n'])
+        .next()
+        .unwrap_or(surrounding_context)
+        .trim();
+
+    let tokens: Vec<&str> = clause.split_whitespace().collect();
+    if tokens.is_empty() {
+        return None;
+    }
+
+    let token_count = tokens.len();
+
+    // 1. Honorific Concordance: Formal Subject (আপনি, আপনারা, তিনি, তাঁরা)
+    let has_formal_subject = tokens.iter().any(|&t| {
+        matches!(
+            t,
+            "আপনি" | "আপনারা" | "আপনার" | "আপনাকে" | "তিনি" | "তাঁরা" | "তাঁর" | "তাঁকে" | "উনি"
+        )
+    });
+
+    if has_formal_subject {
+        for (idx, &token) in tokens.iter().enumerate().rev().take(2) {
+            let replacement = match token {
+                "আছো" => Some("আছেন"),
+                "করছো" => Some("করছেন"),
+                "যাচ্ছো" => Some("যাচ্ছেন"),
+                "বলছো" => Some("বলছেন"),
+                "খাচ্ছো" => Some("খাচ্ছেন"),
+                "দেখছো" => Some("দেখছেন"),
+                "শুনছো" => Some("শুনছেন"),
+                "আসছো" => Some("আসছেন"),
+                _ => None,
+            };
+
+            if let Some(repl) = replacement {
+                let offset_from_end = token_count - 1 - idx;
+                let chars_to_backspace = if offset_from_end == 0 {
+                    token.chars().count() as u32
+                } else {
+                    let trailing_tokens = &tokens[idx..];
+                    trailing_tokens.join(" ").chars().count() as u32
+                };
+
+                let text_to_commit = if offset_from_end == 0 {
+                    repl.to_string()
+                } else {
+                    let mut text = repl.to_string();
+                    for t in &tokens[idx + 1..] {
+                        text.push(' ');
+                        text.push_str(t);
+                    }
+                    text
+                };
+
+                return Some(RetroCorrection {
+                    original_word: token.to_string(),
+                    replacement_word: repl.to_string(),
+                    reason: "শ্রদ্ধাবাচক সর্বনামের সাথে ক্রিয়ার সঙ্গতি".to_string(),
+                    chip_label: format!("🪄 {}", repl),
+                    chars_to_backspace,
+                    text_to_commit,
+                });
+            }
+        }
+    }
+
+    // 2. Intimate Concordance: Intimate Subject (তুই, তোরা, তোর)
+    let has_intimate_subject = tokens.iter().any(|&t| matches!(t, "তুই" | "তোরা" | "তোর" | "তোকে"));
+    if has_intimate_subject {
+        for (idx, &token) in tokens.iter().enumerate().rev().take(2) {
+            let replacement = match token {
+                "আছো" | "আছেন" => Some("আছিস"),
+                "করছো" | "করছেন" => Some("করছিস"),
+                "যাচ্ছো" | "যাচ্ছেন" => Some("যাচ্ছিস"),
+                "বলছো" | "বলছেন" => Some("বলছিস"),
+                "খাচ্ছো" | "খাচ্ছেন" => Some("খাচ্ছিস"),
+                _ => None,
+            };
+
+            if let Some(repl) = replacement {
+                let offset_from_end = token_count - 1 - idx;
+                let chars_to_backspace = if offset_from_end == 0 {
+                    token.chars().count() as u32
+                } else {
+                    let trailing_tokens = &tokens[idx..];
+                    trailing_tokens.join(" ").chars().count() as u32
+                };
+
+                let text_to_commit = if offset_from_end == 0 {
+                    repl.to_string()
+                } else {
+                    let mut text = repl.to_string();
+                    for t in &tokens[idx + 1..] {
+                        text.push(' ');
+                        text.push_str(t);
+                    }
+                    text
+                };
+
+                return Some(RetroCorrection {
+                    original_word: token.to_string(),
+                    replacement_word: repl.to_string(),
+                    reason: "ঘনিষ্ঠ সর্বনামের সাথে ক্রিয়ার সঙ্গতি".to_string(),
+                    chip_label: format!("🪄 {}", repl),
+                    chars_to_backspace,
+                    text_to_commit,
+                });
+            }
+        }
+    }
+
+    // 3. Contextual Homophone Retro-Correction
+    if token_count >= 2 {
+        for idx in 0..token_count - 1 {
+            let t1 = tokens[idx];
+            let t2 = tokens[idx + 1];
+
+            // Case A: [বই, পরা] or [পরা, বই]
+            if (matches!(t1, "বই" | "পত্রিকা" | "ক্লাস" | "পরীক্ষা" | "লেখা") && t2 == "পরা")
+                || (t1 == "পরা" && matches!(t2, "বই" | "পত্রিকা" | "ক্লাস" | "পরীক্ষা" | "লেখা"))
+            {
+                let target_idx = if t2 == "পরা" { idx + 1 } else { idx };
+                let offset_from_end = token_count - 1 - target_idx;
+                let chars_to_backspace = if offset_from_end == 0 {
+                    t2.chars().count() as u32
+                } else {
+                    let trailing_tokens = &tokens[target_idx..];
+                    trailing_tokens.join(" ").chars().count() as u32
+                };
+
+                let text_to_commit = if offset_from_end == 0 {
+                    "পড়া".to_string()
+                } else {
+                    let mut text = "পড়া".to_string();
+                    for t in &tokens[target_idx + 1..] {
+                        text.push(' ');
+                        text.push_str(t);
+                    }
+                    text
+                };
+
+                return Some(RetroCorrection {
+                    original_word: "পরা".to_string(),
+                    replacement_word: "পড়া".to_string(),
+                    reason: "বই পড়ার সাথে সঙ্গতিপূর্ণ বানান".to_string(),
+                    chip_label: "🪄 পড়া".to_string(),
+                    chars_to_backspace,
+                    text_to_commit,
+                });
+            }
+
+            // Case B: [শার্ট, পড়া] or [পড়া, শার্ট]
+            if (matches!(t1, "শার্ট" | "প্যান্ট" | "জামা" | "কাপড়" | "জুতো" | "ঘড়ি") && t2 == "পড়া")
+                || (t1 == "পড়া" && matches!(t2, "শার্ট" | "প্যান্ট" | "জামা" | "কাপড়" | "জুতো" | "ঘড়ি"))
+            {
+                let target_idx = if t2 == "পড়া" { idx + 1 } else { idx };
+                let offset_from_end = token_count - 1 - target_idx;
+                let chars_to_backspace = if offset_from_end == 0 {
+                    t2.chars().count() as u32
+                } else {
+                    let trailing_tokens = &tokens[target_idx..];
+                    trailing_tokens.join(" ").chars().count() as u32
+                };
+
+                let text_to_commit = if offset_from_end == 0 {
+                    "পরা".to_string()
+                } else {
+                    let mut text = "পরা".to_string();
+                    for t in &tokens[target_idx + 1..] {
+                        text.push(' ');
+                        text.push_str(t);
+                    }
+                    text
+                };
+
+                return Some(RetroCorrection {
+                    original_word: "পড়া".to_string(),
+                    replacement_word: "পরা".to_string(),
+                    reason: "পোশাক পরার সাথে সঙ্গতিপূর্ণ বানান".to_string(),
+                    chip_label: "🪄 পরা".to_string(),
+                    chars_to_backspace,
+                    text_to_commit,
+                });
+            }
+        }
+    }
+
+    None
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -4083,6 +4345,34 @@ mod tests {
             res_shikkha.preedit, "শিক্ষা",
             "Typist can seamlessly continue typing 'া' to produce 'শিক্ষা'"
         );
+    }
+
+    #[test]
+    fn test_retro_correction_honorific_and_homophone() {
+        // 1. Honorific mismatch: "আপনি কেমন আছো" -> proposes "আছেন"
+        let corr_apni = evaluate_retro_correction("আপনি কেমন আছো").expect("Should detect honorific clash");
+        assert_eq!(corr_apni.original_word, "আছো");
+        assert_eq!(corr_apni.replacement_word, "আছেন");
+        assert_eq!(corr_apni.chip_label, "🪄 আছেন");
+        assert_eq!(corr_apni.chars_to_backspace, 3); // "আছো".chars().count()
+
+        // 2. Intimate mismatch: "তুই কেমন আছো" -> proposes "আছিস"
+        let corr_tui = evaluate_retro_correction("তুই কেমন আছো").expect("Should detect intimate clash");
+        assert_eq!(corr_tui.original_word, "আছো");
+        assert_eq!(corr_tui.replacement_word, "আছিস");
+        assert_eq!(corr_tui.chip_label, "🪄 আছিস");
+
+        // 3. Homophone mismatch: "আমি বই পরা শুরু করলাম" -> proposes "পড়া"
+        let corr_homo = evaluate_retro_correction("আমি বই পরা শুরু").expect("Should detect homophone clash");
+        assert_eq!(corr_homo.original_word, "পরা");
+        assert_eq!(corr_homo.replacement_word, "পড়া");
+
+        // 4. Session application test
+        let session = AndroidLekhaniSession::new();
+        session.set_context("আপনি কেমন আছো".into());
+        let corr = session.get_retro_correction().unwrap();
+        let typing_res = session.apply_retro_correction(corr).unwrap();
+        assert_eq!(typing_res.commit_text, Some("আছেন".into()));
     }
 }
 
