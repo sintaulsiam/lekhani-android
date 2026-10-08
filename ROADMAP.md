@@ -286,3 +286,20 @@
   - `build_vocab.py` training script using HuggingFace Tokenizers with NFC normalizer.
   - Built 99.7% Bengali-first `bengali_vocab_v2.json` and priority loading in `AndroidLekhaniSession::get_neural_predictor()`.
 
+---
+
+## Phase 15: Project বোধ (Bodh) — Sociolinguistic Agreement, Morphological DAG & Retro-Correction (Completed)
+- [x] **Invention 1 — Project "অন্বয়" (Anvaya): Pragmatic & Honorific Agreement Engine**:
+  - Real-time finite-state lattice tracking sociolinguistic honorific tiers (Formal/Honorific, Familiar, Intimate) and discourse styles (Cholit vs Sadhu).
+  - Sub-50 ns zero-allocation concordant verb re-ranking and proactive grammatical synthesis (`[আপনি, কেমন] + aso` ➔ `আছেন` over `আছো`).
+- [x] **Invention 2 — Project "রূপমূল" (Rupmul): Multi-Tier Agglutinative Morphological Synthesizer**:
+  - Validated multi-tier transition DAG: Root ➔ Classifier (Tier 1) ➔ Plural (Tier 2) ➔ Case (Tier 3) ➔ Particle (Tier 4).
+  - High-frequency Sandhi-aware inflection synthesis producing canonical compounds like `মানুষগুলোরও` with zero dictionary bloat.
+- [x] **Invention 3 — Project "ধ্বনি-সেতু" (Dhvani-Setu): Phonological Acoustic Distance Engine**:
+  - Phonological acoustic clustering grouping sibilants (`s`, `sh`), palatals (`c`, `ch`), aspirates (`k`, `kh`, `b`, `bh`), and schwa/syncope vowel elisions.
+  - Sub-microsecond acoustic fingerprint similarity unifying colloquial typing variations (`shundor`, `sundor`, `shndr`).
+- [x] **Invention 4 — Project "পশ্চাৎ-শোধন" (Retro-Correction): Clause-Level Contextual Fixer**:
+  - Non-intrusive 1-tap chip surfacing in the candidate strip when grammatical honorific clashes or homophone mismatches occur (`বই পরা` ➔ `🪄 পড়া`, `আপনি আছো` ➔ `🪄 আছেন`).
+  - Grapheme-accurate backspacing and atomic clause replacement via `get_retro_correction()` and `apply_retro_correction()`.
+
+
