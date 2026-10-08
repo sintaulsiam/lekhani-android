@@ -60,6 +60,10 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.lekhani.android.model.LayoutRegistry
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import com.lekhani.android.theme.KeyboardTheme
 import com.lekhani.android.theme.ThemeRegistry
 import com.lekhani.android.ui.LekhaniSettingsActivity
 import com.lekhani.android.ui.candidate.CandidateBlacklist
@@ -202,6 +206,9 @@ class LekhaniInputMethodService : InputMethodService() {
     private var lastMeasuredKeyboardHeightPx: Int = 0
     private var lastMeasuredStripHeightPx: Int = 0
     private var lastTouchCoordinates: Pair<Float, Float>? = null
+    private var lastNavBarBottomInset: Int = 0
+    private var lastNavBarLeftInset: Int = 0
+    private var lastNavBarRightInset: Int = 0
 
     private var isNumericMode: Boolean = false
     private var isMoreSymbolsMode: Boolean = false
@@ -544,6 +551,9 @@ class LekhaniInputMethodService : InputMethodService() {
         rootInputContainer?.post {
             updateParentLayoutHierarchy(keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING)
         }
+        candidateStripComposeView?.setBackgroundColor(if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) android.graphics.Color.TRANSPARENT else activeTheme.backgroundColor)
+        updateWindowSystemBars(theme = activeTheme)
+        syncNavBarInsets()
         session.setAutoLearnEnabled(keyboardPrefs.autoLearnWordsEnabled)
         updateCandidatesVisibility()
         checkAndShowQuickChip()
@@ -701,7 +711,10 @@ class LekhaniInputMethodService : InputMethodService() {
         } else {
             win.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             win.setGravity(Gravity.BOTTOM)
+            win.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
         }
+        val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
+        updateWindowSystemBars(win, activeTheme)
         rootInputContainer?.post {
             updateParentLayoutHierarchy(keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING)
         }
@@ -711,6 +724,8 @@ class LekhaniInputMethodService : InputMethodService() {
         super.onConfigurationChanged(newConfig)
         if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
             applyFloatingCardLayout(keyboardPrefs.formFactor)
+        } else {
+            syncNavBarInsets()
         }
     }
 
@@ -721,12 +736,12 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     override fun onCreateInputView(): View {
-        window?.window?.decorView?.let { attachLifecycleOwner(it) }
         clipboardView = null
         emojiPickerView = null
         textEditorView = null
         toolsMenuView = null
         resizeOverlayComposeView = null
+        val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
 
         val rootLayout = object : FrameLayout(this) {
             override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -753,7 +768,13 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
             )
         }
+        rootLayout.setBackgroundColor(if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) android.graphics.Color.TRANSPARENT else activeTheme.backgroundColor)
         rootInputContainer = rootLayout
+        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { _, insets ->
+            updateNavBarInsets(insets)
+            WindowInsetsCompat.CONSUMED
+        }
+        syncNavBarInsets()
 
         val cardLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -782,8 +803,6 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         floatingCardContainer = cardLayout
         rootLayout.addView(cardLayout)
-
-        val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
 
         val floatingHeader = ComposeView(this).apply {
             attachLifecycleOwner(this)
@@ -908,6 +927,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 lastMeasuredStripHeightPx = candidateStrip.height
             }
         }
+        candidateStrip.setBackgroundColor(if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) android.graphics.Color.TRANSPARENT else activeTheme.backgroundColor)
         candidateStripComposeView = candidateStrip
         candidateStrip.visibility = View.VISIBLE
         cardLayout.addView(
@@ -3887,6 +3907,7 @@ class LekhaniInputMethodService : InputMethodService() {
             floatingHeaderComposeView?.visibility = View.VISIBLE
             floatingFooterComposeView?.visibility = View.VISIBLE
             root.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            candidateStripComposeView?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
 
             val floatingW = (displayWidth * keyboardPrefs.floatingWidthPercent).toInt()
                 .coerceIn((270 * density).toInt(), (displayWidth - 16 * density).toInt().coerceAtLeast((270 * density).toInt()))
@@ -3930,6 +3951,7 @@ class LekhaniInputMethodService : InputMethodService() {
             floatingHeaderComposeView?.visibility = View.GONE
             floatingFooterComposeView?.visibility = View.GONE
             root.setBackgroundColor(activeTheme.backgroundColor)
+            candidateStripComposeView?.setBackgroundColor(activeTheme.backgroundColor)
 
             card.layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.BOTTOM
@@ -3942,9 +3964,63 @@ class LekhaniInputMethodService : InputMethodService() {
 
             updateParentLayoutHierarchy(isFloating = false)
         }
+        applyNavBarPadding()
+        updateWindowSystemBars(theme = activeTheme)
         card.requestLayout()
         root.requestLayout()
         requestInsetsRecalculation()
+    }
+
+    private fun applyNavBarPadding() {
+        val root = rootInputContainer ?: return
+        if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+            root.setPadding(0, 0, 0, 0)
+        } else {
+            root.setPadding(lastNavBarLeftInset, 0, lastNavBarRightInset, lastNavBarBottomInset)
+        }
+        root.requestLayout()
+    }
+
+    private fun updateNavBarInsets(windowInsets: WindowInsetsCompat) {
+        val navBars = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+        if (lastNavBarBottomInset != navBars.bottom ||
+            lastNavBarLeftInset != navBars.left ||
+            lastNavBarRightInset != navBars.right
+        ) {
+            lastNavBarBottomInset = navBars.bottom
+            lastNavBarLeftInset = navBars.left
+            lastNavBarRightInset = navBars.right
+            applyNavBarPadding()
+        }
+    }
+
+    private fun syncNavBarInsets() {
+        val currentInsets = rootInputContainer?.let { ViewCompat.getRootWindowInsets(it) }
+            ?: window?.window?.decorView?.let { ViewCompat.getRootWindowInsets(it) }
+        if (currentInsets != null) {
+            updateNavBarInsets(currentInsets)
+        } else {
+            applyNavBarPadding()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun updateWindowSystemBars(win: Window? = window?.window, theme: KeyboardTheme) {
+        val targetWin = win ?: window?.window ?: return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val insetsController = WindowCompat.getInsetsController(targetWin, targetWin.decorView)
+                insetsController.isAppearanceLightNavigationBars = !theme.isDark
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                targetWin.isNavigationBarContrastEnforced = false
+            }
+            targetWin.navigationBarColor = if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
+                android.graphics.Color.TRANSPARENT
+            } else {
+                theme.backgroundColor
+            }
+        } catch (_: Exception) {}
     }
 
     private fun handleFloatingDrag(dx: Float, dy: Float) {
