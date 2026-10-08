@@ -4270,26 +4270,48 @@ class LekhaniInputMethodService : InputMethodService() {
                 // It is cleared on the first keystroke of the next word, preventing the
                 // "post-space flash" where predictions briefly overwrite the empty strip.
                 if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() &&
-                    effectiveContext.isNotBlank() && !suppressNextWordAfterCommit &&
-                    keyboardPrefs.isNextWordActive(queryLayout)) {
-                    val nextWords = try {
-                        session.predictNextWords(5u)
+                    effectiveContext.isNotBlank() && !suppressNextWordAfterCommit) {
+                    val retroCorrection = try {
+                        session.getRetroCorrection()
                     } catch (_: Exception) {
-                        emptyList()
+                        null
                     }
-                    if (nextWords.isNotEmpty()) {
+                    if (retroCorrection != null) {
                         withContext(Dispatchers.Main) {
                             if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() &&
                                 activeInspectedWord == null && !suppressNextWordAfterCommit &&
                                 session.getLayout() == queryLayout) {
                                 if (_candidateState.value !is CandidateStripState.Undo) {
-                                    val curCandidates = (_candidateState.value as? CandidateStripState.Candidates)?.items
-                                    val trimmedCtx = effectiveContext.trimEnd()
-                                    // If strip already displays predictions with the exact same top candidate,
-                                    // or if predictions were already published for this context, avoid redundant recomposition churn
-                                    if (trimmedCtx != lastPredictedContext && (curCandidates.isNullOrEmpty() || curCandidates.firstOrNull()?.text != nextWords.firstOrNull())) {
-                                        lastPredictedContext = trimmedCtx
-                                        publishCandidates(nextWords)
+                                    _candidateState.value = CandidateStripState.RetroCorrectionChip(
+                                        originalWord = retroCorrection.originalWord,
+                                        replacementWord = retroCorrection.replacementWord,
+                                        reason = retroCorrection.reason,
+                                        onApply = { applyRetroCorrectionSafe(retroCorrection) }
+                                    )
+                                    updateCandidatesVisibility()
+                                }
+                            }
+                        }
+                    } else if (keyboardPrefs.isNextWordActive(queryLayout)) {
+                        val nextWords = try {
+                            session.predictNextWords(5u)
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                        if (nextWords.isNotEmpty()) {
+                            withContext(Dispatchers.Main) {
+                                if (!isCurrentFieldPrivate && preeditShadow.isEmpty() && rawInputBuffer.isEmpty() &&
+                                    activeInspectedWord == null && !suppressNextWordAfterCommit &&
+                                    session.getLayout() == queryLayout) {
+                                    if (_candidateState.value !is CandidateStripState.Undo) {
+                                        val curCandidates = (_candidateState.value as? CandidateStripState.Candidates)?.items
+                                        val trimmedCtx = effectiveContext.trimEnd()
+                                        // If strip already displays predictions with the exact same top candidate,
+                                        // or if predictions were already published for this context, avoid redundant recomposition churn
+                                        if (trimmedCtx != lastPredictedContext && (curCandidates.isNullOrEmpty() || curCandidates.firstOrNull()?.text != nextWords.firstOrNull())) {
+                                            lastPredictedContext = trimmedCtx
+                                            publishCandidates(nextWords)
+                                        }
                                     }
                                 }
                             }
@@ -4298,6 +4320,23 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
             }
         }
+    }
+
+    private fun applyRetroCorrectionSafe(retro: com.lekhani.android.ffi.RetroCorrection) {
+        val ic = currentInputConnection ?: return
+        ic.beginBatchEdit()
+        try {
+            ic.deleteSurroundingText(retro.charsToBackspace.toInt(), 0)
+            ic.commitText(retro.textToCommit, 1)
+        } finally {
+            ic.endBatchEdit()
+        }
+        try {
+            session.applyRetroCorrection(retro)
+        } catch (_: Exception) {
+        }
+        clearCandidates()
+        refreshSurroundingContext()
     }
 
     /**

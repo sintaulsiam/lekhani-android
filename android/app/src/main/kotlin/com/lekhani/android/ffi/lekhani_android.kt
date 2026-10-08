@@ -824,6 +824,12 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -853,6 +859,8 @@ internal interface UniffiLib : Library {
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_add_user_word(`ptr`: Pointer,`word`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_apply_retro_correction(`ptr`: Pointer,`correction`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_clear_autocorrect_rules(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_clear_learned_history(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -873,6 +881,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_learned_words_count(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_retro_correction(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_spatial_log_prob(`ptr`: Pointer,`key`: RustBuffer.ByValue,`touchX`: Float,`touchY`: Float,uniffi_out_err: UniffiRustCallStatus, 
     ): Float
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_user_words(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -958,6 +968,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_func_set_dictionary_directory(`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_func_set_learner_autosave_path(`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_func_update_ranking_from_selection(`chosenIndex`: Int,`rejectedIndex`: Int,`eta`: Float,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun ffi_lekhani_android_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -1077,9 +1089,13 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_func_set_learner_autosave_path(
     ): Short
+    fun uniffi_lekhani_android_checksum_func_update_ranking_from_selection(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_add_autocorrect_rule(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_apply_retro_correction(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_autocorrect_rules(
     ): Short
@@ -1100,6 +1116,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_learned_words_count(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_retro_correction(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_spatial_log_prob(
     ): Short
@@ -1205,10 +1223,16 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_func_set_learner_autosave_path() != 24916.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_func_update_ranking_from_selection() != 19212.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_add_autocorrect_rule() != 17446.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word() != 58732.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_apply_retro_correction() != 46802.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_autocorrect_rules() != 53080.toShort()) {
@@ -1239,6 +1263,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_learned_words_count() != 57943.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_retro_correction() != 31987.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_spatial_log_prob() != 28517.toShort()) {
@@ -1742,6 +1769,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `addUserWord`(`word`: kotlin.String): kotlin.Boolean
     
     /**
+     * Atomically applies a retro-correction to the active editor.
+     */
+    fun `applyRetroCorrection`(`correction`: RetroCorrection): TypingResult
+    
+    /**
      * Clear all custom user autocorrect rules.
      */
     fun `clearAutocorrectRules`(): kotlin.Boolean
@@ -1792,6 +1824,11 @@ public interface AndroidLekhaniSessionInterface {
      * Retrieve the count of auto-learned words from typing stream.
      */
     fun `getLearnedWordsCount`(): kotlin.UInt
+    
+    /**
+     * Evaluates the active clause for Project "পশ্চাৎ-শোধন" (Retro-Correction).
+     */
+    fun `getRetroCorrection`(): RetroCorrection?
     
     /**
      * Retrieve spatial log-probability for a given key label at touch coordinate (x, y).
@@ -2126,6 +2163,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Atomically applies a retro-correction to the active editor.
+     */
+    @Throws(LekhaniException::class)override fun `applyRetroCorrection`(`correction`: RetroCorrection): TypingResult {
+            return FfiConverterTypeTypingResult.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_apply_retro_correction(
+        it, FfiConverterTypeRetroCorrection.lower(`correction`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Clear all custom user autocorrect rules.
      */
     @Throws(LekhaniException::class)override fun `clearAutocorrectRules`(): kotlin.Boolean {
@@ -2278,6 +2331,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     callWithPointer {
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_learned_words_count(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Evaluates the active clause for Project "পশ্চাৎ-শোধন" (Retro-Correction).
+     */override fun `getRetroCorrection`(): RetroCorrection? {
+            return FfiConverterOptionalTypeRetroCorrection.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_retro_correction(
         it, _status)
 }
     }
@@ -3288,6 +3356,79 @@ public object FfiConverterTypeKeyGeometryConfig: FfiConverterRustBuffer<KeyGeome
 
 
 /**
+ * Project "পশ্চাৎ-শোধন" (Retro-Correction) Suggestion
+ *
+ * Surfaces a discrete, 1-tap contextual fix chip when a grammatical agreement
+ * clash (e.g. আপনি + আছো -> আছেন) or homophone error (e.g. বই পরা -> পড়া)
+ * is detected in the surrounding sentence context.
+ */
+data class RetroCorrection (
+    /**
+     * The misspelled or grammatically clashing original word
+     */
+    var `originalWord`: kotlin.String, 
+    /**
+     * The recommended contextual replacement
+     */
+    var `replacementWord`: kotlin.String, 
+    /**
+     * Explanation of why the correction is proposed
+     */
+    var `reason`: kotlin.String, 
+    /**
+     * Formatted UI chip label (e.g. "🪄 আছেন")
+     */
+    var `chipLabel`: kotlin.String, 
+    /**
+     * Number of Unicode grapheme characters to delete backwards before committing replacement
+     */
+    var `charsToBackspace`: kotlin.UInt, 
+    /**
+     * The text to commit after backspacing
+     */
+    var `textToCommit`: kotlin.String
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeRetroCorrection: FfiConverterRustBuffer<RetroCorrection> {
+    override fun read(buf: ByteBuffer): RetroCorrection {
+        return RetroCorrection(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: RetroCorrection) = (
+            FfiConverterString.allocationSize(value.`originalWord`) +
+            FfiConverterString.allocationSize(value.`replacementWord`) +
+            FfiConverterString.allocationSize(value.`reason`) +
+            FfiConverterString.allocationSize(value.`chipLabel`) +
+            FfiConverterUInt.allocationSize(value.`charsToBackspace`) +
+            FfiConverterString.allocationSize(value.`textToCommit`)
+    )
+
+    override fun write(value: RetroCorrection, buf: ByteBuffer) {
+            FfiConverterString.write(value.`originalWord`, buf)
+            FfiConverterString.write(value.`replacementWord`, buf)
+            FfiConverterString.write(value.`reason`, buf)
+            FfiConverterString.write(value.`chipLabel`, buf)
+            FfiConverterUInt.write(value.`charsToBackspace`, buf)
+            FfiConverterString.write(value.`textToCommit`, buf)
+    }
+}
+
+
+
+/**
  * Candidate key alternative ranked by spatial probability
  */
 data class SpatialKeyCandidate (
@@ -3519,7 +3660,7 @@ enum class LekhaniLayoutType {
      */
     NATIONAL,
     /**
-     * Popular phonetic fixed layout (Probhat / प्रभात)
+     * Popular phonetic fixed layout (Probhat / প্রভাত)
      */
     PROBHAT,
     /**
@@ -3581,6 +3722,38 @@ public object FfiConverterOptionalString: FfiConverterRustBuffer<kotlin.String?>
         } else {
             buf.put(1)
             FfiConverterString.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeRetroCorrection: FfiConverterRustBuffer<RetroCorrection?> {
+    override fun read(buf: ByteBuffer): RetroCorrection? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeRetroCorrection.read(buf)
+    }
+
+    override fun allocationSize(value: RetroCorrection?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeRetroCorrection.allocationSize(value)
+        }
+    }
+
+    override fun write(value: RetroCorrection?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeRetroCorrection.write(value, buf)
         }
     }
 }
@@ -3764,6 +3937,31 @@ public object FfiConverterMapStringString: FfiConverterRustBuffer<Map<kotlin.Str
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_func_set_learner_autosave_path(
         FfiConverterString.lower(`path`),_status)
+}
+    
+    
+
+        /**
+         * Phase 4 — Online Perceptron Feedback Loop.
+         *
+         * Called by Kotlin's `onCandidateSelected()` when the user taps a non-top candidate
+         * (i.e. `selectedIndex > 0`). Uses the `RankFeatures` stored from the most recent
+         * `suggest_with_multi_context()` call to perform a single online perceptron weight
+         * update: features of the chosen candidate are up-weighted, features of the top
+         * (rejected) candidate are down-weighted.
+         *
+         * After ~10–20 explicit corrections the ranking weights converge to the user's
+         * personal homophone preferences — 100% on-device, persisted in `user_learned.bin`.
+         *
+         * # Arguments
+         * * `chosen_index`   — strip index the user actually tapped (>0 to have any effect)
+         * * `rejected_index` — strip index of the candidate that was demoted (typically 0)
+         * * `eta`            — learning rate; pass 0 to use the default safe rate (20.0)
+         */ fun `updateRankingFromSelection`(`chosenIndex`: kotlin.UInt, `rejectedIndex`: kotlin.UInt, `eta`: kotlin.Float)
+        = 
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_func_update_ranking_from_selection(
+        FfiConverterUInt.lower(`chosenIndex`),FfiConverterUInt.lower(`rejectedIndex`),FfiConverterFloat.lower(`eta`),_status)
 }
     
     

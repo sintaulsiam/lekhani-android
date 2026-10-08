@@ -53,6 +53,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
@@ -192,6 +193,7 @@ fun CandidateStripView(
             state is CandidateStripState.EmojiSearch -> 0
             state is CandidateStripState.SwipeDeletePreview -> 5
             state is CandidateStripState.Selection -> 6
+            state is CandidateStripState.RetroCorrectionChip && !isToolsMenuOpen -> 8
             hasItems && !showToolbarOverride && !isToolsMenuOpen -> 1
             state is CandidateStripState.Undo && !isToolsMenuOpen -> 3
             state is CandidateStripState.QuickChip && !isToolsMenuOpen && !showToolbarOverride -> 4
@@ -394,6 +396,39 @@ fun CandidateStripView(
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
+                        }
+                    }
+                }
+                8 -> {
+                    val retroState = state as? CandidateStripState.RetroCorrectionChip
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(StripHeight)
+                                .clip(CircleShape)
+                                .clickable { showToolbarOverride = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = if (isEnglish) "Show Toolbar" else "টুলবার প্রদর্শন",
+                                tint = Color(theme.labelColor).copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        if (retroState != null) {
+                            Spacer(Modifier.width(6.dp))
+                            RetroCorrectionPill(
+                                chip = retroState,
+                                onClick = retroState.onApply,
+                                theme = theme,
+                            )
                         }
                     }
                 }
@@ -966,6 +1001,59 @@ private fun QuickChipPill(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+    }
+}
+
+@Composable
+private fun RetroCorrectionPill(
+    chip: CandidateStripState.RetroCorrectionChip,
+    onClick: () -> Unit,
+    theme: KeyboardTheme,
+) {
+    val accentColor = Color(theme.accentColor)
+    val keyBg = Color(theme.keyNormalColor)
+    val labelColor = Color(theme.labelColor)
+
+    Box(
+        modifier = Modifier
+            .height(34.dp)
+            .clip(RoundedCornerShape(17.dp))
+            .background(keyBg)
+            .border(1.dp, accentColor.copy(alpha = 0.6f), RoundedCornerShape(17.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.AutoAwesome,
+                contentDescription = "Retro Correction",
+                tint = accentColor,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = chip.replacementWord,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = labelColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (chip.reason.isNotEmpty()) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "(${chip.reason})",
+                    fontSize = 11.sp,
+                    color = labelColor.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

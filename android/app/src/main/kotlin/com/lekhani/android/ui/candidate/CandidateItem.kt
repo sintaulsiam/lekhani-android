@@ -105,6 +105,17 @@ sealed class CandidateStripState {
         val icon: ImageVector? = null,
         val onDismiss: () -> Unit = {},
     ) : CandidateStripState()
+
+    /**
+     * Project "পশ্চাৎ-শোধন" (Retro-Correction) Chip mode.
+     * Surfaces a 1-tap contextual fix chip when an honorific or homophone clash is detected.
+     */
+    data class RetroCorrectionChip(
+        val originalWord: String,
+        val replacementWord: String,
+        val reason: String,
+        val onApply: () -> Unit,
+    ) : CandidateStripState()
 }
 
 /**
