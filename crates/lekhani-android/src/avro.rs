@@ -29,6 +29,26 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     if candidates.len() <= 1 {
         return;
     }
+    // If candidates already has a concordant verb ranked by Anvaya, preserve it at position 0
+    if let Some(first_cand) = candidates.first() {
+        let first_nfc = crate::probaho::nfc_normalize(first_cand);
+        let lower = input.to_lowercase();
+        let is_concordant = [
+            lekhani_ai::HonorificRegister::FormalHonorific,
+            lekhani_ai::HonorificRegister::Intimate,
+            lekhani_ai::HonorificRegister::Familiar,
+        ]
+        .iter()
+        .any(|&r| {
+            lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(input, r)
+                .or_else(|| lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(&lower, r))
+                .map(|v| crate::probaho::nfc_normalize(v) == first_nfc)
+                .unwrap_or(false)
+        });
+        if is_concordant {
+            return;
+        }
+    }
     // 1. Check static common words (cold-start fallback)
     if let Some(common_list) = get_common_word_candidates(input) {
         if common_list.len() == 1 {
@@ -1032,19 +1052,41 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         selected_idx = 0;
     }
 
-    // 2. Ensure core common words are prioritized at the top of candidate list
+    // 2. Ensure core common words are prioritized at the top of candidate list,
+    // while preserving Anvaya concordant verb if an active honorific agreement exists.
+    let anvaya_state = lekhani_ai::AnvayaAgreementEngine::extract_state(context);
+    let concordant_cand = if anvaya_state.honorific_tier != lekhani_ai::HonorificRegister::Neutral {
+        lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(input, anvaya_state.honorific_tier)
+            .or_else(|| lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(&lower, anvaya_state.honorific_tier))
+    } else {
+        None
+    };
+
     let is_explicit_common =
         get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
     if let Some(&words) = get_common_words()
         .get(input)
         .or_else(|| get_common_words().get(lower.as_str()))
     {
+        let start_idx = if let Some(concordant) = concordant_cand {
+            let conc_nfc = crate::probaho::nfc_normalize(concordant);
+            if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == conc_nfc) {
+                let c = candidates.remove(pos);
+                candidates.insert(0, c);
+            } else {
+                candidates.insert(0, conc_nfc);
+            }
+            1
+        } else {
+            0
+        };
+
         for (i, &w) in words.iter().enumerate() {
             let ws = w.to_string();
             if let Some(pos) = candidates.iter().position(|c| c == &ws) {
                 candidates.remove(pos);
             }
-            candidates.insert(i.min(candidates.len()), ws);
+            candidates.insert((start_idx + i).min(candidates.len()), ws);
         }
         selected_idx = 0;
     } else if let Some(ref collapsed) = collapse_elongation(&lower) {

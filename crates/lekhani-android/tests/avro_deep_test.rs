@@ -910,6 +910,33 @@ fn test_contextual_homophone_disambiguation_matrix() {
     }
     let res4 = session.handle_space().unwrap();
     assert_eq!(res4.commit_text.as_deref(), Some("ভাত "));
+
+    // 5. "আপনি কেমন " -> "aso" should rank "আছেন" higher than "আছো" (Project Anvaya Formal)
+    session.reset();
+    session.set_context("আপনি কেমন ".into());
+    for c in "aso".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    let res5 = session.handle_space().unwrap();
+    assert_eq!(res5.commit_text.as_deref(), Some("আছেন "));
+
+    // 6. "তুই কেমন " -> "aso" should rank "আছিস" higher than "আছো" (Project Anvaya Intimate)
+    session.reset();
+    session.set_context("তুই কেমন ".into());
+    for c in "aso".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    let res6 = session.handle_space().unwrap();
+    assert_eq!(res6.commit_text.as_deref(), Some("আছিস "));
+
+    // 7. "তুমি কেমন " -> "aso" should rank "আছো" (Project Anvaya Familiar)
+    session.reset();
+    session.set_context("তুমি কেমন ".into());
+    for c in "aso".chars() {
+        session.process_key(c.to_string()).unwrap();
+    }
+    let res7 = session.handle_space().unwrap();
+    assert_eq!(res7.commit_text.as_deref(), Some("আছো "));
 }
 
 #[test]
