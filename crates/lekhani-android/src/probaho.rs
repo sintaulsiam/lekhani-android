@@ -453,6 +453,14 @@ pub fn generate_inflectional_suffixes(root: &str) -> Vec<String> {
         inflected.push(format!("{}দের", root));
     }
 
+    // Project "রূপমূল" (Rupmul): Multi-Tier Agglutinative Compounds (e.g. মানুষগুলোর, মানুষগুলোরও)
+    let synthesizer = lekhani_core::morpheme::RupmulGraphSynthesizer::new();
+    for form in synthesizer.synthesize_agglutinations(root) {
+        if !inflected.contains(&form) {
+            inflected.push(form);
+        }
+    }
+
     inflected
 }
 
