@@ -117,18 +117,18 @@ internal class KeyPreviewPopupWindow(context: Context) {
             style = Paint.Style.FILL
             color = 0xFF243048.toInt()
         }
-        private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
             style = Paint.Style.FILL
             color = 0x4D000000
         }
-        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
             style = Paint.Style.STROKE
             strokeWidth = 1.5f
             color = 0x33FFFFFF.toInt()
         }
-        private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
             textAlign = Paint.Align.CENTER
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             color = Color.WHITE
         }
 

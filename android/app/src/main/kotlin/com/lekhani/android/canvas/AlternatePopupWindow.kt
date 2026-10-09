@@ -197,34 +197,35 @@ internal class AlternatePopupWindow(context: Context) {
         private val pillRects = Array(8) { RectF() }
 
         // Pre-allocated paints
-        private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
             style = Paint.Style.FILL
             color = 0xFF243048.toInt()
         }
-        private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
             style = Paint.Style.FILL
             color = 0x4D000000
         }
-        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
             style = Paint.Style.STROKE
             strokeWidth = 1.5f
             color = 0x33FFFFFF.toInt()
         }
-        private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
             style = Paint.Style.FILL
             color = 0xFF00C896.toInt()
         }
-        private val pillBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val pillBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
             style = Paint.Style.FILL
             color = 0x1AFFFFFF.toInt()
         }
-        private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
             textAlign = Paint.Align.CENTER
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             color = Color.WHITE
         }
-        private val selectedTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        private val selectedTextPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
             textAlign = Paint.Align.CENTER
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
             color = Color.BLACK
         }
 

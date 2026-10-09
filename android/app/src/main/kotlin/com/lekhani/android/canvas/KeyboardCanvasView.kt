@@ -143,7 +143,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 invalidate()
             }
         }
-    private val resizeGuidePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val resizeGuidePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
     }
 
@@ -156,27 +156,29 @@ class KeyboardCanvasView @JvmOverloads constructor(
         SideDockButton(SideDockAction.TOGGLE_FLOATING),
     )
     private var isSideDockVisible: Boolean = false
-    private val sideDockBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val sideDockBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = 0x1AFFFFFF.toInt()
     }
-    private val sideDockTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val sideDockTextPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
         color = 0xFFFFFFFF.toInt()
         textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
 
     // Pre-allocated vector icon paths and paints for zero-allocation vector drawing
     private val vectorIconPath = Path()
-    private val vectorIconStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val vectorIconStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
-    private val vectorIconFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val vectorIconFillPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
     }
-    private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
         textAlign = Paint.Align.RIGHT
+        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
     }
 
     // Spacebar cursor slide navigation state
@@ -184,12 +186,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private var spaceSlideLastX: Float = 0f
     private var spaceSlideStepPx: Float = 0f
     private var spaceSlideThresholdPx: Float = 0f
-    private val spaceSlideTrackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val spaceSlideTrackPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f
         color = 0x8000E5B8.toInt()
     }
-    private val spaceSlideThumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val spaceSlideThumbPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = 0xFF00E5B8.toInt()
     }
@@ -202,25 +204,25 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private var backspaceSwipeStartY: Float = 0f
     private var backspaceDeletedWordCount: Int = 0
     private var backspaceSwipeStepPx: Float = 0f
-    private val backspaceBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val backspaceBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = 0xFFE53935.toInt()
     }
-    private val backspaceBadgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val backspaceBadgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
         color = 0xFFFFFFFF.toInt()
         textAlign = Paint.Align.CENTER
         typeface = Typeface.DEFAULT_BOLD
     }
 
     // Key Glow paint (Material 3 Expressive press effect)
-    private val keyGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keyGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2.5f
         color = 0x6600E5B8.toInt()
     }
 
     // Key tactile 3D shadow paint (Material 3 depth)
-    private val keyShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keyShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = 0x44000000
     }
@@ -236,7 +238,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     // Bilateral Thumb Aura paint (Probaho 2.0 vowel-consonant realm tint)
     private var showBilateralAura: Boolean = false
-    private val vowelAuraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val vowelAuraPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
     }
 
@@ -250,7 +252,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
     private var wallpaperBitmap: Bitmap? = null
     private var wallpaperOpacity: Float = 0.25f
-    private val wallpaperPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val wallpaperPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val wallpaperSrcRect = Rect()
     private val wallpaperDstRect = RectF()
 
@@ -286,25 +288,25 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // ── Pre-allocated drawing primitives (ZERO allocation in onDraw) ──────────
 
     // Key backgrounds
-    private val keyBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keyBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = KEY_COLOR_NORMAL
     }
-    private val keyShiftBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keyShiftBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = KEY_COLOR_SHIFT
     }
-    private val keySpaceBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keySpaceBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = KEY_COLOR_SPACE
     }
-    private val keyHasantaBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keyHasantaBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = KEY_COLOR_HASANTA
     }
 
     // Key border
-    private val keyBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val keyBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1.2f
         color = KEY_BORDER_COLOR
@@ -323,49 +325,51 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     // Key labels
-    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
         color = LABEL_COLOR
         textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
     }
-    private val labelPaintSmall = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val labelPaintSmall = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
         color = LABEL_COLOR_DIM
         textAlign = Paint.Align.CENTER
+        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
     }
 
     // Home row accent underline
-    private val homeRowAccentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val homeRowAccentPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = ACCENT_TEAL
     }
 
     // Zone divider (between left vowel and right consonant halves)
-    private val zoneDividerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val zoneDividerPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 0.8f
         color = ZONE_DIVIDER_COLOR
     }
 
     // Ripple animation
-    private val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = RIPPLE_COLOR
     }
 
     // Glide / Gesture typing path and glow paints (zero allocation in onDraw)
     private val glidePath = android.graphics.Path()
-    private val glideGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val glideGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
         color = Color.parseColor("#4000D4A0") // semi-transparent teal glow
     }
-    private val glideStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val glideStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
         color = Color.parseColor("#00E5B8") // vibrant teal stroke
     }
-    private val glideDotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val glideDotPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = Color.parseColor("#E0FFFFFF") // glowing tip
     }
@@ -709,6 +713,19 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     /**
+     * Dynamically updates the bottom chin padding in real time during visual resizing.
+     * Triggers requestLayout and redraw without allocations.
+     */
+    fun setLiveBottomChin(chinDp: Float) {
+        val clamped = chinDp.coerceIn(0f, 32f)
+        if (Math.abs(this.bottomChinPaddingDp - clamped) > 0.001f) {
+            this.bottomChinPaddingDp = clamped
+            requestLayout()
+            invalidate()
+        }
+    }
+
+    /**
      * Applies a [KeyboardTheme] to all pre-allocated Paint objects.
      */
     fun applyTheme(theme: KeyboardTheme) {
@@ -900,12 +917,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val rowCount = (layout?.rows?.size ?: 3) + 1 + (if (hasExtraNumberRow) 1 else 0)
         val isSixRow = rowCount >= 6
         val baseHeightDp = if (isLandscape) {
-            if (isSixRow) 150f else 130f
+            if (isSixRow) 145f else 125f
         } else {
             when {
-                rowCount >= 6 -> 264f
-                rowCount == 5 -> 244f
-                else -> 220f
+                rowCount >= 6 -> 256f
+                rowCount == 5 -> 236f
+                else -> 218f
             }
         }
         val effectiveChinDp = if (isLandscape || formFactor == KeyboardPreferences.FormFactor.FLOATING) 0f else bottomChinPaddingDp
@@ -932,7 +949,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         // ── Dimension derivations ──────────────────────────────────────────
         val density = resources.displayMetrics.density
         cachedDensity = density
-        keyShadowLip  = 1.8f * density  // pre-computed — never recomputed in onDraw
+        keyShadowLip  = 1.6f * density  // pre-computed — never recomputed in onDraw
         keyMarginH = marginHDp * density
         keyMarginV = marginVDp * density
         keyCornerRadius = 7.5f * density
@@ -969,8 +986,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         val totalMarginsV = (totalRows + 1) * effectiveMarginV
         keyHeight = ((availableH - totalMarginsV) / totalRows).coerceAtLeast(18f * density)
         spacebarRowHeight = keyHeight
-        labelSize = (keyHeight * 0.38f * fontScale).coerceAtLeast(10f * density)
-        labelSizeSmall = (keyHeight * 0.22f * fontScale).coerceAtLeast(8f * density)
+        labelSize = (keyHeight * 0.36f * fontScale).coerceAtLeast(9.5f * density)
+        labelSizeSmall = (keyHeight * 0.21f * fontScale).coerceAtLeast(7.5f * density)
 
         labelPaint.textSize = labelSize
         labelPaintSmall.textSize = labelSizeSmall

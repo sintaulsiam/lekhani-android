@@ -24,6 +24,17 @@ class KeyboardPreferences private constructor(context: Context) {
         safeContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
+    init {
+        // Auto-adapt bottom clearance for HyperOS/MIUI/OEM skins upon update
+        if (!prefs.getBoolean("pref_chin_initialized_v3", false)) {
+            val defChin = getDefaultBottomChin(context)
+            prefs.edit()
+                .putBoolean("pref_chin_initialized_v3", true)
+                .putFloat(KEY_BOTTOM_CHIN, defChin)
+                .apply()
+        }
+    }
+
     // ── Theme Settings ────────────────────────────────────────────────────────
     var themeId: String
         get() = prefs.getString(KEY_THEME_ID, ThemeRegistry.ID_FLOW_TEAL) ?: ThemeRegistry.ID_FLOW_TEAL
@@ -69,7 +80,7 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putFloat(KEY_MARGIN_V, value).apply()
 
     var bottomChinPadding: Float
-        get() = prefs.getFloat(KEY_BOTTOM_CHIN, 16f)
+        get() = prefs.getFloat(KEY_BOTTOM_CHIN, getDefaultBottomChin())
         set(value) = prefs.edit().putFloat(KEY_BOTTOM_CHIN, value).apply()
 
     var longPressDelayMs: Long
@@ -593,6 +604,77 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_MARGIN_H = "key_margin_h"
         const val KEY_MARGIN_V = "key_margin_v"
         const val KEY_BOTTOM_CHIN = "bottom_chin_padding"
+
+        fun isMiuiOrHyperOs(): Boolean {
+            return try {
+                val propClass = Class.forName("android.os.SystemProperties")
+                val getMethod = propClass.getMethod("get", String::class.java)
+                val miuiVersion = getMethod.invoke(null, "ro.miui.ui.version.name") as? String
+                val hyperOsVersion = getMethod.invoke(null, "ro.mi.os.version.name") as? String
+                (!miuiVersion.isNullOrBlank()) || (!hyperOsVersion.isNullOrBlank())
+            } catch (ignored: Throwable) {
+                false
+            }
+        }
+
+        fun getDefaultBottomChin(context: Context? = null): Float {
+            // Android 9 and below uses classic 3-button navigation bar positioned outside IME window
+            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+                return 0f
+            }
+
+            // Check system navigation mode if context is available
+            context?.let { ctx ->
+                try {
+                    val navMode = android.provider.Settings.Secure.getInt(ctx.contentResolver, "navigation_mode", -1)
+                    // 0 = 3-button navigation, 1 = 2-button navigation (Pill + Back)
+                    if (navMode == 0 || navMode == 1) {
+                        return 0f
+                    }
+                } catch (ignored: Throwable) {}
+            }
+
+            val manufacturer = android.os.Build.MANUFACTURER.lowercase()
+            val brand = android.os.Build.BRAND.lowercase()
+            val device = android.os.Build.DEVICE.lowercase()
+            val product = android.os.Build.PRODUCT.lowercase()
+            val isOemWithDedicatedImeBar = manufacturer.contains("xiaomi") ||
+                    manufacturer.contains("redmi") ||
+                    manufacturer.contains("poco") ||
+                    manufacturer.contains("samsung") ||
+                    manufacturer.contains("oppo") ||
+                    manufacturer.contains("realme") ||
+                    manufacturer.contains("vivo") ||
+                    manufacturer.contains("oneplus") ||
+                    manufacturer.contains("huawei") ||
+                    manufacturer.contains("honor") ||
+                    manufacturer.contains("transsion") ||
+                    manufacturer.contains("infinix") ||
+                    manufacturer.contains("tecno") ||
+                    manufacturer.contains("itel") ||
+                    manufacturer.contains("meizu") ||
+                    manufacturer.contains("zte") ||
+                    manufacturer.contains("nubia") ||
+                    manufacturer.contains("asus") ||
+                    manufacturer.contains("lenovo") ||
+                    brand.contains("xiaomi") ||
+                    brand.contains("redmi") ||
+                    brand.contains("poco") ||
+                    brand.contains("samsung") ||
+                    brand.contains("oppo") ||
+                    brand.contains("realme") ||
+                    brand.contains("vivo") ||
+                    brand.contains("oneplus") ||
+                    brand.contains("huawei") ||
+                    brand.contains("honor") ||
+                    brand.contains("infinix") ||
+                    brand.contains("tecno") ||
+                    brand.contains("itel") ||
+                    device.contains("xiaomi") ||
+                    product.contains("xiaomi") ||
+                    isMiuiOrHyperOs()
+            return if (isOemWithDedicatedImeBar) 0f else 8f
+        }
         const val KEY_LONG_PRESS_DELAY = "long_press_delay_ms"
         const val KEY_SHOW_KEY_BORDERS = "show_key_borders"
         const val KEY_SHOW_KEY_PREVIEWS = "show_key_previews"

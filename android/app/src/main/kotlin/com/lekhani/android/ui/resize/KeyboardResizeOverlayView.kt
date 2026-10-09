@@ -42,24 +42,28 @@ import com.lekhani.android.theme.KeyboardTheme
 import kotlin.math.roundToInt
 
 /**
- * Visual interactive keyboard height adjuster overlay.
+ * Visual interactive keyboard height & bottom clearance adjuster overlay.
  *
  * Provides:
  * 1. Tactile draggable handle bar to adjust keyboard height smoothly in real time at 120 FPS.
  * 2. Step increment/decrement buttons ([-5%], [+5%]).
- * 3. Quick reset button to restore optimal default scale (100%).
- * 4. Confirmation commit [Check] and cancel [Close] buttons.
+ * 3. Quick bottom clearance presets (0dp, 8dp, 14dp, 20dp).
+ * 4. Quick reset button to restore optimal default scale and bottom clearance.
+ * 5. Confirmation commit [Check] and cancel [Close] buttons.
  */
 @Composable
 fun KeyboardResizeOverlayView(
     initialScale: Float,
+    initialChin: Float = 0f,
     theme: KeyboardTheme,
     isEnglish: Boolean = false,
     onScaleLiveChange: (Float) -> Unit,
-    onConfirm: (Float) -> Unit,
+    onChinLiveChange: (Float) -> Unit = {},
+    onConfirm: (scale: Float, chin: Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var scale by remember { mutableFloatStateOf(initialScale.coerceIn(0.70f, 1.35f)) }
+    var chin by remember { mutableFloatStateOf(initialChin.coerceIn(0f, 32f)) }
     val density = LocalDensity.current.density
 
     val bg = Color(theme.backgroundColor)
@@ -84,8 +88,6 @@ fun KeyboardResizeOverlayView(
                 .background(accent.copy(alpha = 0.16f))
                 .pointerInput(Unit) {
                     detectVerticalDragGestures { _, dragAmount ->
-                        // Dragging UP (-dragAmount) increases keyboard height
-                        // Dragging DOWN (+dragAmount) decreases keyboard height
                         val deltaScale = -dragAmount / (density * 160f)
                         val newScale = (scale + deltaScale).coerceIn(0.70f, 1.35f)
                         scale = newScale
@@ -106,7 +108,7 @@ fun KeyboardResizeOverlayView(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isEnglish) "Drag to Resize Keyboard" else "টেনে কীবোর্ডের আকার পরিবর্তন করুন",
+                    text = if (isEnglish) "Drag up/down for Height" else "উচ্চতা পরিবর্তন করতে উপরে/নিচে টানুন",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     color = accent,
@@ -120,7 +122,7 @@ fun KeyboardResizeOverlayView(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp),
+                .height(38.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -172,7 +174,7 @@ fun KeyboardResizeOverlayView(
             ) {
                 val percent = (scale * 100).roundToInt()
                 val label = if (percent == 100) {
-                    if (isEnglish) "100% (Default)" else "১০০% (ডিফল্ট)"
+                    if (isEnglish) "100%" else "১০০%"
                 } else {
                     if (isEnglish) "$percent%" else "${toBengaliDigits(percent)}%"
                 }
@@ -205,15 +207,18 @@ fun KeyboardResizeOverlayView(
                 )
             }
 
-            // Reset to 100% Button
+            // Reset to Default Button
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
                     .background(cardBg)
                     .clickable {
+                        val defChin = com.lekhani.android.data.settings.KeyboardPreferences.getDefaultBottomChin()
                         scale = 1.0f
+                        chin = defChin
                         onScaleLiveChange(1.0f)
+                        onChinLiveChange(defChin)
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -231,7 +236,7 @@ fun KeyboardResizeOverlayView(
                     .height(36.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(accent)
-                    .clickable { onConfirm(scale) }
+                    .clickable { onConfirm(scale, chin) }
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -248,6 +253,46 @@ fun KeyboardResizeOverlayView(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black,
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // ── Bottom Space Preset Chips Row ───────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = if (isEnglish) "Bottom:" else "নিচে:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = dimText,
+                modifier = Modifier.padding(end = 2.dp),
+            )
+            val chinPresets = listOf(0f to "0dp", 8f to "8dp", 14f to "14dp", 20f to "20dp")
+            chinPresets.forEach { (cVal, cLabel) ->
+                val isSel = Math.abs(chin - cVal) < 1.0f
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(26.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isSel) accent.copy(alpha = 0.25f) else cardBg)
+                        .clickable {
+                            chin = cVal
+                            onChinLiveChange(cVal)
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = cLabel,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSel) accent else textColor,
                     )
                 }
             }

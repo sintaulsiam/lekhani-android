@@ -161,6 +161,7 @@ fun PreferencesTabContent(
 
     var fontStyle by remember { mutableStateOf(prefs.fontStyle) }
     var fontScale by remember { mutableFloatStateOf(prefs.fontScale) }
+    var bottomChinPadding by remember { mutableFloatStateOf(prefs.bottomChinPadding) }
     var clipboardRetention by remember { mutableIntStateOf(prefs.clipboardRetentionMinutes) }
 
     var hapticEnabled by remember { mutableStateOf(prefs.hapticEnabled) }
@@ -1315,6 +1316,48 @@ fun PreferencesTabContent(
                             },
                             valueRange = 0.8f..1.3f,
                             steps = 4
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                    // Bottom Spacing (Ergonomics)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = if (isEnglish) "Bottom Space" else "নিচের ফাঁকা জায়গা",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                )
+                                Text(
+                                    text = if (isEnglish) "Adjust clearance below spacebar for navigation bar"
+                                           else "ন্যাভিগেশন বারের সাথে টাইপিংয়ের সুবিধাজনক দূরত্ব",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = if (bottomChinPadding.toInt() == 0) {
+                                    if (isEnglish) "None (0 dp)" else "বন্ধ (০ dp)"
+                                } else {
+                                    "${bottomChinPadding.toInt()} dp"
+                                },
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Slider(
+                            value = bottomChinPadding,
+                            onValueChange = {
+                                bottomChinPadding = it
+                                prefs.bottomChinPadding = it
+                            },
+                            valueRange = 0f..24f,
+                            steps = 5
                         )
                     }
 

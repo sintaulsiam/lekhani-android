@@ -360,7 +360,7 @@ class LekhaniInputMethodService : InputMethodService() {
         clipboardListener = listener
         sysClipboard?.addPrimaryClipChangedListener(listener)
 
-        // Listen for layout changes from Settings (e.g. LayoutFlowScreen card tap)
+        // Listen for layout changes from Settings (e.g. LayoutFlowScreen card tap, Chin slider)
         val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
             when {
                 key == PREF_LAYOUT -> {
@@ -369,6 +369,16 @@ class LekhaniInputMethodService : InputMethodService() {
                     if (newLayout != null && session.getLayout() != newLayout) {
                         switchLayout(newLayout)
                     }
+                }
+                key == KeyboardPreferences.KEY_BOTTOM_CHIN ||
+                key == KeyboardPreferences.KEY_HEIGHT_SCALE ||
+                key == KeyboardPreferences.KEY_FONT_SCALE ||
+                key == KeyboardPreferences.KEY_MARGIN_H ||
+                key == KeyboardPreferences.KEY_MARGIN_V ||
+                key == KeyboardPreferences.KEY_SHOW_KEY_BORDERS -> {
+                    keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
+                    keyboardView?.requestLayout()
+                    rootInputContainer?.requestLayout()
                 }
                 key == KeyboardPreferences.KEY_PROBHAT_HASANTA_CONJUNCTS ||
                 key == KeyboardPreferences.KEY_PROBHAT_SMART_INITIAL_KAR ||
@@ -1696,21 +1706,28 @@ class LekhaniInputMethodService : InputMethodService() {
                 keyboardView?.isResizeVisualGuide = true
 
                 val initialScale = keyboardPrefs.heightScale
+                val initialChin = keyboardPrefs.bottomChinPadding
                 resizeOverlayComposeView?.setContent {
                     com.lekhani.android.ui.resize.KeyboardResizeOverlayView(
                         initialScale = initialScale,
+                        initialChin = initialChin,
                         theme = activeTheme,
                         isEnglish = (keyboardPrefs.uiLanguage == "en"),
                         onScaleLiveChange = { liveScale ->
                             keyboardView?.setLiveHeightScale(liveScale)
                         },
-                        onConfirm = { confirmedScale ->
+                        onChinLiveChange = { liveChin ->
+                            keyboardView?.setLiveBottomChin(liveChin)
+                        },
+                        onConfirm = { confirmedScale, confirmedChin ->
                             keyboardPrefs.heightScale = confirmedScale
+                            keyboardPrefs.bottomChinPadding = confirmedChin
                             setInputViewMode(InputViewMode.KEYBOARD)
                             keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
                         },
                         onDismiss = {
                             keyboardView?.setLiveHeightScale(initialScale)
+                            keyboardView?.setLiveBottomChin(initialChin)
                             setInputViewMode(InputViewMode.KEYBOARD)
                             keyboardView?.applyPreferences(keyboardPrefs, feedbackManager)
                         },
@@ -3982,11 +3999,12 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun updateNavBarInsets(windowInsets: WindowInsetsCompat) {
         val navBars = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
-        if (lastNavBarLeftInset != navBars.left ||
-            lastNavBarRightInset != navBars.right
-        ) {
-            lastNavBarLeftInset = navBars.left
-            lastNavBarRightInset = navBars.right
+        val newLeft = navBars.left
+        val newRight = navBars.right
+
+        if (lastNavBarLeftInset != newLeft || lastNavBarRightInset != newRight) {
+            lastNavBarLeftInset = newLeft
+            lastNavBarRightInset = newRight
             applyNavBarPadding()
         }
     }
