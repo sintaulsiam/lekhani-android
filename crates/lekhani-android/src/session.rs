@@ -942,7 +942,8 @@ impl AndroidLekhaniSession {
                     };
                     let (preedit, mut candidates) =
                         crate::avro::transliterate_avro_with_context(&raw, &words);
-                    if !words.is_empty() && candidates.len() > 1 {
+                    let is_fastpath = crate::avro::is_avro_special_fastpath(&raw);
+                    if !is_fastpath && !words.is_empty() && candidates.len() > 1 {
                         let scorer = get_context_scorer();
                         let right_word = state.right_context.split_whitespace().next();
                         scorer.rank_candidates_in_place_bidirectional(
@@ -951,7 +952,9 @@ impl AndroidLekhaniSession {
                             &mut candidates,
                         );
                     }
-                    crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
+                    if !is_fastpath {
+                        crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
+                    }
                     candidates.first().cloned().unwrap_or(preedit)
                 } else {
                     std::mem::take(&mut state.composing_buffer)
@@ -1362,7 +1365,7 @@ impl AndroidLekhaniSession {
                         })
                     }
                 };
-                if count > 0 && candidates.len() > 1 {
+                if !crate::avro::is_avro_special_fastpath(&state.composing_buffer) && count > 0 && candidates.len() > 1 {
                     let scorer = get_context_scorer();
                     let right_word = state.right_context.split_whitespace().next();
                     scorer.rank_candidates_in_place_bidirectional(
@@ -2211,7 +2214,8 @@ impl AndroidLekhaniSession {
                         &state.composing_buffer,
                         &words,
                     );
-                    if !words.is_empty() && candidates.len() > 1 {
+                    let is_fastpath = crate::avro::is_avro_special_fastpath(&state.composing_buffer);
+                    if !is_fastpath && !words.is_empty() && candidates.len() > 1 {
                         let scorer = get_context_scorer();
                         let right_word = state.right_context.split_whitespace().next();
                         scorer.rank_candidates_in_place_bidirectional(
@@ -2375,7 +2379,8 @@ impl AndroidLekhaniSession {
                 };
                 let (preedit, mut candidates) =
                     crate::avro::transliterate_avro_with_context(&raw, &context_words);
-                let chosen = if !has_candidate_memory && candidates.len() > 1 {
+                let is_fastpath = crate::avro::is_avro_special_fastpath(&raw);
+                let chosen = if !is_fastpath && !has_candidate_memory && candidates.len() > 1 {
                     if !context_words.is_empty() {
                         let scorer = get_context_scorer();
                         let right_word = state.right_context.split_whitespace().next();
@@ -3155,6 +3160,53 @@ mod tests {
             res_shirt_pora.preedit, res_shirt_pora.candidates
         );
         assert_eq!(res_shirt_pora.preedit, "পরা");
+    }
+
+    #[test]
+    #[serial]
+    fn test_avro_digit_units_mentions_and_bilingual_clitics() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+
+        // 1. "10ta" -> preedit "১০টা", space commits "১০টা "
+        session.process_key("1".into()).unwrap();
+        session.process_key("0".into()).unwrap();
+        session.process_key("t".into()).unwrap();
+        let res_10ta = session.process_key("a".into()).unwrap();
+        assert_eq!(res_10ta.preedit, "১০টা");
+        let space_10ta = session.handle_space().unwrap();
+        assert_eq!(space_10ta.commit_text, Some("১০টা ".into()));
+
+        // 2. "500tk" -> preedit "৫০০ টাকা", space commits "৫০০ টাকা "
+        session.process_key("5".into()).unwrap();
+        session.process_key("0".into()).unwrap();
+        session.process_key("0".into()).unwrap();
+        session.process_key("t".into()).unwrap();
+        let res_500tk = session.process_key("k".into()).unwrap();
+        assert_eq!(res_500tk.preedit, "৫০০ টাকা");
+        assert!(res_500tk.candidates.contains(&"৳৫০০".into()));
+        let space_500tk = session.handle_space().unwrap();
+        assert_eq!(space_500tk.commit_text, Some("৫০০ টাকা ".into()));
+
+        // 3. Social mention "@siam" -> preedit "@siam", space commits "@siam "
+        session.process_key("@".into()).unwrap();
+        session.process_key("s".into()).unwrap();
+        session.process_key("i".into()).unwrap();
+        session.process_key("a".into()).unwrap();
+        let res_mention = session.process_key("m".into()).unwrap();
+        assert_eq!(res_mention.preedit, "@siam");
+        assert!(res_mention.candidates.contains(&"@সিয়াম".into()));
+        let space_mention = session.handle_space().unwrap();
+        assert_eq!(space_mention.commit_text, Some("@siam ".into()));
+
+        // 4. Bilingual clitic "Facebook-e" -> preedit "Facebook-এ", space commits "Facebook-এ "
+        let mut last_res = None;
+        for ch in "Facebook-e".chars() {
+            last_res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+        assert_eq!(last_res.unwrap().preedit, "Facebook-এ");
+        let space_fb = session.handle_space().unwrap();
+        assert_eq!(space_fb.commit_text, Some("Facebook-এ ".into()));
     }
 
     #[test]

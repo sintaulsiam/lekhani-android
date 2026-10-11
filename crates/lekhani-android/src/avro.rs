@@ -823,6 +823,279 @@ pub fn collapse_elongation(input: &str) -> Option<String> {
     }
 }
 
+/// Converts ASCII digits ('0'..='9') to Bengali digits ('০'..='৯')
+pub fn ascii_digits_to_bengali(digits: &str) -> String {
+    digits
+        .chars()
+        .map(|c| match c {
+            '0' => '০',
+            '1' => '১',
+            '2' => '২',
+            '3' => '৩',
+            '4' => '৪',
+            '5' => '৫',
+            '6' => '৬',
+            '7' => '৭',
+            '8' => '৮',
+            '9' => '৯',
+            _ => c,
+        })
+        .collect()
+}
+
+/// Detects social media mentions (@user) and hashtags (#tag) to preserve verbatim ASCII handles
+/// while still providing the phonetic transliteration as a secondary candidate.
+pub fn resolve_social_mention_or_hashtag(input: &str) -> Option<(String, Vec<String>)> {
+    if !input.starts_with('@') && !input.starts_with('#') {
+        return None;
+    }
+    let prefix = &input[..1];
+    let remainder = &input[1..];
+    if remainder.is_empty() {
+        return Some((input.to_string(), vec![input.to_string()]));
+    }
+    let (b_primary, b_cands) = transliterate_avro(remainder);
+    let mut candidates = vec![input.to_string()];
+    if !b_primary.is_empty() && b_primary != remainder {
+        candidates.push(format!("{}{}", prefix, b_primary));
+    }
+    for c in b_cands {
+        if c != remainder {
+            let cand = format!("{}{}", prefix, c);
+            if !candidates.contains(&cand) {
+                candidates.push(cand);
+            }
+        }
+    }
+    Some((input.to_string(), candidates))
+}
+
+/// Resolves digit prefixes with units, quantifiers, currency, and ordinals
+/// e.g. "10ta" -> "১০টা", "500tk" -> "৫০০ টাকা", "1st" -> "১ম"
+pub fn resolve_digit_unit_candidates(input: &str) -> Option<(String, Vec<String>)> {
+    let digit_count = input.chars().take_while(|c| c.is_ascii_digit()).count();
+    if digit_count == 0 || digit_count == input.chars().count() {
+        return None;
+    }
+
+    let (digits, suffix) = input.split_at(digit_count);
+    let lower_suffix = suffix.to_lowercase();
+    let b_digits = ascii_digits_to_bengali(digits);
+
+    let (primary, candidates) = match lower_suffix.as_str() {
+        "ta" => {
+            let p = format!("{}টা", b_digits);
+            let cands = vec![
+                p.clone(),
+                input.to_string(),
+                format!("{}তা", b_digits),
+                digits.to_string(),
+            ];
+            (p, cands)
+        }
+        "ti" => {
+            let p = format!("{}টি", b_digits);
+            let cands = vec![
+                p.clone(),
+                input.to_string(),
+                format!("{}তি", b_digits),
+                digits.to_string(),
+            ];
+            (p, cands)
+        }
+        "tk" => {
+            let p = format!("{} টাকা", b_digits);
+            let cands = vec![
+                p.clone(),
+                format!("৳{}", b_digits),
+                input.to_string(),
+                format!("{}tk", b_digits),
+                b_digits.clone(),
+            ];
+            (p, cands)
+        }
+        "taka" => {
+            let p = format!("{} টাকা", b_digits);
+            let cands = vec![
+                p.clone(),
+                format!("৳{}", b_digits),
+                input.to_string(),
+                b_digits.clone(),
+            ];
+            (p, cands)
+        }
+        "jon" => {
+            let p = format!("{}জন", b_digits);
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        "bar" => {
+            let p = format!("{}বার", b_digits);
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        "din" => {
+            let p = format!("{}দিন", b_digits);
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        "mas" => {
+            let p = format!("{}মাস", b_digits);
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        "bochor" | "bosor" => {
+            let p = format!("{}বছর", b_digits);
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        "kg" => {
+            let p = format!("{} কেজি", b_digits);
+            let cands = vec![
+                p.clone(),
+                input.to_string(),
+                format!("{}kg", b_digits),
+                b_digits.clone(),
+            ];
+            (p, cands)
+        }
+        "gm" | "gram" => {
+            let p = format!("{} গ্রাম", b_digits);
+            let cands = vec![
+                p.clone(),
+                input.to_string(),
+                format!("{}gm", b_digits),
+                b_digits.clone(),
+            ];
+            (p, cands)
+        }
+        "km" => {
+            let p = format!("{} কিমি", b_digits);
+            let cands = vec![
+                p.clone(),
+                input.to_string(),
+                format!("{}km", b_digits),
+                b_digits.clone(),
+            ];
+            (p, cands)
+        }
+        "mb" => {
+            let p = format!("{} এমবি", b_digits);
+            let cands = vec![
+                p.clone(),
+                format!("{}MB", digits),
+                input.to_string(),
+            ];
+            (p, cands)
+        }
+        "gb" => {
+            let p = format!("{} জিবি", b_digits);
+            let cands = vec![
+                p.clone(),
+                format!("{}GB", digits),
+                input.to_string(),
+            ];
+            (p, cands)
+        }
+        // English ordinals to Bengali ordinals
+        "st" => {
+            let p = if digits == "1" {
+                "১ম".to_string()
+            } else {
+                format!("{}তম", b_digits)
+            };
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        "nd" => {
+            let p = if digits == "2" {
+                "২য়".to_string()
+            } else {
+                format!("{}তম", b_digits)
+            };
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        "rd" => {
+            let p = if digits == "3" {
+                "৩য়".to_string()
+            } else {
+                format!("{}তম", b_digits)
+            };
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        "th" => {
+            let p = match digits {
+                "4" => "৪র্থ".to_string(),
+                "5" => "৫ম".to_string(),
+                "6" => "৬ষ্ঠ".to_string(),
+                "7" => "৭ম".to_string(),
+                "8" => "৮ম".to_string(),
+                "9" => "৯ম".to_string(),
+                "10" => "১০ম".to_string(),
+                _ => format!("{}তম", b_digits),
+            };
+            let cands = vec![p.clone(), input.to_string(), b_digits.clone()];
+            (p, cands)
+        }
+        _ => return None,
+    };
+
+    Some((primary, candidates))
+}
+
+/// Resolves bilingual hyphenated enclitics attached to Latin words (e.g. "Facebook-e" -> "Facebook-এ")
+pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<String>)> {
+    if !input.contains('-') || input.starts_with('-') || input.ends_with('-') {
+        return None;
+    }
+
+    let dash_idx = input.rfind('-')?;
+    let (base, suffix_with_dash) = input.split_at(dash_idx);
+    let suffix = &suffix_with_dash[1..];
+
+    if base.is_empty() || suffix.is_empty() || !base.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return None;
+    }
+
+    let lower_suffix = suffix.to_lowercase();
+    let b_clitic = match lower_suffix.as_str() {
+        "e" => "-এ",
+        "te" => "-তে",
+        "r" => "-র",
+        "er" => "-এর",
+        "ta" => "-টা",
+        "ti" => "-টি",
+        "ke" => "-কে",
+        "gulo" => "-গুলো",
+        "gulor" => "-গুলোর",
+        "der" => "-দের",
+        "o" => "-ও",
+        "i" => "-ই",
+        _ => return None,
+    };
+
+    let primary = format!("{}{}", base, b_clitic);
+    let mut candidates = vec![primary.clone(), input.to_string()];
+
+    let parser = get_avro_parser();
+    let base_conv = parser.convert(base);
+    if !base_conv.is_empty() && base_conv != base {
+        candidates.push(format!("{}{}", base_conv, b_clitic));
+    }
+
+    Some((primary, candidates))
+}
+
+/// Returns true if the token is a social mention, hashtag, digit unit, or bilingual clitic
+pub fn is_avro_special_fastpath(input: &str) -> bool {
+    input.starts_with('@')
+        || input.starts_with('#')
+        || resolve_digit_unit_candidates(input).is_some()
+        || resolve_bilingual_hyphen_clitic(input).is_some()
+}
+
 /// Transliterates Romanized ASCII text to Bengali script using `lekhani-core`'s
 /// production PhoneticSuggestion engine, bilingual loanwords, and Avro Trie parser.
 ///
@@ -861,6 +1134,21 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             append_prefix_matches(&primary, &mut candidates);
             return (primary, candidates);
         }
+    }
+
+    // Fast-path 1: Social media mentions (@username) and hashtags (#tag)
+    if let Some((primary, candidates)) = resolve_social_mention_or_hashtag(input) {
+        return (primary, candidates);
+    }
+
+    // Fast-path 2: Digit units, quantifiers, currency, and ordinals (e.g. 10ta -> ১০টা, 500tk -> ৫০০ টাকা, 1st -> ১ম)
+    if let Some((primary, candidates)) = resolve_digit_unit_candidates(input) {
+        return (primary, candidates);
+    }
+
+    // Fast-path 3: Bilingual hyphen clitics (e.g. Facebook-e -> Facebook-এ, bkash-e -> bkash-এ)
+    if let Some((primary, candidates)) = resolve_bilingual_hyphen_clitic(input) {
+        return (primary, candidates);
     }
 
     // 0. User candidate override memory (strictly for inputs > 2 characters)
@@ -2000,4 +2288,78 @@ mod tests {
         assert_eq!(k_res, "ক");
         assert!(k_cands.contains(&"ক".to_string()));
     }
+
+    #[test]
+    fn test_digit_units_quantifiers_and_ordinals() {
+        // 1. Quantifiers: "10ta" -> "১০টা", "2ti" -> "২টি"
+        let (ta_res, ta_cands) = transliterate_avro("10ta");
+        assert_eq!(ta_res, "১০টা");
+        assert!(ta_cands.contains(&"10ta".to_string()));
+
+        let (ti_res, ti_cands) = transliterate_avro("2ti");
+        assert_eq!(ti_res, "২টি");
+        assert!(ti_cands.contains(&"2ti".to_string()));
+
+        // 2. Currency: "500tk" -> "৫০০ টাকা", offers "৳৫০০"
+        let (tk_res, tk_cands) = transliterate_avro("500tk");
+        assert_eq!(tk_res, "৫০০ টাকা");
+        assert!(tk_cands.contains(&"৳৫০০".to_string()));
+        assert!(tk_cands.contains(&"500tk".to_string()));
+
+        // 3. Units: "5kg" -> "৫ কেজি", "500gm" -> "৫০০ গ্রাম"
+        let (kg_res, kg_cands) = transliterate_avro("5kg");
+        assert_eq!(kg_res, "৫ কেজি");
+        assert!(kg_cands.contains(&"5kg".to_string()));
+
+        let (gm_res, _) = transliterate_avro("500gm");
+        assert_eq!(gm_res, "৫০০ গ্রাম");
+
+        // 4. Ordinals: "1st" -> "১ম", "2nd" -> "২য়", "3rd" -> "৩য়", "4th" -> "৪র্থ"
+        let (st1, _) = transliterate_avro("1st");
+        assert_eq!(st1, "১ম");
+
+        let (nd2, _) = transliterate_avro("2nd");
+        assert_eq!(nd2, "২য়");
+
+        let (rd3, _) = transliterate_avro("3rd");
+        assert_eq!(rd3, "৩য়");
+
+        let (th4, _) = transliterate_avro("4th");
+        assert_eq!(th4, "৪র্থ");
+    }
+
+    #[test]
+    fn test_social_mentions_and_hashtags() {
+        // 1. Mentions: "@siam" -> verbatim "@siam" primary, offers "@সিয়াম"
+        let (mention_res, mention_cands) = transliterate_avro("@siam");
+        assert_eq!(mention_res, "@siam");
+        assert!(mention_cands.contains(&"@সিয়াম".to_string()));
+
+        // 2. Hashtags: "#dhaka" -> verbatim "#dhaka" primary, offers "#ঢাকা"
+        let (tag_res, tag_cands) = transliterate_avro("#dhaka");
+        assert_eq!(tag_res, "#dhaka");
+        assert!(tag_cands.contains(&"#ঢাকা".to_string()));
+    }
+
+    #[test]
+    fn test_bilingual_hyphen_clitics() {
+        // 1. "Facebook-e" -> "Facebook-এ"
+        let (fb_res, fb_cands) = transliterate_avro("Facebook-e");
+        assert_eq!(fb_res, "Facebook-এ");
+        assert!(fb_cands.contains(&"Facebook-e".to_string()));
+
+        // 2. "bkash-e" -> "bkash-এ"
+        let (bk_res, bk_cands) = transliterate_avro("bkash-e");
+        assert_eq!(bk_res, "bkash-এ");
+        assert!(bk_cands.contains(&"bkash-e".to_string()));
+
+        // 3. "post-ta" -> "post-টা"
+        let (post_res, _) = transliterate_avro("post-ta");
+        assert_eq!(post_res, "post-টা");
+
+        // 4. "file-gulo" -> "file-গুলো"
+        let (file_res, _) = transliterate_avro("file-gulo");
+        assert_eq!(file_res, "file-গুলো");
+    }
 }
+
