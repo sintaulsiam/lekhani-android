@@ -9,21 +9,9 @@ use hashbrown::HashMap;
 use std::sync::OnceLock;
 
 static PARSER: OnceLock<lekhani_parser::LekhaniParser> = OnceLock::new();
-static COMMON_WORDS: OnceLock<HashMap<&'static str, &'static [&'static str]>> = OnceLock::new();
 
 pub fn get_avro_parser() -> &'static lekhani_parser::LekhaniParser {
     PARSER.get_or_init(lekhani_parser::default_avro_parser)
-}
-
-pub fn get_common_word_candidates(input: &str) -> Option<&'static [&'static str]> {
-    let lower = input.to_lowercase();
-    get_common_words()
-        .get(input)
-        .or_else(|| get_common_words().get(lower.as_str()))
-        .or_else(|| {
-            collapse_elongation(&lower).and_then(|c| get_common_words().get(c.as_str()))
-        })
-        .copied()
 }
 
 /// Prioritizes candidate matching static common words or data-driven phonetic overrides.
@@ -67,9 +55,7 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     let is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
         || (!def_lower_conv.is_empty() && db.is_exact_dictionary_word(&def_lower_conv));
 
-    let has_established_loanword = get_common_words().contains_key(input)
-        || get_common_words().contains_key(lower.as_str())
-        || is_bengali_dict_word
+    let has_established_loanword = is_bengali_dict_word
         || db.lookup_override(input).is_some()
         || db.lookup_override(&lower).is_some()
         || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
@@ -82,96 +68,77 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
         }
     }
 
-    // 1. Check static common words (cold-start fallback)
-    if let Some(common_list) = get_common_word_candidates(input) {
-        if common_list.len() == 1 {
-            let target_nfc = crate::probaho::nfc_normalize(common_list[0]);
-            if let Some(pos) = candidates
-                .iter()
-                .position(|c| crate::probaho::nfc_normalize(c) == target_nfc)
-            {
-                let _ = candidates.remove(pos);
-                candidates.insert(0, target_nfc);
-                return;
-            }
-        } else {
-            // Multi-homophone common list (e.g. "pora" -> ["পরা", "পড়া"], "ki" -> ["কি", "কী"]):
-            // If the top candidate is ALREADY in the common_list (e.g. ranked by context LM), keep it at position 0!
-            if let Some(first_cand) = candidates.first() {
-                let first_nfc = crate::probaho::nfc_normalize(first_cand);
-                if common_list
-                    .iter()
-                    .any(|&w| crate::probaho::nfc_normalize(w) == first_nfc)
-                {
-                    return;
-                }
-            }
-            for &target in common_list {
-                let target_nfc = crate::probaho::nfc_normalize(target);
-                if let Some(pos) = candidates
-                    .iter()
-                    .position(|c| crate::probaho::nfc_normalize(c) == target_nfc)
-                {
-                    let _ = candidates.remove(pos);
-                    candidates.insert(0, target_nfc);
-                    return;
-                }
-            }
-        }
-        if let Some(&first_common) = common_list.first() {
-            let norm = crate::probaho::nfc_normalize(first_common);
-            if !candidates.contains(&norm) {
-                candidates.insert(0, norm);
-            }
-            return;
-        }
-    }
-    // 2. Check dynamic/bundled supervised phonetic overrides (phonetic_overrides.bin / json)
-    let lower = input.to_lowercase();
-    let db = crate::session::get_core_database();
+    // 1. Check dynamic/bundled supervised phonetic overrides (phonetic_overrides.bin / json)
     let is_title_case = input.len() >= 3
         && input.chars().next().is_some_and(|c| c.is_uppercase())
         && input
             .chars()
             .skip(1)
             .all(|c| c.is_lowercase() || !c.is_alphabetic());
-    let override_opt = db.lookup_override(input).or_else(|| {
-        if is_title_case {
-            db.lookup_override(&lower)
-        } else {
-            None
-        }
-    });
-    if let Some(overrides) = override_opt {
-        let mut inserted_idx = 0;
-        for (override_word, score) in overrides {
-            if let Some(pos) = candidates.iter().position(|c| c == override_word) {
-                let cand = candidates.remove(pos);
-                candidates.insert(inserted_idx, cand);
-                inserted_idx += 1;
-            } else if score >= 0.70 {
-                candidates.insert(inserted_idx, override_word.to_string());
-                inserted_idx += 1;
-            } else if !candidates.iter().any(|c| c == override_word) {
-                if candidates.len() >= 12 {
-                    candidates.pop();
-                }
-                candidates.push(override_word.to_string());
+    let collapsed_opt = collapse_elongation(&lower);
+    let override_opt = db.lookup_override(input)
+        .or_else(|| {
+            if is_title_case {
+                db.lookup_override(&lower)
+            } else {
+                None
             }
+        })
+        .or_else(|| {
+            collapsed_opt.as_deref().and_then(|c| db.lookup_override(c))
+        });
+    let mut inserted_idx = 0;
+    if let Some(overrides) = override_opt {
+        // Multi-homophone list (e.g. "pora" -> ["পরা", "পড়া"], "ki" -> ["কি", "কী"]):
+        // If the top candidate is ALREADY in the overrides list (e.g. ranked by context LM), keep it at position 0!
+        let has_top_in_overrides = if overrides.len() > 1 {
+            if let Some(first_cand) = candidates.first() {
+                let first_nfc = crate::probaho::nfc_normalize(first_cand);
+                overrides.iter().any(|(w, _)| crate::probaho::nfc_normalize(w) == first_nfc)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if has_top_in_overrides {
+            return;
+        } else {
+            for (override_word, score) in overrides {
+                let target_nfc = crate::probaho::nfc_normalize(override_word);
+                if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+                    let cand = candidates.remove(pos);
+                    candidates.insert(inserted_idx, cand);
+                    inserted_idx += 1;
+                } else if score >= 0.70 {
+                    candidates.insert(inserted_idx, target_nfc.clone());
+                    inserted_idx += 1;
+                } else if !candidates.iter().any(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+                    if candidates.len() >= 12 {
+                        candidates.pop();
+                    }
+                    candidates.push(target_nfc);
+                }
+            }
+            return;
         }
     }
 
     // 3. Check phonetic variant equivalences (geminates, S-class, Sanskrit initial vowels, compound Reph)
     let equivs = get_phonetic_equivalence_candidates(input);
-    let mut inserted_idx = 0;
     for eq_word in equivs {
         if let Some(pos) = candidates.iter().position(|c| c == &eq_word) {
-            let cand = candidates.remove(pos);
-            candidates.insert(inserted_idx, cand);
-            inserted_idx += 1;
-        } else {
+            if inserted_idx == 0 {
+                let cand = candidates.remove(pos);
+                candidates.insert(inserted_idx, cand);
+                inserted_idx += 1;
+            }
+        } else if inserted_idx > 0 || candidates.is_empty() {
             candidates.insert(inserted_idx, eq_word);
             inserted_idx += 1;
+        } else {
+            candidates.push(eq_word);
         }
         if candidates.len() > 12 {
             candidates.pop();
@@ -294,7 +261,7 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
 
     // 6. Flap Rhotic 'r' -> 'R' (ড়) auto-disambiguation
     // Only generate if the term is NOT already a common high-frequency word or exact dictionary word
-    let is_explicit_common_base = get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
+    let is_explicit_common_base = db.lookup_override(input).is_some() || db.lookup_override(&lower).is_some();
     let parser_base = get_avro_parser().convert(&lower);
     let is_exact_dict_base = !parser_base.is_empty() && (db.is_exact_dictionary_word(&parser_base) || is_explicit_common_base);
     if !is_exact_dict_base && lower.contains('r') {
@@ -381,7 +348,7 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
         }
         let parsed = get_avro_parser().convert(&k);
         if !parsed.is_empty()
-            && (db.trie.contains_exact(&parsed) || db.is_exact_dictionary_word(&parsed) || get_common_words().contains_key(k.as_str()))
+            && (db.trie.contains_exact(&parsed) || db.is_exact_dictionary_word(&parsed) || db.lookup_override(&k).is_some())
             && !equiv_words.contains(&parsed)
         {
             equiv_words.push(parsed);
@@ -433,811 +400,17 @@ pub fn are_phonetically_compatible(w1: &str, w2: &str) -> bool {
     false
 }
 
-fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]> {
-    COMMON_WORDS.get_or_init(|| {
-        let mut m = HashMap::new();
-        m.insert("ami", &["আমি"][..]);
-        m.insert("amar", &["আমার"][..]);
-        m.insert("amake", &["আমাকে"][..]);
-        m.insert("amader", &["আমাদের"][..]);
-        m.insert("tumi", &["তুমি"][..]);
-        m.insert("tomar", &["তোমার"][..]);
-        m.insert("tomake", &["তোমাকে"][..]);
-        m.insert("apni", &["আপনি"][..]);
-        m.insert("apnar", &["আপনার"][..]);
-        m.insert("kemon", &["কেমন"][..]);
-        m.insert("kemonaso", &["কেমন আছো", "কেমন আছেন"][..]);
-        m.insert("achen", &["আছেন"][..]);
-        m.insert("achhi", &["আছি"][..]);
-        m.insert("achhe", &["আছে"][..]);
-        m.insert("bangla", &["বাংলা"][..]);
-        m.insert("bangladesh", &["বাংলাদেশ"][..]);
-        m.insert("dhaka", &["ঢাকা"][..]);
-        m.insert("bhalo", &["ভালো"][..]);
-        m.insert("desh", &["দেশ"][..]);
-        m.insert("shonar", &["সোনার", "শোনার"][..]);
-        m.insert("sonar", &["সোনার"][..]);
-        m.insert("akash", &["আকাশ"][..]);
-        m.insert("shikkhok", &["শিক্ষক"][..]);
-        m.insert("shikkha", &["শিক্ষা"][..]);
-        m.insert("brriShTi", &["বৃষ্টি"][..]);
-        m.insert("bristi", &["বৃষ্টি"][..]);
-        m.insert("dhonnobad", &["ধন্যবাদ"][..]);
-        m.insert("kothay", &["কোথায়"][..]);
-        m.insert("ki", &["কি", "কী"][..]);
-        m.insert("kee", &["কী"][..]);
-        m.insert("ekhon", &["এখন"][..]);
-        m.insert("protidin", &["প্রতিদিন"][..]);
-        m.insert("shob", &["সব"][..]);
-        m.insert("sob", &["সব"][..]);
-        m.insert("shundor", &["সুন্দর"][..]);
-        m.insert("sundor", &["সুন্দর"][..]);
-        m.insert("bhalobasha", &["ভালোবাসা"][..]);
-        m.insert("bondhu", &["বন্ধু"][..]);
-        m.insert("manush", &["মানুষ"][..]);
-        m.insert("shomoy", &["সময়"][..]);
-        m.insert("somoy", &["সময়"][..]);
-        m.insert("jibon", &["জীবন"][..]);
-        m.insert("kaj", &["কাজ"][..]);
-        m.insert("khobor", &["খবর"][..]);
-        m.insert("pani", &["পানি"][..]);
-        m.insert("jol", &["জল"][..]);
-        m.insert("bhai", &["ভাই"][..]);
-        m.insert("bon", &["বোন"][..]);
-        m.insert("baba", &["বাবা"][..]);
-        m.insert("ma", &["মা"][..]);
-        m.insert("kolkata", &["কলকাতা"][..]);
-        m.insert("onek", &["অনেক"][..]);
-        m.insert("aro", &["আরও", "আরো"][..]);
-        m.insert("khub", &["খুব"][..]);
-        m.insert("ekta", &["একটা"][..]);
-        m.insert("kintu", &["কিন্তু"][..]);
-        m.insert("tai", &["তাই"][..]);
-        m.insert("oi", &["ঐ", "ওই"][..]);
-        m.insert("she", &["সে"][..]);
-        m.insert("tar", &["তার"][..]);
-        m.insert("tara", &["তারা"][..]);
-        m.insert("shobai", &["সবাই"][..]);
-        m.insert("sobai", &["সবাই"][..]);
-        m.insert("hobe", &["হবে"][..]);
-        m.insert("hoy", &["হয়"][..]);
-        m.insert("hoye", &["হয়ে"][..]);
-        m.insert("geche", &["গেছে"][..]);
-        m.insert("korchi", &["করছি"][..]);
-        m.insert("kori", &["করি"][..]);
-        m.insert("koro", &["করো"][..]);
-        m.insert("kono", &["কোনো", "কোন"][..]);
-        m.insert("kon", &["কোন", "কোনো"][..]);
-        m.insert("boi", &["বই"][..]);
-        m.insert("pera", &["প্যারা", "পেরা"][..]);
-        m.insert("pyara", &["প্যারা"][..]);
-        m.insert("shala", &["শালা"][..]);
-        m.insert("sala", &["শালা"][..]);
-        m.insert("dost", &["দোস্ত"][..]);
-        m.insert("bro", &["ব্রো"][..]);
-        m.insert("vai", &["ভাই"][..]);
-        m.insert("kire", &["কিরে"][..]);
-        m.insert("khapang", &["খাপ্যাং"][..]);
-        m.insert("mama", &["মামা"][..]);
-        m.insert("choto", &["ছোট", "ছোটো"][..]);
-        m.insert("boro", &["বড়", "বড়", "বোরো"][..]);
-        m.insert("boRo", &["বড়", "বড়"][..]);
-        m.insert("re", &["রে"][..]);
-        m.insert("na", &["না"][..]);
-        m.insert("pora", &["পরা", "পড়া"][..]);
-        m.insert("poRa", &["পড়া", "পরা"][..]);
-        m.insert("valo", &["ভালো"][..]);
-        m.insert("valobasha", &["ভালোবাসা"][..]);
-        m.insert("valobashi", &["ভালোবাসি"][..]);
-        m.insert("shathe", &["সাথে"][..]);
-        m.insert("sathe", &["সাথে"][..]);
-        m.insert("kotha", &["কথা"][..]);
-        m.insert("protom", &["প্রথম"][..]);
-        m.insert("prothom", &["প্রথম"][..]);
-        m.insert("kabar", &["খাবার", "কাবার"][..]);
-        m.insert("khabar", &["খাবার"][..]);
-        m.insert("takbo", &["থাকবো", "থাকব"][..]);
-        m.insert("thakbo", &["থাকবো", "থাকব"][..]);
-        m.insert("balobasa", &["ভালোবাসা"][..]);
-        m.insert("balobasha", &["ভালোবাসা"][..]);
-        m.insert("bhalobasa", &["ভালোবাসা"][..]);
-        m.insert("kichu", &["কিছু"][..]);
-        m.insert("gari", &["গাড়ি"][..]);
-        m.insert("gaRi", &["গাড়ি"][..]);
-        m.insert("bari", &["বাড়ি"][..]);
-        m.insert("baRi", &["বাড়ি"][..]);
-        m.insert("shari", &["শাড়ি", "সারি"][..]);
-        m.insert("churi", &["চুড়ি", "ছুরি", "চুরি"][..]);
-        m.insert("poro", &["পড়ো", "পরো"][..]);
-        m.insert("hole", &["হলে", "হোল"][..]);
-        m.insert("hote", &["হতে", "হটে"][..]);
-        m.insert("nice", &["নিচে", "নাইস"][..]);
-        m.insert("tin", &["তিন", "টিন"][..]);
-        m.insert("chil", &["ছিল", "চিল"][..]);
-        m.insert("apu", &["আপু", "অপু"][..]);
-        m.insert("rasta", &["রাস্তা"][..]);
-        m.insert("gaan", &["গান"][..]);
-        m.insert("gan", &["গান"][..]);
-        // Conversational chat contractions & shortcuts
-        m.insert("kmn", &["কেমন"][..]);
-        m.insert("kemn", &["কেমন"][..]);
-        m.insert("aso", &["আছো"][..]);
-        m.insert("asen", &["আছেন"][..]);
-        m.insert("asi", &["আছি"][..]);
-        m.insert("chill", &["চিল"][..]);
-        m.insert("kop", &["কোপ"][..]);
-        m.insert("disi", &["দিছি", "দিসি"][..]);
-        m.insert("dhuktesi", &["ঢুকতেছি"][..]);
-        m.insert("dhuksi", &["ঢুকেছি", "ঢুকছি"][..]);
-        m.insert("aytasi", &["আইতেছি", "আসতেছি"][..]);
-        m.insert("astesi", &["আসতেছি"][..]);
-        m.insert("jatesi", &["যাইতেছি", "যাচ্ছি"][..]);
-        m.insert("peranai", &["প্যারা নাই"][..]);
-        m.insert("chillbro", &["চিল ব্রো"][..]);
-        m.insert("kiobostha", &["কি অবস্থা"][..]);
-        m.insert("koris", &["করিস"][..]);
-        m.insert("dekhis", &["দেখিস"][..]);
-        m.insert("shunis", &["শুনিস"][..]);
-        m.insert("bolis", &["বলিস"][..]);
-        m.insert("jabis", &["যাবিস"][..]);
-        m.insert("khabis", &["খাবিস"][..]);
-        m.insert("thakis", &["থাকিস"][..]);
-        m.insert("likhis", &["লিখিস"][..]);
-        m.insert("parbi", &["পারবি"][..]);
-        m.insert("kisu", &["কিছু"][..]);
-        m.insert("khbr", &["খবর"][..]);
-        m.insert("thnx", &["ধন্যবাদ"][..]);
-        m.insert("thx", &["ধন্যবাদ"][..]);
-        m.insert("apnr", &["আপনার"][..]);
-        m.insert("tmr", &["তোমার"][..]);
-        m.insert("amr", &["আমার"][..]);
-        m.insert("amdr", &["আমাদের"][..]);
-        m.insert("tmdr", &["তোমাদের"][..]);
-        m.insert("sbai", &["সবাই"][..]);
-        m.insert("shb", &["সব"][..]);
-        m.insert("ekhn", &["এখন"][..]);
-        m.insert("tkhn", &["তখন"][..]);
-        m.insert("kn", &["কেন"][..]);
-        m.insert("hbe", &["হবে"][..]);
-        m.insert("hoise", &["হয়েছে"][..]);
-        m.insert("krbo", &["করবো"][..]);
-        m.insert("krben", &["করবেন"][..]);
-        m.insert("krso", &["করছো"][..]);
-        m.insert("krse", &["করছে"][..]);
-        m.insert("bujhsi", &["বুঝেছি"][..]);
-        m.insert("thik", &["ঠিক"][..]);
-        m.insert("shotti", &["সত্যি"][..]);
-        m.insert("sotti", &["সত্যি"][..]);
-        m.insert("plz", &["প্লিজ"][..]);
-        m.insert("pls", &["প্লিজ"][..]);
-        m.insert("koto", &["কত", "কতো"][..]);
-        m.insert("pore", &["পরে", "পড়ে"][..]);
-        m.insert("ashole", &["আসলে"][..]);
-        m.insert("hacche", &["হচ্ছে"][..]);
-        m.insert("hocche", &["হচ্ছে"][..]);
-        m.insert("jacche", &["যাচ্ছে"][..]);
-        m.insert("khacche", &["খাচ্ছে"][..]);
-        m.insert("dekhche", &["দেখছে"][..]);
-        m.insert("bolche", &["বলছে"][..]);
-        m.insert("sriti", &["স্মৃতি", "সৃতি"][..]);
-        m.insert("smriti", &["স্মৃতি", "সৃতি"][..]);
-        m.insert("dondho", &["দ্বন্দ্ব", "দন্ধ"][..]);
-        m.insert("dwondwo", &["দ্বন্দ্ব", "দন্ধ"][..]);
-        m.insert("trishna", &["তৃষ্ণা"][..]);
-        m.insert("chotto", &["ছোট্ট"][..]);
-        m.insert("onnya", &["অন্য"][..]);
-        m.insert("onno", &["অন্য"][..]);
-        m.insert("karun", &["কারণ"][..]);
-        m.insert("karon", &["কারণ", "কারন"][..]);
-        m.insert("khuje", &["খুঁজে"][..]);
-        m.insert("shonchoi", &["সঞ্চয়"][..]);
-        m.insert("onjo", &["অঞ্জ"][..]);
-        m.insert("shongko", &["শঙ্ক"][..]);
-        m.insert("songko", &["শঙ্ক"][..]);
-        m.insert("hot``hat``", &["হঠাৎ"][..]);
-        m.insert("hotat", &["হঠাৎ", "হতাত"][..]);
-        m.insert("hothat", &["হঠাৎ", "হতাত"][..]);
-        m.insert("kkh", &["ক্ষ"][..]);
-        m.insert("jha", &["ঝা"][..]);
-        m.insert("ko", &["কো", "ক"][..]);
-        m.insert("khabo", &["খাবো", "খাব"][..]);
-        m.insert("likhbo", &["লিখবো", "লিখব"][..]);
-        m.insert("janbo", &["জানবো", "জানব"][..]);
-        m.insert("parbo", &["পারবো", "পারব"][..]);
-        m.insert("korcho", &["করছো", "করছ"][..]);
-        m.insert("gechilam", &["গিয়েছিলাম", "গেছিলাম"][..]);
-        m.insert("shongjog", &["সংযোগ"][..]);
-        m.insert("songjog", &["সংযোগ"][..]);
-        m.insert("barna", &["বর্ণ", "বারনা"][..]);
-        m.insert("borno", &["বর্ণ"][..]);
-        m.insert("za", &["যা", "জা"][..]);
-        m.insert("ja", &["যা", "জা"][..]);
-        m.insert("Za", &["যা", "্যা"][..]);
-        m.insert("ya", &["য়া", "ইয়া"][..]);
-        m.insert("jao", &["যাও"][..]);
-        m.insert("jan", &["যান", "জান"][..]);
-        m.insert("konna", &["কন্যা"][..]);
-        m.insert("kanya", &["কন্যা"][..]);
-        m.insert("banya", &["বন্যা"][..]);
-        m.insert("bonna", &["বন্যা"][..]);
-        m.insert("dhonno", &["ধন্য"][..]);
-        m.insert("britto", &["বৃত্ত"][..]);
-        m.insert("ongko", &["অঙ্ক", "অংক"][..]);
-        m.insert("shonkha", &["সংখ্যা"][..]);
-        m.insert("shongkha", &["সংখ্যা"][..]);
-        m.insert("songkha", &["সংখ্যা"][..]);
-        m.insert("ghonta", &["ঘণ্টা", "ঘন্টা"][..]);
-        m.insert("ghonTa", &["ঘণ্টা", "ঘন্টা"][..]);
-        m.insert("kando", &["কাণ্ড", "কান্দ"][..]);
-        m.insert("kanDo", &["কাণ্ড"][..]);
-        m.insert("rong", &["রং", "রঙ"][..]);
-        m.insert("shoshto", &["ষষ্ঠ", "ষষ্ট"][..]);
-        m.insert("shoshTho", &["ষষ্ঠ"][..]);
-        m.insert("mrtto", &["মর্ত্য"][..]);
-        m.insert("mortyo", &["মর্ত্য"][..]);
-        m.insert("purno", &["পূর্ণ"][..]);
-        m.insert("porbo", &["পড়বো", "পরবো"][..]);
-        m.insert("bolbo", &["বলবো", "বলব"][..]);
-        m.insert("ticket", &["টিকেট", "টিকিট"][..]);
-        m.insert("bhalobashbo", &["ভালোবাসবো", "ভালোবাসব"][..]);
-        m.insert("valobashbo", &["ভালোবাসবো", "ভালোবাসব"][..]);
-        m.insert("shunbo", &["শুনবো", "শুনব"][..]);
-        m.insert("ashbo", &["আসবো", "আসব"][..]);
-        m.insert("korbo", &["করবো", "করব"][..]);
-        m.insert("jabo", &["যাবো", "যাব"][..]);
-
-        // Conversational single-letter standalone words & currency
-        m.insert("r", &["আর", "র"][..]);
-        m.insert("o", &["ও", "অ"][..]);
-        m.insert("e", &["এ"][..]);
-        m.insert("k", &["কে", "ক"][..]);
-        m.insert("b", &["বা", "ব"][..]);
-        m.insert("tk", &["৳", "টাকা", "তক"][..]);
-        m.insert("taka", &["টাকা", "৳"][..]);
-
-        // Khanda-Ta (ৎ) auto-words (resolving desktop Avro t` on mobile)
-        m.insert("biddut", &["বিদ্যুৎ"][..]);
-        m.insert("bidyut", &["বিদ্যুৎ"][..]);
-        m.insert("utshob", &["উৎসব"][..]);
-        m.insert("utsob", &["উৎসব"][..]);
-        m.insert("utshah", &["উৎসাহ"][..]);
-        m.insert("utshaho", &["উৎসাহ"][..]);
-        m.insert("hotat", &["হঠাৎ"][..]);
-        m.insert("hothat", &["হঠাৎ"][..]);
-        m.insert("shothat", &["হঠাৎ"][..]);
-        m.insert("jotshna", &["জ্যোৎস্না", "জোছনা"][..]);
-        m.insert("jotsna", &["জ্যোৎস্না", "জোছনা"][..]);
-        m.insert("utpadon", &["উৎপাদন"][..]);
-        m.insert("utpotti", &["উৎপত্তি"][..]);
-        m.insert("utso", &["উৎস"][..]);
-        m.insert("utkorsho", &["উৎকর্ষ"][..]);
-        m.insert("utkrishto", &["উৎকৃষ্ট"][..]);
-        m.insert("utkhepon", &["উৎক্ষেপণ"][..]);
-        m.insert("utsargo", &["উৎসর্গ"][..]);
-        m.insert("utshargo", &["উৎসর্গ"][..]);
-        m.insert("chamatkar", &["চমৎকার"][..]);
-        m.insert("camatkar", &["চমৎকার"][..]);
-        m.insert("jogot", &["জগৎ"][..]);
-        m.insert("zogot", &["জগৎ"][..]);
-        m.insert("jokrit", &["যকৃৎ"][..]);
-        m.insert("zokrit", &["যকৃৎ"][..]);
-        m.insert("sot", &["সৎ", "শত", "সত"][..]);
-        m.insert("bhabot", &["ভাবৎ"][..]);
-        m.insert("porombhrot", &["পরভৃৎ"][..]);
-
-        // Conversational continuous dialect verbs (-tasi / -tesi)
-        m.insert("khaitasi", &["খাইতাসি", "খাচ্ছি", "খাইতেছি"][..]);
-        m.insert("kortasi", &["করতাসি", "করছি", "করতেছি"][..]);
-        m.insert("jaitasi", &["যাইতাসি", "যাচ্ছি", "যাইতেছি"][..]);
-        m.insert("zaitasi", &["যাইতাসি", "যাচ্ছি", "যাইতেছি"][..]);
-        m.insert("dekhtasi", &["দেখতাসি", "দেখছি", "দেখতেছি"][..]);
-        m.insert("dektasi", &["দেখতাসি", "দেখছি"][..]);
-        m.insert("boltasi", &["বলতাসি", "বলছি", "বলতেছি"][..]);
-
-        // Anusvara (ং) & Bisarga (ঃ) auto-words
-        m.insert("shongstha", &["সংস্থা"][..]);
-        m.insert("songstha", &["সংস্থা"][..]);
-        m.insert("shongram", &["সংগ্রাম"][..]);
-        m.insert("songram", &["সংগ্রাম"][..]);
-        m.insert("dukkho", &["দুঃখ"][..]);
-        m.insert("dukho", &["দুঃখ"][..]);
-        m.insert("shothik", &["সঠিক"][..]);
-        m.insert("sothik", &["সঠিক"][..]);
-        m.insert("bissho", &["বিশ্ব"][..]);
-        m.insert("bishsho", &["বিশ্ব"][..]);
-        m.insert(
-            "ryab",
-            &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}"][..],
-        );
-        m.insert(
-            "rab",
-            &["\u{09B0}\u{200D}\u{09CD}\u{09AF}\u{09BE}\u{09AC}", "রব"][..],
-        );
-
-        // ── Phase 2: Missing-vowel chat shorthand verb families ─────────────
-        // 'kr' family (কর-)
-        m.insert("krbo", &["করবো", "করব"][..]);
-        m.insert("krchi", &["করছি"][..]);
-        m.insert("krcho", &["করছো"][..]);
-        m.insert("krche", &["করছে"][..]);
-        m.insert("krchen", &["করছেন"][..]);
-        m.insert("krchis", &["করছিস"][..]);
-        m.insert("krlam", &["করলাম"][..]);
-        m.insert("krle", &["করলে"][..]);
-        m.insert("krte", &["করতে"][..]);
-        m.insert("krbona", &["করবোনা", "করবো না"][..]);
-
-        // 'bl' family (বল-)
-        m.insert("blbo", &["বলবো", "বলব"][..]);
-        m.insert("blchi", &["বলছি"][..]);
-        m.insert("blcho", &["বলছো"][..]);
-        m.insert("blche", &["বলছে"][..]);
-        m.insert("blchen", &["বলছেন"][..]);
-        m.insert("bllam", &["বললাম"][..]);
-        m.insert("blle", &["বললে"][..]);
-        m.insert("blte", &["বলতে"][..]);
-
-        // 'dkh' family (দেখ-)
-        m.insert("dkhbo", &["দেখবো", "দেখব"][..]);
-        m.insert("dkhchi", &["দেখছি"][..]);
-        m.insert("dkhcho", &["দেখছো"][..]);
-        m.insert("dkhche", &["দেখছে"][..]);
-        m.insert("dkhlam", &["দেখলাম"][..]);
-        m.insert("dkhle", &["দেখলে"][..]);
-        m.insert("dkhte", &["দেখতে"][..]);
-
-        // 'shn' family (শুন-)
-        m.insert("shnbo", &["শুনবো", "শুনব"][..]);
-        m.insert("shnchi", &["শুনছি"][..]);
-        m.insert("shncho", &["শুনছো"][..]);
-        m.insert("shnche", &["শুনছে"][..]);
-        m.insert("shnlam", &["শুনলাম"][..]);
-        m.insert("shnte", &["শুনতে"][..]);
-
-        // 'pr' family (পার-)
-        m.insert("prbo", &["পারবো", "পারব"][..]);
-        m.insert("prchi", &["পারছি"][..]);
-        m.insert("prcho", &["পারছো"][..]);
-        m.insert("prche", &["পারছে"][..]);
-        m.insert("prlam", &["পারলাম"][..]);
-        m.insert("prle", &["পারলে"][..]);
-        m.insert("prte", &["পারতে"][..]);
-        m.insert("prbona", &["পারবোনা"][..]);
-
-        // 'bjh' family (বুঝ-)
-        m.insert("bjhsi", &["বুঝেছি"][..]);
-        m.insert("bjhlm", &["বুঝলাম"][..]);
-        m.insert("bjhso", &["বুঝেছো"][..]);
-        m.insert("bjhsen", &["বুঝেছেন"][..]);
-        m.insert("bjhte", &["বুঝতে"][..]);
-        m.insert("bjhina", &["বুঝিনা"][..]);
-        m.insert("bujhlam", &["বুঝলাম"][..]);
-        m.insert("bujhina", &["বুঝিনা"][..]);
-        m.insert("bujhte", &["বুঝতে"][..]);
-
-        // 'jb' / 'khb' family
-        m.insert("jbo", &["যাবো", "যাব"][..]);
-        m.insert("jbona", &["যাবোনা"][..]);
-        m.insert("khbo", &["খাবো", "খাব"][..]);
-        m.insert("khbona", &["খাবোনা"][..]);
-
-        // Conversational SMS contractions
-        m.insert("thk", &["ঠিক"][..]);
-        m.insert("thkse", &["ঠিক আছে"][..]);
-        m.insert("thikase", &["ঠিক আছে"][..]);
-        m.insert("thikache", &["ঠিক আছে"][..]);
-        m.insert("drkr", &["দরকার"][..]);
-        m.insert("kkhn", &["কখন"][..]);
-        m.insert("kkhno", &["কখনো"][..]);
-        m.insert("ekhno", &["এখনো"][..]);
-        m.insert("tkhno", &["তখনো"][..]);
-        m.insert("sbar", &["সবার"][..]);
-        m.insert("jni", &["জানি"][..]);
-        m.insert("jnina", &["জানিনা"][..]);
-        m.insert("dhnnbad", &["ধন্যবাদ"][..]);
-        m.insert("hye", &["হয়ে"][..]);
-        m.insert("hoisilo", &["হয়েছিল"][..]);
-        m.insert("accha", &["আচ্ছা"][..]);
-        m.insert("acchha", &["আচ্ছা"][..]);
-        m.insert("ekdom", &["একদম"][..]);
-        m.insert("arekta", &["আরেকটা"][..]);
-        m.insert("arekbar", &["আরেকবার"][..]);
-        m.insert("arekjon", &["আরেকজন"][..]);
-
-        // ── Phase 4: Suffix & Clitic Attachment Rules (-o 'also', -i 'emphatic') ──
-        m.insert("amio", &["আমিও"][..]);
-        m.insert("tumio", &["তুমিও"][..]);
-        m.insert("apnio", &["আপনিও"][..]);
-        m.insert("sheo", &["সেও"][..]);
-        m.insert("amrao", &["আমরাও"][..]);
-        m.insert("tomrao", &["তোমরাও"][..]);
-        m.insert("tarao", &["তারাও"][..]);
-        m.insert("orao", &["ওরাও"][..]);
-        m.insert("sobaio", &["সবাইও"][..]);
-        m.insert("shobaio", &["সবাইও"][..]);
-        m.insert("ekhono", &["এখনো"][..]);
-        m.insert("tokhono", &["তখনো"][..]);
-        m.insert("kokhono", &["কখনো"][..]);
-        m.insert("kothao", &["কোথাও"][..]);
-        m.insert("amii", &["আমিই"][..]);
-        m.insert("tumii", &["তুমিই"][..]);
-        m.insert("apnii", &["আপনিই"][..]);
-        m.insert("ekhoni", &["এখনই"][..]);
-        m.insert("shei", &["সেই"][..]);
-
-        // ── Phase 5: Regional & Sound-Law Equivalence (s/sh, v/bh, z/j) ───────
-        m.insert("vabchi", &["ভাবছি"][..]);
-        m.insert("vabcho", &["ভাবছো"][..]);
-        m.insert("vabche", &["ভাবছে"][..]);
-        m.insert("vablam", &["ভাবলাম"][..]);
-        m.insert("vabte", &["ভাবতে"][..]);
-        m.insert("vabbo", &["ভাববো"][..]);
-        m.insert("zao", &["যাও"][..]);
-        m.insert("zabe", &["যাবে"][..]);
-        m.insert("zodi", &["যদি"][..]);
-        m.insert("sombhob", &["সম্ভব"][..]);
-        m.insert("osombhob", &["অসম্ভব"][..]);
-        m.insert("somossa", &["সমস্যা"][..]);
-        m.insert("shomosya", &["সমস্যা"][..]);
-        m.insert("shombhob", &["সম্ভব"][..]);
-        m.insert("oshombhob", &["অসম্ভব"][..]);
-
-        // ── Everyday Mobile Orthography & Compound Words ──────────────────────
-        m.insert("kosto", &["কষ্ট"][..]);
-        m.insert("koshto", &["কষ্ট"][..]);
-        m.insert("srishti", &["সৃষ্টি"][..]);
-        m.insert("shristi", &["সৃষ্টি"][..]);
-        m.insert("sristi", &["সৃষ্টি"][..]);
-        m.insert("drishti", &["দৃষ্টি"][..]);
-        m.insert("dristi", &["দৃষ্টি"][..]);
-        m.insert("poriskar", &["পরিষ্কার"][..]);
-        m.insert("porishkar", &["পরিষ্কার"][..]);
-        m.insert("sustho", &["সুস্থ"][..]);
-        m.insert("osustho", &["অসুস্থ"][..]);
-        m.insert("shadhinota", &["স্বাধীনতা"][..]);
-        m.insert("sadhinota", &["স্বাধীনতা"][..]);
-        m.insert("shadhin", &["স্বাধীন"][..]);
-        m.insert("sadhin", &["স্বাধীন"][..]);
-        m.insert("protishthan", &["প্রতিষ্ঠান"][..]);
-        m.insert("protisthan", &["প্রতিষ্ঠান"][..]);
-        m.insert("porikkha", &["পরীক্ষা"][..]);
-        m.insert("porikha", &["পরীক্ষা"][..]);
-        m.insert("shikkha", &["শিক্ষা"][..]);
-        m.insert("shikkhar", &["শিক্ষার"][..]);
-        m.insert("shikkhok", &["শিক্ষক"][..]);
-        m.insert("shanto", &["শান্ত"][..]);
-        m.insert("santo", &["শান্ত"][..]);
-        m.insert("shanti", &["শান্তি"][..]);
-        m.insert("santi", &["শান্তি"][..]);
-        m.insert("songshod", &["সংসদ"][..]);
-        m.insert("shongshod", &["সংসদ"][..]);
-        m.insert("songbad", &["সংবাদ"][..]);
-        m.insert("shongbad", &["সংবাদ"][..]);
-        m.insert("songskriti", &["সংস্কৃতি"][..]);
-        m.insert("shongskriti", &["সংস্কৃতি"][..]);
-        m.insert("biggan", &["বিজ্ঞান"][..]);
-        m.insert("bigyan", &["বিজ্ঞান"][..]);
-        m.insert("sotyi", &["সত্যি"][..]);
-        m.insert("sotti", &["সত্যি"][..]);
-        m.insert("shotto", &["সত্য"][..]);
-        m.insert("sotto", &["সত্য"][..]);
-        m.insert("mitthe", &["মিথ্যা"][..]);
-        m.insert("mittha", &["মিথ্যা"][..]);
-        m.insert("surjo", &["সূর্য"][..]);
-        m.insert("shurjo", &["সূর্য"][..]);
-        m.insert("purnima", &["পূর্ণিমা"][..]);
-        m.insert("biddut", &["বিদ্যুৎ"][..]);
-        m.insert("bidyut", &["বিদ্যুৎ"][..]);
-        m.insert("ujjwal", &["উজ্জ্বল"][..]);
-        m.insert("ovinondon", &["অভিনন্দন"][..]);
-        m.insert("obhinondon", &["অভিনন্দন"][..]);
-        m.insert("shuvechha", &["শুভেচ্ছা"][..]);
-        m.insert("shubhechha", &["শুভেচ্ছা"][..]);
-        m.insert("subheccha", &["শুভেচ্ছা"][..]);
-        m.insert("shohid", &["শহীদ"][..]);
-        m.insert("sohid", &["শহীদ"][..]);
-        m.insert("bistar", &["বিস্তার"][..]);
-        m.insert("shondha", &["সন্ধ্যা"][..]);
-        m.insert("sondha", &["সন্ধ্যা"][..]);
-        m.insert("shondhya", &["সন্ধ্যা"][..]);
-        m.insert("shubho", &["শুভ"][..]);
-        m.insert("subho", &["শুভ"][..]);
-        m.insert("druto", &["দ্রুত"][..]);
-
-        // ── Phase 1: High-Frequency Everyday English Loanwords ────────────────
-        m.insert("school", &["স্কুল"][..]);
-        m.insert("college", &["কলেজ"][..]);
-        m.insert("varsity", &["ভার্সিটি"][..]);
-        m.insert("university", &["ভার্সিটি", "ইউনিভার্সিটি"][..]);
-        m.insert("class", &["ক্লাস"][..]);
-        m.insert("result", &["রেজাল্ট"][..]);
-        m.insert("exam", &["পরীক্ষা", "এক্সাম"][..]);
-        m.insert("routine", &["রুটিন"][..]);
-        m.insert("notice", &["নোটিশ"][..]);
-        m.insert("table", &["টেবিল"][..]);
-        m.insert("chair", &["চেয়ার"][..]);
-        m.insert("fan", &["ফ্যান"][..]);
-        m.insert("light", &["লাইট"][..]);
-        m.insert("pen", &["কলম", "পেন"][..]);
-        m.insert("pencil", &["পেন্সিল"][..]);
-        m.insert("paper", &["পেপার"][..]);
-        m.insert("bottle", &["বোতল"][..]);
-        m.insert("glass", &["গ্লাস"][..]);
-        m.insert("cup", &["কাপ"][..]);
-        m.insert("plate", &["প্লেট"][..]);
-        m.insert("box", &["বক্স"][..]);
-        m.insert("bag", &["ব্যাগ"][..]);
-        m.insert("doctor", &["ডাক্তার"][..]);
-        m.insert("hospital", &["হাসপাতাল"][..]);
-        m.insert("clinic", &["ক্লিনিক"][..]);
-        m.insert("medicine", &["ওষুধ", "মেডিসিন"][..]);
-        m.insert("nurse", &["নার্স"][..]);
-        m.insert("ambulance", &["অ্যাম্বুলেন্স"][..]);
-        m.insert("police", &["পুলিশ"][..]);
-        m.insert("bank", &["ব্যাংক"][..]);
-        m.insert("cash", &["ক্যাশ"][..]);
-        m.insert("card", &["কার্ড"][..]);
-        m.insert("balance", &["ব্যালেন্স"][..]);
-        m.insert("bill", &["বিল"][..]);
-        m.insert("recharge", &["রিচার্জ"][..]);
-        m.insert("offer", &["অফার"][..]);
-        m.insert("discount", &["ডিসকাউন্ট"][..]);
-        m.insert("price", &["দাম", "প্রাইস"][..]);
-        m.insert("market", &["মার্কেট"][..]);
-        m.insert("shop", &["দোকান", "শপ"][..]);
-        m.insert("order", &["অর্ডার"][..]);
-        m.insert("delivery", &["ডেলিভারি"][..]);
-        m.insert("salary", &["বেতন", "স্যালারি"][..]);
-        m.insert("job", &["চাকরি", "জব"][..]);
-        m.insert("boss", &["বস"][..]);
-        m.insert("sir", &["স্যার"][..]);
-        m.insert("madam", &["ম্যাডাম"][..]);
-        m.insert("car", &["কার", "গাড়ি"][..]);
-        m.insert("bike", &["বাইক"][..]);
-        m.insert("station", &["স্টেশন"][..]);
-        m.insert("airport", &["এয়ারপোর্ট"][..]);
-        m.insert("flight", &["ফ্লাইট"][..]);
-        m.insert("hotel", &["হোটেল"][..]);
-        m.insert("restaurant", &["রেস্টুরেন্ট"][..]);
-        m.insert("tour", &["ট্যুর"][..]);
-        m.insert("trip", &["ট্রিপ"][..]);
-        m.insert("traffic", &["ট্রাফিক"][..]);
-        m.insert("coffee", &["কফি"][..]);
-        m.insert("tea", &["চা"][..]);
-        m.insert("juice", &["জুস"][..]);
-        m.insert("cake", &["কেক"][..]);
-        m.insert("chocolate", &["চকলেট"][..]);
-        m.insert("biscuit", &["বিস্কুট"][..]);
-        m.insert("burger", &["বার্গার"][..]);
-        m.insert("pizza", &["পিৎজা", "পিজ্জা"][..]);
-        m.insert("sandwich", &["স্যান্ডউইচ"][..]);
-
-        // English loanwords with æ / অ্যা sounds
-        m.insert("admin", &["অ্যাডমিন"][..]);
-        m.insert("app", &["অ্যাপ"][..]);
-        m.insert("apps", &["অ্যাপস"][..]);
-        m.insert("application", &["অ্যাপ্লিকেশন"][..]);
-        m.insert("match", &["ম্যাচ"][..]);
-        m.insert("batch", &["ব্যাচ"][..]);
-        m.insert("catch", &["ক্যাচ"][..]);
-        m.insert("gas", &["গ্যাস"][..]);
-        m.insert("plan", &["প্ল্যান"][..]);
-        m.insert("tag", &["ট্যাগ"][..]);
-        m.insert("hack", &["হ্যাক"][..]);
-        m.insert("pack", &["প্যাক"][..]);
-        m.insert("packet", &["প্যাকেট"][..]);
-        m.insert("address", &["অ্যাড্রেস"][..]);
-        m.insert("action", &["অ্যাকশন"][..]);
-        m.insert("active", &["অ্যাক্টিভ"][..]);
-        m.insert("advance", &["অ্যাডভান্স"][..]);
-        m.insert("admission", &["অ্যাডমিশন"][..]);
-        m.insert("accent", &["অ্যাকসেন্ট"][..]);
-        m.insert("apple", &["অ্যাপল"][..]);
-        m.insert("battery", &["ব্যাটারি"][..]);
-        m.insert("van", &["ভ্যান"][..]);
-        m.insert("scan", &["স্ক্যান"][..]);
-        m.insert("trash", &["ট্র্যাশ"][..]);
-        m.insert("crash", &["ক্র্যাশ"][..]);
-        m.insert("actor", &["অ্যাক্টর"][..]);
-        m.insert("actress", &["অ্যাক্ট্রেস"][..]);
-        m.insert("cancel", &["ক্যানসেল"][..]);
-        m.insert("channel", &["চ্যানেল"][..]);
-        m.insert("laptop", &["ল্যাপটপ"][..]);
-        m.insert("chat", &["চ্যাট"][..]);
-        m.insert("jacket", &["জ্যাকেট"][..]);
-        m.insert("manager", &["ম্যানেজার"][..]);
-
-        m.insert("breakfast", &["ব্রেকফাস্ট"][..]);
-        m.insert("lunch", &["লাঞ্চ"][..]);
-        m.insert("dinner", &["ডিনার"][..]);
-        m.insert("party", &["পার্টি"][..]);
-        m.insert("picnic", &["পিকনিক"][..]);
-        m.insert("movie", &["মুভি", "সিনেমা"][..]);
-        m.insert("cinema", &["সিনেমা", "মুভি"][..]);
-        m.insert("drama", &["নাটক", "ড্রামা"][..]);
-        m.insert("cricket", &["ক্রিকেট"][..]);
-        m.insert("football", &["ফুটবল"][..]);
-        m.insert("sorry", &["সরি"][..]);
-        m.insert("thanks", &["ধন্যবাদ", "থ্যাংকস"][..]);
-        m.insert("thank", &["ধন্যবাদ", "থ্যাংকস"][..]);
-        m.insert("welcome", &["ওয়েলকাম"][..]);
-        m.insert("ok", &["ওকে"][..]);
-        m.insert("okay", &["ওকে"][..]);
-        m.insert("yes", &["হ্যাঁ", "ইয়েস"][..]);
-        m.insert("no", &["না", "নো"][..]);
-        m.insert("ready", &["রেডি"][..]);
-        m.insert("busy", &["ব্যস্ত", "বিজি"][..]);
-        m.insert("simple", &["সহজ", "সিম্পল"][..]);
-        m.insert("smart", &["স্মার্ট"][..]);
-        m.insert("cute", &["কিউট"][..]);
-        m.insert("sweet", &["সুইট"][..]);
-        m.insert("cool", &["কুল"][..]);
-        m.insert("nice", &["নিচে", "নাইস"][..]);
-        m.insert("tension", &["টেনশন"][..]);
-        m.insert("relax", &["রিল্যাক্স"][..]);
-        m.insert("happy", &["খুশি", "হ্যাপি"][..]);
-        m.insert("sad", &["দুঃখী", "স্যাড"][..]);
-        m.insert("love", &["ভালোবাসা", "লাভ"][..]);
-        m.insert("care", &["কেয়ার"][..]);
-        m.insert("miss", &["মিস"][..]);
-        m.insert("gift", &["উপহার", "গিফট"][..]);
-        m.insert("surprise", &["সারপ্রাইজ"][..]);
-        m.insert("date", &["তারিখ", "ডেট"][..]);
-        m.insert("family", &["পরিবার", "ফ্যামিলি"][..]);
-        m.insert("friend", &["বন্ধু", "ফ্রেন্ড"][..]);
-        m.insert("baby", &["বেবি", "শিশু"][..]);
-        m.insert("email", &["ইমেইল"][..]);
-        m.insert("mail", &["মেইল", "ইমেইল"][..]);
-        m.insert("facebook", &["ফেসবুক"][..]);
-        m.insert("fb", &["ফেসবুক"][..]);
-        m.insert("youtube", &["ইউটিউব"][..]);
-        m.insert("yt", &["ইউটিউব"][..]);
-        m.insert("google", &["গুগল"][..]);
-        m.insert("whatsapp", &["হোয়াটসঅ্যাপ"][..]);
-        m.insert("wa", &["হোয়াটসঅ্যাপ"][..]);
-        m.insert("page", &["পেজ"][..]);
-        m.insert("like", &["লাইক"][..]);
-        m.insert("inbox", &["ইনবক্স"][..]);
-        m.insert("status", &["স্ট্যাটাস"][..]);
-        m.insert("story", &["স্টোরি"][..]);
-        m.insert("reels", &["রিলস"][..]);
-        m.insert("block", &["ব্লক"][..]);
-        m.insert("unblock", &["আনব্লক"][..]);
-        m.insert("battery", &["ব্যাটারি"][..]);
-        m.insert("charger", &["চার্জার"][..]);
-        m.insert("charge", &["চার্জ"][..]);
-        m.insert("sim", &["সিম"][..]);
-        m.insert("wifi", &["ওয়াইফাই"][..]);
-
-        // ── Phase 16: Project প্রবহমান (Probahoman) Common Lexicon ────────────
-        // Ontostho-Ja (য) mappings for conversational mobile typing
-        m.insert("jawar", &["যাওয়ার", "যাওয়া"][..]);
-        m.insert("jawa", &["যাওয়া"][..]);
-        m.insert("jabe", &["যাবে"][..]);
-        m.insert("jabo", &["যাবো", "যাব"][..]);
-        m.insert("jodi", &["যদি"][..]);
-        m.insert("joto", &["যত"][..]);
-        m.insert("jotoi", &["যতই"][..]);
-        m.insert("jemon", &["যেমন"][..]);
-        m.insert("jeno", &["যেন"][..]);
-        m.insert("jara", &["যারা"][..]);
-        m.insert("jar", &["যার"][..]);
-        m.insert("jake", &["যাকে"][..]);
-        m.insert("jader", &["যাদের"][..]);
-        m.insert("jokhon", &["যখন"][..]);
-        m.insert("je", &["যে"][..]);
-        m.insert("jeti", &["যেটি"][..]);
-        m.insert("jegulo", &["যেগুলো"][..]);
-
-        // Academic, office & code-switching loanwords
-        m.insert("challenge", &["challenge", "চ্যালেঞ্জ"][..]);
-        m.insert("assignment", &["অ্যাসাইনমেন্ট"][..]);
-        m.insert("presentation", &["প্রেজেন্টেশন"][..]);
-        m.insert("quiz", &["কুইজ"][..]);
-        m.insert("lab", &["ল্যাব"][..]);
-        m.insert("report", &["রিপোর্ট"][..]);
-        m.insert("varsity", &["ভার্সিটি"][..]);
-        m.insert("project", &["project", "প্রজেক্ট", "প্রোজেক্ট"][..]);
-        m.insert("serious", &["সিরিয়াস", "সিরিয়াস"][..]);
-        m.insert("topic", &["টপিক"][..]);
-        m.insert("issue", &["ইস্যু"][..]);
-        m.insert("problem", &["problem", "প্রবলেম"][..]);
-        m.insert("student", &["student", "স্টুডেন্ট"][..]);
-        m.insert("life", &["life", "লাইফ"][..]);
-        m.insert("bug", &["bug", "বাগ"][..]);
-        m.insert("fix", &["fix", "ফিক্স"][..]);
-        m.insert("plan", &["প্ল্যান"][..]);
-        m.insert("service", &["সার্ভিস"][..]);
-        m.insert("client", &["ক্লায়েন্ট"][..]);
-        m.insert("manager", &["ম্যানেজার"][..]);
-
-        // Regional dialects & colloquial forms
-        m.insert("jaitasen", &["যাইতাছেন"][..]);
-        m.insert("dharaya", &["দাঁড়ায়া"][..]);
-        m.insert("hoilei", &["হইলেই"][..]);
-        m.insert("hunchos", &["হুনছস"][..]);
-        m.insert("huncos", &["হুনছস"][..]);
-        m.insert("amago", &["আমাগো"][..]);
-        m.insert("aibo", &["আইব"][..]);
-        m.insert("thaikka", &["থাইক্কা"][..]);
-        m.insert("hune", &["হুনে"][..]);
-        m.insert("huni", &["হুনি"][..]);
-        m.insert("hunsi", &["হুনসি", "হুনছি"][..]);
-        m.insert("kene", &["কেনে"][..]);
-        m.insert("kita", &["কিতা"][..]);
-        m.insert("korray", &["কররায়"][..]);
-        m.insert("jaibay", &["যাইবায়"][..]);
-        m.insert("oigel", &["অইগেল"][..]);
-        m.insert("kamda", &["কামডা"][..]);
-        m.insert("koilam", &["কইলাম"][..]);
-        m.insert("jaio", &["যাইও"][..]);
-        m.insert("kemne", &["কেমনে"][..]);
-        m.insert("fatamati", &["ফাটাফাটি"][..]);
-        m.insert("beparta", &["ব্যাপারটা"][..]);
-        m.insert("dariye", &["দাঁড়িয়ে", "দাড়িয়ে"][..]);
-        m.insert("dharie", &["দাঁড়িয়ে", "দাড়িয়ে"][..]);
-        m.insert("pouche", &["পৌঁছে", "পৌছে"][..]);
-        m.insert("poucha", &["পৌঁছা", "পৌছা"][..]);
-        m.insert("sheshmesh", &["শেষমেশ"][..]);
-        m.insert("seshmesh", &["শেষমেশ"][..]);
-        m.insert("ashenni", &["আসেননি", "আসেন নি"][..]);
-        m.insert("purono", &["পুরোনো", "পুরনো"][..]);
-        m.insert("priyo", &["প্রিয়", "প্রিয়"][..]);
-        m.insert("mojar", &["মজার"][..]);
-        m.insert("dhur", &["ধুর"][..]);
-        m.insert("chan", &["চান"][..]);
-        m.insert("shak", &["শাক"][..]);
-        m.insert("ongso", &["অংশ", "অংস"][..]);
-        m.insert("dur", &["দূর"][..]);
-        m.insert("dure", &["দূরে"][..]);
-        m.insert("shobcheye", &["সবচেয়ে", "শবচেয়ে"][..]);
-        m.insert("sobcheye", &["সবচেয়ে"][..]);
-
-        // Flap Rhotic (ড়) verb roots & nouns
-        m.insert("douraye", &["দৌড়াইয়া"][..]);
-        m.insert("douraya", &["দৌড়ায়া"][..]);
-        m.insert("poray", &["পড়ায়", "পরায়"][..]);
-        m.insert("porashona", &["পড়াশোনা"][..]);
-        m.insert("beracchi", &["বেড়াচ্ছি"][..]);
-        m.insert("jhogra", &["ঝগড়া"][..]);
-        m.insert("gari", &["গাড়ি"][..]);
-        m.insert("bari", &["বাড়ি"][..]);
-        m.insert("churi", &["চুড়ি", "ছুরি"][..]);
-        m.insert("shari", &["শাড়ি", "সারি"][..]);
-        m.insert("dal", &["ডাল", "দাল"][..]);
-
-        // Nasalized root verbs (Chandra-bindu retention)
-        m.insert("khujte", &["খুঁজতে", "খুজতে"][..]);
-        m.insert("khujchi", &["খুঁজছি", "খুজছি"][..]);
-        m.insert("khujche", &["খুঁজছে", "খুজছে"][..]);
-        m.insert("khujchen", &["খুঁজছেন", "খুজছেন"][..]);
-        m.insert("khujlam", &["খুঁজলাম", "খুজলাম"][..]);
-        m.insert("khuje", &["খুঁজে", "খুজে"][..]);
-        m.insert("khujbo", &["খুঁজবো", "খুজবো"][..]);
-        m.insert("khujo", &["খুঁজো", "খুজো"][..]);
-
-        // Sanskrit Tatshama, Visarga & Khanda-Ta Jukto
-        m.insert("swotoshfurtota", &["স্বতঃস্ফূর্ততা"][..]);
-        m.insert("swotosfurtota", &["স্বতঃস্ফূর্ততা"][..]);
-        m.insert("swoto:sfurtota", &["স্বতঃস্ফূর্ততা"][..]);
-        m.insert("oitsukko", &["ঔৎসুক্য"][..]);
-        m.insert("oicchukko", &["ঔৎসুক্য"][..]);
-        m.insert("anto:bishoyok", &["আন্তঃবিষয়ক"][..]);
-        m.insert("antobishoyok", &["আন্তঃবিষয়ক"][..]);
-        m.insert("punorutpadonjoggot", &["পুনরুৎপাদনযোগ্যতা"][..]);
-        m.insert("punorutpadon", &["পুনরুৎপাদন"][..]);
-        m.insert("shwastho", &["স্বাস্থ্য"][..]);
-        m.insert("swastho", &["স্বাস্থ্য"][..]);
-        m.insert("krishna", &["কৃষ্ণ", "কৃষ্ণা"][..]);
-        m.insert("krisna", &["কৃষ্ণ"][..]);
-        m.insert("srishtisheel", &["সৃষ্টিশীল"][..]);
-        m.insert("sristishil", &["সৃষ্টিশীল"][..]);
-        m.insert("troimashik", &["ত্রৈমাসিক"][..]);
-        m.insert("dristibhongi", &["দৃষ্টিভঙ্গি"][..]);
-        m.insert("oprotashito", &["অপ্রত্যাশিত"][..]);
-        m.insert("muhurto", &["মুহূর্ত"][..]);
-        m
+/// Looks up offline supervised phonetic override candidates for a key.
+pub fn get_override_words(key: &str) -> Option<Vec<String>> {
+    let db = crate::session::get_core_database();
+    db.lookup_override(key).map(|ov| {
+        ov.into_iter().map(|(w, _)| w.to_string()).collect()
     })
+}
+
+pub fn has_override_word(key: &str) -> bool {
+    let db = crate::session::get_core_database();
+    db.lookup_override(key).is_some()
 }
 
 /// Collapses repeated characters (3+ identical consecutive characters) in chat typing.
@@ -1504,8 +677,8 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
         return None;
     }
 
-    if get_common_words().contains_key(input)
-        || get_common_words().contains_key(input.to_lowercase().as_str())
+    if has_override_word(input)
+        || has_override_word(&input.to_lowercase())
     {
         return None;
     }
@@ -1929,8 +1102,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let lower = input.to_lowercase();
     let db = crate::session::get_core_database();
 
-    let is_explicit_common =
-        get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
+    let is_explicit_common = has_override_word(input) || has_override_word(&lower);
 
     // -1. User-defined explicit autocorrect / shortcut rules
     if let Ok(uac) = db.user_autocorrect.read() {
@@ -2038,13 +1210,12 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
 
         // 2. Shorthand & Common Contractions (offered as secondary suggestions)
-        if let Some(&words) = get_common_words()
-            .get(input)
-            .or_else(|| get_common_words().get(lower.as_str()))
+        if let Some(words) = get_override_words(input)
+            .or_else(|| get_override_words(&lower))
         {
-            for &w in words {
-                if !short_candidates.iter().any(|c| c == w) {
-                    short_candidates.push(w.to_string());
+            for w in words {
+                if !short_candidates.contains(&w) {
+                    short_candidates.push(w);
                 }
             }
         }
@@ -2054,17 +1225,20 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             }
         }
 
-        // Common word prefixes sorted by length so concise, high-frequency words appear first
-        let common = get_common_words();
-        let mut prefix_matches: Vec<(&'static str, &'static [&'static str])> = common
-            .iter()
-            .filter(|(&k, _)| k.starts_with(&lower) && k != lower)
-            .map(|(&k, &w)| (k, w))
-            .collect();
-        prefix_matches.sort_by_key(|(k, _)| k.len());
-        for (_, words) in prefix_matches {
-            for &w in words {
-                if !short_candidates.iter().any(|c| c == w) {
+        // Common word prefixes sorted by confidence score descending, then length ascending
+        let max_len = if lower.len() == 1 { 3 } else { 6 };
+        let mut prefix_entries = db.lookup_override_prefix(&lower, max_len, 256);
+        prefix_entries.sort_by(|a, b| {
+            let score_a = a.1.first().map(|(_, s)| s).unwrap_or(0.0);
+            let score_b = b.1.first().map(|(_, s)| s).unwrap_or(0.0);
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.0.len().cmp(&b.0.len()))
+        });
+        for (_, entry) in prefix_entries {
+            for (w, score) in entry {
+                if score >= 0.90 && !short_candidates.iter().any(|c| c == w) {
                     short_candidates.push(w.to_string());
                 }
                 if short_candidates.len() >= 8 {
@@ -2073,6 +1247,15 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             }
             if short_candidates.len() >= 8 {
                 break;
+            }
+        }
+
+        // Common word prefixes sorted by frequency
+        if short_candidates.len() < 8 {
+            for p in db.search_dictionary(&primary, 8 - short_candidates.len()) {
+                if !short_candidates.contains(&p) {
+                    short_candidates.push(p);
+                }
             }
         }
 
@@ -2199,11 +1382,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         None
     };
 
-    let is_explicit_common =
-        get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
-    if let Some(&words) = get_common_words()
-        .get(input)
-        .or_else(|| get_common_words().get(lower.as_str()))
+    let is_explicit_common = has_override_word(input) || has_override_word(&lower);
+    if let Some(words) = get_override_words(input)
+        .or_else(|| get_override_words(&lower))
     {
         let start_idx = if let Some(concordant) = concordant_cand {
             let conc_nfc = crate::probaho::nfc_normalize(concordant);
@@ -2218,28 +1399,26 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             0
         };
 
-        for (i, &w) in words.iter().enumerate() {
-            let ws = w.to_string();
-            if let Some(pos) = candidates.iter().position(|c| c == &ws) {
+        for (i, w) in words.into_iter().enumerate() {
+            if let Some(pos) = candidates.iter().position(|c| c == &w) {
                 candidates.remove(pos);
             }
-            candidates.insert((start_idx + i).min(candidates.len()), ws);
+            candidates.insert((start_idx + i).min(candidates.len()), w);
         }
         selected_idx = 0;
     } else if let Some(ref collapsed) = collapse_elongation(&lower) {
-        let words: Option<&[&str]> = match collapsed.as_str() {
-            "ha" => Some(&["হ্যাঁ", "হা"][..]),
-            "na" => Some(&["না"][..]),
-            _ => get_common_words().get(collapsed.as_str()).copied(),
+        let words: Option<Vec<String>> = match collapsed.as_str() {
+            "ha" => Some(vec!["হ্যাঁ".to_string(), "হা".to_string()]),
+            "na" => Some(vec!["না".to_string()]),
+            _ => get_override_words(collapsed.as_str()),
         };
 
         if let Some(words) = words {
-            for (i, &w) in words.iter().enumerate() {
-                let ws = w.to_string();
-                if let Some(pos) = candidates.iter().position(|c| c == &ws) {
+            for (i, w) in words.into_iter().enumerate() {
+                if let Some(pos) = candidates.iter().position(|c| c == &w) {
                     candidates.remove(pos);
                 }
-                candidates.insert(i.min(candidates.len()), ws);
+                candidates.insert(i.min(candidates.len()), w);
             }
             selected_idx = 0;
         } else if let Some((bn_loan, _)) =
@@ -2255,7 +1434,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // 2b. If the user explicitly typed an inflection ending in 'bo' or 'cho' (e.g. khabo -> খাবো, korcho -> করছো),
-    // prioritize the matching 'ো'-inflected form from candidates (unless explicitly ordered in COMMON_WORDS)
+    // prioritize the matching 'ো'-inflected form from candidates (unless explicitly ordered in phonetic overrides)
     if !is_explicit_common
         && (lower.ends_with("bo") || lower.ends_with("cho"))
         && !candidates.is_empty()
@@ -2288,13 +1467,13 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
     let is_all_caps = input.chars().count() >= 2 && input.chars().all(|c| c.is_ascii_uppercase());
     if is_all_caps {
-        let is_common_bengali_all_caps = get_common_words().contains_key(&lower.as_str());
+        let is_common_bengali_all_caps = has_override_word(&lower);
         if is_common_bengali_all_caps {
             // All-Caps Bengali input (e.g. "AMI", "TUMI", "DESH"):
             let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
                 ac.clone()
-            } else if let Some(&words) = get_common_words().get(&lower.as_str()) {
-                words.first().copied().unwrap_or("").to_string()
+            } else if let Some(words) = get_override_words(&lower) {
+                words.into_iter().next().unwrap_or_default()
             } else {
                 parser.convert(&lower)
             };
@@ -2322,8 +1501,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
         let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
             ac.clone()
-        } else if let Some(&words) = get_common_words().get(&lower.as_str()) {
-            words.first().copied().unwrap_or("").to_string()
+        } else if let Some(words) = get_override_words(&lower) {
+            words.into_iter().next().unwrap_or_default()
         } else {
             parser.convert(&lower)
         };
@@ -2331,7 +1510,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         if is_titlecase {
             // For sentence-initial titlecase (e.g. "Din" -> দিন vs ডিন, "Tara" -> তারা vs টারা):
             // Check if the lowercase variant is a common word or much higher frequency.
-            let is_common_lower = get_common_words().contains_key(&lower.as_str());
+            let is_common_lower = has_override_word(&lower);
             let freq_lower = get_word_frequency(resolved_lower.as_str());
             let freq_def = get_word_frequency(def.as_str());
 
@@ -2365,8 +1544,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // 3. QWERTY adjacency & transposition auto-correction for fat-finger typos on touchscreen
-    let mut common_typos = Vec::new();
-    let mut dict_typos = Vec::new();
+    let mut common_typos: Vec<(String, f32)> = Vec::new();
+    let mut dict_typos: Vec<String> = Vec::new();
     let is_exact_match = is_explicit_common
         || (db.is_exact_dictionary_word(&def) && db.get_frequency(&def) >= 1000);
     if !is_exact_match && lower.len() >= 3 && lower.len() <= 8 {
@@ -2376,16 +1555,16 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 let mut sub = chars.clone();
                 sub[i] = adj;
                 let cand_key: String = sub.into_iter().collect();
-                if let Some(&words) = get_common_words().get(cand_key.as_str()) {
-                    for &w in words {
-                        let ws = w.to_string();
-                        if !candidates.contains(&ws) && !common_typos.contains(&ws) {
-                            common_typos.push(ws);
+                if let Some(ov) = db.lookup_override(cand_key.as_str()) {
+                    for (ws, score) in ov {
+                        let ws_str = ws.to_string();
+                        if !candidates.contains(&ws_str) && !common_typos.iter().any(|(w, _)| w == &ws_str) {
+                            common_typos.push((ws_str, score));
                         }
                     }
                 } else if let Some(ac) = db.autocorrect.get(&cand_key) {
-                    if !candidates.contains(ac) && !common_typos.contains(ac) {
-                        common_typos.push(ac.clone());
+                    if !candidates.contains(ac) && !common_typos.iter().any(|(w, _)| w == ac) {
+                        common_typos.push((ac.clone(), 0.95));
                     }
                 } else if dict_typos.len() < 3 {
                     let conv = parser.convert(&cand_key);
@@ -2406,16 +1585,16 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 let mut swapped = chars.clone();
                 swapped.swap(i, i + 1);
                 let swap_key: String = swapped.into_iter().collect();
-                if let Some(&words) = get_common_words().get(swap_key.as_str()) {
-                    for &w in words {
-                        let ws = w.to_string();
-                        if !candidates.contains(&ws) && !common_typos.contains(&ws) {
-                            common_typos.push(ws);
+                if let Some(ov) = db.lookup_override(swap_key.as_str()) {
+                    for (ws, score) in ov {
+                        let ws_str = ws.to_string();
+                        if !candidates.contains(&ws_str) && !common_typos.iter().any(|(w, _)| w == &ws_str) {
+                            common_typos.push((ws_str, score));
                         }
                     }
                 } else if let Some(ac) = db.autocorrect.get(&swap_key) {
-                    if !candidates.contains(ac) && !common_typos.contains(ac) {
-                        common_typos.push(ac.clone());
+                    if !candidates.contains(ac) && !common_typos.iter().any(|(w, _)| w == ac) {
+                        common_typos.push((ac.clone(), 0.95));
                     }
                 } else if dict_typos.len() < 3 {
                     let conv = parser.convert(&swap_key);
@@ -2430,7 +1609,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             }
         }
     }
-    let mut typo_corrections = common_typos;
+    common_typos.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    let mut typo_corrections: Vec<String> = common_typos.into_iter().map(|(w, _)| w).collect();
     typo_corrections.extend(dict_typos);
 
     // 3c. Implicit Chandra Bindu (nasalization) auto-inference:

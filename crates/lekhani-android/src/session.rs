@@ -1408,14 +1408,12 @@ impl AndroidLekhaniSession {
                         );
                     }
                     if let Some(top) = candidates.first() {
-                        let is_explicit_common =
-                            crate::avro::get_common_word_candidates(&state.composing_buffer)
-                                .is_some();
                         let db = get_core_database();
                         let has_override = db.lookup_override(&state.composing_buffer).is_some()
                             || db
                                 .lookup_override(&state.composing_buffer.to_lowercase())
                                 .is_some();
+                        let is_explicit_common = has_override;
 
                         let freq_preedit = db.get_frequency(&preedit);
                         let freq_top = db.get_frequency(top);
@@ -2406,11 +2404,10 @@ impl AndroidLekhaniSession {
                         }
                     }
                     if let Some(top) = candidates.first() {
-                        let is_explicit_common =
-                            crate::avro::get_common_word_candidates(&raw).is_some();
                         let db = get_core_database();
                         let has_override = db.lookup_override(&raw).is_some()
                             || db.lookup_override(&raw.to_lowercase()).is_some();
+                        let is_explicit_common = has_override;
 
                         if !has_candidate_memory
                             && !is_explicit_common
