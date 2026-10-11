@@ -2398,9 +2398,8 @@ impl AndroidLekhaniSession {
                         );
                     }
                     crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
-                    let is_all_caps = raw.len() >= 2 && raw.chars().all(|c| c.is_ascii_uppercase());
-                    let is_tech_token = crate::english::STATIC_BILINGUAL_TECH_WORDS.contains(&raw.to_lowercase().as_str()) || raw == "NaN";
-                    if is_all_caps || is_tech_token {
+                    let is_acronym_or_tech = (raw.len() >= 2 && raw.chars().all(|c| c.is_ascii_uppercase())) || raw == "NaN" || raw == "Infinity";
+                    if is_acronym_or_tech {
                         if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(&raw)) {
                             let cand = candidates.remove(pos);
                             candidates.insert(0, cand);

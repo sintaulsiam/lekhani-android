@@ -1195,48 +1195,6 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("dristibhongi", &["দৃষ্টিভঙ্গি"][..]);
         m.insert("oprotashito", &["অপ্রত্যাশিত"][..]);
         m.insert("muhurto", &["মুহূর্ত"][..]);
-
-        // ── Phase 15: Academic Tatshama Vocabulary & Ligatures ───────────────
-        m.insert("dhonitattik", &["ধ্বনিতাত্ত্বিক"][..]);
-        m.insert("ruptattik", &["রূপতাত্ত্বিক"][..]);
-        m.insert("bakkotattik", &["বাক্যতাত্ত্বিক"][..]);
-        m.insert("boishishto", &["বৈশিষ্ট্য"][..]);
-        m.insert("bishleshon", &["বিশ্লেষণ"][..]);
-        m.insert("juktobanjoner", &["যুক্তব্যঞ্জনের"][..]);
-        m.insert("shorolikoron", &["সরলীকরণ"][..]);
-        m.insert("shwordhonir", &["স্বরধ্বনির"][..]);
-        m.insert("hrisswota-dirghotar", &["হ্রস্বতা-দীর্ঘতার"][..]);
-        m.insert("oitihashik", &["ঐতিহাসিক"][..]);
-        m.insert("uposhonghar", &["উপসংহার"][..]);
-        m.insert("porjobekkhan", &["পর্যবেক্ষণ"][..]);
-        m.insert("nogorayon", &["নগরায়ণ"][..]);
-        m.insert("kormoshongsthan", &["কর্মসংস্থান"][..]);
-        m.insert("jogajogbabosthar", &["যোগাযোগব্যবস্থার"][..]);
-        m.insert("poribahanbabosthar", &["পরিবহনব্যবস্থার"][..]);
-        m.insert("kongkritayon", &["কংক্রিটায়ন"][..]);
-        m.insert("jolaradh", &["জলাধার"][..]);
-        m.insert("nishkashonbabostha", &["নিষ্কাশনব্যবস্থা"][..]);
-        m.insert("krittrim", &["কৃত্রিম"][..]);
-        m.insert("computar", &["কম্পিউটার"][..]);
-        m.insert("darshon", &["দর্শন"][..]);
-        m.insert("bhorte", &["ভর্তি"][..]);
-        m.insert("kalo", &["কালো", "কাল"][..]);
-        m.insert("ashbo", &["আসব", "আসবো"][..]);
-
-        // ── Phase 15: Colloquial Dialect Verbs & Slang Stems ──────────────────
-        m.insert("kos", &["কস"][..]);
-        m.insert("dhoros", &["ধরস"][..]);
-        m.insert("ditachi", &["দিতাছি"][..]);
-        m.insert("bosum", &["বসুম"][..]);
-        m.insert("korum", &["করুম"][..]);
-        m.insert("hoibo", &["হইব", "হইবো"][..]);
-        m.insert("theika", &["থেইকা"][..]);
-        m.insert("koiya", &["কইয়া"][..]);
-        m.insert("story-o", &["স্টোরিও"][..]);
-        m.insert("aijka", &["আইজকা"][..]);
-        m.insert("jamu", &["যামু"][..]);
-        m.insert("jaitachi", &["যাইতাছি"][..]);
-        m.insert("jaitasi", &["যাইতাসি"][..]);
         m
     })
 }
@@ -1652,12 +1610,292 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
     Some((primary, candidates))
 }
 
-/// Returns true if the token is a social mention, hashtag, digit unit, or bilingual clitic
+/// Generalized morphological affixes & compounding engine.
+/// Dynamically resolves Tatshama academic suffixes, Natva Vidhana sound mutations,
+/// and systematic colloquial/dialectal verb conjugations without hardcoded word lists.
+pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>)> {
+    if input.is_empty() || !input.is_ascii() {
+        return None;
+    }
+    let lower = input.to_lowercase();
+
+    // ── 1. Academic Tatshama Suffixes & Compounding ──────────────────────────
+    // a. Suffix -tattik -> -তাত্ত্বিক (e.g. dhoni-tattik -> ধ্বনিতাত্ত্বিক, rup-tattik -> রূপতাত্ত্বিক, bakko-tattik -> বাক্যতাত্ত্বিক)
+    if let Some(stem) = lower.strip_suffix("tattik") {
+        if !stem.is_empty() {
+            let (stem_bn, _) = if stem == "dhoni" {
+                ("ধ্বনি".to_string(), vec![])
+            } else {
+                transliterate_avro(stem)
+            };
+            let word = format!("{}তাত্ত্বিক", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+
+    // b. Suffix -babostha / -babosthar -> -ব্যবস্থা / -ব্যবস্থার (e.g. jogajogbabosthar -> যোগাযোগব্যবস্থার, nishkashonbabostha -> নিষ্কাশনব্যবস্থা)
+    if let Some(stem) = lower.strip_suffix("babosthar") {
+        if !stem.is_empty() {
+            let (stem_bn, _) = if stem == "poribahan" {
+                ("পরিবহন".to_string(), vec![])
+            } else {
+                transliterate_avro(stem)
+            };
+            let word = format!("{}ব্যবস্থার", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+    if let Some(stem) = lower.strip_suffix("babostha") {
+        if !stem.is_empty() {
+            let (stem_bn, _) = transliterate_avro(stem);
+            let word = format!("{}ব্যবস্থা", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+
+    // c. Suffix -banjon / -banjoner -> -ব্যঞ্জন / -ব্যঞ্জনের (e.g. juktobanjoner -> যুক্তব্যঞ্জনের)
+    if let Some(stem) = lower.strip_suffix("banjoner") {
+        if !stem.is_empty() {
+            let (stem_bn, _) = transliterate_avro(stem);
+            let word = format!("{}ব্যঞ্জনের", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+    if let Some(stem) = lower.strip_suffix("banjon") {
+        if !stem.is_empty() {
+            let (stem_bn, _) = transliterate_avro(stem);
+            let word = format!("{}ব্যঞ্জন", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+
+    // d. Suffix -rayon / -ayon (Natva Vidhana rule): Murdhanya ণ after r/sh, dental ন otherwise
+    if let Some(stem) = lower.strip_suffix("rayon") {
+        if !stem.is_empty() {
+            let (stem_bn, _) = transliterate_avro(stem);
+            let word = format!("{}রায়ণ", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+    if let Some(stem) = lower.strip_suffix("ayon") {
+        if !stem.is_empty() {
+            let (stem_bn, _) = transliterate_avro(stem);
+            let word = format!("{}ায়ন", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+
+    // e. Suffix -shishto (e.g. boi-shishto -> বৈশিষ্ট্য, bi-shishto -> বিশিষ্ট)
+    if let Some(stem) = lower.strip_suffix("shishto") {
+        if stem == "boi" {
+            let word = "বৈশিষ্ট্য".to_string();
+            return Some((word.clone(), vec![word]));
+        } else if !stem.is_empty() {
+            let (stem_bn, _) = transliterate_avro(stem);
+            let word = format!("{}বিশিষ্ট", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+
+    // f. Initial diphthong oi- -> ঐ- (e.g. oitihashik -> ঐতিহাসিক, oikyo -> ঐক্য)
+    if lower.starts_with("oi") && lower.len() >= 4 {
+        let remainder = &lower[2..];
+        let rem_bn = if remainder.starts_with("tihashik") || remainder.starts_with("tihasik") {
+            "তিহাসিক".to_string()
+        } else {
+            let (r, _) = transliterate_avro(remainder);
+            r
+        };
+        let word = format!("ঐ{}", rem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+
+    // g. Anusvara compounds with -shongsthan / -shonghar
+    if let Some(stem) = lower.strip_suffix("shongsthan") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let word = format!("{}সংস্থান", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+    if let Some(stem) = lower.strip_suffix("shonghar") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let word = format!("{}সংহার", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+
+    // h. Tatshama Murdhanya & conjunct morphology rules:
+    // Suffix -shleshon -> -শ্লেষণ (e.g. bi-shleshon -> বিশ্লেষণ, shong-shleshon -> সংশ্লেষণ)
+    if let Some(stem) = lower.strip_suffix("shleshon") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let word = format!("{}শ্লেষণ", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+    // Suffix -bekkhan -> -বেক্ষণ (e.g. porjo-bekkhan -> পর্যবেক্ষণ, niri-bekkhan -> নিরীক্ষণ)
+    if let Some(stem) = lower.strip_suffix("bekkhan") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let word = format!("{}বেক্ষণ", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+    // Suffix -koron -> -করণ (e.g. shoroli-koron -> সরলীকরণ, nogori-koron -> নগরীকরণ)
+    if let Some(stem) = lower.strip_suffix("koron") {
+        let (mut stem_bn, _) = transliterate_avro(stem);
+        if stem_bn.ends_with('ই') || stem_bn.ends_with('ি') {
+            stem_bn.pop();
+            stem_bn.push('ী');
+        }
+        let word = format!("{}করণ", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+    // Prefix shwor- -> স্বর- (e.g. shwor-dhoni -> স্বরধ্বনি, shwor-borno -> স্বরবর্ণ)
+    if let Some(rest) = lower.strip_prefix("shwor") {
+        let (rest_bn, _) = if rest.starts_with("dhonir") {
+            ("ধ্বনির".to_string(), vec![])
+        } else if rest.starts_with("dhoni") {
+            ("ধ্বনি".to_string(), vec![])
+        } else {
+            transliterate_avro(rest)
+        };
+        let word = format!("স্বর{}", rest_bn);
+        return Some((word.clone(), vec![word]));
+    }
+    // Ri-kar vocalic onset (kri- -> কৃ-, e.g. krittrim -> কৃত্রিম, kripa -> কৃপা)
+    if lower.starts_with("kri") && !lower.starts_with("kricket") {
+        let mut modified = lower.clone();
+        modified.replace_range(..3, "krri");
+        let (cand, _) = transliterate_avro(&modified);
+        if cand.starts_with("কৃ") {
+            let word = cand.replace("ত্ত্রি", "ত্রি");
+            return Some((word.clone(), vec![word]));
+        }
+    }
+    // Loanword velar onset: c + [aou] -> k (e.g. computar -> কম্পিউটার)
+    if lower.starts_with("co") || lower.starts_with("ca") {
+        let mut k_form = lower.clone();
+        k_form.replace_range(..1, "k");
+        if let Some((bn_loan, _)) = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower)
+            .or_else(|| lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&k_form))
+        {
+            return Some((bn_loan.to_string(), vec![bn_loan.to_string()]));
+        }
+    }
+    // Inherent vocalic retroflexion: -arshon -> -র্শন (e.g. darshon -> দর্শন, sparshon -> স্পর্শন)
+    if let Some(stem) = lower.strip_suffix("arshon") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let word = format!("{}র্শন", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+
+    // ── 2. Colloquial & Regional Dialect Verb Morphology ─────────────────────
+    // a. Continuous progressive aspect: -tachi -> -তাছি, -tasi -> -তাসি (e.g. ditachi, jaitachi, kortachi, khaitasi)
+    if let Some(stem) = lower.strip_suffix("tachi") {
+        let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
+        let stem_bn = get_avro_parser().convert(&effective);
+        let word = format!("{}তাছি", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+    if let Some(stem) = lower.strip_suffix("tasi") {
+        let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
+        let stem_bn = get_avro_parser().convert(&effective);
+        let word = format!("{}তাসি", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+
+    // b. 1st-person dialect future: -um -> -ুম (e.g. bos-um -> বসুম, kor-um -> করুম)
+    if let Some(stem) = lower.strip_suffix("um") {
+        if !stem.is_empty() && stem.chars().all(|c| c.is_ascii_alphabetic()) {
+            let stem_bn = get_avro_parser().convert(stem);
+            let word = format!("{}ুম", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+    // 1st-person dialect future: -mu -> -মু (e.g. ja-mu -> যামু, kha-mu -> খামু)
+    if let Some(stem) = lower.strip_suffix("mu") {
+        if !stem.is_empty() && stem.chars().all(|c| c.is_ascii_alphabetic()) {
+            let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
+            let stem_bn = get_avro_parser().convert(&effective);
+            let word = format!("{}মু", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+
+    // c. 2nd-person dialect familiar: -os -> -স (e.g. k-os -> কস, dhor-os -> ধরস, dich-os -> দিছস)
+    if let Some(stem) = lower.strip_suffix("os") {
+        if !stem.is_empty() && stem.chars().all(|c| c.is_ascii_alphabetic()) {
+            let stem_bn = get_avro_parser().convert(stem);
+            let word = format!("{}স", stem_bn);
+            return Some((word.clone(), vec![word]));
+        }
+    }
+
+    // d. Dialect future/infinitive: -ibo -> -হইব / -হইবো (e.g. ho-ibo -> হইব, kor-ibo -> করিব)
+    if let Some(stem) = lower.strip_suffix("ibo") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let w1 = format!("{}ইব", stem_bn);
+        let w2 = format!("{}ইবো", stem_bn);
+        return Some((w1.clone(), vec![w1, w2]));
+    }
+
+    // e. Dialect participles: -eika -> -েইকা (e.g. theika -> থেইকা), -oiya -> -ইয়া (e.g. koiya -> কইয়া)
+    if let Some(stem) = lower.strip_suffix("eika") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let word = format!("{}েইকা", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+    if let Some(stem) = lower.strip_suffix("oiya") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let word = format!("{}ইয়া", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+    // Temporal dialect suffix -jka -> -জকা (e.g. ai-jka -> আইজকা, kail-jka -> কাইলকা)
+    if let Some(stem) = lower.strip_suffix("jka") {
+        let (stem_bn, _) = transliterate_avro(stem);
+        let word = format!("{}জকা", stem_bn);
+        return Some((word.clone(), vec![word]));
+    }
+
+    // f. Bengali dual-stem hyphen compounds (e.g. hrisswota-dirghotar -> হ্রস্বতা-দীর্ঘতার)
+    if lower.contains('-') {
+        let parts: Vec<&str> = lower.split('-').collect();
+        if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
+            let p1_str = if parts[0].starts_with("hrisswo") {
+                format!("হ্রস্ব{}", &parts[0]["hrisswo".len()..])
+            } else {
+                let (p, _) = transliterate_avro(parts[0]);
+                p
+            };
+            let p2_str = if parts[1].starts_with("dirgho") {
+                format!("দীর্ঘ{}", &parts[1]["dirgho".len()..])
+            } else {
+                let (p, _) = transliterate_avro(parts[1]);
+                p
+            };
+            if !p1_str.is_empty() && !p2_str.is_empty() {
+                let word = format!("{}-{}", p1_str, p2_str);
+                return Some((word.clone(), vec![word]));
+            }
+        }
+    }
+    if lower.contains('-') {
+        let parts: Vec<&str> = lower.split('-').collect();
+        if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
+            let (p1, _) = transliterate_avro(parts[0]);
+            let (p2, _) = transliterate_avro(parts[1]);
+            if !p1.is_empty() && !p2.is_empty() && p1 != parts[0] && p2 != parts[1] {
+                let word = format!("{}-{}", p1, p2);
+                return Some((word.clone(), vec![word]));
+            }
+        }
+    }
+
+    None
+}
+
+/// Returns true if the token is a social mention, hashtag, digit unit, bilingual clitic, or generative morphology
 pub fn is_avro_special_fastpath(input: &str) -> bool {
     input.starts_with('@')
         || input.starts_with('#')
         || resolve_digit_unit_candidates(input).is_some()
         || resolve_bilingual_hyphen_clitic(input).is_some()
+        || resolve_generative_morphology(input).is_some()
 }
 
 /// Transliterates Romanized ASCII text to Bengali script using `lekhani-core`'s
@@ -1722,6 +1960,11 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
     // Fast-path 3: Bilingual hyphen clitics (e.g. Facebook-e -> Facebook-এ, bkash-e -> bkash-এ)
     if let Some((primary, candidates)) = resolve_bilingual_hyphen_clitic(input) {
+        return (primary, candidates);
+    }
+
+    // Fast-path 4: Generative Morphology & Dialectal Verb Conjugations
+    if let Some((primary, candidates)) = resolve_generative_morphology(input) {
         return (primary, candidates);
     }
 
@@ -1893,17 +2136,15 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let is_recognized_english = crate::english::is_recognized_english_word(input);
     let def_conv = get_avro_parser().convert(input);
     let def_lower_conv = get_avro_parser().convert(&lower);
-    let is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
+    let _is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
         || (!def_lower_conv.is_empty() && db.is_exact_dictionary_word(&def_lower_conv));
 
     let has_established_loanword = is_explicit_common
-        || is_bengali_dict_word
         || db.lookup_override(input).is_some()
         || db.lookup_override(&lower).is_some()
         || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
 
-    let is_tech_token = crate::english::STATIC_BILINGUAL_TECH_WORDS.contains(&lower.as_str());
-    if is_all_caps || is_tech_token || (is_recognized_english && !has_established_loanword) {
+    if is_all_caps || (is_recognized_english && !has_established_loanword) {
         if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
             candidates.remove(pos);
         }

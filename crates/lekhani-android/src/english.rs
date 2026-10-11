@@ -103,12 +103,31 @@ pub fn get_english_trie() -> Option<&'static PrefixTrie> {
         std::path::Path::new("../../data/dictionaries"),
     ];
     for dir in candidate_dirs {
-        let bin_path = dir.join("english_dict.bin");
-        if bin_path.exists() {
-            if let Ok(bytes) = std::fs::read(&bin_path) {
+        let candidate = dir.join("english_dict.bin");
+        if candidate.exists() {
+            if let Ok(bytes) = std::fs::read(&candidate) {
                 if let Ok(trie) = PrefixTrie::from_binary(&bytes) {
                     let _ = ENGLISH_TRIE.set(trie);
                     return ENGLISH_TRIE.get();
+                }
+            }
+        }
+    }
+    // Also check relative to CARGO_MANIFEST_DIR during testing
+    if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+        let manifest_path = std::path::PathBuf::from(manifest_dir);
+        let candidates = [
+            manifest_path.join("data/dictionaries/english_dict.bin"),
+            manifest_path.join("../data/dictionaries/english_dict.bin"),
+            manifest_path.join("../../data/dictionaries/english_dict.bin"),
+        ];
+        for candidate in candidates {
+            if candidate.exists() {
+                if let Ok(bytes) = std::fs::read(&candidate) {
+                    if let Ok(trie) = PrefixTrie::from_binary(&bytes) {
+                        let _ = ENGLISH_TRIE.set(trie);
+                        return ENGLISH_TRIE.get();
+                    }
                 }
             }
         }
@@ -128,18 +147,6 @@ pub const STATIC_SHORT_ENGLISH_WORDS: &[&str] = &[
     "vs", "app", "web", "api", "otp", "dev", "doc", "ui", "ux", "os", "ip",
 ];
 
-pub const STATIC_BILINGUAL_TECH_WORDS: &[&str] = &[
-    "group", "meeting", "busy", "career", "planning", "fail", "debate", "formal", "complaint",
-    "committee", "member", "adviser", "window", "score", "hybrid", "architecture", "cross-platform",
-    "kotlin", "linux", "windows", "unicode", "grapheme", "cluster", "event", "message", "breakfast",
-    "crisis", "slide", "content-type", "nan", "infinity", "cer", "wer", "rfc", "asynchronous",
-    "synchronous", "execute", "callback", "normalization", "surrogate", "malformed", "duplicate",
-    "invalid", "unexpected", "inference-time", "computation", "context", "evaluation",
-    "methodology", "benchmark", "deductive", "inductive", "reasoning", "association",
-    "confounding", "variables", "skepticism", "cynicism", "suggestion", "deadline", "midterm",
-    "coding", "documentation", "slides", "reply", "dangerous", "level", "management", "review",
-];
-
 /// Returns true if the given token is a recognized word in the English dictionary or common short words whitelist.
 pub fn is_recognized_english_word(token: &str) -> bool {
     if token.is_empty() || !token.is_ascii() {
@@ -149,9 +156,7 @@ pub fn is_recognized_english_word(token: &str) -> bool {
     if token.chars().count() < 3 {
         return STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str());
     }
-    if STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str())
-        || STATIC_BILINGUAL_TECH_WORDS.contains(&lower.as_str())
-    {
+    if STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str()) {
         return true;
     }
     get_english_trie()
