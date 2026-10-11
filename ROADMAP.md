@@ -302,4 +302,24 @@
   - Non-intrusive 1-tap chip surfacing in the candidate strip when grammatical honorific clashes or homophone mismatches occur (`বই পরা` ➔ `🪄 পড়া`, `আপনি আছো` ➔ `🪄 আছেন`).
   - Grapheme-accurate backspacing and atomic clause replacement via `get_retro_correction()` and `apply_retro_correction()`.
 
+---
+
+## Phase 16: Project প্রবহমান (Probahoman) — Comprehensive Phonetic, Code-Switching & Dialectal Synthesis
+- [ ] **Dual-Surfacing Code-Switching & Tech Passthrough**:
+  - Dual-surfacing for conversational English loanwords (`challenge`, `tension`, `chill`, `project`, `API`, `JSON`, `Rust`) preserving verbatim Latin text in Slot 0 while offering Bengali loanwords in Slot 1.
+  - Strict passthrough shield for all-caps acronyms (`CGPA`, `UI`, `AI`, `NLP`, `CER`, `WER`, `UTF-8`).
+- [ ] **Context-Aware Flap & Rhotic Auto-Disambiguation (`r` ➔ `ড়` / `ঢ়`)**:
+  - Automatic `ড়`-counterpart promotion for high-frequency flap verb roots (`poray` ➔ `পড়ায়`, `porashona` ➔ `পড়াশোনা`, `douraye` ➔ `দৌড়াইয়া`, `beracchi` ➔ `বেড়াচ্ছি`, `jhogra` ➔ `ঝগড়া`).
+- [ ] **Semivowel Ontostho-Ja Mapping (`j` ➔ `য`)**:
+  - Intuitive phonetic equivalence for words like `jawar` ➔ `যাওয়ার`, `jabe` ➔ `যাবে`, `je` ➔ `যে`, `jotoi` ➔ `যতই`.
+- [ ] **English Loanword Bengali Phonetics Expansion**:
+  - Standardized phonological transcription for common academic/office loanwords (`assignment` ➔ `অ্যাসাইনমেন্ট`, `presentation` ➔ `প্রেজেন্টেশন`, `lab` ➔ `ল্যাব`).
+- [ ] **Multi-Dialect Regional Verb Conjugation Integration**:
+  - Native lexicon support for Noakhali (`হুনছস`, `আমাগো`, `আইব`, `থাইক্কা`), Sylheti (`কিতা`, `কররায়`, `যাইবায়`, `অইগেল`), Dhakaiya (`যাইতাছেন`, `হইলেই`, `দাঁড়ায়া`), and Rural Bengali (`কইলাম`, `কামডা`, `যাইও`).
+- [ ] **Complex Sanskrit Visarga & Khanda-Ta Jukto Synthesis**:
+  - Accurate compound generation for `swotoshfurtota` ➔ `স্বতঃস্ফূর্ততা`, `oitsukko` ➔ `ঔৎসুক্য`, `anto:bishoyok` ➔ `আন্তঃবিষয়ক`, `punorutpadonjoggot` ➔ `পুনরুৎপাদনযোগ্যতা`.
+- [ ] **Orthographic Inherent-O Dual-Form Support**:
+  - Conflict-free dual surfacing for stylistic verb variations (`করল / করলো`, `পড়ল / পড়লো`, `ধরল / ধরলো`, `বলল / বললো`, `কি / কী`).
+
+
 
