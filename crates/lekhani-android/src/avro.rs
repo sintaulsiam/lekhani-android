@@ -230,11 +230,22 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
         variant_keys.push(contracted);
     }
 
-    // 2. S-class sibilant swap: 'shomporko' -> 'somporko', 'shomossa' -> 'somossa'
+    // 2. S-class sibilant swap:
+    // Initial sibilants: 'shomporko' -> 'somporko', 'shomossa' -> 'somossa'
     if lower.starts_with("sh") {
         variant_keys.push(lower.replacen("sh", "s", 1));
     } else if lower.starts_with('s') {
         variant_keys.push(lower.replacen('s', "sh", 1));
+    }
+    // Intervocalic / pre-vocalic sibilant swap (e.g. 'oitihashik' -> 'oitihasik'):
+    // Preserves conjunct clusters like 'shk' (আবিষ্কার), 'sht' (বৃষ্টি), 'shp' (পুষ্প)
+    let vowels = "aeiouy";
+    if let Some(idx) = lower.find("sh") {
+        if idx + 2 < lower.len() && vowels.contains(lower.as_bytes()[idx + 2] as char) {
+            let mut v = lower.clone();
+            v.replace_range(idx..idx + 2, "s");
+            variant_keys.push(v);
+        }
     }
 
     // 3. Dharma / Karma / Antor / Ontor phonetic vowel harmony
@@ -298,11 +309,41 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
         }
     }
 
-    // 6b. Initial 'oi' -> 'OI' (ঐ) auto-disambiguation
-    if lower.starts_with("oi") && lower.len() >= 3 {
-        let mut with_oi = lower.clone();
-        with_oi.replace_range(0..2, "OI");
-        variant_keys.push(with_oi);
+    // 6b. Diphthong 'oi' -> 'OI' (ঐ / ৈ) auto-disambiguation
+    if lower.contains("oi") {
+        variant_keys.push(lower.replace("oi", "OI"));
+        if lower.contains("sh") {
+            variant_keys.push(lower.replace("oi", "OI").replace("sh", "s"));
+        }
+    }
+
+    // 6c. Sanskrit ya-phola on retroflex sibilant cluster: '-shto' -> '-shtyo' / '-sHtyo' (e.g. boishishto -> বৈশিষ্ট্য)
+    if let Some(base_shto) = lower.strip_suffix("shto") {
+        variant_keys.push(format!("{}sHtyo", base_shto));
+        variant_keys.push(format!("{}shtyo", base_shto));
+        if base_shto.contains("oi") {
+            variant_keys.push(format!("{}sHtyo", base_shto.replace("oi", "OI")));
+        }
+    }
+
+    // 6d. Ri-kar vocalic onset (consonant + 'ri' -> 'rri', e.g. 'kri' -> 'krri' -> কৃ, 'krittrim' -> 'krritrim' -> কৃত্রিম)
+    if lower.contains("ri") {
+        let with_rri = lower.replace("ri", "rri");
+        variant_keys.push(with_rri.clone());
+        if lower.contains("ttri") {
+            variant_keys.push(lower.replace("ttri", "tri"));
+            variant_keys.push(with_rri.replace("ttri", "tri"));
+        }
+    }
+
+    // 6e. Va-phola on dental aspirate: 'dhoni' -> 'dhwoni' (ধ্বনি)
+    if lower.contains("dhoni") {
+        variant_keys.push(lower.replace("dhoni", "dhwoni"));
+    }
+
+    // 6f. Tatshama compound vowel harmony: 'bahan' -> 'bohon' (পরিবহনব্যবস্থা)
+    if lower.contains("bahan") {
+        variant_keys.push(lower.replace("bahan", "bohon"));
     }
 
     // 7. Retroflex 'd' -> 'D' (ড) auto-disambiguation for dialect suffix '-da' or specific retroflex nouns
@@ -1623,11 +1664,7 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     // a. Suffix -tattik -> -তাত্ত্বিক (e.g. dhoni-tattik -> ধ্বনিতাত্ত্বিক, rup-tattik -> রূপতাত্ত্বিক, bakko-tattik -> বাক্যতাত্ত্বিক)
     if let Some(stem) = lower.strip_suffix("tattik") {
         if !stem.is_empty() {
-            let (stem_bn, _) = if stem == "dhoni" {
-                ("ধ্বনি".to_string(), vec![])
-            } else {
-                transliterate_avro(stem)
-            };
+            let (stem_bn, _) = transliterate_avro(stem);
             let word = format!("{}তাত্ত্বিক", stem_bn);
             return Some((word.clone(), vec![word]));
         }
@@ -1636,11 +1673,7 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     // b. Suffix -babostha / -babosthar -> -ব্যবস্থা / -ব্যবস্থার (e.g. jogajogbabosthar -> যোগাযোগব্যবস্থার, nishkashonbabostha -> নিষ্কাশনব্যবস্থা)
     if let Some(stem) = lower.strip_suffix("babosthar") {
         if !stem.is_empty() {
-            let (stem_bn, _) = if stem == "poribahan" {
-                ("পরিবহন".to_string(), vec![])
-            } else {
-                transliterate_avro(stem)
-            };
+            let (stem_bn, _) = transliterate_avro(stem);
             let word = format!("{}ব্যবস্থার", stem_bn);
             return Some((word.clone(), vec![word]));
         }
@@ -1685,12 +1718,9 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         }
     }
 
-    // e. Suffix -shishto (e.g. boi-shishto -> বৈশিষ্ট্য, bi-shishto -> বিশিষ্ট)
+    // e. Suffix -shishto (e.g. bi-shishto -> বিশিষ্ট, pro-shishto -> প্রবিশিষ্ট)
     if let Some(stem) = lower.strip_suffix("shishto") {
-        if stem == "boi" {
-            let word = "বৈশিষ্ট্য".to_string();
-            return Some((word.clone(), vec![word]));
-        } else if !stem.is_empty() {
+        if !stem.is_empty() {
             let (stem_bn, _) = transliterate_avro(stem);
             let word = format!("{}বিশিষ্ট", stem_bn);
             return Some((word.clone(), vec![word]));
@@ -1700,12 +1730,7 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     // f. Initial diphthong oi- -> ঐ- (e.g. oitihashik -> ঐতিহাসিক, oikyo -> ঐক্য)
     if lower.starts_with("oi") && lower.len() >= 4 {
         let remainder = &lower[2..];
-        let rem_bn = if remainder.starts_with("tihashik") || remainder.starts_with("tihasik") {
-            "তিহাসিক".to_string()
-        } else {
-            let (r, _) = transliterate_avro(remainder);
-            r
-        };
+        let (rem_bn, _) = transliterate_avro(remainder);
         let word = format!("ঐ{}", rem_bn);
         return Some((word.clone(), vec![word]));
     }
@@ -1747,25 +1772,9 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     }
     // Prefix shwor- -> স্বর- (e.g. shwor-dhoni -> স্বরধ্বনি, shwor-borno -> স্বরবর্ণ)
     if let Some(rest) = lower.strip_prefix("shwor") {
-        let (rest_bn, _) = if rest.starts_with("dhonir") {
-            ("ধ্বনির".to_string(), vec![])
-        } else if rest.starts_with("dhoni") {
-            ("ধ্বনি".to_string(), vec![])
-        } else {
-            transliterate_avro(rest)
-        };
+        let (rest_bn, _) = transliterate_avro(rest);
         let word = format!("স্বর{}", rest_bn);
         return Some((word.clone(), vec![word]));
-    }
-    // Ri-kar vocalic onset (kri- -> কৃ-, e.g. krittrim -> কৃত্রিম, kripa -> কৃপা)
-    if lower.starts_with("kri") && !lower.starts_with("kricket") {
-        let mut modified = lower.clone();
-        modified.replace_range(..3, "krri");
-        let (cand, _) = transliterate_avro(&modified);
-        if cand.starts_with("কৃ") {
-            let word = cand.replace("ত্ত্রি", "ত্রি");
-            return Some((word.clone(), vec![word]));
-        }
     }
     // Loanword velar onset: c + [aou] -> k (e.g. computar -> কম্পিউটার)
     if lower.starts_with("co") || lower.starts_with("ca") {
