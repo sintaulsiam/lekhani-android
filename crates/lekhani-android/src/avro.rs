@@ -1014,24 +1014,23 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         candidates.push(def);
     }
 
-    // Bilingual loanword surfacing: if the input is recognized as a valid English word
-    // (e.g. "meeting", "office", "project", "class", "email", "ok", "hi"), surface the verbatim English word
-    if crate::english::is_recognized_english_word(input)
-        && !candidates.iter().any(|c| c.eq_ignore_ascii_case(input))
-    {
+    // 1. Verbatim Latin Escape Hatch: If the input is ASCII and >= 2 characters,
+    // always surface the exact typed string in the candidate strip (at index 1 or 2)
+    // so typists can effortlessly write English slang, technical terms, or brand names with 1 tap.
+    let is_verbatim_candidate_needed = input.is_ascii()
+        && input.len() >= 2
+        && !candidates.iter().any(|c| c.eq_ignore_ascii_case(input));
+    if is_verbatim_candidate_needed {
         let insert_pos = candidates.len().min(1);
         candidates.insert(insert_pos, input.to_string());
     }
 
-    // Capitalized / CamelCase / Code Token / Mixed Symbol / Alphanumeric Latin Escape Hatch (e.g. "Siam", "Figma", "ChatGPT", "myVar", "covid19", "350tk")
-    let is_code_or_mixed = input.chars().skip(1).any(|c| c.is_ascii_uppercase())
-        || input.contains('_')
-        || input.contains('-')
-        || input.contains('.')
-        || (input.chars().any(|c| c.is_ascii_digit()) && input.chars().any(|c| c.is_alphabetic()));
-    if is_code_or_mixed && input.is_ascii() && !candidates.iter().any(|c| c == input) {
-        let insert_pos = candidates.len().min(1);
-        candidates.insert(insert_pos, input.to_string());
+    // 2. Pure Literal Avro Conversion: Ensure the deterministic rule-based Avro parser output
+    // is always available within the top candidates so typists can bypass AI homophone ranking if desired.
+    let def_pure = get_avro_parser().convert(input);
+    if !def_pure.is_empty() && !candidates.iter().any(|c| c == &def_pure) {
+        let insert_pos = candidates.len().min(2);
+        candidates.insert(insert_pos, def_pure);
     }
 
     // Digits / Currency Symbols dual candidate surfacing (e.g. "1234" -> ["১২৩৪", "1234"], "$100" -> ["৳১০০", "$100"])

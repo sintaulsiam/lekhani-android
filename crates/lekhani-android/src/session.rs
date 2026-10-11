@@ -2575,14 +2575,15 @@ impl AndroidLekhaniSession {
                     learner.rank_weights.update_online(&c, &r, 20.0);
                     learner.dirty = true;
                 }
-                // Only record candidate selection overrides for inputs > 2 characters
-                // and non-ASCII candidates to prevent Latin/English selections from poisoning Bengali phonetic memory!
+                // Record candidate selection overrides for inputs > 2 characters
+                // and non-ASCII candidates to prevent Latin/English selections from poisoning Bengali phonetic memory.
+                // Uses 1-shot direct learning for explicit candidate strip taps (matching desktop parity).
                 if typed_buffer.chars().count() > 2
                     && !normalized.is_ascii()
                     && !typed_buffer.eq_ignore_ascii_case(&normalized)
                 {
-                    learner.record_candidate_selection(&typed_buffer, &normalized);
-                    learner.record_input_error(&typed_buffer, &normalized);
+                    learner.record_candidate_selection_direct(&typed_buffer, &normalized);
+                    learner.record_input_error_direct(&typed_buffer, &normalized);
                 }
                 if !normalized.is_ascii() {
                     learner.observe_and_learn(&normalized, &db.trie);
@@ -3292,8 +3293,7 @@ mod tests {
         let session = AndroidLekhaniSession::new();
         session.set_layout(LekhaniLayoutType::Avro);
 
-        // 1. Candidate selection with frequency threshold:
-        // 1st selection (count = 1 < 2): protects against accidental fat-finger tap poisoning!
+        // 1. Candidate selection: 1-shot direct learning on explicit candidate strip tap
         let _ = session.process_key("k".into()).unwrap();
         let _ = session.process_key("o".into()).unwrap();
         let _ = session.process_key("r".into()).unwrap();
@@ -3305,25 +3305,7 @@ mod tests {
         let db = get_core_database();
         {
             let learner = db.learner.read().unwrap();
-            // Single tap is NOT yet pinned to candidate_memory!
-            assert_eq!(learner.candidate_memory.get("kormo"), None);
-            assert_eq!(
-                learner.candidate_selection_counts.get("kormo\tকৰ্ম"),
-                Some(&1)
-            );
-        }
-
-        // 2nd selection (count = 2 >= 2): user explicitly confirms preference, now remembered!
-        let _ = session.process_key("k".into()).unwrap();
-        let _ = session.process_key("o".into()).unwrap();
-        let _ = session.process_key("r".into()).unwrap();
-        let _ = session.process_key("m".into()).unwrap();
-        let _ = session.process_key("o".into()).unwrap();
-        let sel2 = session.select_candidate("কৰ্ম".into()).unwrap();
-        assert_eq!(sel2.commit_text, Some("কৰ্ম ".into()));
-
-        {
-            let learner = db.learner.read().unwrap();
+            // Single deliberate candidate tap is immediately pinned to candidate_memory!
             assert_eq!(
                 learner.candidate_memory.get("kormo"),
                 Some(&"কৰ্ম".to_string())
@@ -3423,28 +3405,14 @@ mod tests {
         session.set_layout(LekhaniLayoutType::Avro);
         clear_candidate_memory();
 
-        // 1. Type typo "bhlao" and select "ভালো" (1st selection)
+        // 1. Type typo "bhlao" and select "ভালো" (1st selection is immediately learned via 1-shot)
         for ch in ["b", "h", "l", "a", "o"] {
             let _ = session.process_key(ch.into()).unwrap();
         }
         let sel1 = session.select_candidate("ভালো".into()).unwrap();
         assert_eq!(sel1.commit_text, Some("ভালো ".into()));
 
-        // Not pinned yet after 1 selection
-        {
-            let db = get_core_database();
-            let learner = db.learner.read().unwrap();
-            assert_eq!(learner.lookup_input_error("bhlao"), None);
-        }
-
-        // 2. Type typo "bhlao" and select "ভালো" again (2nd selection >= threshold)
-        for ch in ["b", "h", "l", "a", "o"] {
-            let _ = session.process_key(ch.into()).unwrap();
-        }
-        let sel2 = session.select_candidate("ভালো".into()).unwrap();
-        assert_eq!(sel2.commit_text, Some("ভালো ".into()));
-
-        // Now pinned!
+        // Immediately pinned on 1st explicit candidate strip selection!
         {
             let db = get_core_database();
             let learner = db.learner.read().unwrap();
