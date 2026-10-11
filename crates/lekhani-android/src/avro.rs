@@ -1407,11 +1407,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
         selected_idx = 0;
     } else if let Some(ref collapsed) = collapse_elongation(&lower) {
-        let words: Option<Vec<String>> = match collapsed.as_str() {
-            "ha" => Some(vec!["হ্যাঁ".to_string(), "হা".to_string()]),
-            "na" => Some(vec!["না".to_string()]),
-            _ => get_override_words(collapsed.as_str()),
-        };
+        let words = get_override_words(collapsed.as_str());
 
         if let Some(words) = words {
             for (i, w) in words.into_iter().enumerate() {
