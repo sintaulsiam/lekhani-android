@@ -3149,7 +3149,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
             if (result.candidates.isNotEmpty()) {
                 publishCandidates(result.candidates)
-            } else {
+            } else if (keyboardPrefs.isNextWordActive(session.getLayout())) {
                 val nextWords = try {
                     session.predictNextWords(5u)
                 } catch (_: Exception) {
@@ -3160,6 +3160,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 } else {
                     clearCandidates()
                 }
+            } else {
+                clearCandidates()
             }
         }
 

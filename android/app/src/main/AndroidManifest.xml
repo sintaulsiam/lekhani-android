@@ -63,6 +63,23 @@
                 android:resource="@xml/ime_method" />
         </service>
 
+        <!-- ── Spell Checker Service ───────────────────────────────────────────
+             Provides 100% on-device offline Bengali & English spell checking
+             and auto-suggestions to system edit fields across Android apps.
+        ─────────────────────────────────────────────────────────────────────── -->
+        <service
+            android:name=".service.LekhaniSpellCheckerService"
+            android:label="@string/spellchecker_name"
+            android:permission="android.permission.BIND_TEXT_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.textservice.SpellCheckerService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.textservice.scs"
+                android:resource="@xml/spellchecker" />
+        </service>
+
         <!-- ── Settings Activity ───────────────────────────────────────────────
              Launched from Android's Language & Input settings panel when the
              user taps "Settings" next to Lekhani. Also entry point for the

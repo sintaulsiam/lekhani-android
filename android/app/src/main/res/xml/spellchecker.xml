@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    spellchecker.xml — Lekhani Keyboard Spell Checker Metadata
+    Provides zero-telemetry, 100% on-device Bengali and English spell checking.
+-->
+<spell-checker xmlns:android="http://schemas.android.com/apk/res/android"
+    android:label="@string/spellchecker_name"
+    android:settingsActivity="com.lekhani.android.ui.LekhaniSettingsActivity">
+    <subtype
+        android:label="@string/subtype_bengali"
+        android:subtypeLocale="bn" />
+    <subtype
+        android:label="@string/subtype_english"
+        android:subtypeLocale="en" />
+</spell-checker>
