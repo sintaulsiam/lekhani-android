@@ -184,6 +184,7 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("apni", &["আপনি"][..]);
         m.insert("apnar", &["আপনার"][..]);
         m.insert("kemon", &["কেমন"][..]);
+        m.insert("kemonaso", &["কেমন আছো", "কেমন আছেন"][..]);
         m.insert("achen", &["আছেন"][..]);
         m.insert("achhi", &["আছি"][..]);
         m.insert("achhe", &["আছে"][..]);
