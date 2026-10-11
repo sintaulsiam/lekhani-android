@@ -320,6 +320,13 @@
   - Accurate compound generation for `swotoshfurtota` ➔ `স্বতঃস্ফূর্ততা`, `oitsukko` ➔ `ঔৎসুক্য`, `anto:bishoyok` ➔ `আন্তঃবিষয়ক`, `punorutpadonjoggot` ➔ `পুনরুৎপাদনযোগ্যতা`.
 - [ ] **Orthographic Inherent-O Dual-Form Support**:
   - Conflict-free dual surfacing for stylistic verb variations (`করল / করলো`, `পড়ল / পড়লো`, `ধরল / ধরলো`, `বলল / বললো`, `কি / কী`).
+- [ ] **In-Flight Intermediate Preedit Stabilization & Anti-Flicker Architecture**:
+  - Hard boundary isolation for hyphenated compounds (`varsity-te` freezes `ভার্সিটি-` before parsing suffixes, eliminating `ভারসিত্য-ত` regressions).
+  - Monotonic syllable anchoring preventing mid-word regression (e.g. preventing `যাওয়া` at step 4 from regressing to `জাভার` at step 5 when typing `jawar`).
+  - Persistent diacritic retention across morphological inflection (preventing `খুঁজত` dropping Chandrabindu to `খুজতে` at the final vowel).
+  - Anti-jitter preedit smoothing for English code-switching loanwords (`challenge` suppresses flashing intermediate nonsense words).
+  - Dialect verb inflection preservation against greedy Sanskrit ligatures (`hunchos` resolves `হুনছস` without eagerly binding into `হুঞ্ছস`).
+  - Keystroke-by-keystroke test assertion suite ensuring zero in-flight UI glitches.
 
 
 

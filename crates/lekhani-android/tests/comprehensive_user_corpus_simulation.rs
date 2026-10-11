@@ -1038,3 +1038,55 @@ fn test_all_12_user_sections_letter_by_letter() {
         println!("ALL CASES COMMITTED EXACTLY AS EXPECTED!");
     }
 }
+
+#[test]
+fn test_detailed_intermediate_states_tracer() {
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+
+    let test_words = [
+        ("bhai", "ভাই"),
+        ("shotti", "সত্যি"),
+        ("challenge", "challenge"),
+        ("varsity-te", "ভার্সিটিতে"),
+        ("douraye", "দৌড়াইয়া"),
+        ("jawar", "যাওয়ার"),
+        ("khujte", "খুঁজতে"),
+        ("hunchos", "হুনছস"),
+        ("korray", "কররায়"),
+        ("kamda", "কামডা"),
+        ("krishna", "কৃষ্ণ"),
+        ("swotoshfurtota", "স্বতঃস্ফূর্ততা"),
+        ("2026", "২০২৬"),
+        ("4ta", "৪টা"),
+        ("antorjatik", "আন্তর্জাতিক"),
+        ("kingkortobbobimurh", "কিংকর্তব্যবিমূঢ়"),
+    ];
+
+    println!("\n================================================================================");
+    println!("     DETAILED KEYSTROKE-BY-KEYSTROKE INTERMEDIATE STATE TRACER                  ");
+    println!("================================================================================\n");
+
+    for (word, expected) in test_words {
+        session.reset();
+        println!("--- Input: '{}' (Target: '{}') ---", word, expected);
+        for (idx, ch) in word.chars().enumerate() {
+            let res = session.process_key(ch.to_string()).unwrap();
+            let top_3: Vec<&str> = res.candidates.iter().take(3).map(|s| s.as_str()).collect();
+            println!(
+                "  Step {:2} ['{}']: Preedit='{}' | Candidates={:?}",
+                idx + 1,
+                ch,
+                res.preedit,
+                top_3
+            );
+        }
+        let space_res = session.handle_space().unwrap();
+        println!(
+            "  Spacebar Commit: '{}' (Matches Expected? {})\n",
+            space_res.commit_text.as_deref().unwrap_or(""),
+            space_res.commit_text.as_deref().unwrap_or("").trim() == expected
+        );
+    }
+}
+
