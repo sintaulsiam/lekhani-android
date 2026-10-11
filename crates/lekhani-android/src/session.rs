@@ -917,7 +917,12 @@ impl AndroidLekhaniSession {
 
         // Universal punctuation flush across all layouts:
         // Punctuation and newlines immediately flush the composing buffer as committed text.
-        let is_punct = key == "।"
+        // Exception: In Avro layout, a dot preceded by purely numeric digits is a decimal fraction separator (e.g. 8.4, 21.7).
+        let is_decimal_dot_in_flight = key == "."
+            && state.layout == LekhaniLayoutType::Avro
+            && !state.composing_buffer.is_empty()
+            && state.composing_buffer.chars().all(|c| c.is_ascii_digit());
+        let is_punct = (key == "।"
             || key == "॥"
             || key == ","
             || key == ";"
@@ -925,7 +930,8 @@ impl AndroidLekhaniSession {
             || key == "?"
             || key == "!"
             || key == "."
-            || key == "\n";
+            || key == "\n")
+            && !is_decimal_dot_in_flight;
 
         if is_punct {
             let mut committed =
@@ -2392,6 +2398,14 @@ impl AndroidLekhaniSession {
                         );
                     }
                     crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
+                    let is_all_caps = raw.len() >= 2 && raw.chars().all(|c| c.is_ascii_uppercase());
+                    let is_tech_token = crate::english::STATIC_BILINGUAL_TECH_WORDS.contains(&raw.to_lowercase().as_str()) || raw == "NaN";
+                    if is_all_caps || is_tech_token {
+                        if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(&raw)) {
+                            let cand = candidates.remove(pos);
+                            candidates.insert(0, cand);
+                        }
+                    }
                     if let Some(top) = candidates.first() {
                         let is_explicit_common =
                             crate::avro::get_common_word_candidates(&raw).is_some();
@@ -3669,11 +3683,13 @@ mod tests {
         let res = session.process_key(".".into()).unwrap();
         assert_eq!(res.commit_text.as_deref(), Some("আমি।"));
 
-        // 2. Typing numbers e.g. "3" (converts to "৩") + "." should remain "৩." for decimal fractions
+        // 2. Typing numbers e.g. "3" (converts to "৩") + "." should remain "৩." in-flight for decimal fractions (e.g. 3.14)
         session.reset();
         session.process_key("3".into()).unwrap();
         let num_res = session.process_key(".".into()).unwrap();
-        assert_eq!(num_res.commit_text.as_deref(), Some("৩."));
+        assert_eq!(num_res.preedit, "৩.");
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(space_res.commit_text.as_deref(), Some("৩. "));
 
         // 3. Typing "." after space/committed word should commit "।"
         session.reset();

@@ -282,7 +282,11 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
     }
 
     // 6. Flap Rhotic 'r' -> 'R' (ড়) auto-disambiguation
-    if lower.contains('r') {
+    // Only generate if the term is NOT already a common high-frequency word or exact dictionary word
+    let is_explicit_common_base = get_common_words().contains_key(input) || get_common_words().contains_key(lower.as_str());
+    let parser_base = get_avro_parser().convert(&lower);
+    let is_exact_dict_base = !parser_base.is_empty() && (db.is_exact_dictionary_word(&parser_base) || is_explicit_common_base);
+    if !is_exact_dict_base && lower.contains('r') {
         let r_indices: Vec<usize> = lower
             .char_indices()
             .filter_map(|(idx, ch)| if ch == 'r' { Some(idx) } else { None })
@@ -292,6 +296,13 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
             with_cap_r.replace_range(idx..idx + 1, "R");
             variant_keys.push(with_cap_r);
         }
+    }
+
+    // 6b. Initial 'oi' -> 'OI' (ঐ) auto-disambiguation
+    if lower.starts_with("oi") && lower.len() >= 3 {
+        let mut with_oi = lower.clone();
+        with_oi.replace_range(0..2, "OI");
+        variant_keys.push(with_oi);
     }
 
     // 7. Retroflex 'd' -> 'D' (ড) auto-disambiguation for dialect suffix '-da' or specific retroflex nouns
@@ -1184,6 +1195,48 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("dristibhongi", &["দৃষ্টিভঙ্গি"][..]);
         m.insert("oprotashito", &["অপ্রত্যাশিত"][..]);
         m.insert("muhurto", &["মুহূর্ত"][..]);
+
+        // ── Phase 15: Academic Tatshama Vocabulary & Ligatures ───────────────
+        m.insert("dhonitattik", &["ধ্বনিতাত্ত্বিক"][..]);
+        m.insert("ruptattik", &["রূপতাত্ত্বিক"][..]);
+        m.insert("bakkotattik", &["বাক্যতাত্ত্বিক"][..]);
+        m.insert("boishishto", &["বৈশিষ্ট্য"][..]);
+        m.insert("bishleshon", &["বিশ্লেষণ"][..]);
+        m.insert("juktobanjoner", &["যুক্তব্যঞ্জনের"][..]);
+        m.insert("shorolikoron", &["সরলীকরণ"][..]);
+        m.insert("shwordhonir", &["স্বরধ্বনির"][..]);
+        m.insert("hrisswota-dirghotar", &["হ্রস্বতা-দীর্ঘতার"][..]);
+        m.insert("oitihashik", &["ঐতিহাসিক"][..]);
+        m.insert("uposhonghar", &["উপসংহার"][..]);
+        m.insert("porjobekkhan", &["পর্যবেক্ষণ"][..]);
+        m.insert("nogorayon", &["নগরায়ণ"][..]);
+        m.insert("kormoshongsthan", &["কর্মসংস্থান"][..]);
+        m.insert("jogajogbabosthar", &["যোগাযোগব্যবস্থার"][..]);
+        m.insert("poribahanbabosthar", &["পরিবহনব্যবস্থার"][..]);
+        m.insert("kongkritayon", &["কংক্রিটায়ন"][..]);
+        m.insert("jolaradh", &["জলাধার"][..]);
+        m.insert("nishkashonbabostha", &["নিষ্কাশনব্যবস্থা"][..]);
+        m.insert("krittrim", &["কৃত্রিম"][..]);
+        m.insert("computar", &["কম্পিউটার"][..]);
+        m.insert("darshon", &["দর্শন"][..]);
+        m.insert("bhorte", &["ভর্তি"][..]);
+        m.insert("kalo", &["কালো", "কাল"][..]);
+        m.insert("ashbo", &["আসব", "আসবো"][..]);
+
+        // ── Phase 15: Colloquial Dialect Verbs & Slang Stems ──────────────────
+        m.insert("kos", &["কস"][..]);
+        m.insert("dhoros", &["ধরস"][..]);
+        m.insert("ditachi", &["দিতাছি"][..]);
+        m.insert("bosum", &["বসুম"][..]);
+        m.insert("korum", &["করুম"][..]);
+        m.insert("hoibo", &["হইব", "হইবো"][..]);
+        m.insert("theika", &["থেইকা"][..]);
+        m.insert("koiya", &["কইয়া"][..]);
+        m.insert("story-o", &["স্টোরিও"][..]);
+        m.insert("aijka", &["আইজকা"][..]);
+        m.insert("jamu", &["যামু"][..]);
+        m.insert("jaitachi", &["যাইতাছি"][..]);
+        m.insert("jaitasi", &["যাইতাসি"][..]);
         m
     })
 }
@@ -1452,15 +1505,30 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
         return None;
     }
 
+    if get_common_words().contains_key(input)
+        || get_common_words().contains_key(input.to_lowercase().as_str())
+    {
+        return None;
+    }
+
     let dash_idx = input.rfind('-')?;
     let (base, suffix_with_dash) = input.split_at(dash_idx);
     let suffix = &suffix_with_dash[1..];
 
-    if base.is_empty() || suffix.is_empty() || !base.chars().all(|c| c.is_ascii_alphanumeric()) {
+    if base.is_empty()
+        || suffix.is_empty()
+        || !base.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
         return None;
     }
 
     let lower_suffix = suffix.to_lowercase();
+
+    // If suffix itself is a recognized English word, the whole token is a hyphenated English compound (e.g. Content-Type, cross-platform, inference-time)
+    if crate::english::is_recognized_english_word(suffix) {
+        return Some((input.to_string(), vec![input.to_string()]));
+    }
+
     let b_clitic = match lower_suffix.as_str() {
         "e" => "-এ",
         "te" => "-তে",
@@ -1474,10 +1542,17 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
         "der" => "-দের",
         "o" => "-ও",
         "i" => "-ই",
+        "bhittik" => "-ভিত্তিক",
+        "shongkranto" => "-সংক্রান্ত",
         _ => {
             let (base_bn, _) = transliterate_avro(base);
             let parser = get_avro_parser();
-            let effective_base_bn = if !base_bn.is_empty() && base_bn != base {
+            let is_base_latin = base.contains('-')
+                || base.chars().any(|c| c.is_ascii_uppercase())
+                || crate::english::is_recognized_english_word(base);
+            let effective_base_bn = if is_base_latin {
+                base.to_string()
+            } else if !base_bn.is_empty() && base_bn != base {
                 base_bn
             } else {
                 parser.convert(base)
@@ -1559,7 +1634,7 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
 
             let is_romanized_bengali_compound = [
                 "varsity", "ma", "ghotona", "baba", "bhai", "bon", "bari", "gari", "rasta",
-                "kotha",
+                "kotha", "aj",
             ]
             .contains(&base.to_lowercase().as_str())
                 && !base.chars().next().is_some_and(|c| c.is_uppercase());
@@ -1633,6 +1708,16 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     // Fast-path 2: Digit units, quantifiers, currency, and ordinals (e.g. 10ta -> ১০টা, 500tk -> ৫০০ টাকা, 1st -> ১ম)
     if let Some((primary, candidates)) = resolve_digit_unit_candidates(input) {
         return (primary, candidates);
+    }
+
+    // Fast-path 2b: Pure numeric literals and decimal/comma numbers (e.g. "12486" -> "১২৪৮৬", "8.4" -> "৮.৪")
+    if !input.is_empty()
+        && input.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',')
+        && input.chars().any(|c| c.is_ascii_digit())
+    {
+        let b_num = ascii_digits_to_bengali(input);
+        let candidates = vec![b_num.clone(), input.to_string()];
+        return (b_num, candidates);
     }
 
     // Fast-path 3: Bilingual hyphen clitics (e.g. Facebook-e -> Facebook-এ, bkash-e -> bkash-এ)
@@ -1817,7 +1902,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         || db.lookup_override(&lower).is_some()
         || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
 
-    if (is_all_caps || is_recognized_english) && !has_established_loanword {
+    let is_tech_token = crate::english::STATIC_BILINGUAL_TECH_WORDS.contains(&lower.as_str());
+    if is_all_caps || is_tech_token || (is_recognized_english && !has_established_loanword) {
         if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
             candidates.remove(pos);
         }
@@ -1952,23 +2038,32 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
     let is_all_caps = input.chars().count() >= 2 && input.chars().all(|c| c.is_ascii_uppercase());
     if is_all_caps {
-        // All-Caps input (e.g. "AMI", "TUMI", "DESH"):
-        // Normalizing to lowercase avoids mangling retroflexes and dirgho-i/u.
-        let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
-            ac.clone()
-        } else if let Some(&words) = get_common_words().get(&lower.as_str()) {
-            words.first().copied().unwrap_or("").to_string()
+        let is_common_bengali_all_caps = get_common_words().contains_key(&lower.as_str());
+        if is_common_bengali_all_caps {
+            // All-Caps Bengali input (e.g. "AMI", "TUMI", "DESH"):
+            let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
+                ac.clone()
+            } else if let Some(&words) = get_common_words().get(&lower.as_str()) {
+                words.first().copied().unwrap_or("").to_string()
+            } else {
+                parser.convert(&lower)
+            };
+            if !resolved_lower.is_empty() {
+                if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
+                    candidates.remove(pos);
+                }
+                candidates.insert(0, resolved_lower);
+                if !def.is_empty() && !candidates.contains(&def) {
+                    candidates.insert(1.min(candidates.len()), def.clone());
+                }
+                selected_idx = 0;
+            }
         } else {
-            parser.convert(&lower)
-        };
-        if !resolved_lower.is_empty() {
-            if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
+            // Technical or English Acronym (e.g. "CER", "WER", "RFC", "API", "JSON", "LLM", "NaN"):
+            if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
                 candidates.remove(pos);
             }
-            candidates.insert(0, resolved_lower);
-            if !def.is_empty() && !candidates.contains(&def) {
-                candidates.insert(1.min(candidates.len()), def.clone());
-            }
+            candidates.insert(0, input.to_string());
             selected_idx = 0;
         }
     } else if has_explicit_avro_case && !def.is_empty() {
