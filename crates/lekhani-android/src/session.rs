@@ -1054,8 +1054,9 @@ impl AndroidLekhaniSession {
                 } else {
                     (true, false, false)
                 };
+                let key_first_char = key.chars().next();
                 let is_raw_kar = key.chars().count() == 1
-                    && ('\u{09BE}'..='\u{09CC}').contains(&key.chars().next().unwrap());
+                    && key_first_char.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
                 let last_is_kar = last_ch.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
                 let prev_is_consonant = chars.len() >= 2
                     && is_bengali_consonant_or_modifier(chars[chars.len() - 2])
@@ -1063,7 +1064,7 @@ impl AndroidLekhaniSession {
                 let is_same_kar_double_tap = is_raw_kar
                     && last_is_kar
                     && prev_is_consonant
-                    && last_ch == key.chars().next();
+                    && last_ch == key_first_char;
 
                 let promoted = if state.smart_initial_kar_enabled {
                     promote_kar_if_needed(&key, is_start || last_is_vowel)
@@ -1092,14 +1093,14 @@ impl AndroidLekhaniSession {
                 //   ন + ি + ি -> নই
                 //   ম + ু + ু -> মউ
                 if is_same_kar_double_tap {
-                    let iv = match last_ch.unwrap() {
-                        'ি' => Some("ই"),
-                        'ো' => Some("ও"),
-                        'ু' => Some("উ"),
-                        'ে' => Some("এ"),
-                        'ী' => Some("ঈ"),
-                        'ূ' => Some("ঊ"),
-                        'ৈ' => Some("ঐ"),
+                    let iv = match last_ch {
+                        Some('ি') => Some("ই"),
+                        Some('ো') => Some("ও"),
+                        Some('ু') => Some("উ"),
+                        Some('ে') => Some("এ"),
+                        Some('ী') => Some("ঈ"),
+                        Some('ূ') => Some("ঊ"),
+                        Some('ৈ') => Some("ঐ"),
                         _ => None,
                     };
                     if let Some(independent_vowel) = iv {
@@ -1148,9 +1149,10 @@ impl AndroidLekhaniSession {
                         is_bengali_consonant_or_modifier(c) && c != '্' && c != 'র' && c != 'ৎ'
                     })
                 {
-                    let c = state.composing_buffer.pop().unwrap();
-                    state.composing_buffer.push_str("র্");
-                    state.composing_buffer.push(c);
+                    if let Some(c) = state.composing_buffer.pop() {
+                        state.composing_buffer.push_str("র্");
+                        state.composing_buffer.push(c);
+                    }
                 }
                 // 3. Geminate Consonant Double-Tap Shortcut & 3rd-Tap Reversion:
                 // Case A: 3rd-Tap Reversion
@@ -1159,7 +1161,7 @@ impl AndroidLekhaniSession {
                 // (e.g. বলল, বললে, বললেও, বললাম, চলল, চললে, চললেও, তত, ততটুকু).
                 else if state.geminate_double_tap_enabled
                     && key.chars().count() == 1
-                    && last_ch == key.chars().next()
+                    && last_ch == key_first_char
                     && chars.len() >= 3
                     && chars[chars.len() - 2] == '্'
                     && chars[chars.len() - 3] == chars[chars.len() - 1]
@@ -1186,8 +1188,9 @@ impl AndroidLekhaniSession {
                             && c != 'য়'
                     })
                     && (chars.len() < 2
-                        || (chars[chars.len() - 2] != '্'
-                            && chars[chars.len() - 2] != key.chars().next().unwrap()))
+                        || key_first_char.is_some_and(|kc| {
+                            chars[chars.len() - 2] != '্' && chars[chars.len() - 2] != kc
+                        }))
                 {
                     state.composing_buffer.push('্');
                     state.composing_buffer.push_str(&key);
@@ -1198,8 +1201,7 @@ impl AndroidLekhaniSession {
                 }
 
                 if !did_geminate_or_revert {
-                    if key.chars().count() == 1 {
-                        let ch = key.chars().next().unwrap();
+                    if let Some(ch) = key_first_char.filter(|_| key.chars().count() == 1) {
                         if is_bengali_consonant_or_modifier(ch) && ch != '্' && ch != 'ৎ' {
                             state.last_consonant_tap = Some((ch, now));
                         } else {
@@ -1511,8 +1513,9 @@ impl AndroidLekhaniSession {
             }
 
             LekhaniLayoutType::National => {
+                let key_first_char_nat = key.chars().next();
                 let is_raw_kar = key.chars().count() == 1
-                    && ('\u{09BE}'..='\u{09CC}').contains(&key.chars().next().unwrap());
+                    && key_first_char_nat.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
                 // Bijoy / BBS Dead-key Linker for Independent Vowels:
                 // When buffer ends with Hasanta '্' and the new key is a vowel Kar,
                 // transform [্ + Kar] into the corresponding independent vowel.
@@ -1621,8 +1624,9 @@ impl AndroidLekhaniSession {
 
             _ => {
                 // Fixed / transliteration layouts (including Gboard) — accumulate in buffer, query PrefixTrie
+                let key_first_char_fix = key.chars().next();
                 let is_raw_kar = key.chars().count() == 1
-                    && ('\u{09BE}'..='\u{09CC}').contains(&key.chars().next().unwrap());
+                    && key_first_char_fix.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
                 let chars: Vec<char> = state.composing_buffer.chars().collect();
                 let last_ch = chars.last().copied();
                 let last_is_kar = last_ch.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
@@ -1632,18 +1636,18 @@ impl AndroidLekhaniSession {
                 let is_same_kar_double_tap = is_raw_kar
                     && last_is_kar
                     && prev_is_consonant
-                    && last_ch == key.chars().next();
+                    && last_ch == key_first_char_fix;
 
                 // Double-Tap Kar to Independent Vowel Promotion (e.g. কি + ি -> কই, বু + ু -> বউ)
                 if is_same_kar_double_tap && state.smart_initial_kar_enabled {
-                    let iv = match last_ch.unwrap() {
-                        'ি' => Some("ই"),
-                        'ো' => Some("ও"),
-                        'ু' => Some("উ"),
-                        'ে' => Some("এ"),
-                        'ী' => Some("ঈ"),
-                        'ূ' => Some("ঊ"),
-                        'ৈ' => Some("ঐ"),
+                    let iv = match last_ch {
+                        Some('ি') => Some("ই"),
+                        Some('ো') => Some("ও"),
+                        Some('ু') => Some("উ"),
+                        Some('ে') => Some("এ"),
+                        Some('ী') => Some("ঈ"),
+                        Some('ূ') => Some("ঊ"),
+                        Some('ৈ') => Some("ঐ"),
                         _ => None,
                     };
                     if let Some(independent_vowel) = iv {
@@ -1665,9 +1669,10 @@ impl AndroidLekhaniSession {
                         is_bengali_consonant_or_modifier(c) && c != '্' && c != 'র' && c != 'ৎ'
                     })
                 {
-                    let c = state.composing_buffer.pop().unwrap();
-                    state.composing_buffer.push_str("র্");
-                    state.composing_buffer.push(c);
+                    if let Some(c) = state.composing_buffer.pop() {
+                        state.composing_buffer.push_str("র্");
+                        state.composing_buffer.push(c);
+                    }
                 } else {
                     state.composing_buffer.push_str(&key);
                 }
