@@ -327,6 +327,13 @@
   - Anti-jitter preedit smoothing for English code-switching loanwords (`challenge` suppresses flashing intermediate nonsense words).
   - Dialect verb inflection preservation against greedy Sanskrit ligatures (`hunchos` resolves `হুনছস` without eagerly binding into `হুঞ্ছস`).
   - Keystroke-by-keystroke test assertion suite ensuring zero in-flight UI glitches.
+- [ ] **Real-User Holistic Ergonomics & Numerical Continuity (Sections 13–22)**:
+  - Decimal number & floating point in-flight preservation (`8.4` ➔ `৮.৪`, `21.7` ➔ `২১.৭`, `47.2` ➔ `৪৭.২`, `12486` ➔ `১২৪৮৬`).
+  - Safe flap rhotic shielding preventing over-zealous `ড়` insertion on high-frequency verbs (`korte` ➔ `করতে`, `dhorlo` ➔ `ধরল`, `bhorte` ➔ `ভর্তি`).
+  - Word-initial & medial `oi` diphthong stabilization (`oitihashik` ➔ `ঐতিহাসিক`, `boishishto` ➔ `বৈশিষ্ট্য`).
+  - Multi-hyphen bilingual clitics (`Wi-Fi-er` ➔ `Wi-Fi-এর`, `RFC-XXXX-er` ➔ `RFC-XXXX-এর`, `cross-platform`, `Content-Type`).
+  - Comprehensive 10-section letter-by-letter simulation test suite (`extended_sections_13_to_22_simulation.rs`).
+
 
 
 
