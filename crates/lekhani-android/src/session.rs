@@ -877,10 +877,6 @@ impl AndroidLekhaniSession {
                                 }
                             }
                         }
-                        // Fix #2: Extend spatial fat-finger correction to Probaho/Probhat —
-                        // the primary layout was previously silently discarding spatial data.
-                        // Query the prefix trie with the neighbor-key buffer to surface
-                        // Bengali words that differ by one spatially-adjacent key.
                         LekhaniLayoutType::Probaho | LekhaniLayoutType::Probhat => {
                             let db = get_core_database();
                             let prefix_matches = db.trie.find_prefix_entries(&alt_buf, 3);
@@ -2820,7 +2816,7 @@ pub fn evaluate_retro_correction(surrounding_context: &str) -> Option<RetroCorre
                     original_word: token.to_string(),
                     replacement_word: repl.to_string(),
                     reason: "শ্রদ্ধাবাচক সর্বনামের সাথে ক্রিয়ার সঙ্গতি".to_string(),
-                    chip_label: format!("🪄 {}", repl),
+                    chip_label: repl.to_string(),
                     chars_to_backspace,
                     text_to_commit,
                 });
@@ -2865,7 +2861,7 @@ pub fn evaluate_retro_correction(surrounding_context: &str) -> Option<RetroCorre
                     original_word: token.to_string(),
                     replacement_word: repl.to_string(),
                     reason: "ঘনিষ্ঠ সর্বনামের সাথে ক্রিয়ার সঙ্গতি".to_string(),
-                    chip_label: format!("🪄 {}", repl),
+                    chip_label: repl.to_string(),
                     chars_to_backspace,
                     text_to_commit,
                 });
@@ -2907,7 +2903,7 @@ pub fn evaluate_retro_correction(surrounding_context: &str) -> Option<RetroCorre
                     original_word: "পরা".to_string(),
                     replacement_word: "পড়া".to_string(),
                     reason: "বই পড়ার সাথে সঙ্গতিপূর্ণ বানান".to_string(),
-                    chip_label: "🪄 পড়া".to_string(),
+                    chip_label: "পড়া".to_string(),
                     chars_to_backspace,
                     text_to_commit,
                 });
@@ -2941,7 +2937,7 @@ pub fn evaluate_retro_correction(surrounding_context: &str) -> Option<RetroCorre
                     original_word: "পড়া".to_string(),
                     replacement_word: "পরা".to_string(),
                     reason: "পোশাক পরার সাথে সঙ্গতিপূর্ণ বানান".to_string(),
-                    chip_label: "🪄 পরা".to_string(),
+                    chip_label: "পরা".to_string(),
                     chars_to_backspace,
                     text_to_commit,
                 });
@@ -4384,14 +4380,14 @@ mod tests {
         let corr_apni = evaluate_retro_correction("আপনি কেমন আছো").expect("Should detect honorific clash");
         assert_eq!(corr_apni.original_word, "আছো");
         assert_eq!(corr_apni.replacement_word, "আছেন");
-        assert_eq!(corr_apni.chip_label, "🪄 আছেন");
+        assert_eq!(corr_apni.chip_label, "আছেন");
         assert_eq!(corr_apni.chars_to_backspace, 3); // "আছো".chars().count()
 
         // 2. Intimate mismatch: "তুই কেমন আছো" -> proposes "আছিস"
         let corr_tui = evaluate_retro_correction("তুই কেমন আছো").expect("Should detect intimate clash");
         assert_eq!(corr_tui.original_word, "আছো");
         assert_eq!(corr_tui.replacement_word, "আছিস");
-        assert_eq!(corr_tui.chip_label, "🪄 আছিস");
+        assert_eq!(corr_tui.chip_label, "আছিস");
 
         // 3. Homophone mismatch: "আমি বই পরা শুরু করলাম" -> proposes "পড়া"
         let corr_homo = evaluate_retro_correction("আমি বই পরা শুরু").expect("Should detect homophone clash");
