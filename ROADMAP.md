@@ -304,30 +304,30 @@
 
 ---
 
-## Phase 16: Project প্রবহমান (Probahoman) — Comprehensive Phonetic, Code-Switching & Dialectal Synthesis
-- [ ] **Dual-Surfacing Code-Switching & Tech Passthrough**:
+## Phase 16: Project প্রবহমান (Probahoman) — Comprehensive Phonetic, Code-Switching & Dialectal Synthesis (COMPLETED)
+- [x] **Dual-Surfacing Code-Switching & Tech Passthrough**:
   - Dual-surfacing for conversational English loanwords (`challenge`, `tension`, `chill`, `project`, `API`, `JSON`, `Rust`) preserving verbatim Latin text in Slot 0 while offering Bengali loanwords in Slot 1.
   - Strict passthrough shield for all-caps acronyms (`CGPA`, `UI`, `AI`, `NLP`, `CER`, `WER`, `UTF-8`).
-- [ ] **Context-Aware Flap & Rhotic Auto-Disambiguation (`r` ➔ `ড়` / `ঢ়`)**:
+- [x] **Context-Aware Flap & Rhotic Auto-Disambiguation (`r` ➔ `ড়` / `ঢ়`)**:
   - Automatic `ড়`-counterpart promotion for high-frequency flap verb roots (`poray` ➔ `পড়ায়`, `porashona` ➔ `পড়াশোনা`, `douraye` ➔ `দৌড়াইয়া`, `beracchi` ➔ `বেড়াচ্ছি`, `jhogra` ➔ `ঝগড়া`).
-- [ ] **Semivowel Ontostho-Ja Mapping (`j` ➔ `য`)**:
+- [x] **Semivowel Ontostho-Ja Mapping (`j` ➔ `য`)**:
   - Intuitive phonetic equivalence for words like `jawar` ➔ `যাওয়ার`, `jabe` ➔ `যাবে`, `je` ➔ `যে`, `jotoi` ➔ `যতই`.
-- [ ] **English Loanword Bengali Phonetics Expansion**:
+- [x] **English Loanword Bengali Phonetics Expansion**:
   - Standardized phonological transcription for common academic/office loanwords (`assignment` ➔ `অ্যাসাইনমেন্ট`, `presentation` ➔ `প্রেজেন্টেশন`, `lab` ➔ `ল্যাব`).
-- [ ] **Multi-Dialect Regional Verb Conjugation Integration**:
+- [x] **Multi-Dialect Regional Verb Conjugation Integration**:
   - Native lexicon support for Noakhali (`হুনছস`, `আমাগো`, `আইব`, `থাইক্কা`), Sylheti (`কিতা`, `কররায়`, `যাইবায়`, `অইগেল`), Dhakaiya (`যাইতাছেন`, `হইলেই`, `দাঁড়ায়া`), and Rural Bengali (`কইলাম`, `কামডা`, `যাইও`).
-- [ ] **Complex Sanskrit Visarga & Khanda-Ta Jukto Synthesis**:
+- [x] **Complex Sanskrit Visarga & Khanda-Ta Jukto Synthesis**:
   - Accurate compound generation for `swotoshfurtota` ➔ `স্বতঃস্ফূর্ততা`, `oitsukko` ➔ `ঔৎসুক্য`, `anto:bishoyok` ➔ `আন্তঃবিষয়ক`, `punorutpadonjoggot` ➔ `পুনরুৎপাদনযোগ্যতা`.
-- [ ] **Orthographic Inherent-O Dual-Form Support**:
+- [x] **Orthographic Inherent-O Dual-Form Support**:
   - Conflict-free dual surfacing for stylistic verb variations (`করল / করলো`, `পড়ল / পড়লো`, `ধরল / ধরলো`, `বলল / বললো`, `কি / কী`).
-- [ ] **In-Flight Intermediate Preedit Stabilization & Anti-Flicker Architecture**:
+- [x] **In-Flight Intermediate Preedit Stabilization & Anti-Flicker Architecture**:
   - Hard boundary isolation for hyphenated compounds (`varsity-te` freezes `ভার্সিটি-` before parsing suffixes, eliminating `ভারসিত্য-ত` regressions).
   - Monotonic syllable anchoring preventing mid-word regression (e.g. preventing `যাওয়া` at step 4 from regressing to `জাভার` at step 5 when typing `jawar`).
   - Persistent diacritic retention across morphological inflection (preventing `খুঁজত` dropping Chandrabindu to `খুজতে` at the final vowel).
   - Anti-jitter preedit smoothing for English code-switching loanwords (`challenge` suppresses flashing intermediate nonsense words).
   - Dialect verb inflection preservation against greedy Sanskrit ligatures (`hunchos` resolves `হুনছস` without eagerly binding into `হুঞ্ছস`).
   - Keystroke-by-keystroke test assertion suite ensuring zero in-flight UI glitches.
-- [ ] **Real-User Holistic Ergonomics & Numerical Continuity (Sections 13–22)**:
+- [x] **Real-User Holistic Ergonomics & Numerical Continuity (Sections 13–22)**:
   - Decimal number & floating point in-flight preservation (`8.4` ➔ `৮.৪`, `21.7` ➔ `২১.৭`, `47.2` ➔ `৪৭.২`, `12486` ➔ `১২৪৮৬`).
   - Safe flap rhotic shielding preventing over-zealous `ড়` insertion on high-frequency verbs (`korte` ➔ `করতে`, `dhorlo` ➔ `ধরল`, `bhorte` ➔ `ভর্তি`).
   - Word-initial & medial `oi` diphthong stabilization (`oitihashik` ➔ `ঐতিহাসিক`, `boishishto` ➔ `বৈশিষ্ট্য`).
