@@ -32,9 +32,9 @@ Lekhani Android provides a responsive, privacy-respecting Bengali typing experie
 ## Keyboard Layouts
 
 <p align="center">
-  <img src="docs/screenshots/keyboard_avro.png" width="48%" alt="Avro Phonetic Layout" />
-  &nbsp;
   <img src="docs/screenshots/keyboard_probaho.png" width="48%" alt="Lekhani Probaho Layout" />
+  &nbsp;
+  <img src="docs/screenshots/keyboard_avro.png" width="48%" alt="Avro Phonetic Layout" />
 </p>
 <p align="center">
   <img src="docs/screenshots/keyboard_probhat.png" width="48%" alt="Probhat Layout" />
@@ -50,20 +50,38 @@ Lekhani Android provides a responsive, privacy-respecting Bengali typing experie
 
 ---
 
-## Settings & Customization
+## Themes & Customization
 
 <p align="center">
-  <img src="docs/screenshots/settings_layouts.png" width="31%" alt="Layout Settings" />
+  <img src="docs/screenshots/keyboard_oled.png" width="31%" alt="OLED Pure Black Theme" />
   &nbsp;
+  <img src="docs/screenshots/keyboard_chroma.png" width="31%" alt="RGB Chroma Dynamic Theme" />
+  &nbsp;
+  <img src="docs/screenshots/keyboard_teal.png" width="31%" alt="Cyber Teal Theme" />
+</p>
+
+<p align="center">
   <img src="docs/screenshots/settings_themes.png" width="31%" alt="Theme Studio" />
   &nbsp;
-  <img src="docs/screenshots/settings_about.png" width="31%" alt="About & Privacy" />
+  <img src="docs/screenshots/feature_tool_vault.png" width="31%" alt="Tool Vault" />
+  &nbsp;
+  <img src="docs/screenshots/settings_clipboard.png" width="31%" alt="Clipboard Vault" />
 </p>
 
 - **Theme Studio & Dynamic Chroma**: 33 curated presets across 5 aesthetic categories, 11 real-time 120 FPS chromatic wave themes, custom wallpaper backgrounds, and full user theme creation.
-- **Preferences**: Haptic feedback, key press audio, popup hints, spacebar gestures, and layout switcher order.
-- **Text Editor / D-Pad**: Dedicated cursor control panel with character/word navigation, text selection toggle, and clipboard actions.
+- **Tool Vault**: Quick-access popup sheet for keyboard height resizing, one-handed mode, floating window, split keyboard, and toolbar icon customization.
 - **Clipboard Vault**: Local, ephemeral clipboard manager with pin support and configurable auto-clear retention.
+- **Text Editor / D-Pad**: Dedicated cursor control panel with character/word navigation, text selection toggle, and clipboard actions.
+
+---
+
+## Settings & Privacy
+
+<p align="center">
+  <img src="docs/screenshots/settings_layouts.png" width="48%" alt="Layout Settings" />
+  &nbsp;
+  <img src="docs/screenshots/settings_about.png" width="48%" alt="About & Privacy" />
+</p>
 
 ---
 
