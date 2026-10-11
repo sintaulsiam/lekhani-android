@@ -822,3 +822,18 @@ fn run_comprehensive_typing_simulation() {
 
     println!("\n========================================================\n");
 }
+
+#[test]
+fn test_complex_word_prefix_candidate_surfacing() {
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+    for ch in "kingkorto".chars() {
+        session.process_key(ch.to_string()).unwrap();
+    }
+    let res = session.process_key("b".to_string()).unwrap();
+    assert!(
+        res.candidates.contains(&"কিংকর্তব্যবিমূঢ়".to_string()),
+        "Expected 'কিংকর্তব্যবিমূঢ়' in candidates after typing 'kingkortob', got: {:?}",
+        res.candidates
+    );
+}

@@ -1194,7 +1194,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             if def != primary {
                 candidates.push(def);
             }
-            append_prefix_matches(&primary, &mut candidates);
+            append_prefix_matches(input, &primary, &mut candidates);
             return (primary, candidates);
         }
     }
@@ -1753,7 +1753,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // 4. Core database PrefixTrie lookup to expand matching vocabulary
-    append_prefix_matches(&primary, &mut candidates);
+    append_prefix_matches(input, &primary, &mut candidates);
 
     if remembered_choice.is_none() {
         prioritize_common_or_override_candidate(input, &mut candidates);
@@ -1777,11 +1777,13 @@ pub fn transliterate_avro(input: &str) -> (String, Vec<String>) {
     transliterate_avro_with_context(input, &[])
 }
 
-fn append_prefix_matches(primary: &str, candidates: &mut Vec<String>) {
+fn append_prefix_matches(input: &str, primary: &str, candidates: &mut Vec<String>) {
     if primary.chars().count() < 2 {
         return;
     }
     let db = crate::session::get_core_database();
+
+    // 1. Direct prefix matches from core Trie
     let prefix_matches = db.trie.find_prefix_entries(primary, 4);
     for (w, _) in prefix_matches {
         if candidates.len() >= 8 {
@@ -1791,6 +1793,58 @@ fn append_prefix_matches(primary: &str, candidates: &mut Vec<String>) {
             candidates.push(w.to_string());
         }
     }
+
+    // 2. Reph variant prefix search (e.g. 'কিংকরত' -> 'কিংকর্ত', 'কিংকরতব্যব' -> 'কিংকর্তব্যব')
+    // This allows in-flight un-reduced 'র' + consonant to match Reph words in the 103K vocabulary trie.
+    let chars: Vec<char> = primary.chars().collect();
+    let mut has_plain_r_cons = false;
+    let mut reph_buf = Vec::with_capacity(chars.len() + 2);
+    let mut idx = 0;
+    while idx < chars.len() {
+        if chars[idx] == 'র'
+            && idx + 1 < chars.len()
+            && (('\u{0995}'..='\u{09B9}').contains(&chars[idx + 1])
+                || ('\u{09DC}'..='\u{09DF}').contains(&chars[idx + 1])
+                || chars[idx + 1] == 'ৎ')
+        {
+            reph_buf.push('র');
+            reph_buf.push('্');
+            reph_buf.push(chars[idx + 1]);
+            has_plain_r_cons = true;
+            idx += 2;
+        } else {
+            reph_buf.push(chars[idx]);
+            idx += 1;
+        }
+    }
+    if has_plain_r_cons {
+        let reph_primary: String = reph_buf.into_iter().collect();
+        let reph_matches = db.trie.find_prefix_entries(&reph_primary, 4);
+        for (w, _) in reph_matches {
+            if candidates.len() >= 8 {
+                break;
+            }
+            if !candidates.iter().any(|c| c == w) {
+                candidates.push(w.to_string());
+            }
+        }
+    }
+
+    // 3. Autocorrect prefix lookahead for long compound words (>= 4 Latin characters)
+    let lower = input.to_lowercase();
+    if lower.len() >= 4 {
+        for (k, v) in db.autocorrect.iter() {
+            if candidates.len() >= 8 {
+                break;
+            }
+            if k.starts_with(&lower) && !candidates.contains(v) {
+                let insert_idx = 1.min(candidates.len());
+                candidates.insert(insert_idx, v.clone());
+            }
+        }
+    }
+
+    // 4. Custom User Words
     if let Ok(learner) = db.learner.read() {
         for w in &learner.custom_user_words {
             if candidates.len() >= 8 {
