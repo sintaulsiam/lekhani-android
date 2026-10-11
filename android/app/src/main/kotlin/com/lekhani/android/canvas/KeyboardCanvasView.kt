@@ -1081,7 +1081,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
         }
         val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
-            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO && !avroNumeralsBengali))
+            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || !avroNumeralsBengali)
             val numRow = if (isEnglishDigits) englishDedicatedNumberRow else bengaliDedicatedNumberRow
             listOf(numRow) + baseRows
         } else {
@@ -1254,7 +1254,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             }
         }
         val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
-            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO && !avroNumeralsBengali))
+            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || !avroNumeralsBengali)
             val numRow = if (isEnglishDigits) englishDedicatedNumberRow else bengaliDedicatedNumberRow
             listOf(numRow) + baseRows
         } else {

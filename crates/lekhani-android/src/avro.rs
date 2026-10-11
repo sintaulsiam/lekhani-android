@@ -442,8 +442,35 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("utshaho", &["উৎসাহ"][..]);
         m.insert("hotat", &["হঠাৎ"][..]);
         m.insert("hothat", &["হঠাৎ"][..]);
+        m.insert("shothat", &["হঠাৎ"][..]);
         m.insert("jotshna", &["জ্যোৎস্না", "জোছনা"][..]);
         m.insert("jotsna", &["জ্যোৎস্না", "জোছনা"][..]);
+        m.insert("utpadon", &["উৎপাদন"][..]);
+        m.insert("utpotti", &["উৎপত্তি"][..]);
+        m.insert("utso", &["উৎস"][..]);
+        m.insert("utkorsho", &["উৎকর্ষ"][..]);
+        m.insert("utkrishto", &["উৎকৃষ্ট"][..]);
+        m.insert("utkhepon", &["উৎক্ষেপণ"][..]);
+        m.insert("utsargo", &["উৎসর্গ"][..]);
+        m.insert("utshargo", &["উৎসর্গ"][..]);
+        m.insert("chamatkar", &["চমৎকার"][..]);
+        m.insert("camatkar", &["চমৎকার"][..]);
+        m.insert("jogot", &["জগৎ"][..]);
+        m.insert("zogot", &["জগৎ"][..]);
+        m.insert("jokrit", &["যকৃৎ"][..]);
+        m.insert("zokrit", &["যকৃৎ"][..]);
+        m.insert("sot", &["সৎ", "শত", "সত"][..]);
+        m.insert("bhabot", &["ভাবৎ"][..]);
+        m.insert("porombhrot", &["পরভৃৎ"][..]);
+
+        // Conversational continuous dialect verbs (-tasi / -tesi)
+        m.insert("khaitasi", &["খাইতাসি", "খাচ্ছি", "খাইতেছি"][..]);
+        m.insert("kortasi", &["করতাসি", "করছি", "করতেছি"][..]);
+        m.insert("jaitasi", &["যাইতাসি", "যাচ্ছি", "যাইতেছি"][..]);
+        m.insert("zaitasi", &["যাইতাসি", "যাচ্ছি", "যাইতেছি"][..]);
+        m.insert("dekhtasi", &["দেখতাসি", "দেখছি", "দেখতেছি"][..]);
+        m.insert("dektasi", &["দেখতাসি", "দেখছি"][..]);
+        m.insert("boltasi", &["বলতাসি", "বলছি", "বলতেছি"][..]);
 
         // Anusvara (ং) & Bisarga (ঃ) auto-words
         m.insert("shongstha", &["সংস্থা"][..]);
@@ -722,6 +749,42 @@ fn get_common_words() -> &'static HashMap<&'static str, &'static [&'static str]>
         m.insert("burger", &["বার্গার"][..]);
         m.insert("pizza", &["পিৎজা", "পিজ্জা"][..]);
         m.insert("sandwich", &["স্যান্ডউইচ"][..]);
+
+        // English loanwords with æ / অ্যা sounds
+        m.insert("admin", &["অ্যাডমিন"][..]);
+        m.insert("app", &["অ্যাপ"][..]);
+        m.insert("apps", &["অ্যাপস"][..]);
+        m.insert("application", &["অ্যাপ্লিকেশন"][..]);
+        m.insert("match", &["ম্যাচ"][..]);
+        m.insert("batch", &["ব্যাচ"][..]);
+        m.insert("catch", &["ক্যাচ"][..]);
+        m.insert("gas", &["গ্যাস"][..]);
+        m.insert("plan", &["প্ল্যান"][..]);
+        m.insert("tag", &["ট্যাগ"][..]);
+        m.insert("hack", &["হ্যাক"][..]);
+        m.insert("pack", &["প্যাক"][..]);
+        m.insert("packet", &["প্যাকেট"][..]);
+        m.insert("address", &["অ্যাড্রেস"][..]);
+        m.insert("action", &["অ্যাকশন"][..]);
+        m.insert("active", &["অ্যাক্টিভ"][..]);
+        m.insert("advance", &["অ্যাডভান্স"][..]);
+        m.insert("admission", &["অ্যাডমিশন"][..]);
+        m.insert("accent", &["অ্যাকসেন্ট"][..]);
+        m.insert("apple", &["অ্যাপল"][..]);
+        m.insert("battery", &["ব্যাটারি"][..]);
+        m.insert("van", &["ভ্যান"][..]);
+        m.insert("scan", &["স্ক্যান"][..]);
+        m.insert("trash", &["ট্র্যাশ"][..]);
+        m.insert("crash", &["ক্র্যাশ"][..]);
+        m.insert("actor", &["অ্যাক্টর"][..]);
+        m.insert("actress", &["অ্যাক্ট্রেস"][..]);
+        m.insert("cancel", &["ক্যানসেল"][..]);
+        m.insert("channel", &["চ্যানেল"][..]);
+        m.insert("laptop", &["ল্যাপটপ"][..]);
+        m.insert("chat", &["চ্যাট"][..]);
+        m.insert("jacket", &["জ্যাকেট"][..]);
+        m.insert("manager", &["ম্যানেজার"][..]);
+
         m.insert("breakfast", &["ব্রেকফাস্ট"][..]);
         m.insert("lunch", &["লাঞ্চ"][..]);
         m.insert("dinner", &["ডিনার"][..]);
@@ -2360,6 +2423,48 @@ mod tests {
         // 4. "file-gulo" -> "file-গুলো"
         let (file_res, _) = transliterate_avro("file-gulo");
         assert_eq!(file_res, "file-গুলো");
+    }
+
+    #[test]
+    fn test_khanda_ta_loanwords_and_dialect_verbs() {
+        // 1. Khanda-Ta words
+        let (utpadon, _) = transliterate_avro("utpadon");
+        assert_eq!(utpadon, "উৎপাদন");
+
+        let (chamatkar, _) = transliterate_avro("chamatkar");
+        assert_eq!(chamatkar, "চমৎকার");
+
+        let (utso, _) = transliterate_avro("utso");
+        assert_eq!(utso, "উৎস");
+
+        let (jogot, _) = transliterate_avro("jogot");
+        assert_eq!(jogot, "জগৎ");
+
+        let (utpotti, _) = transliterate_avro("utpotti");
+        assert_eq!(utpotti, "উৎপত্তি");
+
+        // 2. English loanwords with æ / অ্যা
+        let (admin, _) = transliterate_avro("admin");
+        assert_eq!(admin, "অ্যাডমিন");
+
+        let (match_res, _) = transliterate_avro("match");
+        assert_eq!(match_res, "ম্যাচ");
+
+        let (gas, _) = transliterate_avro("gas");
+        assert_eq!(gas, "গ্যাস");
+
+        let (plan, _) = transliterate_avro("plan");
+        assert_eq!(plan, "প্ল্যান");
+
+        let (address, _) = transliterate_avro("address");
+        assert_eq!(address, "অ্যাড্রেস");
+
+        // 3. Dialect continuous verbs
+        let (khaitasi, _) = transliterate_avro("khaitasi");
+        assert_eq!(khaitasi, "খাইতাসি");
+
+        let (kortasi, _) = transliterate_avro("kortasi");
+        assert_eq!(kortasi, "করতাসি");
     }
 }
 
