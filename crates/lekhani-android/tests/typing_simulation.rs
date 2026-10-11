@@ -836,4 +836,46 @@ fn test_complex_word_prefix_candidate_surfacing() {
         "Expected 'কিংকর্তব্যবিমূঢ়' in candidates after typing 'kingkortob', got: {:?}",
         res.candidates
     );
+
+    let test_cases = [
+        ("dharmo", "ধর্ম"),
+        ("bakkya", "বাক্য"),
+        ("shomporko", "সম্পর্ক"),
+        ("antorjatik", "আন্তর্জাতিক"),
+        ("ontorbhukto", "অন্তর্ভুক্ত"),
+    ];
+
+    for (word, expected) in test_cases {
+        let (direct_preedit, direct_cands) = lekhani_android::avro::transliterate_avro(word);
+        assert_eq!(
+            direct_preedit, expected,
+            "Direct transliterate_avro('{}') preedit expected '{}', got '{}'",
+            word, expected, direct_preedit
+        );
+        assert_eq!(
+            direct_cands.first().map(|s| s.as_str()),
+            Some(expected),
+            "Direct transliterate_avro('{}') candidate 0 expected '{}', got {:?}",
+            word, expected, direct_cands
+        );
+
+        session.reset();
+        let mut last_res = None;
+        for ch in word.chars() {
+            last_res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+        if let Some(res) = last_res {
+            assert_eq!(
+                res.preedit, expected,
+                "Key-by-key session('{}') preedit expected '{}', got '{}'",
+                word, expected, res.preedit
+            );
+            assert_eq!(
+                res.candidates.first().map(|s| s.as_str()),
+                Some(expected),
+                "Key-by-key session('{}') candidate 0 expected '{}', got {:?}",
+                word, expected, res.candidates
+            );
+        }
+    }
 }

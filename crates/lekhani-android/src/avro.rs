@@ -20,6 +20,9 @@ pub fn get_common_word_candidates(input: &str) -> Option<&'static [&'static str]
     get_common_words()
         .get(input)
         .or_else(|| get_common_words().get(lower.as_str()))
+        .or_else(|| {
+            collapse_elongation(&lower).and_then(|c| get_common_words().get(c.as_str()))
+        })
         .copied()
 }
 
@@ -127,6 +130,143 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
             }
         }
     }
+
+    // 3. Check phonetic variant equivalences (geminates, S-class, Sanskrit initial vowels, compound Reph)
+    let equivs = get_phonetic_equivalence_candidates(input);
+    let mut inserted_idx = 0;
+    for eq_word in equivs {
+        if let Some(pos) = candidates.iter().position(|c| c == &eq_word) {
+            let cand = candidates.remove(pos);
+            candidates.insert(inserted_idx, cand);
+            inserted_idx += 1;
+        } else {
+            candidates.insert(inserted_idx, eq_word);
+            inserted_idx += 1;
+        }
+        if candidates.len() > 12 {
+            candidates.pop();
+        }
+    }
+
+    // 4. Clitic-ও De-greediness:
+    // If the top candidate ends with 'ও' (e.g. 'সম্পর্কও', 'কতও'), check if removing 'ও' gives an exact dictionary word.
+    // If the input represents the natural inherent vowel rather than an explicit clitic, prioritize the base word!
+    if let Some(top) = candidates.first() {
+        if top.ends_with('ও') && top.chars().count() >= 3 && !input.contains("-o") {
+            let base = &top[..top.len() - 'ও'.len_utf8()];
+            let db = crate::session::get_core_database();
+            if db.trie.contains_exact(base) || db.is_exact_dictionary_word(base) {
+                let base_str = base.to_string();
+                if let Some(pos) = candidates.iter().position(|c| c == &base_str) {
+                    candidates.remove(pos);
+                }
+                candidates.insert(0, base_str);
+            }
+        }
+    }
+}
+
+pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
+    let lower = input.to_lowercase();
+    let mut equiv_words = Vec::new();
+    let db = crate::session::get_core_database();
+    let mut variant_keys = Vec::new();
+
+    // 1. Ja-phola geminate contraction: 'kky' -> 'ky' / 'kyo', 'tty' -> 'ty' / 'tyo', etc.
+    // e.g. 'bakkya' -> 'bakyo' -> বাক্য
+    if lower.contains("kky")
+        || lower.contains("tty")
+        || lower.contains("bby")
+        || lower.contains("ppy")
+        || lower.contains("mmy")
+        || lower.contains("lly")
+        || lower.contains("ddy")
+        || lower.contains("zzy")
+        || lower.contains("jgy")
+    {
+        let contracted = lower
+            .replace("kky", "ky")
+            .replace("tty", "ty")
+            .replace("bby", "by")
+            .replace("ppy", "py")
+            .replace("mmy", "my")
+            .replace("lly", "ly")
+            .replace("ddy", "dy")
+            .replace("zzy", "zy")
+            .replace("jgy", "gy");
+        if contracted.ends_with('a') {
+            variant_keys.push(format!("{}o", &contracted[..contracted.len() - 1]));
+        }
+        variant_keys.push(contracted);
+    }
+
+    // 2. S-class sibilant swap: 'shomporko' -> 'somporko', 'shomossa' -> 'somossa'
+    if lower.starts_with("sh") {
+        variant_keys.push(lower.replacen("sh", "s", 1));
+    } else if lower.starts_with('s') {
+        variant_keys.push(lower.replacen('s', "sh", 1));
+    }
+
+    // 3. Dharma / Karma / Antor / Ontor phonetic vowel harmony
+    if lower.starts_with("dhar") {
+        variant_keys.push(lower.replacen("dhar", "dhor", 1));
+    } else if lower.starts_with("kar") {
+        variant_keys.push(lower.replacen("kar", "kor", 1));
+    }
+    if lower.starts_with("ontor") {
+        variant_keys.push(lower.replacen("ontor", "antor", 1));
+    }
+
+    // 4. Reph doubling (single 'r' before consonant -> 'rr')
+    // In Avro grammar, Reph requires 'rr' before a consonant (e.g. 'antorrjatik' -> আন্তর্জাতিক,
+    // 'ontorrbhukto' -> অন্তর্ভুক্ত, 'dhorrmo' -> ধর্ম, 'somporrko' -> সম্পর্ক).
+    // Touchscreen typists naturally type single 'r'.
+    let mut reph_keys = Vec::new();
+    let consonants = "bcdgjkmnpstvz";
+    let base_keys: Vec<String> = std::iter::once(lower.clone())
+        .chain(variant_keys.iter().cloned())
+        .collect();
+    for base in &base_keys {
+        let bytes = base.as_bytes();
+        for i in 0..bytes.len().saturating_sub(1) {
+            if bytes[i] == b'r'
+                && (i == 0 || bytes[i - 1] != b'r')
+                && (i + 1 < bytes.len() && bytes[i + 1] != b'r')
+            {
+                let next = bytes[i + 1] as char;
+                if consonants.contains(next) {
+                    let mut with_reph = String::with_capacity(base.len() + 1);
+                    with_reph.push_str(&base[..=i]);
+                    with_reph.push('r');
+                    with_reph.push_str(&base[i + 1..]);
+                    reph_keys.push(with_reph);
+                }
+            }
+        }
+    }
+    variant_keys.extend(reph_keys);
+
+    for k in variant_keys {
+        if let Some(ac) = db.autocorrect.get(&k) {
+            if !equiv_words.contains(ac) {
+                equiv_words.push(ac.clone());
+            }
+        }
+        if let Some(ov) = db.lookup_override(&k) {
+            for (w, _) in ov {
+                let w_str = w.to_string();
+                if !equiv_words.contains(&w_str) {
+                    equiv_words.push(w_str);
+                }
+            }
+        }
+        let parsed = get_avro_parser().convert(&k);
+        if !parsed.is_empty() && db.trie.contains_exact(&parsed) && !equiv_words.contains(&parsed) {
+            equiv_words.push(parsed);
+        }
+    }
+
+    equiv_words
 }
 
 /// Determines if two Bengali words share a compatible phonetic root consonant or vowel,
