@@ -1082,10 +1082,13 @@ fn test_detailed_intermediate_states_tracer() {
             );
         }
         let space_res = session.handle_space().unwrap();
+        let actual = space_res.commit_text.as_deref().unwrap_or("").trim();
+        let matches = lekhani_android::probaho::nfc_normalize(actual)
+            == lekhani_android::probaho::nfc_normalize(expected);
         println!(
             "  Spacebar Commit: '{}' (Matches Expected? {})\n",
-            space_res.commit_text.as_deref().unwrap_or(""),
-            space_res.commit_text.as_deref().unwrap_or("").trim() == expected
+            actual,
+            matches
         );
     }
 }
