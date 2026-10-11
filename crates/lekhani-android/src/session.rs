@@ -635,6 +635,17 @@ impl AndroidLekhaniSession {
 
     #[uniffi::constructor]
     pub fn new() -> Self {
+        let epoch_now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        if epoch_now > 0 {
+            let db = get_core_database();
+            if let Ok(mut l) = db.learner.write() {
+                l.decay_if_needed(epoch_now);
+            }
+        }
+
         Self {
             state: Mutex::new(SessionState {
                 layout: LekhaniLayoutType::Probaho,
