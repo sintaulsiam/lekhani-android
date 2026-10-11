@@ -129,16 +129,12 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     let equivs = get_phonetic_equivalence_candidates(input);
     for eq_word in equivs {
         if let Some(pos) = candidates.iter().position(|c| c == &eq_word) {
-            if inserted_idx == 0 {
-                let cand = candidates.remove(pos);
-                candidates.insert(inserted_idx, cand);
-                inserted_idx += 1;
-            }
-        } else if inserted_idx > 0 || candidates.is_empty() {
-            candidates.insert(inserted_idx, eq_word);
+            let cand = candidates.remove(pos);
+            candidates.insert(inserted_idx, cand);
             inserted_idx += 1;
         } else {
-            candidates.push(eq_word);
+            candidates.insert(inserted_idx, eq_word);
+            inserted_idx += 1;
         }
         if candidates.len() > 12 {
             candidates.pop();
@@ -1328,10 +1324,11 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let is_recognized_english = crate::english::is_recognized_english_word(input);
     let def_conv = get_avro_parser().convert(input);
     let def_lower_conv = get_avro_parser().convert(&lower);
-    let _is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
+    let is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
         || (!def_lower_conv.is_empty() && db.is_exact_dictionary_word(&def_lower_conv));
 
     let has_established_loanword = is_explicit_common
+        || is_bengali_dict_word
         || db.lookup_override(input).is_some()
         || db.lookup_override(&lower).is_some()
         || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
