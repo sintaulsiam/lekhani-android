@@ -607,6 +607,55 @@ impl SessionState {
     }
 }
 
+fn is_honorific_shift_internal(typed: &str, candidate: &str) -> bool {
+    if lekhani_ai::AnvayaAgreementEngine::is_honorific_shift(typed, candidate) {
+        return true;
+    }
+    let cand_tier = lekhani_ai::AnvayaAgreementEngine::classify_verb_tier(candidate);
+    if cand_tier == lekhani_ai::VerbConjugationTier::Neutral {
+        return false;
+    }
+
+    if typed.is_ascii() {
+        let clean = typed.to_ascii_lowercase();
+        let typed_tier = if clean.ends_with("chen")
+            || clean.ends_with("ben")
+            || clean.ends_with("len")
+            || clean.ends_with("ten")
+            || clean.ends_with("en")
+        {
+            lekhani_ai::VerbConjugationTier::Formal
+        } else if clean.ends_with("chis")
+            || clean.ends_with("is")
+            || clean.ends_with("bi")
+            || clean.ends_with("li")
+            || clean.ends_with("ti")
+        {
+            lekhani_ai::VerbConjugationTier::Intimate
+        } else if clean.ends_with("cho")
+            || clean.ends_with('o')
+            || clean.ends_with("be")
+            || clean.ends_with("le")
+            || clean.ends_with("te")
+        {
+            lekhani_ai::VerbConjugationTier::Familiar
+        } else {
+            lekhani_ai::VerbConjugationTier::Neutral
+        };
+
+        if typed_tier != lekhani_ai::VerbConjugationTier::Neutral && typed_tier != cand_tier {
+            return true;
+        }
+
+        let parser = crate::avro::get_avro_parser();
+        let pure = parser.convert(typed);
+        if lekhani_ai::AnvayaAgreementEngine::is_honorific_shift(&pure, candidate) {
+            return true;
+        }
+    }
+    false
+}
+
 fn get_context_words<'a>(context: &'a str, buffer: &mut [&'a str; 16]) -> usize {
     let mut count = 0;
     for w in context.split_whitespace().rev().take(16) {
@@ -2101,7 +2150,7 @@ impl AndroidLekhaniSession {
     /// Checks whether `candidate` represents an honorific register shift relative to `typed`.
     #[uniffi::method]
     pub fn is_honorific_shift(&self, typed: String, candidate: String) -> bool {
-        lekhani_ai::AnvayaAgreementEngine::is_honorific_shift(&typed, &candidate)
+        is_honorific_shift_internal(&typed, &candidate)
     }
 
     /// Returns the honorific verb paradigm (Formal, Familiar, Intimate) if `verb` is a recognized inflected verb.
@@ -2794,6 +2843,7 @@ impl AndroidLekhaniSession {
                 if typed_buffer.chars().count() > 2
                     && !normalized.is_ascii()
                     && !typed_buffer.eq_ignore_ascii_case(&normalized)
+                    && !is_honorific_shift_internal(&typed_buffer, &normalized)
                 {
                     learner.record_candidate_selection_direct(&typed_buffer, &normalized);
                     learner.record_input_error_direct(&typed_buffer, &normalized);
@@ -4673,6 +4723,25 @@ mod tests {
         // Non-verb returns empty list
         let paradigm_boi = session.get_verb_honorific_paradigm("বই".into());
         assert!(paradigm_boi.is_empty(), "Noun 'বই' must not produce verb paradigm");
+    }
+
+    #[test]
+    fn test_honorific_shift_selection_does_not_poison_candidate_memory() {
+        let session = AndroidLekhaniSession::new();
+        for ch in "koro".chars() {
+            session.process_key(ch.to_string()).unwrap();
+        }
+        // Selecting honorific shift "করছেন"
+        session.select_candidate("করছেন".to_string()).unwrap();
+
+        let db = get_core_database();
+        if let Ok(learner) = db.learner.read() {
+            assert_ne!(
+                learner.candidate_memory.get("koro"),
+                Some(&"করছেন".to_string()),
+                "Honorific shift 'করছেন' must not poison 'koro' transliteration memory"
+            );
+        }
     }
 }
 

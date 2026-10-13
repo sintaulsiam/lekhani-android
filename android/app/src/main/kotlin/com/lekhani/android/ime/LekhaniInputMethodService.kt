@@ -859,38 +859,23 @@ class LekhaniInputMethodService : InputMethodService() {
                             onCandidateSelected(text)
                         },
                         onBlacklist = { text ->
-                            val paradigm: List<String> = try { session.getVerbHonorificParadigm(text) } catch (e: Exception) { emptyList() }
-                            if (paradigm.isNotEmpty()) {
-                                // Direct-Access Verb Disambiguation Picker
-                                // Long-pressing an ambiguous verb surfaces the full honorific paradigm:
-                                // Formal (e.g. করছেন), Familiar (e.g. করছো), Intimate (e.g. করছিস)
-                                val items = paradigm.mapIndexed { idx, v ->
-                                    com.lekhani.android.ui.candidate.CandidateItem(
-                                        text = v,
-                                        isPrimary = (idx == 0)
-                                    )
-                                }
-                                _candidateState.value = CandidateStripState.Candidates(items)
-                                updateCandidatesVisibility()
-                            } else {
-                                blacklist.add(text)
-                                try {
-                                    session.deleteUserWord(text)
-                                    persistUserLearnedAsync()
-                                    val msg = if (keyboardPrefs.uiLanguage == "en") "Removed from suggestions" else "পরামর্শটি মুছে ফেলা হয়েছে"
-                                    android.widget.Toast.makeText(this@LekhaniInputMethodService, msg, android.widget.Toast.LENGTH_SHORT).show()
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Failed to delete user word '$text': ${e.message}")
-                                }
-                                // Re-publish current candidates with the blacklisted word removed
-                                val current = _candidateState.value
-                                if (current is CandidateStripState.Candidates) {
-                                    val filtered = current.items.filter { it.text != text }
-                                    _candidateState.value = if (filtered.isEmpty())
-                                        CandidateStripState.Empty
-                                    else
-                                        CandidateStripState.Candidates(filtered, undoInfo = current.undoInfo)
-                                }
+                            blacklist.add(text)
+                            try {
+                                session.deleteUserWord(text)
+                                persistUserLearnedAsync()
+                                val msg = if (keyboardPrefs.uiLanguage == "en") "Removed from suggestions" else "পরামর্শটি মুছে ফেলা হয়েছে"
+                                android.widget.Toast.makeText(this@LekhaniInputMethodService, msg, android.widget.Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to delete user word '$text': ${e.message}")
+                            }
+                            // Re-publish current candidates with the blacklisted word removed
+                            val current = _candidateState.value
+                            if (current is CandidateStripState.Candidates) {
+                                val filtered = current.items.filter { it.text != text }
+                                _candidateState.value = if (filtered.isEmpty())
+                                    CandidateStripState.Empty
+                                else
+                                    CandidateStripState.Candidates(filtered, undoInfo = current.undoInfo)
                             }
                         },
                         theme = currentTheme,
