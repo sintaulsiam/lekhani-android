@@ -3186,6 +3186,18 @@ class LekhaniInputMethodService : InputMethodService() {
             } else {
                 clearCandidates()
             }
+        } ?: run {
+            // In-flight conjunct candidate substitution on fixed layouts (e.g. আচ্ + চ্ছ -> আচ্ছ).
+            // Keeps composition active so typist can continue typing subsequent vowels/kars (e.g. + া -> আচ্ছা).
+            setComposingTextSafe(ic, result.preedit)
+            rawInputBuffer.clear()
+            rawInputBuffer.append(result.preedit)
+            updateGboardDynamicRowOnBackspace(result.preedit)
+            if (result.candidates.isNotEmpty()) {
+                publishCandidates(result.candidates)
+            } else {
+                clearCandidates()
+            }
         }
 
         refreshSurroundingContext()
