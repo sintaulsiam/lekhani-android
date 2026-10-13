@@ -352,7 +352,20 @@
 - [x] **Empirical Evaluation Rig & Latency Percentiles**:
   - Tri-split corpus evaluation (Formal BBS, Colloquial, Code-Mixed Banglish) with leave-one-out ablations.
   - Theoretical upper bound KSPC reporting.
-  - Latency percentiles benchmarked over 10,000 runs: warm cache p50: 341 ns (p99: 351 ns); cold page-fault simulation p50: 791 ns (p99: 811 ns).
+---
+
+## Phase 18: Next-Gen Innovation & Intelligence (v3.0) (IN PROGRESS)
+- [x] **Phase 1: Bilingual Sandhi & Code-Switching Clitic Decoupler**:
+  - Implemented zero-allocation unhyphenated bilingual clitic decoupler (`resolve_unhyphenated_bilingual_clitic`).
+  - Seamlessly decouples Latin/English stems from Bengali clitics without hyphens (`WhatsAppe` $\to$ `WhatsApp-এ`, `WhatsApper` $\to$ `WhatsApp-এর`, `Meetinger` $\to$ `Meeting-এর`, `APIgulor` $\to$ `API-গুলোর`, `Bugta` $\to$ `Bug-টা`, `failmarse` $\to$ `fail মারছে`).
+  - Dual-surfacing resolution: Slot 0 code-mix passthrough, Slot 1 phonetic Bengali transcription (`হোয়াটসঅ্যাপে`, `মিটিংয়ের`), Slot 2 raw input.
+  - Zero dictionary poisoning and airtight single-letter clitic validation protecting core Bengali vocabulary (`pore`, `kore`, `amar`, `tumi`, `ammi`).
+  - Extended bilingual loanword inventory and technical collocation disambiguation across `lekhani-engine` and `lekhani-android`.
+- [ ] **Phase 2: Bidirectional In-Sentence Context Rescoring** (`getTextBeforeCursor` + `getTextAfterCursor`).
+- [ ] **Phase 3: Gestural Micro-Flick Verb Disambiguation Picker** (Upward micro-flick on candidate pills).
+- [ ] **Phase 4: Semantic Topic Vector Disambiguation** (32-D dense embeddings).
+- [ ] **Phase 5: Continuous Adaptive Thumb Morphology Calibration** (Online EMA updating key centroids).
+- [ ] **Phase 6: On-Device Bengali Glide / Swipe Trajectory Decoder Prototype**.
 
 
 
