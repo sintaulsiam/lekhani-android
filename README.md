@@ -27,6 +27,9 @@ Lekhani Android provides a responsive, privacy-respecting Bengali typing experie
 - **Bilingual & Multi-Layout**: Switch between phonetic transliteration, ergonomic layouts, fixed BBS standards, and English QWERTY on the fly.
 - **Offline Intelligence**: Local N-gram prediction and contextual homophone disambiguation running completely on-device.
 
+### 📖 Master Technical Specification
+For the authoritative engineering contract, including the **IME Finite-State Machine**, the **Keystroke & Gesture Arbitration Truth Table**, the **Candidate Strip Multi-Track Architecture**, and the **Autonomous Learner Privacy Rules**, consult **[SPECIFICATION.md](SPECIFICATION.md)**.
+
 ---
 
 ## Keyboard Layouts
