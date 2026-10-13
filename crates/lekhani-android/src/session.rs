@@ -464,6 +464,86 @@ pub struct RetroCorrection {
     pub text_to_commit: String,
 }
 
+/// Bayesian short-window dampener for Project "পশ্চাৎ-শোধন" (Retro-Correction).
+///
+/// Tracks the last 7 chip interactions in a bounded sliding window:
+/// - Explicit dismiss: weight -2.0
+/// - Passive ignore: weight -0.2
+/// - Accept: weight +1.5
+///
+/// Using a Beta(1.0, 3.0) prior, if the posterior acceptance probability drops
+/// below 0.18, chips are suppressed until 50 words are typed without annoyance.
+#[derive(Debug, Clone)]
+pub struct RetroDampener {
+    history: Vec<(bool, bool)>, // (is_accept, is_explicit)
+    words_since_suppression: usize,
+    is_suppressed: bool,
+}
+
+impl Default for RetroDampener {
+    fn default() -> Self {
+        Self {
+            history: Vec::with_capacity(7),
+            words_since_suppression: 0,
+            is_suppressed: false,
+        }
+    }
+}
+
+impl RetroDampener {
+    pub fn record_accept(&mut self) {
+        if self.history.len() >= 7 {
+            self.history.remove(0);
+        }
+        self.history.push((true, false));
+        self.update_suppression();
+    }
+
+    pub fn record_dismiss(&mut self, explicit: bool) {
+        if self.history.len() >= 7 {
+            self.history.remove(0);
+        }
+        self.history.push((false, explicit));
+        self.update_suppression();
+    }
+
+    pub fn on_word_typed(&mut self) {
+        if self.is_suppressed {
+            self.words_since_suppression += 1;
+            if self.words_since_suppression >= 50 {
+                self.is_suppressed = false;
+                self.words_since_suppression = 0;
+                self.history.clear();
+            }
+        }
+    }
+
+    fn update_suppression(&mut self) {
+        let mut alpha = 1.0f32;
+        let mut beta = 3.0f32;
+
+        for &(is_accept, explicit) in &self.history {
+            if is_accept {
+                alpha += 1.5;
+            } else if explicit {
+                beta += 2.0;
+            } else {
+                beta += 0.2;
+            }
+        }
+
+        let posterior_prob = alpha / (alpha + beta);
+        if posterior_prob < 0.18 {
+            self.is_suppressed = true;
+            self.words_since_suppression = 0;
+        }
+    }
+
+    pub fn is_suppressed(&self) -> bool {
+        self.is_suppressed
+    }
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Internal session state  (never crosses the FFI boundary)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -499,6 +579,10 @@ struct SessionState {
     hasanta_conjuncts_enabled: bool,
     /// Timestamp and character of last consonant keystroke for rapid double-tap geminates
     last_consonant_tap: Option<(char, std::time::Instant)>,
+    /// Whether pure classic Avro mode is enabled (bypassing AI reranking & Anvaya)
+    pure_avro_mode: bool,
+    /// Bayesian dampener for retro-corrections
+    retro_dampener: RetroDampener,
 }
 
 impl SessionState {
@@ -661,6 +745,8 @@ impl AndroidLekhaniSession {
                 geminate_double_tap_enabled: false,
                 hasanta_conjuncts_enabled: true,
                 last_consonant_tap: None,
+                pure_avro_mode: false,
+                retro_dampener: RetroDampener::default(),
             }),
         }
     }
@@ -747,6 +833,21 @@ impl AndroidLekhaniSession {
             .lock()
             .map(|s| s.auto_learn_enabled)
             .unwrap_or(true)
+    }
+
+    /// Enable or disable Pure Classic Avro Mode (bypasses all AI ranking & Anvaya).
+    pub fn set_pure_avro_mode(&self, enabled: bool) {
+        if let Ok(mut state) = self.state.lock() {
+            state.pure_avro_mode = enabled;
+        }
+    }
+
+    /// Returns whether Pure Classic Avro Mode is currently enabled.
+    pub fn is_pure_avro_mode(&self) -> bool {
+        self.state
+            .lock()
+            .map(|s| s.pure_avro_mode)
+            .unwrap_or(false)
     }
 
     // ── Surrounding text context ─────────────────────────────────────────────
@@ -937,27 +1038,32 @@ impl AndroidLekhaniSession {
             let mut committed =
                 if state.layout == LekhaniLayoutType::Avro && !state.composing_buffer.is_empty() {
                     let raw = std::mem::take(&mut state.composing_buffer);
-                    let words: Vec<&str> = if !state.surrounding_context.is_empty() {
-                        state.surrounding_context.split_whitespace().collect()
+                    if state.pure_avro_mode {
+                        let parser = crate::avro::get_avro_parser();
+                        parser.convert(&raw)
                     } else {
-                        Vec::new()
-                    };
-                    let (preedit, mut candidates) =
-                        crate::avro::transliterate_avro_with_context(&raw, &words);
-                    let is_fastpath = crate::avro::is_avro_special_fastpath(&raw);
-                    if !is_fastpath && !words.is_empty() && candidates.len() > 1 {
-                        let scorer = get_context_scorer();
-                        let right_word = state.right_context.split_whitespace().next();
-                        scorer.rank_candidates_in_place_bidirectional(
-                            &words,
-                            right_word,
-                            &mut candidates,
-                        );
+                        let words: Vec<&str> = if !state.surrounding_context.is_empty() {
+                            state.surrounding_context.split_whitespace().collect()
+                        } else {
+                            Vec::new()
+                        };
+                        let (preedit, mut candidates) =
+                            crate::avro::transliterate_avro_with_context(&raw, &words);
+                        let is_fastpath = crate::avro::is_avro_special_fastpath(&raw);
+                        if !is_fastpath && !words.is_empty() && candidates.len() > 1 {
+                            let scorer = get_context_scorer();
+                            let right_word = state.right_context.split_whitespace().next();
+                            scorer.rank_candidates_in_place_bidirectional(
+                                &words,
+                                right_word,
+                                &mut candidates,
+                            );
+                        }
+                        if !is_fastpath {
+                            crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
+                        }
+                        candidates.first().cloned().unwrap_or(preedit)
                     }
-                    if !is_fastpath {
-                        crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
-                    }
-                    candidates.first().cloned().unwrap_or(preedit)
                 } else {
                     std::mem::take(&mut state.composing_buffer)
                 };
@@ -1006,7 +1112,9 @@ impl AndroidLekhaniSession {
             state.append_to_context(&committed);
             state.last_consonant_tap = None;
 
-            let next_words = if state.layout == LekhaniLayoutType::English {
+            let next_words = if state.is_private_field || state.pure_avro_mode {
+                Vec::new()
+            } else if state.layout == LekhaniLayoutType::English {
                 // Fix #1: Filter surrounding_context to only ASCII words so Bengali
                 // context accumulated from a previous layout session never leaks into
                 // English next-word predictions after punctuation flush.
@@ -1019,6 +1127,8 @@ impl AndroidLekhaniSession {
             } else {
                 get_bengali_next_words(&state.surrounding_context, Some(&state.right_context))
             };
+
+            state.retro_dampener.on_word_typed();
 
             return Ok(TypingResult {
                 preedit: String::new(),
@@ -1347,6 +1457,18 @@ impl AndroidLekhaniSession {
 
             LekhaniLayoutType::Avro => {
                 state.composing_buffer.push_str(&key);
+                if state.pure_avro_mode {
+                    let parser = crate::avro::get_avro_parser();
+                    let preedit = parser.convert(&state.composing_buffer);
+                    let len = preedit.graphemes(true).count() as u32;
+                    let candidates = vec![preedit.clone()];
+                    return Ok(TypingResult {
+                        preedit,
+                        commit_text: None,
+                        candidates,
+                        cursor_position: len,
+                    });
+                }
                 let mut words_buf = [""; 16];
                 let count = if !state.surrounding_context.is_empty() {
                     get_context_words(&state.surrounding_context, &mut words_buf)
@@ -1976,6 +2098,44 @@ impl AndroidLekhaniSession {
         Ok(learner.get_user_words())
     }
 
+    /// Checks whether `candidate` represents an honorific register shift relative to `typed`.
+    #[uniffi::method]
+    pub fn is_honorific_shift(&self, typed: String, candidate: String) -> bool {
+        lekhani_ai::AnvayaAgreementEngine::is_honorific_shift(&typed, &candidate)
+    }
+
+    /// Returns the honorific verb paradigm (Formal, Familiar, Intimate) if `verb` is a recognized inflected verb.
+    #[uniffi::method]
+    pub fn get_verb_honorific_paradigm(&self, verb: String) -> Vec<String> {
+        let clean = crate::probaho::nfc_normalize(verb.trim());
+        let mut results = Vec::new();
+        if let Some(formal) = lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(
+            &clean,
+            lekhani_ai::HonorificRegister::FormalHonorific,
+        ) {
+            results.push(formal.to_string());
+        }
+        if let Some(familiar) = lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(
+            &clean,
+            lekhani_ai::HonorificRegister::Familiar,
+        ) {
+            let s = familiar.to_string();
+            if !results.contains(&s) {
+                results.push(s);
+            }
+        }
+        if let Some(intimate) = lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(
+            &clean,
+            lekhani_ai::HonorificRegister::Intimate,
+        ) {
+            let s = intimate.to_string();
+            if !results.contains(&s) {
+                results.push(s);
+            }
+        }
+        results
+    }
+
     /// Add a custom word to the user dictionary with high initial priority.
     pub fn add_user_word(&self, word: String) -> Result<bool, LekhaniError> {
         let clean = word.trim();
@@ -2209,6 +2369,17 @@ impl AndroidLekhaniSession {
                         candidates: Vec::new(),
                         cursor_position: 0,
                     })
+                } else if state.pure_avro_mode {
+                    let parser = crate::avro::get_avro_parser();
+                    let preedit = parser.convert(&state.composing_buffer);
+                    let len = preedit.graphemes(true).count() as u32;
+                    let candidates = vec![preedit.clone()];
+                    Ok(TypingResult {
+                        preedit,
+                        commit_text: None,
+                        candidates,
+                        cursor_position: len,
+                    })
                 } else {
                     let words: Vec<&str> = if !state.surrounding_context.is_empty() {
                         state.surrounding_context.split_whitespace().collect()
@@ -2366,10 +2537,26 @@ impl AndroidLekhaniSession {
             let prev_word = context_words.last().map(|s| s.to_string());
 
             let mut normalized = if let Some(ref cand) = chosen_candidate {
-                nfc_normalize(cand)
+                let (preedit, _) = if state.layout == LekhaniLayoutType::Avro {
+                    crate::avro::transliterate_avro_with_context(&raw, &context_words)
+                } else {
+                    (raw.clone(), Vec::new())
+                };
+                if state.layout == LekhaniLayoutType::Avro
+                    && lekhani_ai::AnvayaAgreementEngine::is_honorific_shift(&preedit, cand)
+                {
+                    nfc_normalize(&preedit)
+                } else {
+                    nfc_normalize(cand)
+                }
             } else if state.layout == LekhaniLayoutType::English {
                 nfc_normalize(&raw)
             } else if state.layout == LekhaniLayoutType::Avro {
+                if state.pure_avro_mode {
+                    let parser = crate::avro::get_avro_parser();
+                    let def = parser.convert(&raw);
+                    nfc_normalize(&def)
+                } else {
                 let has_candidate_memory = {
                     if raw.chars().count() <= 2 {
                         false
@@ -2432,6 +2619,7 @@ impl AndroidLekhaniSession {
                     &raw
                 };
                 nfc_normalize(chosen)
+                }
             } else {
                 let db = get_core_database();
                 let lower = raw.to_lowercase();
@@ -2468,14 +2656,13 @@ impl AndroidLekhaniSession {
             }
 
             state.append_to_context(&word);
+            state.retro_dampener.on_word_typed();
 
-            let next_words = if state.layout == LekhaniLayoutType::English {
-                if state.is_private_field {
-                    Vec::new()
-                } else {
-                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                    crate::english::get_english_next_words(&words, 5)
-                }
+            let next_words = if state.is_private_field || state.pure_avro_mode {
+                Vec::new()
+            } else if state.layout == LekhaniLayoutType::English {
+                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                crate::english::get_english_next_words(&words, 5)
             } else {
                 get_bengali_next_words(&state.surrounding_context, Some(&state.right_context))
             };
@@ -2488,13 +2675,12 @@ impl AndroidLekhaniSession {
             })
         } else {
             state.last_commit_info = None;
-            let next_words = if state.layout == LekhaniLayoutType::English {
-                if state.is_private_field {
-                    Vec::new()
-                } else {
-                    let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                    crate::english::get_english_next_words(&words, 5)
-                }
+            state.retro_dampener.on_word_typed();
+            let next_words = if state.is_private_field || state.pure_avro_mode {
+                Vec::new()
+            } else if state.layout == LekhaniLayoutType::English {
+                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+                crate::english::get_english_next_words(&words, 5)
             } else {
                 get_bengali_next_words(&state.surrounding_context, Some(&state.right_context))
             };
@@ -2627,13 +2813,11 @@ impl AndroidLekhaniSession {
 
         state.append_to_context(&normalized);
 
-        let next_words = if state.layout == LekhaniLayoutType::English {
-            if state.is_private_field {
-                Vec::new()
-            } else {
-                let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
-                crate::english::get_english_next_words(&words, 5)
-            }
+        let next_words = if state.is_private_field {
+            Vec::new()
+        } else if state.layout == LekhaniLayoutType::English {
+            let words: Vec<&str> = state.surrounding_context.split_whitespace().collect();
+            crate::english::get_english_next_words(&words, 5)
         } else {
             get_bengali_next_words(&state.surrounding_context, Some(&state.right_context))
         };
@@ -2727,7 +2911,17 @@ impl AndroidLekhaniSession {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
         };
+        if state.is_private_field || state.pure_avro_mode || state.retro_dampener.is_suppressed() {
+            return None;
+        }
         evaluate_retro_correction(&state.surrounding_context)
+    }
+
+    /// Record whether the user explicitly or passively dismissed a retro-correction chip.
+    pub fn record_retro_correction_dismissed(&self, explicit: bool) {
+        if let Ok(mut state) = self.state.lock() {
+            state.retro_dampener.record_dismiss(explicit);
+        }
     }
 
     /// Atomically applies a retro-correction to the active editor.
@@ -2739,6 +2933,8 @@ impl AndroidLekhaniSession {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
         };
+
+        state.retro_dampener.record_accept();
 
         if state.surrounding_context_len >= correction.chars_to_backspace as usize {
             let trim_chars = state.surrounding_context_len - correction.chars_to_backspace as usize;
@@ -4417,6 +4613,66 @@ mod tests {
         let corr = session.get_retro_correction().unwrap();
         let typing_res = session.apply_retro_correction(corr).unwrap();
         assert_eq!(typing_res.commit_text, Some("আছেন".into()));
+    }
+
+    #[test]
+    fn test_pure_avro_mode() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+        session.set_pure_avro_mode(true);
+        assert!(session.is_pure_avro_mode());
+
+        // In pure Avro mode, "k" + "a" + "j" produces literal "কাজ"
+        session.process_key("k".into()).unwrap();
+        session.process_key("a".into()).unwrap();
+        let res = session.process_key("j".into()).unwrap();
+        assert_eq!(res.preedit, "কাজ");
+        assert_eq!(res.candidates, vec!["কাজ".to_string()]);
+
+        // Retro-correction is disabled in pure Avro mode
+        session.set_context("আপনি কেমন আছো".into());
+        assert!(session.get_retro_correction().is_none());
+
+        // Space commits literal Avro output
+        let space_res = session.handle_space().unwrap();
+        assert_eq!(space_res.commit_text, Some("কাজ ".into()));
+        assert!(space_res.candidates.is_empty());
+    }
+
+    #[test]
+    fn test_retro_dampener_bayesian_suppression() {
+        let session = AndroidLekhaniSession::new();
+        session.set_context("আপনি কেমন আছো".into());
+
+        // Initial evaluation surfaces correction
+        assert!(session.get_retro_correction().is_some());
+
+        // Explicit dismissal triggers suppression (posterior probability drops below 0.18)
+        session.record_retro_correction_dismissed(true);
+        assert!(session.get_retro_correction().is_none(), "Must be suppressed after explicit dismiss");
+
+        // Typing 49 words keeps it suppressed
+        for _ in 0..49 {
+            session.handle_space().unwrap();
+        }
+        assert!(session.get_retro_correction().is_none(), "Must remain suppressed before 50 words");
+
+        // 50th word clears suppression
+        session.handle_space().unwrap();
+        assert!(session.get_retro_correction().is_some(), "Must re-enable after 50 words typed");
+    }
+
+    #[test]
+    fn test_verb_honorific_paradigm_extraction() {
+        let session = AndroidLekhaniSession::new();
+        let paradigm_koro = session.get_verb_honorific_paradigm("করছো".into());
+        assert!(paradigm_koro.contains(&"করছেন".to_string()), "Must have formal 'করছেন'");
+        assert!(paradigm_koro.contains(&"করছো".to_string()), "Must have familiar 'করছো'");
+        assert!(paradigm_koro.contains(&"করছিস".to_string()), "Must have intimate 'করছিস'");
+
+        // Non-verb returns empty list
+        let paradigm_boi = session.get_verb_honorific_paradigm("বই".into());
+        assert!(paradigm_boi.is_empty(), "Noun 'বই' must not produce verb paradigm");
     }
 }
 

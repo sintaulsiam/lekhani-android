@@ -979,7 +979,7 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
 
     // b. 1st-person dialect future: -um -> -ুম (e.g. bos-um -> বসুম, kor-um -> করুম)
     if let Some(stem) = lower.strip_suffix("um") {
-        if !stem.is_empty() && stem.chars().all(|c| c.is_ascii_alphabetic()) {
+        if stem.len() >= 2 && stem.chars().all(|c| c.is_ascii_alphabetic()) {
             let stem_bn = get_avro_parser().convert(stem);
             let word = format!("{}ুম", stem_bn);
             return Some((word.clone(), vec![word]));
@@ -987,7 +987,7 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     }
     // 1st-person dialect future: -mu -> -মু (e.g. ja-mu -> যামু, kha-mu -> খামু)
     if let Some(stem) = lower.strip_suffix("mu") {
-        if !stem.is_empty() && stem.chars().all(|c| c.is_ascii_alphabetic()) {
+        if stem.len() >= 2 && stem.chars().all(|c| c.is_ascii_alphabetic()) {
             let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
             let stem_bn = get_avro_parser().convert(&effective);
             let word = format!("{}মু", stem_bn);
@@ -1116,12 +1116,20 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // Fast-path 1: Social media mentions (@username) and hashtags (#tag)
-    if let Some((primary, candidates)) = resolve_social_mention_or_hashtag(input) {
+    if let Some((primary, mut candidates)) = resolve_social_mention_or_hashtag(input) {
+        let def_pure = get_avro_parser().convert(input);
+        if !def_pure.is_empty() && !candidates.contains(&def_pure) {
+            candidates.push(def_pure);
+        }
         return (primary, candidates);
     }
 
     // Fast-path 2: Digit units, quantifiers, currency, and ordinals (e.g. 10ta -> ১০টা, 500tk -> ৫০০ টাকা, 1st -> ১ম)
-    if let Some((primary, candidates)) = resolve_digit_unit_candidates(input) {
+    if let Some((primary, mut candidates)) = resolve_digit_unit_candidates(input) {
+        let def_pure = get_avro_parser().convert(input);
+        if !def_pure.is_empty() && !candidates.contains(&def_pure) {
+            candidates.push(def_pure);
+        }
         return (primary, candidates);
     }
 
@@ -1136,12 +1144,20 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // Fast-path 3: Bilingual hyphen clitics (e.g. Facebook-e -> Facebook-এ, bkash-e -> bkash-এ)
-    if let Some((primary, candidates)) = resolve_bilingual_hyphen_clitic(input) {
+    if let Some((primary, mut candidates)) = resolve_bilingual_hyphen_clitic(input) {
+        let def_pure = get_avro_parser().convert(input);
+        if !def_pure.is_empty() && !candidates.contains(&def_pure) {
+            candidates.push(def_pure);
+        }
         return (primary, candidates);
     }
 
     // Fast-path 4: Generative Morphology & Dialectal Verb Conjugations
-    if let Some((primary, candidates)) = resolve_generative_morphology(input) {
+    if let Some((primary, mut candidates)) = resolve_generative_morphology(input) {
+        let def_pure = get_avro_parser().convert(input);
+        if !def_pure.is_empty() && !candidates.contains(&def_pure) {
+            candidates.push(def_pure);
+        }
         return (primary, candidates);
     }
 
@@ -1387,11 +1403,11 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             let conc_nfc = crate::probaho::nfc_normalize(concordant);
             if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == conc_nfc) {
                 let c = candidates.remove(pos);
-                candidates.insert(0, c);
+                candidates.insert(1.min(candidates.len()), c);
             } else {
-                candidates.insert(0, conc_nfc);
+                candidates.insert(1.min(candidates.len()), conc_nfc);
             }
-            1
+            0
         } else {
             0
         };
@@ -1452,6 +1468,21 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
         let target_idx = 1.min(candidates.len());
         candidates.insert(target_idx, def.clone());
+    }
+
+    // 2c2. Honorific Agreement Invariant: Concordant verbs sit at Slot 1 (index 1), NEVER overriding Slot 0
+    if let Some(concordant) = concordant_cand {
+        let conc_nfc = crate::probaho::nfc_normalize(concordant);
+        if candidates.len() > 1 && candidates[0] == conc_nfc {
+            candidates.swap(0, 1);
+        } else if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == conc_nfc) {
+            if pos != 1 {
+                let c = candidates.remove(pos);
+                candidates.insert(1.min(candidates.len()), c);
+            }
+        } else {
+            candidates.insert(1.min(candidates.len()), conc_nfc);
+        }
     }
 
     // 2d. Exact case-sensitivity fidelity, All-Caps normalization & Sentence-initial Titlecase smart promotion:
@@ -1729,12 +1760,20 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let raw_primary = candidates.first().cloned().unwrap_or(primary);
     let primary = crate::probaho::nfc_normalize(&raw_primary);
 
-    let mut normalized_candidates = Vec::with_capacity(candidates.len());
+    let mut normalized_candidates = Vec::with_capacity(candidates.len() + 1);
     for c in candidates {
         let norm = crate::probaho::nfc_normalize(&c);
         if !normalized_candidates.contains(&norm) {
             normalized_candidates.push(norm);
         }
+    }
+
+    // Guarantee the muscle-memory invariant: pure Avro conversion is NEVER dropped
+    let def_pure = get_avro_parser().convert(input);
+    let def_norm = crate::probaho::nfc_normalize(&def_pure);
+    if !def_norm.is_empty() && !normalized_candidates.contains(&def_norm) {
+        let target_idx = 1.min(normalized_candidates.len());
+        normalized_candidates.insert(target_idx, def_norm);
     }
 
     (primary, normalized_candidates)
@@ -2487,6 +2526,74 @@ mod tests {
 
         let (kortasi, _) = transliterate_avro("kortasi");
         assert_eq!(kortasi, "করতাসি");
+    }
+
+    #[test]
+    fn test_anvaya_slot0_wysiwyg_guarantee() {
+        // Under formal subject ("আপনি কেমন"), typing "aso":
+        // Slot 0 MUST be the familiar verb "আছো" (WYSIWYG: Space commits what is highlighted)
+        // Slot 1 MUST be the Anvaya formal suggestion "আছেন" (commits on tap, not on Space)
+        let (primary, candidates) =
+            transliterate_avro_with_context("aso", &["আপনি", "কেমন"]);
+        assert_eq!(primary, "আছো", "Slot 0 must be familiar 'আছো'");
+        assert!(candidates.len() >= 2, "Must have at least 2 candidates");
+        assert_eq!(candidates[0], "আছো", "Candidate[0] must be 'আছো'");
+        assert_eq!(candidates[1], "আছেন", "Candidate[1] must be 'আছেন'");
+
+        // Intimate subject ("তুই"), typing "koro":
+        // Slot 0 is "করো", Slot 1 is "করছিস"
+        let (primary_tui, candidates_tui) =
+            transliterate_avro_with_context("koro", &["তুই"]);
+        assert_eq!(primary_tui, "করো", "Slot 0 must be familiar 'করো'");
+        assert!(candidates_tui.contains(&"করছিস".to_string()), "Candidate pool must contain 'করছিস'");
+    }
+
+    #[test]
+    fn test_grammar_biased_muscle_memory_invariant() {
+        let parser = get_avro_parser();
+        let roots = [
+            "k", "kh", "g", "gh", "c", "ch", "j", "jh", "T", "Th", "D", "Dh", "N",
+            "t", "th", "d", "dh", "n", "p", "ph", "b", "bh", "m", "r", "l", "sh",
+            "Sh", "s", "h", "R", "Rh", "y", "kSh", "gyan", "rri",
+        ];
+        let vowels = ["", "a", "i", "I", "u", "U", "e", "o", "O", "OI", "OU"];
+        let codas = ["", "r", "l", "n", "m", "t", "k", "sh", "^", ":"];
+        let suffixes = ["", "ta", "gulo", "ke", "ra", "der", "te", "techi"];
+
+        let mut checked = 0;
+        for &r in &roots {
+            for &v in &vowels {
+                for &c in &codas {
+                    for &suf in &suffixes {
+                        let mut token = String::new();
+                        token.push_str(r);
+                        token.push_str(v);
+                        token.push_str(c);
+                        token.push_str(suf);
+
+                        if token.is_empty() {
+                            continue;
+                        }
+
+                        let expected = parser.convert(&token);
+                        if expected.is_empty() {
+                            continue;
+                        }
+
+                        let (_, candidates) = transliterate_avro(&token);
+                        assert!(
+                            candidates.contains(&expected),
+                            "Invariant violated for '{}': expected '{}' not in candidates {:?}",
+                            token,
+                            expected,
+                            candidates
+                        );
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        assert!(checked > 5000, "Should have fuzzed > 5000 grammar-biased inputs, fuzzed {}", checked);
     }
 }
 

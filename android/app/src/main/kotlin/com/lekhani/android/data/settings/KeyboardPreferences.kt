@@ -319,6 +319,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_AVRO_PHONETIC_BACKSPACE_REOPENING, true)
         set(value) = prefs.edit().putBoolean(KEY_AVRO_PHONETIC_BACKSPACE_REOPENING, value).apply()
 
+    var pureAvroMode: Boolean
+        get() = prefs.getBoolean(KEY_PURE_AVRO_MODE, false)
+        set(value) = prefs.edit().putBoolean(KEY_PURE_AVRO_MODE, value).apply()
+
     var smartPunctuationSpacing: Boolean
         get() = prefs.getBoolean(KEY_SMART_PUNCTUATION_SPACING, true)
         set(value) = prefs.edit().putBoolean(KEY_SMART_PUNCTUATION_SPACING, value).apply()
@@ -703,6 +707,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val STRIP_ORDER_BENGALI_FIRST = "bengali_first"
         const val STRIP_ORDER_ENGLISH_FIRST = "english_first"
         const val KEY_AVRO_PHONETIC_BACKSPACE_REOPENING = "avro_phonetic_backspace_reopening"
+        const val KEY_PURE_AVRO_MODE = "pure_avro_mode"
         const val KEY_SMART_PUNCTUATION_SPACING = "smart_punctuation_spacing"
         const val KEY_AVRO_NUMERALS_BENGALI = "avro_numerals_bengali"
         const val KEY_DOUBLE_SPACE_DARI_ENABLED = "double_space_dari_enabled"

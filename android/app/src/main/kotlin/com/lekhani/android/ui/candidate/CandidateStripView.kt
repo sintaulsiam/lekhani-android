@@ -1054,6 +1054,17 @@ private fun RetroCorrectionPill(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            if (chip.onDismiss != null) {
+                Spacer(Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Dismiss",
+                    tint = labelColor.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable { chip.onDismiss.invoke() }
+                )
+            }
         }
     }
 }

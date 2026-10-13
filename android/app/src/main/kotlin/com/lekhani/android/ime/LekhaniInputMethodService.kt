@@ -387,6 +387,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 key == KeyboardPreferences.KEY_HASANTA_CONJUNCTS ||
                 key == KeyboardPreferences.KEY_GEMINATE_DOUBLE_TAP ||
                 key == KeyboardPreferences.KEY_HASANTA_HAPTIC ||
+                key == KeyboardPreferences.KEY_PURE_AVRO_MODE ||
                 (key != null && key.startsWith("override_")) -> {
                     applyLayoutSpecificPreferences(session.getLayout())
                 }
@@ -858,23 +859,38 @@ class LekhaniInputMethodService : InputMethodService() {
                             onCandidateSelected(text)
                         },
                         onBlacklist = { text ->
-                            blacklist.add(text)
-                            try {
-                                session.deleteUserWord(text)
-                                persistUserLearnedAsync()
-                                val msg = if (keyboardPrefs.uiLanguage == "en") "Removed from suggestions" else "পরামর্শটি মুছে ফেলা হয়েছে"
-                                android.widget.Toast.makeText(this@LekhaniInputMethodService, msg, android.widget.Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Failed to delete user word '$text': ${e.message}")
-                            }
-                            // Re-publish current candidates with the blacklisted word removed
-                            val current = _candidateState.value
-                            if (current is CandidateStripState.Candidates) {
-                                val filtered = current.items.filter { it.text != text }
-                                _candidateState.value = if (filtered.isEmpty())
-                                    CandidateStripState.Empty
-                                else
-                                    CandidateStripState.Candidates(filtered, undoInfo = current.undoInfo)
+                            val paradigm = try { session.getVerbHonorificParadigm(text) } catch (_: Exception) { emptyList() }
+                            if (paradigm.isNotEmpty()) {
+                                // Direct-Access Verb Disambiguation Picker
+                                // Long-pressing an ambiguous verb surfaces the full honorific paradigm:
+                                // Formal (e.g. করছেন), Familiar (e.g. করছো), Intimate (e.g. করছিস)
+                                val items = paradigm.mapIndexed { idx, v ->
+                                    com.lekhani.android.ui.candidate.CandidateItem(
+                                        text = v,
+                                        isPrimary = (idx == 0)
+                                    )
+                                }
+                                _candidateState.value = CandidateStripState.Candidates(items)
+                                updateCandidatesVisibility()
+                            } else {
+                                blacklist.add(text)
+                                try {
+                                    session.deleteUserWord(text)
+                                    persistUserLearnedAsync()
+                                    val msg = if (keyboardPrefs.uiLanguage == "en") "Removed from suggestions" else "পরামর্শটি মুছে ফেলা হয়েছে"
+                                    android.widget.Toast.makeText(this@LekhaniInputMethodService, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Failed to delete user word '$text': ${e.message}")
+                                }
+                                // Re-publish current candidates with the blacklisted word removed
+                                val current = _candidateState.value
+                                if (current is CandidateStripState.Candidates) {
+                                    val filtered = current.items.filter { it.text != text }
+                                    _candidateState.value = if (filtered.isEmpty())
+                                        CandidateStripState.Empty
+                                    else
+                                        CandidateStripState.Candidates(filtered, undoInfo = current.undoInfo)
+                                }
                             }
                         },
                         theme = currentTheme,
@@ -2377,6 +2393,9 @@ class LekhaniInputMethodService : InputMethodService() {
     fun onKey(keyToken: String) {
         // User is now typing the next word — safe to show next-word predictions again.
         suppressNextWordAfterCommit = false
+        if (_candidateState.value is CandidateStripState.RetroCorrectionChip) {
+            session.recordRetroCorrectionDismissed(false)
+        }
         clearUndo()
         isQuickChipDismissed = true
         val ic = currentInputConnection ?: return
@@ -2917,7 +2936,15 @@ class LekhaniInputMethodService : InputMethodService() {
         rawInputBuffer.clear()
 
         val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
-        val chosenForSpace = if (activePrimary != null && !activePrimary.startsWith("=") && isPhonetic) {
+        val isHonorificShift = if (activePrimary != null && preeditBeforeSpace.isNotEmpty()) {
+            try {
+                session.isHonorificShift(preeditBeforeSpace, activePrimary)
+            } catch (_: Exception) {
+                false
+            }
+        } else false
+
+        val chosenForSpace = if (activePrimary != null && !activePrimary.startsWith("=") && isPhonetic && !isHonorificShift) {
             activePrimary
         } else {
             null
@@ -2949,9 +2976,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 avroHistory.record(trimmedCommitted, originalRaw, withSpace = text.endsWith(" "))
             }
             val candidateOriginal = when {
-                isAvro -> null // Avro phonetic transliteration to Bengali is normal typing, not an autocorrection mistake
-                originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
                 preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted && preeditBeforeSpace != originalRaw -> preeditBeforeSpace
+                originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
                 else -> null
             }
             val undo = if (candidateOriginal != null && candidateOriginal.isNotBlank()) {
@@ -3210,6 +3236,7 @@ class LekhaniInputMethodService : InputMethodService() {
         session.setSmartInitialKarEnabled(keyboardPrefs.isSmartInitialKarActive(layout))
         session.setGeminateDoubleTapEnabled(keyboardPrefs.isGeminateDoubleTapActive(layout))
         session.setHasantaConjunctsEnabled(keyboardPrefs.isHasantaConjunctsActive(layout))
+        session.setPureAvroMode(keyboardPrefs.pureAvroMode)
         updateCandidatesVisibility()
     }
 
@@ -4379,7 +4406,12 @@ class LekhaniInputMethodService : InputMethodService() {
                                         originalWord = retroCorrection.originalWord,
                                         replacementWord = retroCorrection.replacementWord,
                                         reason = retroCorrection.reason,
-                                        onApply = { applyRetroCorrectionSafe(retroCorrection) }
+                                        onApply = { applyRetroCorrectionSafe(retroCorrection) },
+                                        onDismiss = {
+                                            session.recordRetroCorrectionDismissed(true)
+                                            _candidateState.value = CandidateStripState.Empty
+                                            updateCandidatesVisibility()
+                                        }
                                     )
                                     updateCandidatesVisibility()
                                 }

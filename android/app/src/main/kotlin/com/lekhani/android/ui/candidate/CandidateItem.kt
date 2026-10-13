@@ -115,6 +115,7 @@ sealed class CandidateStripState {
         val replacementWord: String,
         val reason: String,
         val onApply: () -> Unit,
+        val onDismiss: (() -> Unit)? = null,
     ) : CandidateStripState()
 }
 
