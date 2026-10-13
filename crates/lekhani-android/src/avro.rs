@@ -2146,6 +2146,269 @@ fn get_frequency_completions(prefix: &str, limit: usize) -> Vec<String> {
     results
 }
 
+pub(crate) struct AvroStrategy;
+
+impl crate::layout::LayoutStrategy for AvroStrategy {
+    fn process_key(&self, key: &str, state: &mut crate::session::SessionState) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
+        state.composing_buffer.push_str(key);
+        if state.pure_avro_mode {
+            let parser = get_avro_parser();
+            let preedit = parser.convert(&state.composing_buffer);
+            let len = unicode_segmentation::UnicodeSegmentation::graphemes(preedit.as_str(), true).count() as u32;
+            let candidates = vec![preedit.clone()];
+            return Ok(crate::session::TypingResult {
+                preedit,
+                commit_text: None,
+                candidates,
+                cursor_position: len,
+            });
+        }
+        let mut words_buf = [""; 16];
+        let count = if !state.surrounding_context.is_empty() {
+            crate::session::get_context_words(&state.surrounding_context, &mut words_buf)
+        } else {
+            0
+        };
+        let words = &words_buf[..count];
+        let (preedit, mut candidates) =
+            transliterate_avro_with_context(&state.composing_buffer, words);
+        let has_candidate_memory = {
+            if state.composing_buffer.chars().count() <= 2 {
+                false
+            } else {
+                let db = crate::session::get_core_database();
+                db.learner.read().ok().is_some_and(|l| {
+                    l.lookup_input_error(&state.composing_buffer).is_some()
+                        || l.candidate_memory.contains_key(&state.composing_buffer)
+                        || l.candidate_memory
+                            .contains_key(&state.composing_buffer.to_lowercase())
+                })
+            }
+        };
+        if !is_avro_special_fastpath(&state.composing_buffer) && count > 0 && candidates.len() > 1 {
+            let scorer = crate::session::get_context_scorer();
+            let right_word = state.right_context.split_whitespace().next();
+            scorer.rank_candidates_in_place_bidirectional(
+                words,
+                right_word,
+                &mut candidates,
+            );
+            if has_candidate_memory {
+                let db = crate::session::get_core_database();
+                if let Ok(learner) = db.learner.read() {
+                    let preferred = learner
+                        .lookup_input_error(&state.composing_buffer)
+                        .or_else(|| {
+                            learner
+                                .candidate_memory
+                                .get(&state.composing_buffer)
+                                .map(|s| s.as_str())
+                        })
+                        .or_else(|| {
+                            learner
+                                .candidate_memory
+                                .get(&state.composing_buffer.to_lowercase())
+                                .map(|s| s.as_str())
+                        });
+                    if let Some(pref) = preferred {
+                        if let Some(pos) = candidates.iter().position(|c| c == pref) {
+                            let cand = candidates.remove(pos);
+                            candidates.insert(0, cand);
+                        }
+                    }
+                }
+            } else {
+                prioritize_common_or_override_candidate(
+                    &state.composing_buffer,
+                    &mut candidates,
+                );
+            }
+            if let Some(top) = candidates.first() {
+                let db = crate::session::get_core_database();
+                let has_override = db.lookup_override(&state.composing_buffer).is_some()
+                    || db
+                        .lookup_override(&state.composing_buffer.to_lowercase())
+                        .is_some();
+                let is_explicit_common = has_override;
+
+                let freq_preedit = db.get_frequency(&preedit);
+                let freq_top = db.get_frequency(top);
+                let is_archaic_preedit = freq_preedit == 0 && freq_top > 0;
+
+                let has_strong_context_preference = {
+                    let scorer = crate::session::get_context_scorer();
+                    let prev1 = words.last().copied();
+                    let prev2 = if words.len() >= 2 { Some(words[words.len() - 2]) } else { None };
+                    let lm_top = scorer.lm().score_candidate(prev2, prev1, top);
+                    let lm_pre = scorer.lm().score_candidate(prev2, prev1, &preedit);
+                    (lm_top - lm_pre) >= 2.0
+                };
+
+                if !has_candidate_memory
+                    && !is_explicit_common
+                    && !has_override
+                    && db.is_exact_dictionary_word(&preedit)
+                    && (top.chars().count() > preedit.chars().count()
+                        || (!is_archaic_preedit
+                            && !has_strong_context_preference
+                            && (!are_phonetically_compatible(&preedit, top)
+                                || !db.is_exact_dictionary_word(top))))
+                {
+                    if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
+                        let cand = candidates.remove(pos);
+                        candidates.insert(0, cand);
+                    }
+                }
+            }
+        }
+        let mut norm_candidates = Vec::with_capacity(candidates.len());
+        for c in candidates {
+            let n = crate::probaho::nfc_normalize(&c);
+            if !norm_candidates.contains(&n) {
+                norm_candidates.push(n);
+            }
+        }
+        let len = unicode_segmentation::UnicodeSegmentation::graphemes(preedit.as_str(), true).count() as u32;
+        Ok(crate::session::TypingResult {
+            preedit,
+            commit_text: None,
+            candidates: norm_candidates,
+            cursor_position: len,
+        })
+    }
+
+    fn resolve_space_commit(&self, raw: &str, state: &mut crate::session::SessionState, chosen_candidate: Option<&str>) -> String {
+        let mut words_buf = [""; 16];
+        let count = if !state.surrounding_context.is_empty() {
+            crate::session::get_context_words(&state.surrounding_context, &mut words_buf)
+        } else {
+            0
+        };
+        let context_words = &words_buf[..count];
+
+        if let Some(cand) = chosen_candidate {
+            let (preedit, _) = transliterate_avro_with_context(raw, context_words);
+            if lekhani_ai::AnvayaAgreementEngine::is_honorific_shift(&preedit, cand) {
+                crate::probaho::nfc_normalize(&preedit)
+            } else {
+                crate::probaho::nfc_normalize(cand)
+            }
+        } else if state.pure_avro_mode {
+            let parser = get_avro_parser();
+            let def = parser.convert(raw);
+            crate::probaho::nfc_normalize(&def)
+        } else {
+            let has_candidate_memory = {
+                if raw.chars().count() <= 2 {
+                    false
+                } else {
+                    let db = crate::session::get_core_database();
+                    db.learner.read().ok().is_some_and(|l| {
+                        l.lookup_input_error(raw).is_some()
+                            || l.candidate_memory.contains_key(raw)
+                            || l.candidate_memory.contains_key(&raw.to_lowercase())
+                    })
+                }
+            };
+            let (preedit, mut candidates) =
+                transliterate_avro_with_context(raw, context_words);
+            let is_fastpath = is_avro_special_fastpath(raw);
+            let chosen = if !is_fastpath && !has_candidate_memory && candidates.len() > 1 {
+                if !context_words.is_empty() {
+                    let right_word = state.right_context.split_whitespace().next();
+                    let scorer = crate::session::get_context_scorer();
+                    scorer.rank_candidates_in_place_bidirectional(
+                        context_words,
+                        right_word,
+                        &mut candidates,
+                    );
+                }
+                prioritize_common_or_override_candidate(raw, &mut candidates);
+                let lower = raw.to_lowercase();
+                let is_acronym_or_tech = is_common_tech_acronym(raw)
+                    || raw == "NaN"
+                    || raw == "Infinity"
+                    || (raw.len() >= 2
+                        && raw.chars().all(|c| c.is_ascii_uppercase())
+                        && !has_override_word(&lower));
+                if is_acronym_or_tech {
+                    if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(raw)) {
+                        let cand = candidates.remove(pos);
+                        candidates.insert(0, cand);
+                    }
+                }
+                if let Some(top) = candidates.first() {
+                    let db = crate::session::get_core_database();
+                    let has_override = db.lookup_override(raw).is_some()
+                        || db.lookup_override(&raw.to_lowercase()).is_some();
+                    let is_explicit_common = has_override;
+
+                    let is_geminate = (lower.contains("cc")
+                        || lower.contains("kk")
+                        || lower.contains("tt")
+                        || lower.contains("dd")
+                        || lower.contains("bb")
+                        || lower.contains("pp")
+                        || lower.contains("mm")
+                        || lower.contains("nn")
+                        || lower.contains("ll")
+                        || lower.contains("ss")
+                        || lower.contains("jj")
+                        || lower.contains("gg"))
+                        && preedit.contains('্');
+
+                    if !has_candidate_memory
+                        && !is_explicit_common
+                        && !has_override
+                        && (db.is_exact_dictionary_word(&preedit) || is_geminate)
+                        && (top.chars().count() > preedit.chars().count()
+                            || !are_phonetically_compatible(&preedit, top)
+                            || !db.is_exact_dictionary_word(top)
+                            || (is_geminate && !top.contains('্'))
+                            || (is_geminate && top.contains('য') && !preedit.contains('য')))
+                    {
+                        if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
+                            let cand = candidates.remove(pos);
+                            candidates.insert(0, cand);
+                        }
+                    }
+                }
+                candidates.first().map(|s| s.as_str()).unwrap_or(raw)
+            } else if let Some(top) = candidates.first() {
+                top.as_str()
+            } else if !preedit.is_empty() {
+                &preedit
+            } else {
+                raw
+            };
+            crate::probaho::nfc_normalize(chosen)
+        }
+    }
+
+    fn regenerate_candidates(&self, state: &crate::session::SessionState, input: &str) -> Vec<String> {
+        let mut words_buf = [""; 16];
+        let count = if !state.surrounding_context.is_empty() {
+            crate::session::get_context_words(&state.surrounding_context, &mut words_buf)
+        } else {
+            0
+        };
+        let words = &words_buf[..count];
+        let (_, mut cands) = transliterate_avro_with_context(input, words);
+        let is_fastpath = is_avro_special_fastpath(input);
+        if !is_fastpath && count > 0 && cands.len() > 1 {
+            if let Some(right_word) = state.right_context.split_whitespace().next() {
+                let scorer = crate::session::get_context_scorer();
+                scorer.rank_candidates_in_place_bidirectional(
+                    words,
+                    Some(right_word),
+                    &mut cands,
+                );
+            }
+        }
+        cands
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

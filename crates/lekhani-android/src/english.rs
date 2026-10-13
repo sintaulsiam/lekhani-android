@@ -823,6 +823,76 @@ fn matches_glide_subsequence(word: &str, path_chars: &[char]) -> bool {
     true
 }
 
+pub(crate) struct EnglishStrategy;
+
+impl crate::layout::LayoutStrategy for EnglishStrategy {
+    fn process_key(&self, key: &str, state: &mut crate::session::SessionState) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
+        if state.is_private_field {
+            return Ok(crate::session::TypingResult {
+                preedit: String::new(),
+                commit_text: Some(crate::probaho::nfc_normalize(key)),
+                candidates: Vec::new(),
+                cursor_position: 0,
+            });
+        }
+
+        // If key is a word character (letters, apostrophe, hyphen)
+        let is_word_char = key
+            .chars()
+            .all(|c| c.is_alphabetic() || c == '\'' || c == '-');
+        if is_word_char {
+            state.composing_buffer.push_str(key);
+            let candidates = get_english_candidates(&state.composing_buffer, 5);
+            let len = state.composing_buffer.len() as u32;
+            Ok(crate::session::TypingResult {
+                preedit: state.composing_buffer.clone(),
+                commit_text: None,
+                candidates,
+                cursor_position: len,
+            })
+        } else {
+            // Punctuation, digits, or symbols: commit buffer + key
+            if !state.composing_buffer.is_empty() {
+                let mut committed = std::mem::take(&mut state.composing_buffer);
+                state.composing_buffer = String::with_capacity(64);
+                committed.push_str(key);
+                state.append_to_context(&committed);
+
+                let mut words_buf = [""; 16];
+                let count = crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
+                let words = &words_buf[..count];
+                let next_words = get_english_next_words(words, 5);
+
+                Ok(crate::session::TypingResult {
+                    preedit: String::new(),
+                    commit_text: Some(crate::probaho::nfc_normalize(&committed)),
+                    candidates: next_words,
+                    cursor_position: 0,
+                })
+            } else {
+                Ok(crate::session::TypingResult {
+                    preedit: String::new(),
+                    commit_text: Some(crate::probaho::nfc_normalize(key)),
+                    candidates: Vec::new(),
+                    cursor_position: 0,
+                })
+            }
+        }
+    }
+
+    fn resolve_space_commit(&self, raw: &str, _state: &mut crate::session::SessionState, chosen_candidate: Option<&str>) -> String {
+        if let Some(cand) = chosen_candidate {
+            crate::probaho::nfc_normalize(cand)
+        } else {
+            crate::probaho::nfc_normalize(raw)
+        }
+    }
+
+    fn regenerate_candidates(&self, _state: &crate::session::SessionState, input: &str) -> Vec<String> {
+        get_english_candidates(input, 5)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
