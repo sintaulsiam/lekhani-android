@@ -899,6 +899,16 @@ impl AndroidLekhaniSession {
             .unwrap_or(false)
     }
 
+    /// Enable or disable bilingual hyphen/unhyphenated clitic resolution (default: false).
+    pub fn set_bilingual_clitic_enabled(&self, enabled: bool) {
+        crate::avro::set_bilingual_clitic_enabled(enabled);
+    }
+
+    /// Returns whether bilingual clitic resolution is currently enabled.
+    pub fn is_bilingual_clitic_enabled(&self) -> bool {
+        crate::avro::is_bilingual_clitic_enabled()
+    }
+
     // ── Surrounding text context ─────────────────────────────────────────────
 
     /// Provide the text before the cursor (from `getTextBeforeCursor(256, 0)`)
@@ -3485,7 +3495,8 @@ mod tests {
         let space_mention = session.handle_space().unwrap();
         assert_eq!(space_mention.commit_text, Some("@siam ".into()));
 
-        // 4. Bilingual clitic "Facebook-e" -> preedit "Facebook-এ", space commits "Facebook-এ "
+        // 4. Bilingual clitic "Facebook-e" -> preedit "Facebook-এ", space commits "Facebook-এ " (when enabled)
+        session.set_bilingual_clitic_enabled(true);
         let mut last_res = None;
         for ch in "Facebook-e".chars() {
             last_res = Some(session.process_key(ch.to_string()).unwrap());
@@ -3493,6 +3504,7 @@ mod tests {
         assert_eq!(last_res.unwrap().preedit, "Facebook-এ");
         let space_fb = session.handle_space().unwrap();
         assert_eq!(space_fb.commit_text, Some("Facebook-এ ".into()));
+        session.set_bilingual_clitic_enabled(false);
     }
 
     #[test]

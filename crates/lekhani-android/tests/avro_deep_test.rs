@@ -686,7 +686,6 @@ fn test_diagnose_avro_failures() {
     let parser = lekhani_android::avro::get_avro_parser();
     let (sugg_guard, _) = (lekhani_android::session::get_phonetic_suggestion(), ());
     let mut sugg = sugg_guard.lock().unwrap();
-
     for inp in failed_inputs {
         let parser_output = parser.convert(inp);
         let empty_ctx: [&str; 0] = [];
@@ -1139,3 +1138,55 @@ fn test_small_words_slang_and_fixed_layouts() {
         );
     }
 }
+
+#[test]
+#[serial]
+fn test_kaccha_and_kzackzacani_no_hijack() {
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+
+    // Verify clitic resolver is disabled by default
+    assert!(!session.is_bilingual_clitic_enabled(), "Bilingual clitic resolver must be disabled by default");
+
+    // 1. "kaccha" must produce "কাচ্ছা" (Avro cch -> চ্ছ), never hijacked to "কাচ্চা"
+    session.reset();
+    let mut last_res = None;
+    for ch in "kaccha".chars() {
+        last_res = Some(session.process_key(ch.to_string()).unwrap());
+    }
+    let res_kaccha = last_res.unwrap();
+    assert_eq!(
+        res_kaccha.candidates.first().map(|s| s.as_str()),
+        Some("কাচ্ছা"),
+        "kaccha must produce কাচ্ছা at Slot 0, got: {:?}",
+        res_kaccha.candidates
+    );
+    let space_kaccha = session.handle_space().unwrap();
+    assert_eq!(
+        space_kaccha.commit_text.as_deref(),
+        Some("কাচ্ছা "),
+        "kaccha space commit must be 'কাচ্ছা '"
+    );
+
+    // 2. "kZackZacani" must produce "ক্যাচক্যাচানি" (k+Z+a -> ক্যা, c -> চ, k+Z+a -> ক্যা, c+a+n+i -> চানি),
+    // never hijacked into a clitic hyphenation like "kZackZacan-ই"
+    session.reset();
+    let mut last_res = None;
+    for ch in "kZackZacani".chars() {
+        last_res = Some(session.process_key(ch.to_string()).unwrap());
+    }
+    let res_kz = last_res.unwrap();
+    assert_eq!(
+        res_kz.candidates.first().map(|s| s.as_str()),
+        Some("ক্যাচক্যাচানি"),
+        "kZackZacani must produce ক্যাচক্যাচানি at Slot 0, got: {:?}",
+        res_kz.candidates
+    );
+    let space_kz = session.handle_space().unwrap();
+    assert_eq!(
+        space_kz.commit_text.as_deref(),
+        Some("ক্যাচক্যাচানি "),
+        "kZackZacani space commit must be 'ক্যাচক্যাচানি '"
+    );
+}
+

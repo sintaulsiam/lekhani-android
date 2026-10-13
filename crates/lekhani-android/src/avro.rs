@@ -6,7 +6,21 @@
 
 use edit_distance::edit_distance;
 use hashbrown::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
+
+static BILINGUAL_CLITIC_ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// Enable or disable bilingual clitic resolution globally (default: false)
+pub fn set_bilingual_clitic_enabled(enabled: bool) {
+    BILINGUAL_CLITIC_ENABLED.store(enabled, Ordering::Relaxed);
+    lekhani_core::bilingual::set_bilingual_clitic_enabled(enabled);
+}
+
+/// Returns true if bilingual clitic resolution is currently enabled
+pub fn is_bilingual_clitic_enabled() -> bool {
+    BILINGUAL_CLITIC_ENABLED.load(Ordering::Relaxed)
+}
 
 static PARSER: OnceLock<lekhani_parser::LekhaniParser> = OnceLock::new();
 
@@ -519,12 +533,6 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
         return None;
     }
 
-    if has_override_word(input)
-        || has_override_word(&input.to_lowercase())
-    {
-        return None;
-    }
-
     let dash_idx = input.rfind('-')?;
     let (base, suffix_with_dash) = input.split_at(dash_idx);
     let suffix = &suffix_with_dash[1..];
@@ -533,6 +541,10 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
         || suffix.is_empty()
         || !base.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
+        return None;
+    }
+
+    if has_explicit_avro_intent(base) {
         return None;
     }
 
@@ -724,8 +736,14 @@ pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec
                 continue;
             }
 
+            if has_explicit_avro_intent(base) {
+                continue;
+            }
+
             let is_all_upper_acronym = base.len() >= 2 && base.chars().all(|c| c.is_ascii_uppercase());
-            let is_camel_or_title = base.len() >= 3 && base.chars().any(|c| c.is_ascii_uppercase());
+            let is_camel_or_title = base.len() >= 3
+                && base.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+                && base.chars().skip(1).all(|c| c.is_ascii_lowercase());
             let is_recognized_english = base.len() >= 3 && crate::english::is_recognized_english_word(base);
             let is_known_brand_or_tech = matches!(
                 base.to_lowercase().as_str(),
@@ -1082,8 +1100,9 @@ pub fn is_avro_special_fastpath(input: &str) -> bool {
             && input.chars().any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c)))
         || has_explicit_avro_intent(input)
         || resolve_digit_unit_candidates(input).is_some()
-        || resolve_bilingual_hyphen_clitic(input).is_some()
-        || resolve_unhyphenated_bilingual_clitic(input).is_some()
+        || (is_bilingual_clitic_enabled()
+            && (resolve_bilingual_hyphen_clitic(input).is_some()
+                || resolve_unhyphenated_bilingual_clitic(input).is_some()))
         || resolve_generative_morphology(input).is_some()
 }
 
@@ -1159,22 +1178,23 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         return (b_num, candidates);
     }
 
-    // Fast-path 3: Bilingual hyphen clitics (e.g. Facebook-e -> Facebook-এ, bkash-e -> bkash-এ)
-    if let Some((primary, mut candidates)) = resolve_bilingual_hyphen_clitic(input) {
-        let def_pure = get_avro_parser().convert(input);
-        if !def_pure.is_empty() && !candidates.contains(&def_pure) {
-            candidates.push(def_pure);
+    // Fast-path 3: Bilingual hyphen & unhyphenated clitics (disabled by default)
+    if is_bilingual_clitic_enabled() {
+        if let Some((primary, mut candidates)) = resolve_bilingual_hyphen_clitic(input) {
+            let def_pure = get_avro_parser().convert(input);
+            if !def_pure.is_empty() && !candidates.contains(&def_pure) {
+                candidates.push(def_pure);
+            }
+            return (primary, candidates);
         }
-        return (primary, candidates);
-    }
 
-    // Fast-path 3b: Unhyphenated bilingual clitics (e.g. WhatsAppe -> WhatsApp-এ, Meetinger -> Meeting-এর, Bugta -> Bug-টা)
-    if let Some((primary, mut candidates)) = resolve_unhyphenated_bilingual_clitic(input) {
-        let def_pure = get_avro_parser().convert(input);
-        if !def_pure.is_empty() && !candidates.contains(&def_pure) {
-            candidates.push(def_pure);
+        if let Some((primary, mut candidates)) = resolve_unhyphenated_bilingual_clitic(input) {
+            let def_pure = get_avro_parser().convert(input);
+            if !def_pure.is_empty() && !candidates.contains(&def_pure) {
+                candidates.push(def_pure);
+            }
+            return (primary, candidates);
         }
-        return (primary, candidates);
     }
 
     // Fast-path 4: Generative Morphology & Dialectal Verb Conjugations
@@ -1513,13 +1533,17 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         if let Some(pos) = candidates.iter().position(|c| c == &def) {
             candidates.remove(pos);
         }
-        let is_collapsed_geminate = has_double_consonant
+        let is_aspirated_geminate_mismatch = (lower.contains("cch") && def.contains("চ্ছ") && candidates.first().map(|c| c.contains("চ্চ") && !c.contains("চ্ছ")).unwrap_or(false))
+            || (lower.contains("kkh") && def.contains("ক্ষ") && candidates.first().map(|c| c.contains("ক্ক") && !c.contains("ক্ষ")).unwrap_or(false))
+            || (lower.contains("tth") && def.contains("ত্থ") && candidates.first().map(|c| c.contains("ত্ত") && !c.contains("ত্থ")).unwrap_or(false));
+
+        let is_collapsed_geminate = (has_double_consonant || is_aspirated_geminate_mismatch)
             && def.contains('্')
             && !is_explicit_common
-            && candidates.first().map(|c| {
+            && (is_aspirated_geminate_mismatch || candidates.first().map(|c| {
                 !c.contains('্')
                     || (!lower.contains('y') && !lower.contains('z') && !lower.contains("ri") && c.contains('য') && !def.contains('য'))
-            }).unwrap_or(false);
+            }).unwrap_or(false));
 
         let target_idx = if is_collapsed_geminate { 0 } else { 1.min(candidates.len()) };
         candidates.insert(target_idx, def.clone());
@@ -2526,7 +2550,9 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_bilingual_hyphen_clitics() {
+        set_bilingual_clitic_enabled(true);
         // 1. "Facebook-e" -> "Facebook-এ"
         let (fb_res, fb_cands) = transliterate_avro("Facebook-e");
         assert_eq!(fb_res, "Facebook-এ");
@@ -2544,10 +2570,13 @@ mod tests {
         // 4. "file-gulo" -> "file-গুলো"
         let (file_res, _) = transliterate_avro("file-gulo");
         assert_eq!(file_res, "file-গুলো");
+        set_bilingual_clitic_enabled(false);
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_unhyphenated_bilingual_sandhi_clitics() {
+        set_bilingual_clitic_enabled(true);
         // 1. WhatsAppe -> "WhatsApp-এ", surfaces "হোয়াটসঅ্যাপে" and "WhatsAppe"
         let (wa_res, wa_cands) = transliterate_avro("WhatsAppe");
         assert_eq!(wa_res, "WhatsApp-এ");
@@ -2591,6 +2620,7 @@ mod tests {
         assert_eq!(transliterate_avro("kore").0, "করে");
         assert_eq!(transliterate_avro("amar").0, "আমার");
         assert_eq!(transliterate_avro("tumi").0, "তুমি");
+        set_bilingual_clitic_enabled(false);
     }
 
     #[test]
