@@ -136,9 +136,16 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     }
 
     // 3. Check phonetic variant equivalences (geminates, S-class, Sanskrit initial vowels, compound Reph)
+    // Equivalences are alternative phonetic suggestions; they must sit at index 1+ and never clobber Slot 0.
     let equivs = get_phonetic_equivalence_candidates(input);
+    let mut inserted_idx = 0;
     for eq_word in equivs {
         if let Some(pos) = candidates.iter().position(|c| c == &eq_word) {
+            if pos == 0 {
+                // Already the top candidate; keep at Slot 0 and advance inserted_idx!
+                inserted_idx = inserted_idx.max(1);
+                continue;
+            }
             let cand = candidates.remove(pos);
             candidates.insert(inserted_idx, cand);
             inserted_idx += 1;
@@ -203,21 +210,23 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
         variant_keys.push(contracted);
     }
 
-    // 2. S-class sibilant swap:
+    // 2. S-class sibilant swap (strictly for words >= 4 characters to avoid corrupting basic syllables like sha, she, sho):
     // Initial sibilants: 'shomporko' -> 'somporko', 'shomossa' -> 'somossa'
-    if lower.starts_with("sh") {
-        variant_keys.push(lower.replacen("sh", "s", 1));
-    } else if lower.starts_with('s') {
-        variant_keys.push(lower.replacen('s', "sh", 1));
-    }
-    // Intervocalic / pre-vocalic sibilant swap (e.g. 'oitihashik' -> 'oitihasik'):
-    // Preserves conjunct clusters like 'shk' (আবিষ্কার), 'sht' (বৃষ্টি), 'shp' (পুষ্প)
-    let vowels = "aeiouy";
-    if let Some(idx) = lower.find("sh") {
-        if idx + 2 < lower.len() && vowels.contains(lower.as_bytes()[idx + 2] as char) {
-            let mut v = lower.clone();
-            v.replace_range(idx..idx + 2, "s");
-            variant_keys.push(v);
+    if lower.len() >= 4 {
+        if lower.starts_with("sh") {
+            variant_keys.push(lower.replacen("sh", "s", 1));
+        } else if lower.starts_with('s') {
+            variant_keys.push(lower.replacen('s', "sh", 1));
+        }
+        // Intervocalic / pre-vocalic sibilant swap (e.g. 'oitihashik' -> 'oitihasik'):
+        // Preserves conjunct clusters like 'shk' (আবিষ্কার), 'sht' (বৃষ্টি), 'shp' (পুষ্প)
+        let vowels = "aeiouy";
+        if let Some(idx) = lower.find("sh") {
+            if idx + 2 < lower.len() && vowels.contains(lower.as_bytes()[idx + 2] as char) {
+                let mut v = lower.clone();
+                v.replace_range(idx..idx + 2, "s");
+                variant_keys.push(v);
+            }
         }
     }
 
@@ -261,8 +270,10 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
     variant_keys.extend(reph_keys);
 
     // 5. Initial 'j' -> 'z' mapping for Ontostho-Ja (য)
-    if let Some(stripped) = lower.strip_prefix('j') {
-        variant_keys.push(format!("z{}", stripped));
+    if !lower.starts_with("jj") {
+        if let Some(stripped) = lower.strip_prefix('j') {
+            variant_keys.push(format!("z{}", stripped));
+        }
     }
 
     // 6. Flap Rhotic 'r' -> 'R' (ড়) auto-disambiguation
@@ -354,7 +365,7 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
         }
         let parsed = get_avro_parser().convert(&k);
         if !parsed.is_empty()
-            && (db.trie.contains_exact(&parsed) || db.is_exact_dictionary_word(&parsed) || db.lookup_override(&k).is_some())
+            && (db.trie.contains_exact(&parsed) || db.is_exact_dictionary_word(&parsed))
             && !equiv_words.contains(&parsed)
         {
             equiv_words.push(parsed);
@@ -473,6 +484,41 @@ pub fn ascii_digits_to_bengali(digits: &str) -> String {
             _ => c,
         })
         .collect()
+}
+
+/// Converts Bengali digits ('০'..='৯') to ASCII digits ('0'..='9')
+pub fn bengali_digits_to_ascii(digits: &str) -> String {
+    digits
+        .chars()
+        .map(|c| match c {
+            '০' => '0',
+            '১' => '1',
+            '২' => '2',
+            '৩' => '3',
+            '৪' => '4',
+            '৫' => '5',
+            '৬' => '6',
+            '৭' => '7',
+            '৮' => '8',
+            '৯' => '9',
+            _ => c,
+        })
+        .collect()
+}
+
+pub const COMMON_TECH_ACRONYMS: &[&str] = &[
+    "RAM", "ROM", "CPU", "GPU", "SSD", "HDD", "USB", "LAN", "LED", "LCD",
+    "URL", "URI", "API", "SDK", "SQL", "CSS", "HTML", "JSON", "XML", "PDF",
+    "APK", "JPG", "PNG", "MP3", "MP4", "OTP", "NFC", "GPS", "VPN", "DNS",
+    "SSH", "FTP", "MAC", "IP", "OS", "PC", "TV", "AI", "UI", "UX", "ID",
+    "SMS", "CCA", "SIM", "PIN", "CVV", "ATM", "POS", "QR", "FAQ", "DDR",
+    "PCI", "SATA", "NVME", "WIFI", "RFC", "HTTP", "HTTPS", "REST",
+    "CLI", "GUI", "IDE", "AAB", "JNI", "FFI", "ABI", "NDK",
+    "SOC", "DSP", "ISP", "CER", "WER", "LLM", "AGI", "ASR", "TTS", "NLP",
+];
+
+pub fn is_common_tech_acronym(token: &str) -> bool {
+    COMMON_TECH_ACRONYMS.contains(&token)
 }
 
 /// Detects social media mentions (@user) and hashtags (#tag) to preserve verbatim ASCII handles
@@ -1241,6 +1287,9 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
 pub fn is_avro_special_fastpath(input: &str) -> bool {
     input.starts_with('@')
         || input.starts_with('#')
+        || (!input.is_empty()
+            && input.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ',')
+            && input.chars().any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c)))
         || resolve_digit_unit_candidates(input).is_some()
         || resolve_bilingual_hyphen_clitic(input).is_some()
         || resolve_unhyphenated_bilingual_clitic(input).is_some()
@@ -1304,13 +1353,18 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         return (primary, candidates);
     }
 
-    // Fast-path 2b: Pure numeric literals and decimal/comma numbers (e.g. "12486" -> "১২৪৮৬", "8.4" -> "৮.৪")
+    // Fast-path 2b: Pure numeric literals and decimal/comma numbers (e.g. "12486" -> "১২৪৮৬", "8.4" -> "৮.৪", "৩.১৪" -> "৩.১৪")
     if !input.is_empty()
-        && input.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',')
-        && input.chars().any(|c| c.is_ascii_digit())
+        && input.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ',')
+        && input.chars().any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c))
     {
         let b_num = ascii_digits_to_bengali(input);
-        let candidates = vec![b_num.clone(), input.to_string()];
+        let a_num = bengali_digits_to_ascii(input);
+        let candidates = if b_num == a_num {
+            vec![b_num.clone()]
+        } else {
+            vec![b_num.clone(), a_num]
+        };
         return (b_num, candidates);
     }
 
@@ -1529,7 +1583,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         || db.lookup_override(&lower).is_some()
         || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
 
-    let is_all_caps_acronym = is_all_caps && !has_override_word(&lower) && !is_bengali_dict_word;
+    let is_all_caps_acronym = is_common_tech_acronym(input)
+        || (is_all_caps && !has_override_word(&lower));
     let can_promote_english_slot0 = is_all_caps_acronym
         || (is_recognized_english
             && !has_established_loanword
@@ -1670,7 +1725,10 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         let is_collapsed_geminate = has_double_consonant
             && def.contains('্')
             && !is_explicit_common
-            && candidates.first().map(|c| !c.contains('্')).unwrap_or(false);
+            && candidates.first().map(|c| {
+                !c.contains('্')
+                    || (!lower.contains('y') && !lower.contains('z') && !lower.contains("ri") && c.contains('য') && !def.contains('য'))
+            }).unwrap_or(false);
 
         let target_idx = if is_collapsed_geminate { 0 } else { 1.min(candidates.len()) };
         candidates.insert(target_idx, def.clone());
@@ -1700,7 +1758,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
     let is_all_caps = input.chars().count() >= 2 && input.chars().all(|c| c.is_ascii_uppercase());
     if is_all_caps {
-        let is_common_bengali_all_caps = has_override_word(&lower);
+        let is_common_bengali_all_caps = !is_common_tech_acronym(input) && has_override_word(&lower);
         if is_common_bengali_all_caps {
             // All-Caps Bengali input (e.g. "AMI", "TUMI", "DESH"):
             let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {

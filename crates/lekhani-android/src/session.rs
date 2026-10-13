@@ -1078,7 +1078,7 @@ impl AndroidLekhaniSession {
         let is_decimal_dot_in_flight = key == "."
             && state.layout == LekhaniLayoutType::Avro
             && !state.composing_buffer.is_empty()
-            && state.composing_buffer.chars().all(|c| c.is_ascii_digit());
+            && state.composing_buffer.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c));
         let is_punct = (key == "।"
             || key == "॥"
             || key == ","
@@ -2639,7 +2639,13 @@ impl AndroidLekhaniSession {
                         );
                     }
                     crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
-                    let is_acronym_or_tech = (raw.len() >= 2 && raw.chars().all(|c| c.is_ascii_uppercase())) || raw == "NaN" || raw == "Infinity";
+                    let lower = raw.to_lowercase();
+                    let is_acronym_or_tech = crate::avro::is_common_tech_acronym(&raw)
+                        || raw == "NaN"
+                        || raw == "Infinity"
+                        || (raw.len() >= 2
+                            && raw.chars().all(|c| c.is_ascii_uppercase())
+                            && !crate::avro::has_override_word(&lower));
                     if is_acronym_or_tech {
                         if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(&raw)) {
                             let cand = candidates.remove(pos);
@@ -2652,13 +2658,29 @@ impl AndroidLekhaniSession {
                             || db.lookup_override(&raw.to_lowercase()).is_some();
                         let is_explicit_common = has_override;
 
+                        let is_geminate = (lower.contains("cc")
+                            || lower.contains("kk")
+                            || lower.contains("tt")
+                            || lower.contains("dd")
+                            || lower.contains("bb")
+                            || lower.contains("pp")
+                            || lower.contains("mm")
+                            || lower.contains("nn")
+                            || lower.contains("ll")
+                            || lower.contains("ss")
+                            || lower.contains("jj")
+                            || lower.contains("gg"))
+                            && preedit.contains('্');
+
                         if !has_candidate_memory
                             && !is_explicit_common
                             && !has_override
-                            && db.is_exact_dictionary_word(&preedit)
+                            && (db.is_exact_dictionary_word(&preedit) || is_geminate)
                             && (top.chars().count() > preedit.chars().count()
                                 || !crate::avro::are_phonetically_compatible(&preedit, top)
-                                || !db.is_exact_dictionary_word(top))
+                                || !db.is_exact_dictionary_word(top)
+                                || (is_geminate && !top.contains('্'))
+                                || (is_geminate && top.contains('য') && !preedit.contains('য')))
                         {
                             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                                 let cand = candidates.remove(pos);
