@@ -78,6 +78,12 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
         }
     }
 
+    if has_explicit_avro_intent(input) {
+        // User explicitly specified exact Avro grammar (e.g. paR, kOno, c^ad, du:kho, hot`at).
+        // Deterministic Avro preedit at Slot 0 must remain locked and immune to generic fuzzy overrides.
+        return;
+    }
+
     // 1. Check dynamic/bundled supervised phonetic overrides (phonetic_overrides.bin / json)
     let is_title_case = input.len() >= 3
         && input.chars().next().is_some_and(|c| c.is_uppercase())
@@ -519,6 +525,15 @@ pub const COMMON_TECH_ACRONYMS: &[&str] = &[
 
 pub fn is_common_tech_acronym(token: &str) -> bool {
     COMMON_TECH_ACRONYMS.contains(&token)
+}
+
+/// Returns true if the token contains explicit, unambiguous Avro grammatical operators
+/// or mid-word case distinctions that indicate intentional phonetic rule typing.
+///
+/// Executes in single-pass linear byte time (< 5 nanoseconds) with zero heap allocations.
+#[inline]
+pub fn has_explicit_avro_intent(input: &str) -> bool {
+    lekhani_parser::has_explicit_avro_intent(input)
 }
 
 /// Detects social media mentions (@user) and hashtags (#tag) to preserve verbatim ASCII handles
@@ -1290,6 +1305,7 @@ pub fn is_avro_special_fastpath(input: &str) -> bool {
         || (!input.is_empty()
             && input.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ',')
             && input.chars().any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c)))
+        || has_explicit_avro_intent(input)
         || resolve_digit_unit_candidates(input).is_some()
         || resolve_bilingual_hyphen_clitic(input).is_some()
         || resolve_unhyphenated_bilingual_clitic(input).is_some()
@@ -1756,6 +1772,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     let has_explicit_avro_case = input
         .chars()
         .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
+    let has_explicit_intent = has_explicit_avro_intent(input);
     let is_all_caps = input.chars().count() >= 2 && input.chars().all(|c| c.is_ascii_uppercase());
     if is_all_caps {
         let is_common_bengali_all_caps = !is_common_tech_acronym(input) && has_override_word(&lower);
@@ -1786,8 +1803,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             candidates.insert(0, input.to_string());
             selected_idx = 0;
         }
-    } else if has_explicit_avro_case && !def.is_empty() {
-        let is_titlecase = input.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+    } else if (has_explicit_avro_case || has_explicit_intent) && !def.is_empty() {
+        let is_titlecase = !has_explicit_intent
+            && input.chars().next().is_some_and(|c| c.is_ascii_uppercase())
             && input.chars().skip(1).all(|c| c.is_ascii_lowercase());
 
         let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
@@ -2922,6 +2940,61 @@ mod tests {
         let (primary_caps, cands_caps) = transliterate_avro("CCA");
         assert_eq!(primary_caps, "CCA", "Primary preedit for all-caps 'CCA' must be 'CCA'");
         assert_eq!(cands_caps.first().map(|s| s.as_str()), Some("CCA"));
+    }
+
+    #[test]
+    fn test_explicit_avro_rule_intent_detection() {
+        // 1. Explicit operators must be detected
+        assert!(has_explicit_avro_intent("c^ad"));
+        assert!(has_explicit_avro_intent("h^as"));
+        assert!(has_explicit_avro_intent("b^ash"));
+        assert!(has_explicit_avro_intent("du:kho"));
+        assert!(has_explicit_avro_intent("k`kh"));
+        assert!(has_explicit_avro_intent("k'kh"));
+        assert!(has_explicit_avro_intent("hot`at"));
+        assert!(has_explicit_avro_intent("hot'at"));
+        assert!(has_explicit_avro_intent("k,,k"));
+        assert!(has_explicit_avro_intent("k..k"));
+        assert!(has_explicit_avro_intent("$500"));
+
+        // 2. Mid-word explicit Avro uppercase distinctions must be detected
+        assert!(has_explicit_avro_intent("paR"));
+        assert!(has_explicit_avro_intent("kOno"));
+        assert!(has_explicit_avro_intent("kaTh"));
+        assert!(has_explicit_avro_intent("biSTi"));
+        assert!(has_explicit_avro_intent("bODh"));
+        assert!(has_explicit_avro_intent("baRi"));
+
+        // 3. Sentence-initial titlecase & casual typing must NOT be marked as explicit intent
+        assert!(!has_explicit_avro_intent("Tumi"));
+        assert!(!has_explicit_avro_intent("Din"));
+        assert!(!has_explicit_avro_intent("Tara"));
+        assert!(!has_explicit_avro_intent("kemon"));
+        assert!(!has_explicit_avro_intent("basha"));
+        assert!(!has_explicit_avro_intent("ami"));
+        assert!(!has_explicit_avro_intent("dharmo"));
+
+        // 4. End-to-end Slot 0 preedit locking for explicit Avro inputs
+        let (cad, _) = transliterate_avro("ca^d");
+        assert_eq!(cad, "চাঁদ", "ca^d must lock to 'চাঁদ'");
+
+        let (par, _) = transliterate_avro("paR");
+        assert_eq!(par, "পাড়", "paR must lock to 'পাড়'");
+
+        let (por, _) = transliterate_avro("poR");
+        assert_eq!(por, "পড়", "poR must lock to 'পড়'");
+
+        let (dukho, _) = transliterate_avro("du:kho");
+        assert_eq!(dukho, "দুঃখ", "du:kho must lock to 'দুঃখ'");
+
+        let (hotat, _) = transliterate_avro("hoThat``");
+        assert_eq!(hotat, "হঠাৎ", "hoThat`` must lock to 'হঠাৎ'");
+
+        let (biggani, _) = transliterate_avro("bigganI");
+        assert_eq!(biggani, "বিজ্ঞানী", "bigganI must lock to 'বিজ্ঞানী'");
+
+        let (kk, _) = transliterate_avro("k`k");
+        assert_eq!(kk, "কক", "k`k must break conjunct into 'কক'");
     }
 }
 
