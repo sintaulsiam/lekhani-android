@@ -2540,8 +2540,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     keyPreviewPopup.dismiss()
                     if (pressedKeyIndex in resolvedKeys.indices) {
                         val flickKey = resolvedKeys[pressedKeyIndex].key
-                        keyListener?.onKey(flickKey, flickKey.shiftedAction)
                         keyListener?.onKeyWithTouch(flickKey, flickKey.shiftedAction, touchStartX, touchStartY)
+                        keyListener?.onKey(flickKey, flickKey.shiftedAction)
                         feedbackManager?.onKeyFeedback(this)
                             ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     }
@@ -2560,8 +2560,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     if (pressedKeyIndex in resolvedKeys.indices) {
                         val flickKey = resolvedKeys[pressedKeyIndex].key
                         flickKey.longPressAction?.let { act ->
-                            keyListener?.onKey(flickKey, act)
                             keyListener?.onKeyWithTouch(flickKey, act, touchStartX, touchStartY)
+                            keyListener?.onKey(flickKey, act)
                             feedbackManager?.onKeyFeedback(this)
                                 ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         }
@@ -2613,6 +2613,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 keyListener?.onSwipeDeletePreview(0)
                 isSpaceSwiping = false
                 isFlickGestureActive = false
+                isFlickDownActive = false
                 pressedKeyIndex = -1
                 pressedPointerId = -1
                 invalidate()
@@ -2690,8 +2691,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         if (action == KeyAction.SwitchLayout && isBottomRowKeyEmoji) {
             action = KeyAction.SwitchEmoji
         }
-        keyListener?.onKey(key, action)
         keyListener?.onKeyWithTouch(key, action, touchStartX, touchStartY)
+        keyListener?.onKey(key, action)
 
         // Auto-release shift after one character (one-shot shift), unless Caps Lock is active
         if (isShifted && !isCapsLock && action !is KeyAction.Shift) {

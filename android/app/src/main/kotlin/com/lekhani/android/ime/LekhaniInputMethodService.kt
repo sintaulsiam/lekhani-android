@@ -1951,6 +1951,8 @@ class LekhaniInputMethodService : InputMethodService() {
             _candidateState.value is CandidateStripState.Selection) {
             _candidateState.value = CandidateStripState.Empty
         }
+        refreshContextJob?.cancel()
+        refreshContextJob = null
         persistUserLearnedAsync()
     }
 
@@ -2839,6 +2841,16 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         lastAutoDariCommitTime = 0L
 
+        // On API 24+, prefer deleteSurroundingTextInCodePoints to natively handle surrogate pairs and emojis
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            val handledInCodePoints = try {
+                ic.deleteSurroundingTextInCodePoints(1, 0)
+            } catch (_: Exception) {
+                false
+            }
+            if (handledInCodePoints) return
+        }
+
         val textBefore = try {
             ic.getTextBeforeCursor(4, 0)?.toString()
         } catch (_: Exception) {
@@ -2852,8 +2864,8 @@ class LekhaniInputMethodService : InputMethodService() {
 
         val len = textBefore.length
         val lastChar = textBefore[len - 1]
-        // Delete 2 code units only if the previous character is a UTF-16 surrogate pair (emoji)
-        val deleteChars = if (Character.isSurrogate(lastChar) && len >= 2) 2 else 1
+        // Delete 2 code units only if the previous character is a valid UTF-16 surrogate pair (emoji)
+        val deleteChars = if (Character.isLowSurrogate(lastChar) && len >= 2 && Character.isHighSurrogate(textBefore[len - 2])) 2 else 1
 
         val handled = try {
             ic.deleteSurroundingText(deleteChars, 0)
@@ -4357,6 +4369,11 @@ class LekhaniInputMethodService : InputMethodService() {
                 } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
                     // Target app is unresponsive (e.g. Chromium WebView under heavy load);
                     // skip context update rather than blocking the IO dispatcher indefinitely.
+                    Pair("", "")
+                } catch (e: java.util.concurrent.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Prevent DeadObjectException or RemoteException if target app detached/died
                     Pair("", "")
                 }
             }

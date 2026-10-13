@@ -1004,9 +1004,16 @@ impl AndroidLekhaniSession {
                 let key_prob = state.spatial_model.log_prob_for_key(&key, touch_x, touch_y);
                 if (neighbor.log_prob - key_prob).abs() <= 2.8 && !state.composing_buffer.is_empty()
                 {
-                    let mut alt_buf = state.composing_buffer.clone();
-                    alt_buf.pop();
-                    alt_buf.push_str(&neighbor.key);
+                    let alt_buf = if let Some(stripped) = state.composing_buffer.strip_suffix(&key) {
+                        let mut s = stripped.to_string();
+                        s.push_str(&neighbor.key);
+                        s
+                    } else {
+                        let mut s = state.composing_buffer.clone();
+                        s.pop();
+                        s.push_str(&neighbor.key);
+                        s
+                    };
 
                     match state.layout {
                         LekhaniLayoutType::English => {
