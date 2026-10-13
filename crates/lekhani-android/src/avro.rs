@@ -56,11 +56,21 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
         || (!def_lower_conv.is_empty() && db.is_exact_dictionary_word(&def_lower_conv));
 
     let has_established_loanword = is_bengali_dict_word
+        || has_override_word(input)
+        || has_override_word(&lower)
         || db.lookup_override(input).is_some()
         || db.lookup_override(&lower).is_some()
         || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
 
-    if (is_all_caps || is_recognized_english) && !has_established_loanword {
+    let is_all_caps_acronym = is_all_caps && !has_override_word(&lower) && !is_bengali_dict_word;
+    let can_promote_english_slot0 = is_all_caps_acronym
+        || (is_recognized_english
+            && !has_established_loanword
+            && (input.len() >= 4
+                || (crate::english::STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str())
+                    && !def_conv.contains('্'))));
+
+    if can_promote_english_slot0 {
         if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
             let cand = candidates.remove(pos);
             candidates.insert(0, cand);
@@ -1519,7 +1529,15 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         || db.lookup_override(&lower).is_some()
         || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
 
-    if is_all_caps || (is_recognized_english && !has_established_loanword) {
+    let is_all_caps_acronym = is_all_caps && !has_override_word(&lower) && !is_bengali_dict_word;
+    let can_promote_english_slot0 = is_all_caps_acronym
+        || (is_recognized_english
+            && !has_established_loanword
+            && (input.len() >= 4
+                || (crate::english::STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str())
+                    && !def_conv.contains('্'))));
+
+    if can_promote_english_slot0 {
         if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
             candidates.remove(pos);
         }
@@ -1632,12 +1650,33 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     // 2c. Ensure def (deterministic Avro parser output) is preserved in candidates as "Force Avro"
+    let has_double_consonant = lower.contains("cc")
+        || lower.contains("kk")
+        || lower.contains("tt")
+        || lower.contains("dd")
+        || lower.contains("bb")
+        || lower.contains("pp")
+        || lower.contains("mm")
+        || lower.contains("nn")
+        || lower.contains("ll")
+        || lower.contains("ss")
+        || lower.contains("jj")
+        || lower.contains("gg");
+
     if !def.is_empty() && candidates.first() != Some(&def) {
         if let Some(pos) = candidates.iter().position(|c| c == &def) {
             candidates.remove(pos);
         }
-        let target_idx = 1.min(candidates.len());
+        let is_collapsed_geminate = has_double_consonant
+            && def.contains('্')
+            && !is_explicit_common
+            && candidates.first().map(|c| !c.contains('্')).unwrap_or(false);
+
+        let target_idx = if is_collapsed_geminate { 0 } else { 1.min(candidates.len()) };
         candidates.insert(target_idx, def.clone());
+        if is_collapsed_geminate {
+            selected_idx = 0;
+        }
     }
 
     // 2c2. Honorific Agreement Invariant: Concordant verbs sit at Slot 1 (index 1), NEVER overriding Slot 0
@@ -2811,6 +2850,20 @@ mod tests {
             }
         }
         assert!(checked > 5000, "Should have fuzzed > 5000 grammar-biased inputs, fuzzed {}", checked);
+    }
+
+    #[test]
+    fn test_cca_and_short_acronym_promotion() {
+        // Lowercase "cca" must transliterate to Bengali "চ্চা" in Slot 0, NOT Latin "cca"
+        let (primary, cands) = transliterate_avro("cca");
+        assert_eq!(primary, "চ্চা", "Primary preedit for 'cca' must be 'চ্চা', got '{}'", primary);
+        assert_eq!(cands.first().map(|s| s.as_str()), Some("চ্চা"));
+        assert!(cands.contains(&"cca".to_string()), "Candidate strip should still offer Latin 'cca'");
+
+        // Uppercase "CCA" should promote to Slot 0 Latin "CCA" as a technical acronym
+        let (primary_caps, cands_caps) = transliterate_avro("CCA");
+        assert_eq!(primary_caps, "CCA", "Primary preedit for all-caps 'CCA' must be 'CCA'");
+        assert_eq!(cands_caps.first().map(|s| s.as_str()), Some("CCA"));
     }
 }
 

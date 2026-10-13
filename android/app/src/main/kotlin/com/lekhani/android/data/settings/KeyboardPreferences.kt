@@ -288,7 +288,7 @@ class KeyboardPreferences private constructor(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_GLIDE_TYPING_ENABLED, value).apply()
 
     var codeShieldEnabled: Boolean
-        get() = prefs.getBoolean(KEY_CODE_SHIELD_ENABLED, true)
+        get() = prefs.getBoolean(KEY_CODE_SHIELD_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_CODE_SHIELD_ENABLED, value).apply()
 
     var doubleSpaceDariEnabled: Boolean

@@ -87,6 +87,5 @@ fn test_probaho_simulation() {
     assert_eq!(r_akar_gb.preedit, "আচ্ছা");
     let r_commit_gb = session_gb.handle_space().unwrap();
     assert_eq!(r_commit_gb.commit_text.as_deref().map(|s| s.trim()), Some("আচ্ছা"));
-
     println!("\n========================================================\n");
 }
