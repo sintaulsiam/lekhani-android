@@ -848,7 +848,7 @@ pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec
 /// Dynamically resolves Tatshama academic suffixes, Natva Vidhana sound mutations,
 /// and systematic colloquial/dialectal verb conjugations without hardcoded word lists.
 pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>)> {
-    if input.is_empty() || !input.is_ascii() {
+    if input.is_empty() || !input.is_ascii() || has_explicit_avro_intent(input) {
         return None;
     }
     let lower = input.to_lowercase();
@@ -1197,6 +1197,36 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
+    // Fast-path 3b: Explicit Avro Grammar & Intent Fast-Path
+    // When the user deliberately types explicit Avro operator syntax (^, `, ', $, .., ,, :),
+    // invariant digraphs (rri), or mid-word case distinctions (OIUDGJNRSTYZ),
+    // immediately execute deterministic Avro transliteration, unconditionally lock Slot 0,
+    // and completely bypass AI homophone ranking, morphological mutation, English passthrough,
+    // and learner candidate memory.
+    if has_explicit_avro_intent(input) {
+        let parser = get_avro_parser();
+        let def = parser.convert(input);
+        if !def.is_empty() {
+            let mut candidates = vec![def.clone()];
+            let lower_def = parser.convert(&lower);
+            if !lower_def.is_empty() && lower_def != def && !candidates.contains(&lower_def) {
+                candidates.push(lower_def);
+            }
+            if let Some(cands) = db.lookup_override(&lower) {
+                for (w, _) in cands {
+                    let w_str = w.to_string();
+                    if !candidates.contains(&w_str) {
+                        candidates.push(w_str);
+                    }
+                }
+            }
+            if !candidates.iter().any(|c| c.eq_ignore_ascii_case(input)) {
+                candidates.push(input.to_string());
+            }
+            return (def, candidates);
+        }
+    }
+
     // Fast-path 4: Generative Morphology & Dialectal Verb Conjugations
     if let Some((primary, mut candidates)) = resolve_generative_morphology(input) {
         let def_pure = get_avro_parser().convert(input);
@@ -1396,12 +1426,13 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
     let is_all_caps_acronym = is_common_tech_acronym(input)
         || (is_all_caps && !has_override_word(&lower));
-    let can_promote_english_slot0 = is_all_caps_acronym
-        || (is_recognized_english
-            && !has_established_loanword
-            && (input.len() >= 4
-                || (crate::english::STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str())
-                    && !def_conv.contains('্'))));
+    let can_promote_english_slot0 = !has_explicit_avro_intent(input)
+        && (is_all_caps_acronym
+            || (is_recognized_english
+                && !has_established_loanword
+                && (input.len() >= 4
+                    || (crate::english::STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str())
+                        && !def_conv.contains('্')))));
 
     if can_promote_english_slot0 {
         if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
@@ -1783,12 +1814,18 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     let primary = if let Some(ref choice) = remembered_choice {
-        if let Some(pos) = candidates.iter().position(|c| c == choice) {
-            candidates.remove(pos);
+        if !has_explicit_intent && !has_explicit_avro_case {
+            if let Some(pos) = candidates.iter().position(|c| c == choice) {
+                candidates.remove(pos);
+            }
+            candidates.insert(0, choice.clone());
+            choice.clone()
+        } else if !candidates.is_empty() {
+            candidates[0].clone()
+        } else {
+            choice.clone()
         }
-        candidates.insert(0, choice.clone());
-        choice.clone()
-    } else if selected_idx < candidates.len() && selected_idx > 0 {
+    } else if selected_idx < candidates.len() && selected_idx > 0 && !has_explicit_intent && !has_explicit_avro_case {
         let p = candidates.remove(selected_idx);
         candidates.insert(0, p.clone());
         p

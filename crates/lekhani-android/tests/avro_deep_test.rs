@@ -1188,5 +1188,53 @@ fn test_kaccha_and_kzackzacani_no_hijack() {
         Some("ক্যাচক্যাচানি "),
         "kZackZacani space commit must be 'ক্যাচক্যাচানি '"
     );
+
+    // 3. Invariant Avro digraph "rritu" -> "ঋতু"
+    session.reset();
+    let mut last_res = None;
+    for ch in "rritu".chars() {
+        last_res = Some(session.process_key(ch.to_string()).unwrap());
+    }
+    assert_eq!(
+        last_res.unwrap().candidates.first().map(|s| s.as_str()),
+        Some("ঋতু"),
+        "rritu must produce ঋতু at Slot 0"
+    );
+
+    // 4. Operator "c^ad" -> "চাঁদ"
+    session.reset();
+    let mut last_res = None;
+    for ch in "c^ad".chars() {
+        last_res = Some(session.process_key(ch.to_string()).unwrap());
+    }
+    assert_eq!(
+        last_res.unwrap().candidates.first().map(|s| s.as_str()),
+        Some("চাঁদ"),
+        "c^ad must produce চাঁদ at Slot 0"
+    );
+
+    // 5. Operator "du:kho" -> "দুঃখ"
+    session.reset();
+    let mut last_res = None;
+    for ch in "du:kho".chars() {
+        last_res = Some(session.process_key(ch.to_string()).unwrap());
+    }
+    assert_eq!(
+        last_res.unwrap().candidates.first().map(|s| s.as_str()),
+        Some("দুঃখ"),
+        "du:kho must produce দুঃখ at Slot 0"
+    );
+
+    // 6. Mid-word case distinction "paR" -> "পাড়"
+    session.reset();
+    let mut last_res = None;
+    for ch in "paR".chars() {
+        last_res = Some(session.process_key(ch.to_string()).unwrap());
+    }
+    assert_eq!(
+        last_res.unwrap().candidates.first().map(|s| s.as_str()),
+        Some("পাড়"),
+        "paR must produce পাড় at Slot 0"
+    );
 }
 
