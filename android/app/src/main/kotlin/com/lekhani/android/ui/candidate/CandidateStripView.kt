@@ -188,49 +188,41 @@ fun CandidateStripView(
             .height(animatedStripHeight)
             .background(Color(theme.backgroundColor)),
     ) {
-        val displayMode = when {
-            state is CandidateStripState.Notice -> 7
-            state is CandidateStripState.EmojiSearch -> 0
-            state is CandidateStripState.SwipeDeletePreview -> 5
-            state is CandidateStripState.Selection -> 6
-            state is CandidateStripState.RetroCorrectionChip && !isToolsMenuOpen -> 8
-            hasItems && !showToolbarOverride && !isToolsMenuOpen -> 1
-            state is CandidateStripState.Undo && !isToolsMenuOpen -> 3
-            state is CandidateStripState.QuickChip && !isToolsMenuOpen && !showToolbarOverride -> 4
-            else -> 2
-        }
+        val mode = CandidateStripMode.resolve(
+            state = state,
+            hasItems = hasItems,
+            isToolsMenuOpen = isToolsMenuOpen,
+            showToolbarOverride = showToolbarOverride,
+        )
 
         AnimatedContent(
-            targetState = displayMode,
+            targetState = mode,
             transitionSpec = {
                 // Only animate when actually switching between major modes (toolbar ⇔ candidates).
-                // When updating candidates list within the same mode (1→1), use a fast cross-fade
+                // When updating candidates list within the same mode, use a fast cross-fade
                 // so the strip never visually collapses between keystrokes.
-                if (initialState == 1 && targetState == 1) {
+                if (initialState is CandidateStripMode.Candidates && targetState is CandidateStripMode.Candidates) {
                     fadeIn(animationSpec = tween(40)) togetherWith fadeOut(animationSpec = tween(40))
                 } else {
                     fadeIn(animationSpec = tween(80)) togetherWith fadeOut(animationSpec = tween(80))
                 }
             },
             label = "CandidateStripModeTransition"
-        ) { mode ->
-            when (mode) {
-                0 -> {
-                    val emojiState = state as? CandidateStripState.EmojiSearch
-                    if (emojiState != null) {
-                        EmojiSearchStrip(
-                            query = emojiState.query,
-                            emojis = emojiState.emojis,
-                            onEmojiClick = onCandidateClick,
-                            onBack = { onEmojiSearchClose?.invoke() },
-                            onClearQuery = { onEmojiSearchClear?.invoke() },
-                            onExitToKeyboard = { onEmojiSearchExitToKeyboard?.invoke() },
-                            theme = theme,
-                            isEnglish = isEnglish,
-                        )
-                    }
+        ) { currentMode ->
+            when (currentMode) {
+                is CandidateStripMode.EmojiSearch -> {
+                    EmojiSearchStrip(
+                        query = currentMode.search.query,
+                        emojis = currentMode.search.emojis,
+                        onEmojiClick = onCandidateClick,
+                        onBack = { onEmojiSearchClose?.invoke() },
+                        onClearQuery = { onEmojiSearchClear?.invoke() },
+                        onExitToKeyboard = { onEmojiSearchExitToKeyboard?.invoke() },
+                        theme = theme,
+                        isEnglish = isEnglish,
+                    )
                 }
-                1 -> {
+                is CandidateStripMode.Candidates -> {
                     Row(
                         modifier = Modifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
@@ -251,8 +243,7 @@ fun CandidateStripView(
                             )
                         }
 
-                        val candState = state as? CandidateStripState.Candidates
-                        candState?.undoInfo?.let { undo: UndoInfo ->
+                        currentMode.candidates.undoInfo?.let { undo: UndoInfo ->
                             UndoChip(
                                 undoInfo = undo,
                                 onUndoClick = { onUndoClick?.invoke(undo) },
@@ -261,10 +252,9 @@ fun CandidateStripView(
                             )
                         }
 
-                        val items = candState?.items ?: emptyList()
                         Box(modifier = Modifier.weight(1f)) {
                             StripContent(
-                                items = items,
+                                items = currentMode.candidates.items,
                                 onCandidateClick = onCandidateClick,
                                 onBlacklist = onBlacklist,
                                 theme = theme,
@@ -272,20 +262,17 @@ fun CandidateStripView(
                         }
                     }
                 }
-                3 -> {
-                    val undoState = state as? CandidateStripState.Undo
+                is CandidateStripMode.Undo -> {
                     Row(
                         modifier = Modifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        undoState?.undoInfo?.let { undo: UndoInfo ->
-                            UndoChip(
-                                undoInfo = undo,
-                                onUndoClick = { onUndoClick?.invoke(undo) },
-                                theme = theme,
-                                isEnglish = isEnglish,
-                            )
-                        }
+                        UndoChip(
+                            undoInfo = currentMode.undo.undoInfo,
+                            onUndoClick = { onUndoClick?.invoke(currentMode.undo.undoInfo) },
+                            theme = theme,
+                            isEnglish = isEnglish,
+                        )
 
                         Box(modifier = Modifier.weight(1f)) {
                             ToolbarContent(
@@ -299,8 +286,7 @@ fun CandidateStripView(
                         }
                     }
                 }
-                4 -> {
-                    val quickState = state as? CandidateStripState.QuickChip
+                is CandidateStripMode.QuickChip -> {
                     Row(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -320,87 +306,75 @@ fun CandidateStripView(
                             )
                         }
 
-                        if (quickState != null) {
-                            Spacer(Modifier.width(6.dp))
-                            QuickChipPill(
-                                chip = quickState,
-                                onClick = { onCandidateClick(quickState.pasteText) },
-                                theme = theme,
+                        Spacer(Modifier.width(6.dp))
+                        QuickChipPill(
+                            chip = currentMode.chip,
+                            onClick = { onCandidateClick(currentMode.chip.pasteText) },
+                            theme = theme,
+                        )
+                    }
+                }
+                is CandidateStripMode.SwipeDeletePreview -> {
+                    SwipeDeletePreviewStrip(
+                        state = currentMode.preview,
+                        theme = theme,
+                        isEnglish = isEnglish,
+                    )
+                }
+                is CandidateStripMode.Selection -> {
+                    CandidateSelectionStrip(
+                        state = currentMode.selection,
+                        theme = theme,
+                        isEnglish = isEnglish,
+                    )
+                }
+                is CandidateStripMode.Notice -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (currentMode.notice.icon != null) {
+                                Icon(
+                                    imageVector = currentMode.notice.icon,
+                                    contentDescription = null,
+                                    tint = Color(theme.accentColor),
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .padding(end = 8.dp)
+                                )
+                            }
+                            Text(
+                                text = currentMode.notice.message,
+                                color = Color(theme.labelColor),
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .clickable { currentMode.notice.onDismiss() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                tint = Color(theme.labelDimColor),
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
                 }
-                5 -> {
-                    val swipeState = state as? CandidateStripState.SwipeDeletePreview
-                    if (swipeState != null) {
-                        SwipeDeletePreviewStrip(
-                            state = swipeState,
-                            theme = theme,
-                            isEnglish = isEnglish,
-                        )
-                    }
-                }
-                6 -> {
-                    val selState = state as? CandidateStripState.Selection
-                    if (selState != null) {
-                        CandidateSelectionStrip(
-                            state = selState,
-                            theme = theme,
-                            isEnglish = isEnglish,
-                        )
-                    }
-                }
-                7 -> {
-                    val noticeState = state as? CandidateStripState.Notice
-                    if (noticeState != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                if (noticeState.icon != null) {
-                                    Icon(
-                                        imageVector = noticeState.icon,
-                                        contentDescription = null,
-                                        tint = Color(theme.accentColor),
-                                        modifier = Modifier
-                                            .size(18.dp)
-                                            .padding(end = 8.dp)
-                                    )
-                                }
-                                Text(
-                                    text = noticeState.message,
-                                    color = Color(theme.labelColor),
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .clickable { noticeState.onDismiss() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Dismiss",
-                                    tint = Color(theme.labelDimColor),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                8 -> {
-                    val retroState = state as? CandidateStripState.RetroCorrectionChip
+                is CandidateStripMode.RetroCorrection -> {
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
@@ -422,17 +396,15 @@ fun CandidateStripView(
                             )
                         }
 
-                        if (retroState != null) {
-                            Spacer(Modifier.width(6.dp))
-                            RetroCorrectionPill(
-                                chip = retroState,
-                                onClick = retroState.onApply,
-                                theme = theme,
-                            )
-                        }
+                        Spacer(Modifier.width(6.dp))
+                        RetroCorrectionPill(
+                            chip = currentMode.chip,
+                            onClick = currentMode.chip.onApply,
+                            theme = theme,
+                        )
                     }
                 }
-                else -> {
+                CandidateStripMode.Toolbar -> {
                     Row(
                         modifier = Modifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically

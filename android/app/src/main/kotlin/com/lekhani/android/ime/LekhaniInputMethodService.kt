@@ -134,6 +134,9 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
+    // ── InputConnection Mediator (Mediator Pattern) ───────────────────────────
+    val icDispatcher = InputConnectionDispatcher { currentInputConnection }
+
     // ── Synthetic Lifecycle for Jetpack Compose views ────────────────────────
     private val imeLifecycleOwner = ImeLifecycleOwner()
 
@@ -2685,14 +2688,11 @@ class LekhaniInputMethodService : InputMethodService() {
         // tapping Backspace within 2.5 seconds reverts the commit and restores the raw input / pre-edit!
         val activeUndo = activeUndoInfo
         if (activeUndo != null && !session.isComposing()) {
-            val textBefore = try { ic.getTextBeforeCursor(activeUndo.committedText.length + 2, 0)?.toString() } catch (_: Exception) { null }
+            val textBefore = try { icDispatcher.getTextBeforeCursor(activeUndo.committedText.length + 2, 0)?.toString() } catch (_: Exception) { null }
             if (textBefore != null && textBefore.endsWith(activeUndo.committedText)) {
-                ic.beginBatchEdit()
-                try {
-                    ic.deleteSurroundingText(activeUndo.committedText.length, 0)
-                    ic.commitText(activeUndo.originalText, 1)
-                } finally {
-                    ic.endBatchEdit()
+                icDispatcher.withBatchEdit {
+                    it.deleteSurroundingText(activeUndo.committedText.length, 0)
+                    it.commitText(activeUndo.originalText, 1)
                 }
                 clearUndo()
                 refreshSurroundingContext()
@@ -2895,12 +2895,9 @@ class LekhaniInputMethodService : InputMethodService() {
                 val isPunctuation = prevChar in listOf('।', '॥', '.', '?', '!', ',', ';', ':', '\n', ' ')
                 if (!isPunctuation) {
                     val punctuation = if (session.getLayout() == LekhaniLayoutType.ENGLISH) ". " else "। "
-                    ic.beginBatchEdit()
-                    try {
-                        ic.deleteSurroundingText(1, 0)
-                        ic.commitText(punctuation, 1)
-                    } finally {
-                        ic.endBatchEdit()
+                    icDispatcher.withBatchEdit {
+                        it.deleteSurroundingText(1, 0)
+                        it.commitText(punctuation, 1)
                     }
                     lastSpaceTapTime = 0L
                     clearUndo()
@@ -3418,16 +3415,12 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     fun onUndoCommit(undoInfo: UndoInfo) {
-        val ic = currentInputConnection ?: return
-        ic.beginBatchEdit()
-        try {
+        icDispatcher.withBatchEdit { ic ->
             ic.deleteSurroundingText(undoInfo.committedText.length, 0)
             ic.commitText(undoInfo.originalText, 1)
             preeditShadow = ""
             rawInputBuffer.clear()
-        } finally {
-            ic.endBatchEdit()
-        }
+        } ?: return
         try {
             session.penalizeCommit(undoInfo.committedText.trim())
         } catch (e: Exception) {

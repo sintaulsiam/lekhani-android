@@ -276,11 +276,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     val isShiftActive: Boolean
         get() = isShifted || isCapsLock
 
-    /**
-     * A resolved key pairs a [Key] with its computed pixel [RectF].
-     * Pre-allocated as a flat list in [onSizeChanged]; never re-allocated in draw/touch.
-     */
-    private data class ResolvedKey(var key: Key, val bounds: RectF)
+    // ── Dedicated Collaborators (Strategy / Painter & Touch decomposition) ───
+    private val keyboardPainter = KeyboardPainter()
+    private val keyboardTouchTracker = KeyboardTouchTracker()
 
     /** Flat list of all keys with pixel bounds. Rebuilt only in [onSizeChanged]. */
     private val resolvedKeys = ArrayList<ResolvedKey>(50)
@@ -1501,150 +1499,43 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     private fun drawVectorSend(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        vectorIconPath.rewind()
-        val tipX = cx + size * 0.32f
-        val tipY = cy - size * 0.28f
-        val backBottomX = cx - size * 0.16f
-        val backBottomY = cy + size * 0.30f
-        val notchX = cx - size * 0.04f
-        val notchY = cy + size * 0.06f
-        val backLeftX = cx - size * 0.30f
-        val backLeftY = cy - size * 0.08f
-
-        vectorIconPath.moveTo(tipX, tipY)
-        vectorIconPath.lineTo(backLeftX, backLeftY)
-        vectorIconPath.lineTo(notchX, notchY)
-        vectorIconPath.lineTo(backBottomX, backBottomY)
-        vectorIconPath.close()
-
-        vectorIconPath.moveTo(tipX, tipY)
-        vectorIconPath.lineTo(notchX, notchY)
-        canvas.drawPath(vectorIconPath, strokePaint)
+        keyboardPainter.drawVectorSend(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorGo(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        vectorIconPath.rewind()
-        val halfW = size * 0.34f
-        val arrowHead = size * 0.22f
-        vectorIconPath.moveTo(cx - halfW, cy)
-        vectorIconPath.lineTo(cx + halfW, cy)
-        vectorIconPath.moveTo(cx + halfW - arrowHead, cy - arrowHead)
-        vectorIconPath.lineTo(cx + halfW, cy)
-        vectorIconPath.lineTo(cx + halfW - arrowHead, cy + arrowHead)
-        canvas.drawPath(vectorIconPath, strokePaint)
+        keyboardPainter.drawVectorGo(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorNext(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        vectorIconPath.rewind()
-        val halfW = size * 0.34f
-        val arrowHead = size * 0.20f
-        val stemRight = cx + halfW - size * 0.12f
-        vectorIconPath.moveTo(cx - halfW, cy)
-        vectorIconPath.lineTo(stemRight, cy)
-        vectorIconPath.moveTo(stemRight - arrowHead, cy - arrowHead)
-        vectorIconPath.lineTo(stemRight, cy)
-        vectorIconPath.lineTo(stemRight - arrowHead, cy + arrowHead)
-        val barX = cx + halfW
-        val barHalfH = size * 0.25f
-        vectorIconPath.moveTo(barX, cy - barHalfH)
-        vectorIconPath.lineTo(barX, cy + barHalfH)
-        canvas.drawPath(vectorIconPath, strokePaint)
+        keyboardPainter.drawVectorNext(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorDone(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        vectorIconPath.rewind()
-        val leftX = cx - size * 0.28f
-        val leftY = cy + size * 0.02f
-        val midX = cx - size * 0.08f
-        val midY = cy + size * 0.22f
-        val rightX = cx + size * 0.30f
-        val rightY = cy - size * 0.24f
-        vectorIconPath.moveTo(leftX, leftY)
-        vectorIconPath.lineTo(midX, midY)
-        vectorIconPath.lineTo(rightX, rightY)
-        canvas.drawPath(vectorIconPath, strokePaint)
+        keyboardPainter.drawVectorDone(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorExpand(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        val s = size * 0.40f
-        val b = size * 0.18f
-        vectorIconPath.rewind()
-        vectorIconPath.moveTo(cx - s, cy - s + b); vectorIconPath.lineTo(cx - s, cy - s); vectorIconPath.lineTo(cx - s + b, cy - s)
-        vectorIconPath.moveTo(cx + s - b, cy - s); vectorIconPath.lineTo(cx + s, cy - s); vectorIconPath.lineTo(cx + s, cy - s + b)
-        vectorIconPath.moveTo(cx - s, cy + s - b); vectorIconPath.lineTo(cx - s, cy + s); vectorIconPath.lineTo(cx - s + b, cy + s)
-        vectorIconPath.moveTo(cx + s - b, cy + s); vectorIconPath.lineTo(cx + s, cy + s); vectorIconPath.lineTo(cx + s, cy + s - b)
-        canvas.drawPath(vectorIconPath, strokePaint)
+        keyboardPainter.drawVectorExpand(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorChevron(canvas: Canvas, cx: Float, cy: Float, size: Float, isLeft: Boolean, strokePaint: Paint) {
-        val w = size * 0.24f
-        val h = size * 0.36f
-        vectorIconPath.rewind()
-        if (isLeft) {
-            vectorIconPath.moveTo(cx + w, cy - h)
-            vectorIconPath.lineTo(cx - w, cy)
-            vectorIconPath.lineTo(cx + w, cy + h)
-        } else {
-            vectorIconPath.moveTo(cx - w, cy - h)
-            vectorIconPath.lineTo(cx + w, cy)
-            vectorIconPath.lineTo(cx - w, cy + h)
-        }
-        canvas.drawPath(vectorIconPath, strokePaint)
+        keyboardPainter.drawVectorChevron(canvas, cx, cy, size, isLeft, strokePaint)
     }
 
     private fun drawVectorFloating(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        val halfW = size * 0.42f
-        val halfH = size * 0.32f
-        scratchRect.set(cx - halfW, cy - halfH, cx + halfW, cy + halfH)
-        canvas.drawRoundRect(scratchRect, 3f, 3f, strokePaint)
-        canvas.drawLine(cx - halfW, cy - halfH * 0.35f, cx + halfW, cy - halfH * 0.35f, strokePaint)
+        keyboardPainter.drawVectorFloating(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorGlobe(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        val r = size * 0.38f
-        canvas.drawCircle(cx, cy, r, strokePaint)
-        canvas.drawLine(cx - r, cy, cx + r, cy, strokePaint)
-        scratchRect.set(cx - r * 0.46f, cy - r, cx + r * 0.46f, cy + r)
-        canvas.drawOval(scratchRect, strokePaint)
+        keyboardPainter.drawVectorGlobe(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorSmiley(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        val r = size * 0.38f
-        // Outer face circle
-        canvas.drawCircle(cx, cy, r, strokePaint)
-        // Two eyes
-        val eyeOffsetX = r * 0.38f
-        val eyeOffsetY = r * 0.26f
-        val eyeR = (r * 0.11f).coerceAtLeast(1.5f)
-        canvas.drawCircle(cx - eyeOffsetX, cy - eyeOffsetY, eyeR, vectorIconFillPaint)
-        canvas.drawCircle(cx + eyeOffsetX, cy - eyeOffsetY, eyeR, vectorIconFillPaint)
-        // Smile arc
-        scratchRect.set(cx - r * 0.50f, cy - r * 0.30f, cx + r * 0.50f, cy + r * 0.55f)
-        canvas.drawArc(scratchRect, 25f, 130f, false, strokePaint)
+        keyboardPainter.drawVectorSmiley(canvas, cx, cy, size, strokePaint, vectorIconFillPaint)
     }
 
     private fun drawVectorNumpad(canvas: Canvas, cx: Float, cy: Float, size: Float, fillPaint: Paint) {
-        val dotRadius = (size * 0.085f).coerceAtLeast(1.5f)
-        val spacingX = size * 0.28f
-        val spacingY = size * 0.24f
-
-        // Row 1 (top): 3 keypad dots
-        canvas.drawCircle(cx - spacingX, cy - 1.5f * spacingY, dotRadius, fillPaint)
-        canvas.drawCircle(cx, cy - 1.5f * spacingY, dotRadius, fillPaint)
-        canvas.drawCircle(cx + spacingX, cy - 1.5f * spacingY, dotRadius, fillPaint)
-
-        // Row 2 (upper middle): 3 keypad dots
-        canvas.drawCircle(cx - spacingX, cy - 0.5f * spacingY, dotRadius, fillPaint)
-        canvas.drawCircle(cx, cy - 0.5f * spacingY, dotRadius, fillPaint)
-        canvas.drawCircle(cx + spacingX, cy - 0.5f * spacingY, dotRadius, fillPaint)
-
-        // Row 3 (lower middle): 3 keypad dots
-        canvas.drawCircle(cx - spacingX, cy + 0.5f * spacingY, dotRadius, fillPaint)
-        canvas.drawCircle(cx, cy + 0.5f * spacingY, dotRadius, fillPaint)
-        canvas.drawCircle(cx + spacingX, cy + 0.5f * spacingY, dotRadius, fillPaint)
-
-        // Row 4 (bottom): 1 centered dot (classic 0 key on dialpad)
-        canvas.drawCircle(cx, cy + 1.5f * spacingY, dotRadius, fillPaint)
+        keyboardPainter.drawVectorNumpad(canvas, cx, cy, size, fillPaint)
     }
 
     private fun drawMiniVectorDialpad(canvas: Canvas, cx: Float, cy: Float, size: Float, paint: Paint) {
@@ -2650,40 +2541,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * operates on pre-computed centre coordinates stored in [resolvedKeys].
      */
     private fun findKeyIndex(x: Float, y: Float): Int {
-        val w = width.toFloat().coerceAtLeast(1f)
-        val h = height.toFloat().coerceAtLeast(1f)
-        val clampedX = x.coerceIn(0f, w)
-        val clampedY = y.coerceIn(0f, h)
-
-        // Fast direct hit-test with bezel-edge compensation
-        for (i in resolvedKeys.indices) {
-            val b = resolvedKeys[i].bounds
-            if (b.contains(clampedX, clampedY)) {
-                return i
-            }
-        }
-
-        var bestIdx = -1
-        var bestScore = Float.MAX_VALUE
-
-        for (i in resolvedKeys.indices) {
-            val bounds = resolvedKeys[i].bounds
-            // Only consider keys within a reasonable y-band (improves accuracy
-            // for multi-row keyboards — avoids picking keys from the wrong row)
-            if (clampedY < bounds.top - KEY_Y_TOLERANCE || clampedY > bounds.bottom + KEY_Y_TOLERANCE) continue
-
-            val cx = bounds.centerX()
-            val cy = bounds.centerY()
-            val dx = clampedX - cx
-            val dy = (clampedY - cy) * ROW_Y_BIAS    // de-emphasise vertical error
-            val dist = dx * dx + dy * dy
-
-            if (dist < bestScore) {
-                bestScore = dist
-                bestIdx = i
-            }
-        }
-        return bestIdx
+        return keyboardTouchTracker.findKeyIndex(x, y, resolvedKeys, width.toFloat(), height.toFloat())
     }
 
     private fun dispatchKey(key: Key) {
