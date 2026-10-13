@@ -820,6 +820,166 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
     Some((primary, candidates))
 }
 
+/// Resolves unhyphenated bilingual enclitics attached to Latin words (e.g. "WhatsAppe" -> "WhatsApp-এ", "Meetinger" -> "Meeting-এর")
+pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec<String>)> {
+    if input.is_empty() || !input.is_ascii() || input.contains('-') || input.len() < 3 {
+        return None;
+    }
+
+    if has_override_word(input) || has_override_word(&input.to_lowercase()) {
+        return None;
+    }
+
+    let db = crate::session::get_core_database();
+    let parser = get_avro_parser();
+    let lower = input.to_lowercase();
+    let def_conv = parser.convert(input);
+    let def_lower_conv = parser.convert(&lower);
+
+    // If the entire token already resolves to an exact valid Bengali dictionary word, do not decouple!
+    if (!def_conv.is_empty() && (db.is_exact_dictionary_word(&def_conv) || db.trie.contains_exact(&def_conv)))
+        || (!def_lower_conv.is_empty() && (db.is_exact_dictionary_word(&def_lower_conv) || db.trie.contains_exact(&def_lower_conv)))
+    {
+        return None;
+    }
+
+    // High-frequency clitic endings ordered by descending length
+    const CLITIC_SUFFIXES: &[(&str, &str)] = &[
+        ("gulor", "-গুলোর"),
+        ("gulote", "-গুলোতে"),
+        ("gulo", "-গুলো"),
+        ("gula", "-গুলা"),
+        ("guli", "-গুলি"),
+        ("derke", "-দেরকে"),
+        ("der", "-দের"),
+        ("marse", " মারছে"),
+        ("marlam", " মারলাম"),
+        ("kora", " করা"),
+        ("kore", " করে"),
+        ("koro", " করো"),
+        ("bhittik", "-ভিত্তিক"),
+        ("shongkranto", "-সংক্রান্ত"),
+        ("er", "-এর"),
+        ("te", "-তে"),
+        ("ta", "-টা"),
+        ("ti", "-টি"),
+        ("ke", "-কে"),
+        ("ra", "-রা"),
+        ("re", "-রে"),
+        ("e", "-এ"),
+        ("o", "-ও"),
+        ("i", "-ই"),
+    ];
+
+    for &(suf, b_clitic) in CLITIC_SUFFIXES {
+        if lower.ends_with(suf) && input.len() > suf.len() {
+            let base = &input[..input.len() - suf.len()];
+            if base.is_empty() || !base.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+                continue;
+            }
+
+            let is_all_upper_acronym = base.len() >= 2 && base.chars().all(|c| c.is_ascii_uppercase());
+            let is_camel_or_title = base.len() >= 3 && base.chars().any(|c| c.is_ascii_uppercase());
+            let is_recognized_english = base.len() >= 3 && crate::english::is_recognized_english_word(base);
+            let is_known_brand_or_tech = matches!(
+                base.to_lowercase().as_str(),
+                "whatsapp" | "facebook" | "google" | "youtube" | "instagram" | "twitter" | "tiktok"
+                | "zoom" | "skype" | "android" | "windows" | "linux" | "apple" | "microsoft"
+                | "bkash" | "nagad" | "rocket" | "upay" | "uber" | "pathao" | "daraz" | "foodpanda"
+                | "netflix" | "spotify" | "telegram" | "signal" | "gmail" | "yahoo" | "wifi"
+                | "bluetooth" | "laptop" | "desktop" | "monitor" | "server" | "cloud" | "bug"
+                | "meeting" | "post" | "link" | "call" | "group" | "chat" | "message" | "status"
+                | "story" | "video" | "audio" | "photo" | "camera" | "file" | "app" | "code"
+                | "commit" | "branch" | "repo" | "issue" | "pr" | "merge" | "test" | "fail"
+                | "pass" | "click" | "share" | "like" | "comment" | "feed" | "stream" | "cash"
+                | "bank" | "card" | "bill" | "offer"
+            );
+
+            let is_valid_stem = if suf.len() == 1 {
+                is_all_upper_acronym || is_camel_or_title || is_known_brand_or_tech
+            } else {
+                is_all_upper_acronym || is_camel_or_title || is_recognized_english || is_known_brand_or_tech
+            };
+
+            if is_valid_stem {
+                let code_mix_primary = format!("{}{}", base, b_clitic);
+                let mut primary = code_mix_primary.clone();
+                let mut candidates = vec![code_mix_primary];
+
+                // Slot 1: Try phonetic Bengali loanword if available
+                let clean_base_lower = base.to_lowercase();
+                if let Some((bn_loan, _)) = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&clean_base_lower) {
+                    let unified_clitic = match suf {
+                        "e" => {
+                            if bn_loan.ends_with('া') || bn_loan.ends_with('ি') || bn_loan.ends_with('ী')
+                                || bn_loan.ends_with('ু') || bn_loan.ends_with('ূ') || bn_loan.ends_with('ে') || bn_loan.ends_with('ো')
+                            {
+                                "য়ে"
+                            } else {
+                                "ে"
+                            }
+                        }
+                        "er" => {
+                            if bn_loan.ends_with('া') || bn_loan.ends_with('ি') || bn_loan.ends_with('ী')
+                                || bn_loan.ends_with('ু') || bn_loan.ends_with('ূ') || bn_loan.ends_with('ে') || bn_loan.ends_with('ো')
+                                || bn_loan.ends_with('ং')
+                            {
+                                "য়ের"
+                            } else {
+                                "ের"
+                            }
+                        }
+                        "te" => "তে",
+                        "ta" => "টা",
+                        "ti" => "টি",
+                        "ke" => "কে",
+                        "gulo" => "গুলো",
+                        "gulor" => "গুলোর",
+                        "der" => "দের",
+                        "ra" => "রা",
+                        "i" => "ই",
+                        "o" => "ও",
+                        _ => "",
+                    };
+                    if !unified_clitic.is_empty() {
+                        let bn_cand = format!("{}{}", bn_loan, unified_clitic);
+                        if base.chars().all(|c| c.is_lowercase()) && !is_all_upper_acronym {
+                            primary = bn_cand.clone();
+                            if !candidates.contains(&bn_cand) {
+                                candidates.insert(0, bn_cand);
+                            }
+                        } else if !candidates.contains(&bn_cand) {
+                            candidates.push(bn_cand);
+                        }
+                    }
+                    let bn_hyphen_cand = format!("{}-{}", bn_loan, b_clitic.trim_start_matches('-').trim());
+                    if !candidates.contains(&bn_hyphen_cand) {
+                        candidates.push(bn_hyphen_cand);
+                    }
+                }
+
+                // Add Avro transliterated base if distinct
+                let (base_bn, _) = transliterate_avro(base);
+                if !base_bn.is_empty() && base_bn != base {
+                    let avro_cand = format!("{}{}", base_bn, b_clitic);
+                    if !candidates.contains(&avro_cand) {
+                        candidates.push(avro_cand);
+                    }
+                }
+
+                // Raw input preservation
+                if !candidates.contains(&input.to_string()) {
+                    candidates.push(input.to_string());
+                }
+
+                return Some((primary, candidates));
+            }
+        }
+    }
+
+    None
+}
+
 /// Generalized morphological affixes & compounding engine.
 /// Dynamically resolves Tatshama academic suffixes, Natva Vidhana sound mutations,
 /// and systematic colloquial/dialectal verb conjugations without hardcoded word lists.
@@ -1073,6 +1233,7 @@ pub fn is_avro_special_fastpath(input: &str) -> bool {
         || input.starts_with('#')
         || resolve_digit_unit_candidates(input).is_some()
         || resolve_bilingual_hyphen_clitic(input).is_some()
+        || resolve_unhyphenated_bilingual_clitic(input).is_some()
         || resolve_generative_morphology(input).is_some()
 }
 
@@ -1145,6 +1306,15 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
 
     // Fast-path 3: Bilingual hyphen clitics (e.g. Facebook-e -> Facebook-এ, bkash-e -> bkash-এ)
     if let Some((primary, mut candidates)) = resolve_bilingual_hyphen_clitic(input) {
+        let def_pure = get_avro_parser().convert(input);
+        if !def_pure.is_empty() && !candidates.contains(&def_pure) {
+            candidates.push(def_pure);
+        }
+        return (primary, candidates);
+    }
+
+    // Fast-path 3b: Unhyphenated bilingual clitics (e.g. WhatsAppe -> WhatsApp-এ, Meetinger -> Meeting-এর, Bugta -> Bug-টা)
+    if let Some((primary, mut candidates)) = resolve_unhyphenated_bilingual_clitic(input) {
         let def_pure = get_avro_parser().convert(input);
         if !def_pure.is_empty() && !candidates.contains(&def_pure) {
             candidates.push(def_pure);
@@ -2484,6 +2654,53 @@ mod tests {
         // 4. "file-gulo" -> "file-গুলো"
         let (file_res, _) = transliterate_avro("file-gulo");
         assert_eq!(file_res, "file-গুলো");
+    }
+
+    #[test]
+    fn test_unhyphenated_bilingual_sandhi_clitics() {
+        // 1. WhatsAppe -> "WhatsApp-এ", surfaces "হোয়াটসঅ্যাপে" and "WhatsAppe"
+        let (wa_res, wa_cands) = transliterate_avro("WhatsAppe");
+        assert_eq!(wa_res, "WhatsApp-এ");
+        assert!(wa_cands.contains(&"WhatsAppe".to_string()));
+        assert!(wa_cands.contains(&"হোয়াটসঅ্যাপে".to_string()));
+
+        // 2. WhatsApper -> "WhatsApp-এর"
+        let (wa_er_res, wa_er_cands) = transliterate_avro("WhatsApper");
+        assert_eq!(wa_er_res, "WhatsApp-এর");
+        assert!(wa_er_cands.contains(&"WhatsApper".to_string()));
+
+        // 3. Meetinger -> "Meeting-এর", surfaces "মিটিংয়ের"
+        let (meet_res, meet_cands) = transliterate_avro("Meetinger");
+        assert_eq!(meet_res, "Meeting-এর");
+        assert!(meet_cands.contains(&"Meetinger".to_string()));
+        assert!(meet_cands.contains(&"মিটিংয়ের".to_string()));
+
+        // 4. APIgulor -> "API-গুলোর"
+        let (api_res, api_cands) = transliterate_avro("APIgulor");
+        assert_eq!(api_res, "API-গুলোর");
+        assert!(api_cands.contains(&"APIgulor".to_string()));
+
+        // 5. Bugta -> "Bug-টা"
+        let (bug_res, bug_cands) = transliterate_avro("Bugta");
+        assert_eq!(bug_res, "Bug-টা");
+        assert!(bug_cands.contains(&"Bugta".to_string()));
+
+        // 6. failmarse -> "fail মারছে"
+        let (fail_res, _) = transliterate_avro("failmarse");
+        assert_eq!(fail_res, "fail মারছে");
+
+        // 7. Everyday inflected loanwords resolve naturally to Bengali spelling, while hyphenated produces code-mixed
+        let (post_res, _) = transliterate_avro("poste");
+        assert_eq!(post_res, "পোস্টে");
+        let (post_hyphen_res, post_hyphen_cands) = transliterate_avro("post-e");
+        assert_eq!(post_hyphen_res, "post-এ");
+        assert!(post_hyphen_cands.contains(&"post-e".to_string()));
+
+        // 8. Bengali core words are completely safe from false decoupling
+        assert_eq!(transliterate_avro("pore").0, "পরে");
+        assert_eq!(transliterate_avro("kore").0, "করে");
+        assert_eq!(transliterate_avro("amar").0, "আমার");
+        assert_eq!(transliterate_avro("tumi").0, "তুমি");
     }
 
     #[test]
