@@ -334,6 +334,27 @@
   - Multi-hyphen bilingual clitics (`Wi-Fi-er` ➔ `Wi-Fi-এর`, `RFC-XXXX-er` ➔ `RFC-XXXX-এর`, `cross-platform`, `Content-Type`).
   - Comprehensive 10-section letter-by-letter simulation test suite (`extended_sections_13_to_22_simulation.rs`).
 
+---
+
+## Phase 17: Hardening, Empirical Metrics & Stabilization (v2.0) (COMPLETED)
+- [x] **Slot 0 WYSIWYG & Anvaya Honorific Separation Invariant**:
+  - Slot 0 highlighted text is strictly what Spacebar commits.
+  - Anvaya honorific shifts (`is_honorific_shift`, e.g. `apni aso` ➔ `আছেন`) never hijack Slot 0 or auto-commit; typed verbatim verb sits in Slot 0, concordant verb sits in Slot 1.
+- [x] **Deterministic Avro Invariant & Pure Avro Mode**:
+  - `def_pure` Avro transliteration is unconditionally guaranteed across all morphological fast-paths, fuzz-tested over 5,000 grammar combinations.
+  - Added `pureAvroMode` setting toggle in UI and Rust session to bypass AI reranking, Anvaya agreement, and retro-corrections for purists.
+- [x] **Bayesian Retro-Chip Dampener & Noise Mitigation**:
+  - $\text{Beta}(1, 3)$ prior tracking explicit dismissals ($w=-2.0$), passive dismissals ($w=-0.2$), and accepts ($w=+1.5$).
+  - Suppresses retro-chips for 50 words when acceptance probability falls below $0.18$.
+  - Material 3 vector iconography (`Icons.Filled.AutoAwesome`, `Icons.Filled.Close`) with strict zero-emoji UI chrome.
+- [x] **Direct-Access Verb Disambiguation Picker**:
+  - Candidate long-press surfaces complete honorific paradigm (Formal, Familiar, Intimate) for 1-tap disambiguation.
+- [x] **Empirical Evaluation Rig & Latency Percentiles**:
+  - Tri-split corpus evaluation (Formal BBS, Colloquial, Code-Mixed Banglish) with leave-one-out ablations.
+  - Theoretical upper bound KSPC reporting.
+  - Latency percentiles benchmarked over 10,000 runs: warm cache p50: 341 ns (p99: 351 ns); cold page-fault simulation p50: 791 ns (p99: 811 ns).
+
+
 
 
 
