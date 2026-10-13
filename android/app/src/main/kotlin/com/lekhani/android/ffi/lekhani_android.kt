@@ -830,6 +830,16 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
+
+
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -887,6 +897,8 @@ internal interface UniffiLib : Library {
     ): Float
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_user_words(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_verb_honorific_paradigm(`ptr`: Pointer,`verb`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_backspace(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_handle_space(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -901,7 +913,11 @@ internal interface UniffiLib : Library {
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_composing(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_honorific_shift(`ptr`: Pointer,`typed`: RustBuffer.ByValue,`candidate`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_private_field(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_pure_avro_mode(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_user_learned_dirty(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
@@ -921,6 +937,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_rank_spatial_keys(`ptr`: Pointer,`touchX`: Float,`touchY`: Float,`topK`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_record_retro_correction_dismissed(`ptr`: Pointer,`explicit`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_reset(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_save_user_autocorrect(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -942,6 +960,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_learner_autosave_path(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_private_field(`ptr`: Pointer,`isPrivate`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_pure_avro_mode(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_right_context(`ptr`: Pointer,`context`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1123,6 +1143,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_user_words(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_verb_honorific_paradigm(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_backspace(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_space(
@@ -1137,7 +1159,11 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_composing(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_honorific_shift(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_private_field(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_pure_avro_mode(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_user_learned_dirty(
     ): Short
@@ -1156,6 +1182,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key_with_touch(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_rank_spatial_keys(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_record_retro_correction_dismissed(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_reset(
     ): Short
@@ -1178,6 +1206,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_learner_autosave_path(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_pure_avro_mode(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_right_context(
     ): Short
@@ -1274,6 +1304,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_user_words() != 7879.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_verb_honorific_paradigm() != 55620.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_handle_backspace() != 7915.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1295,7 +1328,13 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_composing() != 7700.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_honorific_shift() != 8959.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_private_field() != 30605.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_pure_avro_mode() != 51181.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_user_learned_dirty() != 58774.toShort()) {
@@ -1323,6 +1362,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_rank_spatial_keys() != 49411.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_record_retro_correction_dismissed() != 50557.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_reset() != 35329.toShort()) {
@@ -1356,6 +1398,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_private_field() != 19937.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_pure_avro_mode() != 32941.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_right_context() != 7954.toShort()) {
@@ -1841,6 +1886,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `getUserWords`(): List<kotlin.String>
     
     /**
+     * Returns the honorific verb paradigm (Formal, Familiar, Intimate) if `verb` is a recognized inflected verb.
+     */
+    fun `getVerbHonorificParadigm`(`verb`: kotlin.String): List<kotlin.String>
+    
+    /**
      * Handle Backspace keypress.
      *
      * Deletes exactly one **Unicode grapheme cluster** from the end of the
@@ -1884,9 +1934,19 @@ public interface AndroidLekhaniSessionInterface {
     fun `isComposing`(): kotlin.Boolean
     
     /**
+     * Checks whether `candidate` represents an honorific register shift relative to `typed`.
+     */
+    fun `isHonorificShift`(`typed`: kotlin.String, `candidate`: kotlin.String): kotlin.Boolean
+    
+    /**
      * Returns whether the session is currently in a private/password field.
      */
     fun `isPrivateField`(): kotlin.Boolean
+    
+    /**
+     * Returns whether Pure Classic Avro Mode is currently enabled.
+     */
+    fun `isPureAvroMode`(): kotlin.Boolean
     
     /**
      * Check if the user learner has unsaved modifications.
@@ -1940,6 +2000,11 @@ public interface AndroidLekhaniSessionInterface {
      * Rank candidate keys by descending spatial probability at touch coordinate (x, y).
      */
     fun `rankSpatialKeys`(`touchX`: kotlin.Float, `touchY`: kotlin.Float, `topK`: kotlin.UInt): List<SpatialKeyCandidate>
+    
+    /**
+     * Record whether the user explicitly or passively dismissed a retro-correction chip.
+     */
+    fun `recordRetroCorrectionDismissed`(`explicit`: kotlin.Boolean)
     
     /**
      * Reset and clear all internal composing state.
@@ -2006,6 +2071,11 @@ public interface AndroidLekhaniSessionInterface {
      * preserving the user's layout preferences.
      */
     fun `setPrivateField`(`isPrivate`: kotlin.Boolean)
+    
+    /**
+     * Enable or disable Pure Classic Avro Mode (bypasses all AI ranking & Anvaya).
+     */
+    fun `setPureAvroMode`(`enabled`: kotlin.Boolean)
     
     /**
      * Provide the text after the cursor (from `getTextAfterCursor(64, 0)`)
@@ -2386,6 +2456,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Returns the honorific verb paradigm (Formal, Familiar, Intimate) if `verb` is a recognized inflected verb.
+     */override fun `getVerbHonorificParadigm`(`verb`: kotlin.String): List<kotlin.String> {
+            return FfiConverterSequenceString.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_verb_honorific_paradigm(
+        it, FfiConverterString.lower(`verb`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Handle Backspace keypress.
      *
      * Deletes exactly one **Unicode grapheme cluster** from the end of the
@@ -2504,12 +2589,42 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Checks whether `candidate` represents an honorific register shift relative to `typed`.
+     */override fun `isHonorificShift`(`typed`: kotlin.String, `candidate`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_is_honorific_shift(
+        it, FfiConverterString.lower(`typed`),FfiConverterString.lower(`candidate`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Returns whether the session is currently in a private/password field.
      */override fun `isPrivateField`(): kotlin.Boolean {
             return FfiConverterBoolean.lift(
     callWithPointer {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_is_private_field(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Returns whether Pure Classic Avro Mode is currently enabled.
+     */override fun `isPureAvroMode`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_is_pure_avro_mode(
         it, _status)
 }
     }
@@ -2662,6 +2777,20 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     }
     )
     }
+    
+
+    
+    /**
+     * Record whether the user explicitly or passively dismissed a retro-correction chip.
+     */override fun `recordRetroCorrectionDismissed`(`explicit`: kotlin.Boolean)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_record_retro_correction_dismissed(
+        it, FfiConverterBoolean.lower(`explicit`),_status)
+}
+    }
+    
     
 
     
@@ -2830,6 +2959,20 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_private_field(
         it, FfiConverterBoolean.lower(`isPrivate`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Enable or disable Pure Classic Avro Mode (bypasses all AI ranking & Anvaya).
+     */override fun `setPureAvroMode`(`enabled`: kotlin.Boolean)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_pure_avro_mode(
+        it, FfiConverterBoolean.lower(`enabled`),_status)
 }
     }
     

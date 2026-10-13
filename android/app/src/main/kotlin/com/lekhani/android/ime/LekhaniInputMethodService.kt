@@ -859,7 +859,7 @@ class LekhaniInputMethodService : InputMethodService() {
                             onCandidateSelected(text)
                         },
                         onBlacklist = { text ->
-                            val paradigm = try { session.getVerbHonorificParadigm(text) } catch (_: Exception) { emptyList() }
+                            val paradigm: List<String> = try { session.getVerbHonorificParadigm(text) } catch (e: Exception) { emptyList() }
                             if (paradigm.isNotEmpty()) {
                                 // Direct-Access Verb Disambiguation Picker
                                 // Long-pressing an ambiguous verb surfaces the full honorific paradigm:
