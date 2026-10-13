@@ -422,6 +422,26 @@ pub fn get_phonetic_suggestion() -> &'static Mutex<lekhani_core::phonetic::Phone
     })
 }
 
+/// Unified facade encapsulating core shared engine singletons.
+pub struct EngineEnvironment {
+    pub db: &'static PhoneticDatabase,
+    pub scorer: &'static lekhani_ai::ContextScorer,
+    pub predictor: &'static lekhani_ai::NextWordPredictor,
+    pub neural: &'static lekhani_neural::NeuralContextPredictor,
+}
+
+impl EngineEnvironment {
+    /// Returns the global shared EngineEnvironment facade instance.
+    pub fn get() -> Self {
+        Self {
+            db: get_core_database(),
+            scorer: get_context_scorer(),
+            predictor: get_next_word_predictor(),
+            neural: get_neural_predictor(),
+        }
+    }
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Public data types exported to Kotlin via UniFFI
 // ──────────────────────────────────────────────────────────────────────────────
@@ -576,6 +596,39 @@ impl RetroDampener {
 // Internal session state  (never crosses the FFI boundary)
 // ──────────────────────────────────────────────────────────────────────────────
 
+/// Memento recording a committed word action for rapid backspace mistake penalization and context rollback.
+#[derive(Debug, Clone)]
+pub(crate) struct CommitAction {
+    pub(crate) previous_word: Option<String>,
+    pub(crate) committed_text: String,
+    pub(crate) timestamp: std::time::Instant,
+}
+
+impl CommitAction {
+    pub(crate) fn new(previous_word: Option<String>, committed_text: String) -> Self {
+        Self {
+            previous_word,
+            committed_text,
+            timestamp: std::time::Instant::now(),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn is_rapid_backspace(&self, threshold_ms: u128) -> bool {
+        self.timestamp.elapsed().as_millis() <= threshold_ms
+    }
+
+    pub(crate) fn undo_context(&self, context: &mut String) {
+        if context.ends_with(&self.committed_text) {
+            let trim_len = context.len() - self.committed_text.len();
+            context.truncate(trim_len);
+            if context.ends_with(' ') {
+                context.pop();
+            }
+        }
+    }
+}
+
 pub(crate) struct SessionState {
     pub(crate) layout: LekhaniLayoutType,
     /// Raw composing buffer.  Always kept as valid Unicode; grapheme operations
@@ -594,9 +647,9 @@ pub(crate) struct SessionState {
     pub(crate) is_private_field: bool,
     /// Whether autonomous learning of words from typing is enabled.
     pub(crate) auto_learn_enabled: bool,
-    /// Last committed word, optional preceding word, and the Instant it was committed.
+    /// Memento of last committed word, optional preceding word, and timestamp.
     /// Used for rapid backspace mistake penalty (<1500 ms).
-    pub(crate) last_commit_info: Option<(Option<String>, String, std::time::Instant)>,
+    pub(crate) last_commit_action: Option<CommitAction>,
     /// Bivariate Gaussian spatial touch model for fat-finger correction
     pub(crate) spatial_model: crate::spatial::SpatialTouchModel,
     /// Whether initial Kar auto-promotion and post-consonant demotion is enabled
@@ -874,7 +927,7 @@ impl AndroidLekhaniSession {
                 right_context: String::with_capacity(64),
                 is_private_field: false,
                 auto_learn_enabled: true,
-                last_commit_info: None,
+                last_commit_action: None,
                 spatial_model: crate::spatial::SpatialTouchModel::new(),
                 smart_initial_kar_enabled: true,
                 geminate_double_tap_enabled: false,
@@ -1242,7 +1295,7 @@ impl AndroidLekhaniSession {
                         }
                     }
                 }
-                state.last_commit_info = Some((prev_word, word.clone(), std::time::Instant::now()));
+                state.last_commit_action = Some(CommitAction::new(prev_word, word.clone()));
             }
 
             let punct_str: &str = if key == "." && state.layout != LekhaniLayoutType::English {
@@ -1859,20 +1912,14 @@ impl AndroidLekhaniSession {
             // Buffer empty — signal Android to delete the preceding character
             // in the target application's InputConnection.
             // Check for rapid backspace mistake penalty (<1500 ms).
-            if let Some((prev, committed, ts)) = state.last_commit_info.take() {
-                if ts.elapsed().as_millis() <= 1500 && !state.is_private_field {
+            if let Some(action) = state.last_commit_action.take() {
+                if action.is_rapid_backspace(1500) && !state.is_private_field {
                     let db = get_core_database();
                     if let Ok(mut learner) = db.learner.write() {
-                        learner.penalize_mistake(prev.as_deref(), &committed);
+                        learner.penalize_mistake(action.previous_word.as_deref(), &action.committed_text);
                     }
                 }
-                if state.surrounding_context.ends_with(&committed) {
-                    let trim_len = state.surrounding_context.len() - committed.len();
-                    state.surrounding_context.truncate(trim_len);
-                    if state.surrounding_context.ends_with(' ') {
-                        state.surrounding_context.pop();
-                    }
-                }
+                action.undo_context(&mut state.surrounding_context);
             }
 
             Ok(TypingResult {
@@ -1933,9 +1980,9 @@ impl AndroidLekhaniSession {
                         }
                     }
                 }
-                state.last_commit_info = Some((prev_word, word.clone(), std::time::Instant::now()));
+                state.last_commit_action = Some(CommitAction::new(prev_word, word.clone()));
             } else {
-                state.last_commit_info = None;
+                state.last_commit_action = None;
             }
 
             state.append_to_context(&word);
@@ -1957,7 +2004,7 @@ impl AndroidLekhaniSession {
                 cursor_position: 0,
             })
         } else {
-            state.last_commit_info = None;
+            state.last_commit_action = None;
             state.retro_dampener.on_word_typed();
             let next_words = if state.is_private_field || state.pure_avro_mode {
                 Vec::new()
@@ -2089,10 +2136,10 @@ impl AndroidLekhaniSession {
                     }
                 }
             }
-            state.last_commit_info =
-                Some((prev_word, normalized.clone(), std::time::Instant::now()));
+            state.last_commit_action =
+                Some(CommitAction::new(prev_word, normalized.clone()));
         } else {
-            state.last_commit_info = None;
+            state.last_commit_action = None;
         }
 
         state.append_to_context(&normalized);
@@ -2154,7 +2201,7 @@ impl AndroidLekhaniSession {
             state.surrounding_context_len = 0;
             state.right_context.clear();
             state.is_private_field = false;
-            state.last_commit_info = None;
+            state.last_commit_action = None;
             state.last_consonant_tap = None;
         }
     }
@@ -2167,7 +2214,7 @@ impl AndroidLekhaniSession {
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
         if !state.is_private_field {
-            let prev = state.last_commit_info.take().and_then(|(p, _, _)| p);
+            let prev = state.last_commit_action.take().and_then(|a| a.previous_word);
             let db = get_core_database();
             if let Ok(mut learner) = db.learner.write() {
                 learner.penalize_mistake(prev.as_deref(), &reverted_word);
