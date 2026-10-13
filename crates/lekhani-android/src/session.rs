@@ -437,10 +437,42 @@ pub struct TypingResult {
     pub preedit: String,
     /// Finalized, NFC-normalized text to commit via `InputConnection.commitText()`
     pub commit_text: Option<String>,
-    /// Candidates to display in the horizontal candidate strip
+/// Candidates to display in the horizontal candidate strip
     pub candidates: Vec<String>,
     /// Active grapheme cluster cursor index inside the composing buffer
     pub cursor_position: u32,
+}
+
+/// Semantic category of a keyboard candidate item for rich UI strip rendering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum CandidateKind {
+    /// Deterministic Avro rule transliteration (Slot 0 / Slot 1 bypass)
+    DeterministicAvro,
+    /// High-frequency statistical / context-ranked candidate
+    ContextualAi,
+    /// Exact user override / learned personal dictionary word
+    LearnedMemory,
+    /// Typo recovery / fat-finger spatial correction
+    TypoRescue,
+    /// Literal English passthrough / tech acronym
+    EnglishPassthrough,
+    /// Bengali numeric or currency representation
+    NumericLiteral,
+    /// Honorific / grammatical agreement verb (Anvaya)
+    GrammarConcordant,
+}
+
+/// Detailed candidate item with semantic metadata, exported via UniFFI.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct CandidateItem {
+    /// The candidate text to be committed if selected
+    pub text: String,
+    /// Semantic classification of this candidate
+    pub kind: CandidateKind,
+    /// Relative ranking score (1.0 = top pick)
+    pub score: f64,
+    /// True if this candidate is the current primary preedit / default commit
+    pub is_primary: bool,
 }
 
 /// Project "পশ্চাৎ-শোধন" (Retro-Correction) Suggestion
@@ -734,6 +766,64 @@ fn get_bengali_next_words(context: &str, right_context: Option<&str>) -> Vec<Str
     } else {
         ngram_results
     }
+}
+
+/// Helper to classify candidate text into semantic CandidateKind
+pub fn classify_candidate(
+    input: &str,
+    cand: &str,
+    index: usize,
+    db: &PhoneticDatabase,
+) -> CandidateKind {
+    let lower = input.to_lowercase();
+    if cand.is_empty() {
+        return CandidateKind::ContextualAi;
+    }
+    // 1. Numeric / currency / digit unit
+    if cand
+        .chars()
+        .any(|c| ('\u{09E6}'..='\u{09EF}').contains(&c) || c.is_ascii_digit())
+        && (cand.contains("টাকা")
+            || cand.contains("টি")
+            || cand.contains("টা")
+            || cand.starts_with('৳')
+            || cand.starts_with('$')
+            || cand
+                .chars()
+                .all(|c| ('\u{09E6}'..='\u{09EF}').contains(&c) || c.is_ascii_digit() || c == '.' || c == ',' || c == ' '))
+    {
+        return CandidateKind::NumericLiteral;
+    }
+    // 2. English / Acronym passthrough
+    if cand.is_ascii() {
+        return CandidateKind::EnglishPassthrough;
+    }
+    // 3. Learned Memory
+    if let Ok(learner) = db.learner.read() {
+        if learner.lookup_input_error(input) == Some(cand)
+            || learner.lookup_input_error(&lower) == Some(cand)
+            || learner.candidate_memory.get(input).map(|s| s.as_str()) == Some(cand)
+            || learner.candidate_memory.get(&lower).map(|s| s.as_str()) == Some(cand)
+            || learner.custom_user_words.contains(cand)
+        {
+            return CandidateKind::LearnedMemory;
+        }
+    }
+    // 4. Deterministic Avro
+    let def = crate::avro::get_avro_parser().convert(input);
+    if !def.is_empty() && cand == def {
+        return CandidateKind::DeterministicAvro;
+    }
+    // 5. Grammar Concordant
+    if !def.is_empty() && lekhani_ai::AnvayaAgreementEngine::is_honorific_shift(&def, cand) {
+        return CandidateKind::GrammarConcordant;
+    }
+    // 6. Typo rescue (heuristic: placed at slot 3)
+    if index == 3 {
+        return CandidateKind::TypoRescue;
+    }
+    // 7. Contextual AI default
+    CandidateKind::ContextualAi
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1108,19 +1198,21 @@ impl AndroidLekhaniSession {
                         let parser = crate::avro::get_avro_parser();
                         parser.convert(&raw)
                     } else {
-                        let words: Vec<&str> = if !state.surrounding_context.is_empty() {
-                            state.surrounding_context.split_whitespace().collect()
+                        let mut words_buf = [""; 16];
+                        let count = if !state.surrounding_context.is_empty() {
+                            get_context_words(&state.surrounding_context, &mut words_buf)
                         } else {
-                            Vec::new()
+                            0
                         };
+                        let words = &words_buf[..count];
                         let (preedit, mut candidates) =
-                            crate::avro::transliterate_avro_with_context(&raw, &words);
+                            crate::avro::transliterate_avro_with_context(&raw, words);
                         let is_fastpath = crate::avro::is_avro_special_fastpath(&raw);
-                        if !is_fastpath && !words.is_empty() && candidates.len() > 1 {
+                        if !is_fastpath && count > 0 && candidates.len() > 1 {
                             let scorer = get_context_scorer();
                             let right_word = state.right_context.split_whitespace().next();
                             scorer.rank_candidates_in_place_bidirectional(
-                                &words,
+                                words,
                                 right_word,
                                 &mut candidates,
                             );
@@ -2447,21 +2539,23 @@ impl AndroidLekhaniSession {
                         cursor_position: len,
                     })
                 } else {
-                    let words: Vec<&str> = if !state.surrounding_context.is_empty() {
-                        state.surrounding_context.split_whitespace().collect()
+                    let mut words_buf = [""; 16];
+                    let count = if !state.surrounding_context.is_empty() {
+                        get_context_words(&state.surrounding_context, &mut words_buf)
                     } else {
-                        Vec::new()
+                        0
                     };
+                    let words = &words_buf[..count];
                     let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(
                         &state.composing_buffer,
-                        &words,
+                        words,
                     );
                     let is_fastpath = crate::avro::is_avro_special_fastpath(&state.composing_buffer);
-                    if !is_fastpath && !words.is_empty() && candidates.len() > 1 {
+                    if !is_fastpath && count > 0 && candidates.len() > 1 {
                         let scorer = get_context_scorer();
                         let right_word = state.right_context.split_whitespace().next();
                         scorer.rank_candidates_in_place_bidirectional(
-                            &words,
+                            words,
                             right_word,
                             &mut candidates,
                         );
@@ -2640,12 +2734,12 @@ impl AndroidLekhaniSession {
                 let is_fastpath = crate::avro::is_avro_special_fastpath(&raw);
                 let chosen = if !is_fastpath && !has_candidate_memory && candidates.len() > 1 {
                     if !context_words.is_empty() {
-                        let scorer = get_context_scorer();
                         let right_word = state.right_context.split_whitespace().next();
-                        candidates = scorer.rank_candidates_bidirectional(
+                        let scorer = get_context_scorer();
+                        scorer.rank_candidates_in_place_bidirectional(
                             &context_words,
                             right_word,
-                            &candidates,
+                            &mut candidates,
                         );
                     }
                     crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
@@ -3045,6 +3139,119 @@ impl AndroidLekhaniSession {
             candidates: Vec::new(),
             cursor_position: 0,
         })
+    }
+
+    /// Returns rich semantic candidate items for the active composing buffer or context.
+    pub fn get_candidate_items(&self) -> Result<Vec<CandidateItem>, LekhaniError> {
+        let state = self
+            .state
+            .lock()
+            .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
+        let input = state.composing_buffer.clone();
+        let db = get_core_database();
+        if input.is_empty() {
+            let next_words = if state.layout == LekhaniLayoutType::English {
+                let words: Vec<&str> = state
+                    .surrounding_context
+                    .split_whitespace()
+                    .filter(|w| w.is_ascii())
+                    .collect();
+                crate::english::get_english_next_words(&words, 5)
+            } else {
+                get_bengali_next_words(&state.surrounding_context, Some(&state.right_context))
+            };
+            return Ok(next_words
+                .into_iter()
+                .enumerate()
+                .map(|(i, w)| CandidateItem {
+                    text: w,
+                    kind: CandidateKind::ContextualAi,
+                    score: 1.0 - (i as f64 * 0.1),
+                    is_primary: i == 0,
+                })
+                .collect());
+        }
+
+        let candidates = match state.layout {
+            LekhaniLayoutType::Avro => {
+                let mut words_buf = [""; 16];
+                let count = if !state.surrounding_context.is_empty() {
+                    get_context_words(&state.surrounding_context, &mut words_buf)
+                } else {
+                    0
+                };
+                let words = &words_buf[..count];
+                let (_, mut cands) = crate::avro::transliterate_avro_with_context(&input, words);
+                let is_fastpath = crate::avro::is_avro_special_fastpath(&input);
+                if !is_fastpath && count > 0 && cands.len() > 1 {
+                    if let Some(right_word) = state.right_context.split_whitespace().next() {
+                        let scorer = get_context_scorer();
+                        scorer.rank_candidates_in_place_bidirectional(
+                            words,
+                            Some(right_word),
+                            &mut cands,
+                        );
+                    }
+                }
+                cands
+            }
+            LekhaniLayoutType::English => crate::english::get_english_candidates(&input, 5),
+            _ => {
+                let prefix_matches = db.trie.find_prefix_entries(&input, 8);
+                let mut cands = vec![input.clone()];
+                for (word, _) in prefix_matches {
+                    if !cands.iter().any(|c| c == word) {
+                        cands.push(word.to_string());
+                    }
+                }
+                cands
+            }
+        };
+
+        let total = candidates.len();
+        let items = candidates
+            .into_iter()
+            .enumerate()
+            .map(|(i, cand)| {
+                let kind = classify_candidate(&input, &cand, i, db);
+                let score = if total <= 1 {
+                    1.0
+                } else {
+                    1.0 - (i as f64 / total as f64) * 0.5
+                };
+                CandidateItem {
+                    text: cand,
+                    kind,
+                    score,
+                    is_primary: i == 0,
+                }
+            })
+            .collect();
+        Ok(items)
+    }
+
+    /// Classifies an arbitrary list of candidate strings against an input token.
+    pub fn classify_candidates(&self, input: String, candidates: Vec<String>) -> Vec<CandidateItem> {
+        let db = get_core_database();
+        let total = candidates.len();
+        candidates
+            .into_iter()
+            .enumerate()
+            .map(|(i, cand)| {
+                let kind = classify_candidate(&input, &cand, i, db);
+                let score = if total <= 1 {
+                    1.0
+                } else {
+                    1.0 - (i as f64 / total as f64) * 0.5
+                };
+                CandidateItem {
+                    text: cand,
+                    kind,
+                    score,
+                    is_primary: i == 0,
+                }
+            })
+            .collect()
     }
 }
 
@@ -4783,6 +4990,26 @@ mod tests {
                 "Honorific shift 'করছেন' must not poison 'koro' transliteration memory"
             );
         }
+    }
+
+    #[test]
+    fn test_candidate_items_semantic_classification() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::Avro);
+
+        for ch in "c^ad".chars() {
+            session.process_key(ch.to_string()).unwrap();
+        }
+
+        let items = session.get_candidate_items().unwrap();
+        assert!(!items.is_empty(), "Must produce candidate items");
+        assert_eq!(items[0].text, "চাঁদ");
+        assert_eq!(items[0].kind, CandidateKind::DeterministicAvro);
+        assert!(items[0].is_primary);
+
+        let custom_items = session.classify_candidates("500tk".into(), vec!["৫০০ টাকা".into(), "500tk".into()]);
+        assert_eq!(custom_items[0].kind, CandidateKind::NumericLiteral);
+        assert_eq!(custom_items[1].kind, CandidateKind::EnglishPassthrough);
     }
 }
 

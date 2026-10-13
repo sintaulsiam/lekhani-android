@@ -133,26 +133,30 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
         };
 
         if has_top_in_overrides {
-            return;
-        } else {
-            for (override_word, score) in overrides {
-                let target_nfc = crate::probaho::nfc_normalize(override_word);
-                if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
-                    let cand = candidates.remove(pos);
-                    candidates.insert(inserted_idx, cand);
-                    inserted_idx += 1;
-                } else if score >= 0.70 {
-                    candidates.insert(inserted_idx, target_nfc.clone());
-                    inserted_idx += 1;
-                } else if !candidates.iter().any(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
-                    if candidates.len() >= 12 {
-                        candidates.pop();
-                    }
-                    candidates.push(target_nfc);
-                }
-            }
-            return;
+            inserted_idx = 1;
         }
+        for (override_word, score) in overrides {
+            let target_nfc = crate::probaho::nfc_normalize(override_word);
+            if has_top_in_overrides
+                && candidates.first().map(|s| crate::probaho::nfc_normalize(s) == target_nfc).unwrap_or(false)
+            {
+                continue;
+            }
+            if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+                let cand = candidates.remove(pos);
+                candidates.insert(inserted_idx.min(candidates.len()), cand);
+                inserted_idx += 1;
+            } else if score >= 0.70 {
+                candidates.insert(inserted_idx.min(candidates.len()), target_nfc.clone());
+                inserted_idx += 1;
+            } else if !candidates.iter().any(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+                if candidates.len() >= 12 {
+                    candidates.pop();
+                }
+                candidates.push(target_nfc);
+            }
+        }
+        return;
     }
 
     // 3. Check phonetic variant equivalences (geminates, S-class, Sanskrit initial vowels, compound Reph)
@@ -1106,33 +1110,17 @@ pub fn is_avro_special_fastpath(input: &str) -> bool {
         || resolve_generative_morphology(input).is_some()
 }
 
-/// Transliterates Romanized ASCII text to Bengali script using `lekhani-core`'s
-/// production PhoneticSuggestion engine, bilingual loanwords, and Avro Trie parser.
-///
-/// Returns (primary_transliteration, list_of_candidates).
-pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String, Vec<String>) {
-    if input.is_empty() {
-        return (String::new(), Vec::new());
-    }
+// ──────────────────────────────────────────────────────────────────────────────
+// Transliteration Pipeline Stages (Modular & Decomposed)
+// ──────────────────────────────────────────────────────────────────────────────
 
-    // Soft apostrophe escape: mobile users type ' as a consonant/vowel separator (e.g. k'kh -> k`kh -> কখ)
-    let escaped_storage: String;
-    let effective_input = if input.contains('\'') {
-        escaped_storage = input.replace('\'', "`");
-        escaped_storage.as_str()
-    } else {
-        input
-    };
-    let input = effective_input;
-
-    let lower = input.to_lowercase();
-    let db = crate::session::get_core_database();
-
-    let is_explicit_common = has_override_word(input) || has_override_word(&lower);
-
-    // -1. User-defined explicit autocorrect / shortcut rules
+fn stage_user_autocorrect(
+    input: &str,
+    lower: &str,
+    db: &lekhani_core::phonetic::PhoneticDatabase,
+) -> Option<(String, Vec<String>)> {
     if let Ok(uac) = db.user_autocorrect.read() {
-        if let Some(replacement) = uac.get(input).or_else(|| uac.get(&lower)) {
+        if let Some(replacement) = uac.get(input).or_else(|| uac.get(lower)) {
             let primary = replacement.clone();
             let mut candidates = vec![primary.clone()];
             let parser = get_avro_parser();
@@ -1141,29 +1129,34 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 candidates.push(def);
             }
             append_prefix_matches(input, &primary, &mut candidates);
-            return (primary, candidates);
+            return Some((primary, candidates));
         }
     }
+    None
+}
 
-    // Fast-path 1: Social media mentions (@username) and hashtags (#tag)
+fn stage_social_mentions(input: &str) -> Option<(String, Vec<String>)> {
     if let Some((primary, mut candidates)) = resolve_social_mention_or_hashtag(input) {
         let def_pure = get_avro_parser().convert(input);
         if !def_pure.is_empty() && !candidates.contains(&def_pure) {
             candidates.push(def_pure);
         }
-        return (primary, candidates);
+        return Some((primary, candidates));
     }
+    None
+}
 
+fn stage_digit_units_and_numbers(input: &str) -> Option<(String, Vec<String>)> {
     // Fast-path 2: Digit units, quantifiers, currency, and ordinals (e.g. 10ta -> ১০টা, 500tk -> ৫০০ টাকা, 1st -> ১ম)
     if let Some((primary, mut candidates)) = resolve_digit_unit_candidates(input) {
         let def_pure = get_avro_parser().convert(input);
         if !def_pure.is_empty() && !candidates.contains(&def_pure) {
             candidates.push(def_pure);
         }
-        return (primary, candidates);
+        return Some((primary, candidates));
     }
 
-    // Fast-path 2b: Pure numeric literals and decimal/comma numbers (e.g. "12486" -> "১২৪৮৬", "8.4" -> "৮.৪", "৩.১৪" -> "৩.১৪")
+    // Fast-path 2b: Pure numeric literals and decimal/comma numbers (e.g. "12486" -> "১২৪৮৬", "8.4" -> "৮.৪")
     if !input.is_empty()
         && input.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ',')
         && input.chars().any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c))
@@ -1175,17 +1168,20 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         } else {
             vec![b_num.clone(), a_num]
         };
-        return (b_num, candidates);
+        return Some((b_num, candidates));
     }
 
-    // Fast-path 3: Bilingual hyphen & unhyphenated clitics (disabled by default)
+    None
+}
+
+fn stage_bilingual_clitics(input: &str) -> Option<(String, Vec<String>)> {
     if is_bilingual_clitic_enabled() {
         if let Some((primary, mut candidates)) = resolve_bilingual_hyphen_clitic(input) {
             let def_pure = get_avro_parser().convert(input);
             if !def_pure.is_empty() && !candidates.contains(&def_pure) {
                 candidates.push(def_pure);
             }
-            return (primary, candidates);
+            return Some((primary, candidates));
         }
 
         if let Some((primary, mut candidates)) = resolve_unhyphenated_bilingual_clitic(input) {
@@ -1193,26 +1189,28 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             if !def_pure.is_empty() && !candidates.contains(&def_pure) {
                 candidates.push(def_pure);
             }
-            return (primary, candidates);
+            return Some((primary, candidates));
         }
     }
+    None
+}
 
+fn stage_explicit_avro_intent(
+    input: &str,
+    lower: &str,
+    db: &lekhani_core::phonetic::PhoneticDatabase,
+) -> Option<(String, Vec<String>)> {
     // Fast-path 3b: Explicit Avro Grammar & Intent Fast-Path
-    // When the user deliberately types explicit Avro operator syntax (^, `, ', $, .., ,, :),
-    // invariant digraphs (rri), or mid-word case distinctions (OIUDGJNRSTYZ),
-    // immediately execute deterministic Avro transliteration, unconditionally lock Slot 0,
-    // and completely bypass AI homophone ranking, morphological mutation, English passthrough,
-    // and learner candidate memory.
     if has_explicit_avro_intent(input) {
         let parser = get_avro_parser();
         let def = parser.convert(input);
         if !def.is_empty() {
             let mut candidates = vec![def.clone()];
-            let lower_def = parser.convert(&lower);
+            let lower_def = parser.convert(lower);
             if !lower_def.is_empty() && lower_def != def && !candidates.contains(&lower_def) {
                 candidates.push(lower_def);
             }
-            if let Some(cands) = db.lookup_override(&lower) {
+            if let Some(cands) = db.lookup_override(lower) {
                 for (w, _) in cands {
                     let w_str = w.to_string();
                     if !candidates.contains(&w_str) {
@@ -1223,186 +1221,134 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             if !candidates.iter().any(|c| c.eq_ignore_ascii_case(input)) {
                 candidates.push(input.to_string());
             }
-            return (def, candidates);
+            return Some((def, candidates));
         }
     }
+    None
+}
 
-    // Fast-path 4: Generative Morphology & Dialectal Verb Conjugations
+fn stage_generative_morphology(input: &str) -> Option<(String, Vec<String>)> {
     if let Some((primary, mut candidates)) = resolve_generative_morphology(input) {
         let def_pure = get_avro_parser().convert(input);
         if !def_pure.is_empty() && !candidates.contains(&def_pure) {
             candidates.push(def_pure);
         }
-        return (primary, candidates);
+        return Some((primary, candidates));
+    }
+    None
+}
+
+fn stage_short_input_phonetic(
+    input: &str,
+    lower: &str,
+    def: &str,
+    db: &lekhani_core::phonetic::PhoneticDatabase,
+) -> (String, Vec<String>) {
+    let mut short_candidates = Vec::with_capacity(12);
+
+    // 1. Direct phonetic transliteration is always the primary preedit for short inputs
+    let primary = def.to_string();
+    short_candidates.push(primary.clone());
+
+    // 2a. Short English words, digits & Latin escape hatch (e.g. "ok", "hi", "fb", "id", "to", "no")
+    let is_passthrough = (crate::english::is_recognized_english_word(input)
+        && !short_candidates
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(input)))
+        || (input.chars().all(|c| c.is_ascii_digit())
+            && !short_candidates.contains(&input.to_string()));
+    if is_passthrough {
+        short_candidates.insert(1.min(short_candidates.len()), input.to_string());
     }
 
-    // 0. User candidate override memory (strictly for inputs > 2 characters)
-    let is_short_input = input.chars().count() <= 2;
-    let mut candidate_memory = HashMap::new();
-    let mut remembered_choice: Option<String> = None;
-    if !is_short_input {
-        if let Ok(learner) = db.learner.read() {
-            if let Some(error_override) = learner
-                .lookup_input_error(input)
-                .or_else(|| learner.lookup_input_error(&lower))
-            {
-                candidate_memory.insert(input.to_string(), error_override.to_string());
-                remembered_choice = Some(error_override.to_string());
-            } else if let Some(user_choice) = learner
-                .candidate_memory
-                .get(input)
-                .or_else(|| learner.candidate_memory.get(&lower))
-            {
-                candidate_memory.insert(input.to_string(), user_choice.clone());
-                remembered_choice = Some(user_choice.clone());
+    // 2. Shorthand & Common Contractions (offered as secondary suggestions)
+    if let Some(words) = get_override_words(input).or_else(|| get_override_words(lower)) {
+        for w in words {
+            if !short_candidates.contains(&w) {
+                short_candidates.push(w);
             }
         }
     }
-
-    // -1b. Bundled system autocorrect (only if no user choice override and not an explicit common word)
-    let mut autocorrect_replacement: Option<String> = None;
-    if remembered_choice.is_none() && !is_explicit_common {
-        if let Some(replacement) = db
-            .autocorrect
-            .get(input)
-            .or_else(|| db.autocorrect.get(&lower))
-        {
-            autocorrect_replacement = Some(replacement.clone());
+    if let Some(shorthand) = db.shorthand.get(input).or_else(|| db.shorthand.get(lower)) {
+        if !short_candidates.iter().any(|c| c == shorthand) {
+            short_candidates.push(shorthand.clone());
         }
     }
 
-    let parser = get_avro_parser();
-    let def = parser.convert(input);
-
-    // For short inputs (1 or 2 characters), guarantee pure phonetic preedit fidelity
-    // so in-flight typing does not abruptly jump to multi-syllable shorthand words (e.g. "kn" -> "কেন")
-    // and never gets hijacked by candidate taps (e.g. "oi" -> "ঐ" vs "ওই").
-    // Shorthand and high-frequency completions are offered as candidate strip suggestions.
-    if is_short_input {
-        let mut short_candidates = Vec::with_capacity(12);
-
-        // 1. Direct phonetic transliteration is always the primary preedit for short inputs
-        let primary = def.clone();
-        short_candidates.push(primary.clone());
-
-        // 2a. Short English words, digits & Latin escape hatch (e.g. "ok", "hi", "fb", "id", "to", "no")
-        let is_passthrough = (crate::english::is_recognized_english_word(input)
-            && !short_candidates
-                .iter()
-                .any(|c| c.eq_ignore_ascii_case(input)))
-            || (input.chars().all(|c| c.is_ascii_digit())
-                && !short_candidates.contains(&input.to_string()));
-        if is_passthrough {
-            short_candidates.insert(1.min(short_candidates.len()), input.to_string());
-        }
-
-        // 2. Shorthand & Common Contractions (offered as secondary suggestions)
-        if let Some(words) = get_override_words(input)
-            .or_else(|| get_override_words(&lower))
-        {
-            for w in words {
-                if !short_candidates.contains(&w) {
-                    short_candidates.push(w);
-                }
-            }
-        }
-        if let Some(shorthand) = db.shorthand.get(input).or_else(|| db.shorthand.get(&lower)) {
-            if !short_candidates.iter().any(|c| c == shorthand) {
-                short_candidates.push(shorthand.clone());
-            }
-        }
-
-        // Common word prefixes sorted by confidence score descending, then length ascending
-        let max_len = if lower.len() == 1 { 3 } else { 6 };
-        let mut prefix_entries = db.lookup_override_prefix(&lower, max_len, 256);
-        prefix_entries.sort_by(|a, b| {
-            let score_a = a.1.first().map(|(_, s)| s).unwrap_or(0.0);
-            let score_b = b.1.first().map(|(_, s)| s).unwrap_or(0.0);
-            score_b
-                .partial_cmp(&score_a)
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| a.0.len().cmp(&b.0.len()))
-        });
-        for (_, entry) in prefix_entries {
-            for (w, score) in entry {
-                if score >= 0.90 && !short_candidates.iter().any(|c| c == w) {
-                    short_candidates.push(w.to_string());
-                }
-                if short_candidates.len() >= 8 {
-                    break;
-                }
+    // Common word prefixes sorted by confidence score descending, then length ascending
+    let max_len = if lower.len() == 1 { 3 } else { 6 };
+    let mut prefix_entries = db.lookup_override_prefix(lower, max_len, 256);
+    prefix_entries.sort_by(|a, b| {
+        let score_a = a.1.first().map(|(_, s)| s).unwrap_or(0.0);
+        let score_b = b.1.first().map(|(_, s)| s).unwrap_or(0.0);
+        score_b
+            .partial_cmp(&score_a)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.0.len().cmp(&b.0.len()))
+    });
+    for (_, entry) in prefix_entries {
+        for (w, score) in entry {
+            if score >= 0.90 && !short_candidates.iter().any(|c| c == w) {
+                short_candidates.push(w.to_string());
             }
             if short_candidates.len() >= 8 {
                 break;
             }
         }
+        if short_candidates.len() >= 8 {
+            break;
+        }
+    }
 
-        // Common word prefixes sorted by frequency
-        if short_candidates.len() < 8 {
-            for p in db.search_dictionary(&primary, 8 - short_candidates.len()) {
-                if !short_candidates.contains(&p) {
-                    short_candidates.push(p);
-                }
+    // Common word prefixes sorted by frequency
+    if short_candidates.len() < 8 {
+        for p in db.search_dictionary(&primary, 8 - short_candidates.len()) {
+            if !short_candidates.contains(&p) {
+                short_candidates.push(p);
             }
         }
+    }
 
-        // 3. High-frequency natural completions from CORE_BENGALI_FREQUENCIES
-        let freq_completions = get_frequency_completions(&primary, 8);
-        for word in freq_completions {
-            if !short_candidates.iter().any(|c| c == &word) {
-                short_candidates.push(word);
+    // 3. High-frequency natural completions from CORE_BENGALI_FREQUENCIES
+    let freq_completions = get_frequency_completions(&primary, 8);
+    for word in freq_completions {
+        if !short_candidates.iter().any(|c| c == &word) {
+            short_candidates.push(word);
+        }
+        if short_candidates.len() >= 8 {
+            break;
+        }
+    }
+
+    // 4. Custom User Words
+    if let Ok(learner) = db.learner.read() {
+        for w in &learner.custom_user_words {
+            if w.starts_with(&primary) && !short_candidates.iter().any(|c| c == w) {
+                short_candidates.push(w.clone());
             }
             if short_candidates.len() >= 8 {
                 break;
             }
         }
-
-        // 4. Custom User Words
-        if let Ok(learner) = db.learner.read() {
-            for w in &learner.custom_user_words {
-                if w.starts_with(&primary) && !short_candidates.iter().any(|c| c == w) {
-                    short_candidates.push(w.clone());
-                }
-                if short_candidates.len() >= 8 {
-                    break;
-                }
-            }
-        }
-
-        // Ensure def is present
-        if !short_candidates.iter().any(|c| c == &def) {
-            short_candidates.push(def);
-        }
-
-        return (primary, short_candidates);
     }
 
-    // 1. Upstream PhoneticSuggestion Engine:
-    // Performs Chandra Bindu normalization ("c^ad" -> "চাঁদ"),
-    // Sanskrit and sound-law conjuncts ("sotyo" -> "সত্য", "mrittu" -> "মৃত্যু", "shuryo" -> "সূর্য"),
-    // vowel/kar normalization ("dure" -> "দূরে", "tomake" -> "তোমাকে", "boiti" -> "বইটি"),
-    // loanwords ("shirt" -> "শার্ট", "password" -> "পাসওয়ার্ড"),
-    // and statistical context ranking.
-    let sugg_mutex = crate::session::get_phonetic_suggestion();
-    let (mut candidates, mut selected_idx) = {
-        let mut sugg = match sugg_mutex.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        sugg.suggest_with_multi_context(input, context, false, true, &candidate_memory)
-    };
-
-    if candidates.is_empty() {
-        let parser = get_avro_parser();
-        let def = parser.convert(input);
-        candidates.push(def);
+    // Ensure def is present
+    if !short_candidates.iter().any(|c| c == def) {
+        short_candidates.push(def.to_string());
     }
 
-    // 1. Verbatim Latin Escape Hatch: If the input is ASCII and >= 2 characters,
-    // always surface the exact typed string in the candidate strip.
-    // Acronyms (e.g. API, JSON, UI, CGPA) and English words without established Bengali loanwords
-    // (e.g. asynchronous, deployment, postpone, validate, reproduce, bug, fix, perfect)
-    // are promoted directly to Slot 0 so code-switching typists don't suffer mangled nonsense syllables.
+    (primary, short_candidates)
+}
+
+fn apply_verbatim_and_english_promotion(
+    input: &str,
+    lower: &str,
+    def_conv: &str,
+    is_explicit_common: bool,
+    candidates: &mut Vec<String>,
+    selected_idx: &mut usize,
+    db: &lekhani_core::phonetic::PhoneticDatabase,
+) {
     let is_verbatim_candidate_needed = input.is_ascii()
         && input.len() >= 2
         && !candidates.iter().any(|c| c.eq_ignore_ascii_case(input));
@@ -1413,25 +1359,24 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             .chars()
             .all(|c| c.is_ascii_uppercase() || !c.is_alphabetic());
     let is_recognized_english = crate::english::is_recognized_english_word(input);
-    let def_conv = get_avro_parser().convert(input);
-    let def_lower_conv = get_avro_parser().convert(&lower);
-    let is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
+    let def_lower_conv = get_avro_parser().convert(lower);
+    let is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(def_conv))
         || (!def_lower_conv.is_empty() && db.is_exact_dictionary_word(&def_lower_conv));
 
     let has_established_loanword = is_explicit_common
         || is_bengali_dict_word
         || db.lookup_override(input).is_some()
-        || db.lookup_override(&lower).is_some()
-        || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
+        || db.lookup_override(lower).is_some()
+        || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(lower).is_some();
 
     let is_all_caps_acronym = is_common_tech_acronym(input)
-        || (is_all_caps && !has_override_word(&lower));
+        || (is_all_caps && !has_override_word(lower));
     let can_promote_english_slot0 = !has_explicit_avro_intent(input)
         && (is_all_caps_acronym
             || (is_recognized_english
                 && !has_established_loanword
                 && (input.len() >= 4
-                    || (crate::english::STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str())
+                    || (crate::english::STATIC_SHORT_ENGLISH_WORDS.contains(&lower)
                         && !def_conv.contains('্')))));
 
     if can_promote_english_slot0 {
@@ -1439,51 +1384,21 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             candidates.remove(pos);
         }
         candidates.insert(0, input.to_string());
-        selected_idx = 0;
+        *selected_idx = 0;
     } else if is_verbatim_candidate_needed {
         let insert_pos = candidates.len().min(1);
         candidates.insert(insert_pos, input.to_string());
     }
+}
 
-    // 2. Pure Literal Avro Conversion: Ensure the deterministic rule-based Avro parser output
-    // is always available within the top candidates so typists can bypass AI homophone ranking if desired.
-    let def_pure = get_avro_parser().convert(input);
-    if !def_pure.is_empty() && !candidates.iter().any(|c| c == &def_pure) {
-        let insert_pos = candidates.len().min(2);
-        candidates.insert(insert_pos, def_pure);
-    }
-
-    // Digits / Currency Symbols dual candidate surfacing (e.g. "1234" -> ["১২৩৪", "1234"], "$100" -> ["৳১০০", "$100"])
-    let is_numeric_or_currency =
-        input.chars().all(|c| c.is_ascii_digit()) || input.starts_with('$');
-    if is_numeric_or_currency && !candidates.iter().any(|c| c == input) {
-        let insert_pos = candidates.len().min(1);
-        candidates.insert(insert_pos, input.to_string());
-    }
-
-    // Apply deferred bundled system autocorrect if active
-    if let Some(ref replacement) = autocorrect_replacement {
-        if let Some(pos) = candidates.iter().position(|c| c == replacement) {
-            candidates.remove(pos);
-        }
-        candidates.insert(0, replacement.clone());
-        selected_idx = 0;
-    }
-
-    // 2. Ensure core common words are prioritized at the top of candidate list,
-    // while preserving Anvaya concordant verb if an active honorific agreement exists.
-    let anvaya_state = lekhani_ai::AnvayaAgreementEngine::extract_state(context);
-    let concordant_cand = if anvaya_state.honorific_tier != lekhani_ai::HonorificRegister::Neutral {
-        lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(input, anvaya_state.honorific_tier)
-            .or_else(|| lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(&lower, anvaya_state.honorific_tier))
-    } else {
-        None
-    };
-
-    let is_explicit_common = has_override_word(input) || has_override_word(&lower);
-    if let Some(words) = get_override_words(input)
-        .or_else(|| get_override_words(&lower))
-    {
+fn apply_anvaya_and_overrides(
+    input: &str,
+    lower: &str,
+    concordant_cand: Option<&str>,
+    candidates: &mut Vec<String>,
+    selected_idx: &mut usize,
+) {
+    if let Some(words) = get_override_words(input).or_else(|| get_override_words(lower)) {
         let start_idx = if let Some(concordant) = concordant_cand {
             let conc_nfc = crate::probaho::nfc_normalize(concordant);
             if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == conc_nfc) {
@@ -1503,8 +1418,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             }
             candidates.insert((start_idx + i).min(candidates.len()), w);
         }
-        selected_idx = 0;
-    } else if let Some(ref collapsed) = collapse_elongation(&lower) {
+        *selected_idx = 0;
+    } else if let Some(ref collapsed) = collapse_elongation(lower) {
         let words = get_override_words(collapsed.as_str());
 
         if let Some(words) = words {
@@ -1514,7 +1429,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 }
                 candidates.insert(i.min(candidates.len()), w);
             }
-            selected_idx = 0;
+            *selected_idx = 0;
         } else if let Some((bn_loan, _)) =
             lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(collapsed)
         {
@@ -1523,12 +1438,20 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
                 candidates.remove(pos);
             }
             candidates.insert(0, ws);
-            selected_idx = 0;
+            *selected_idx = 0;
         }
     }
+}
 
-    // 2b. If the user explicitly typed an inflection ending in 'bo' or 'cho' (e.g. khabo -> খাবো, korcho -> করছো),
-    // prioritize the matching 'ো'-inflected form from candidates (unless explicitly ordered in phonetic overrides)
+fn apply_inflections_and_geminates(
+    lower: &str,
+    def: &str,
+    is_explicit_common: bool,
+    concordant_cand: Option<&str>,
+    candidates: &mut Vec<String>,
+    selected_idx: &mut usize,
+) {
+    // 2b. If the user explicitly typed an inflection ending in 'bo' or 'cho', prioritize matching 'ো'-inflected form
     if !is_explicit_common
         && (lower.ends_with("bo") || lower.ends_with("cho"))
         && !candidates.is_empty()
@@ -1536,13 +1459,13 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         if let Some(pos) = candidates.iter().position(|c| c.ends_with('ো')) {
             let o_cand = candidates.remove(pos);
             candidates.insert(0, o_cand);
-            selected_idx = 0;
+            *selected_idx = 0;
         } else if def.ends_with('ো') {
-            if let Some(pos) = candidates.iter().position(|c| c == &def) {
+            if let Some(pos) = candidates.iter().position(|c| c == def) {
                 candidates.remove(pos);
             }
-            candidates.insert(0, def.clone());
-            selected_idx = 0;
+            candidates.insert(0, def.to_string());
+            *selected_idx = 0;
         }
     }
 
@@ -1560,8 +1483,8 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         || lower.contains("jj")
         || lower.contains("gg");
 
-    if !def.is_empty() && candidates.first() != Some(&def) {
-        if let Some(pos) = candidates.iter().position(|c| c == &def) {
+    if !def.is_empty() && candidates.first().map(|s| s.as_str()) != Some(def) {
+        if let Some(pos) = candidates.iter().position(|c| c == def) {
             candidates.remove(pos);
         }
         let is_aspirated_geminate_mismatch = (lower.contains("cch") && def.contains("চ্ছ") && candidates.first().map(|c| c.contains("চ্চ") && !c.contains("চ্ছ")).unwrap_or(false))
@@ -1577,9 +1500,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             }).unwrap_or(false));
 
         let target_idx = if is_collapsed_geminate { 0 } else { 1.min(candidates.len()) };
-        candidates.insert(target_idx, def.clone());
+        candidates.insert(target_idx, def.to_string());
         if is_collapsed_geminate {
-            selected_idx = 0;
+            *selected_idx = 0;
         }
     }
 
@@ -1597,96 +1520,110 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             candidates.insert(1.min(candidates.len()), conc_nfc);
         }
     }
+}
 
-    // 2d. Exact case-sensitivity fidelity, All-Caps normalization & Sentence-initial Titlecase smart promotion:
+fn apply_case_fidelity(
+    input: &str,
+    lower: &str,
+    def: &str,
+    db: &lekhani_core::phonetic::PhoneticDatabase,
+    candidates: &mut Vec<String>,
+    selected_idx: &mut usize,
+) {
+    let parser = get_avro_parser();
     let has_explicit_avro_case = input
         .chars()
         .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
     let has_explicit_intent = has_explicit_avro_intent(input);
     let is_all_caps = input.chars().count() >= 2 && input.chars().all(|c| c.is_ascii_uppercase());
     if is_all_caps {
-        let is_common_bengali_all_caps = !is_common_tech_acronym(input) && has_override_word(&lower);
+        let is_common_bengali_all_caps = !is_common_tech_acronym(input) && has_override_word(lower);
         if is_common_bengali_all_caps {
-            // All-Caps Bengali input (e.g. "AMI", "TUMI", "DESH"):
-            let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
+            let resolved_lower = if let Some(ac) = db.autocorrect.get(lower) {
                 ac.clone()
-            } else if let Some(words) = get_override_words(&lower) {
+            } else if let Some(words) = get_override_words(lower) {
                 words.into_iter().next().unwrap_or_default()
             } else {
-                parser.convert(&lower)
+                parser.convert(lower)
             };
             if !resolved_lower.is_empty() {
                 if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
                     candidates.remove(pos);
                 }
                 candidates.insert(0, resolved_lower);
-                if !def.is_empty() && !candidates.contains(&def) {
-                    candidates.insert(1.min(candidates.len()), def.clone());
+                if !def.is_empty() && !candidates.iter().any(|c| c == def) {
+                    candidates.insert(1.min(candidates.len()), def.to_string());
                 }
-                selected_idx = 0;
+                *selected_idx = 0;
             }
         } else {
-            // Technical or English Acronym (e.g. "CER", "WER", "RFC", "API", "JSON", "LLM", "NaN"):
             if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
                 candidates.remove(pos);
             }
             candidates.insert(0, input.to_string());
-            selected_idx = 0;
+            *selected_idx = 0;
         }
     } else if (has_explicit_avro_case || has_explicit_intent) && !def.is_empty() {
         let is_titlecase = !has_explicit_intent
             && input.chars().next().is_some_and(|c| c.is_ascii_uppercase())
             && input.chars().skip(1).all(|c| c.is_ascii_lowercase());
 
-        let resolved_lower = if let Some(ac) = db.autocorrect.get(&lower) {
+        let resolved_lower = if let Some(ac) = db.autocorrect.get(lower) {
             ac.clone()
-        } else if let Some(words) = get_override_words(&lower) {
+        } else if let Some(words) = get_override_words(lower) {
             words.into_iter().next().unwrap_or_default()
         } else {
-            parser.convert(&lower)
+            parser.convert(lower)
         };
 
         if is_titlecase {
-            // For sentence-initial titlecase (e.g. "Din" -> দিন vs ডিন, "Tara" -> তারা vs টারা):
-            // Check if the lowercase variant is a common word or much higher frequency.
-            let is_common_lower = has_override_word(&lower);
+            let is_common_lower = has_override_word(lower);
             let freq_lower = get_word_frequency(resolved_lower.as_str());
-            let freq_def = get_word_frequency(def.as_str());
+            let freq_def = get_word_frequency(def);
 
             if is_common_lower
                 || freq_lower >= freq_def * 3
-                || (!db.is_exact_dictionary_word(&def)
+                || (!db.is_exact_dictionary_word(def)
                     && db.is_exact_dictionary_word(&resolved_lower))
             {
                 if let Some(pos) = candidates.iter().position(|c| c == &resolved_lower) {
                     candidates.remove(pos);
                 }
                 candidates.insert(0, resolved_lower);
-                if !candidates.iter().any(|c| c == &def) {
-                    candidates.insert(1.min(candidates.len()), def.clone());
+                if !candidates.iter().any(|c| c == def) {
+                    candidates.insert(1.min(candidates.len()), def.to_string());
                 }
-                selected_idx = 0;
+                *selected_idx = 0;
             } else {
-                if let Some(pos) = candidates.iter().position(|c| c == &def) {
+                if let Some(pos) = candidates.iter().position(|c| c == def) {
                     candidates.remove(pos);
                 }
-                candidates.insert(0, def.clone());
-                selected_idx = 0;
+                candidates.insert(0, def.to_string());
+                *selected_idx = 0;
             }
         } else {
-            if let Some(pos) = candidates.iter().position(|c| c == &def) {
+            if let Some(pos) = candidates.iter().position(|c| c == def) {
                 candidates.remove(pos);
             }
-            candidates.insert(0, def.clone());
-            selected_idx = 0;
+            candidates.insert(0, def.to_string());
+            *selected_idx = 0;
         }
     }
+}
 
-    // 3. QWERTY adjacency & transposition auto-correction for fat-finger typos on touchscreen
+fn apply_typo_corrections(
+    input: &str,
+    lower: &str,
+    def: &str,
+    is_explicit_common: bool,
+    candidates: &mut Vec<String>,
+    db: &lekhani_core::phonetic::PhoneticDatabase,
+) {
+    let parser = get_avro_parser();
     let mut common_typos: Vec<(String, f32)> = Vec::new();
     let mut dict_typos: Vec<String> = Vec::new();
     let is_exact_match = is_explicit_common
-        || (db.is_exact_dictionary_word(&def) && db.get_frequency(&def) >= 1000);
+        || (db.is_exact_dictionary_word(def) && db.get_frequency(def) >= 1000);
     if !is_exact_match && lower.len() >= 3 && lower.len() <= 8 {
         let chars: Vec<char> = lower.chars().collect();
         for (i, &ch) in chars.iter().enumerate() {
@@ -1753,9 +1690,6 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     typo_corrections.extend(dict_typos);
 
     // 3c. Implicit Chandra Bindu (nasalization) auto-inference:
-    // On mobile keyboards, '^' is buried in symbol sub-layers.
-    // When users type unnasalized Latin forms (e.g. "chad", "bash", "pac", "dat", "has", "kada", "faka", "badha"),
-    // synthesize the nasalized dictionary counterpart ("চাঁদ", "বাঁশ", "পাঁচ", "দাঁত", "হাঁস", "কাঁদা", "ফাঁকা", "বাঁধা").
     if !input.contains('^') && lower.len() >= 3 && lower.len() <= 8 {
         let chars: Vec<char> = lower.chars().collect();
         for (i, &ch) in chars.iter().enumerate() {
@@ -1812,6 +1746,151 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
             candidates.push(corr);
         }
     }
+}
+
+fn extract_typo_rescue_slot3(candidates: &mut Vec<String>) {
+    let slot1 = candidates.get(1).cloned();
+    let typo_rescue: Option<String> = candidates
+        .iter()
+        .skip(3)
+        .find(|c| {
+            let c_chars: Vec<char> = c.chars().collect();
+            let is_bengali = c_chars
+                .iter()
+                .any(|ch| ('\u{0980}'..='\u{09FF}').contains(ch));
+            let differs_from_slot1 = slot1
+                .as_deref()
+                .map(|s| edit_distance(s, c) > 1)
+                .unwrap_or(true);
+            is_bengali && differs_from_slot1
+        })
+        .cloned();
+
+    if let Some(rescue) = typo_rescue {
+        if let Some(pos) = candidates.iter().position(|c| c == &rescue) {
+            candidates.remove(pos);
+        }
+        let target = 3.min(candidates.len());
+        candidates.insert(target, rescue);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn stage_phonetic_engine(
+    input: &str,
+    context: &[&str],
+    lower: &str,
+    def: &str,
+    db: &lekhani_core::phonetic::PhoneticDatabase,
+    remembered_choice: Option<String>,
+    autocorrect_replacement: Option<String>,
+    is_explicit_common: bool,
+) -> (String, Vec<String>) {
+    let mut candidate_memory = HashMap::new();
+    if let Some(ref choice) = remembered_choice {
+        candidate_memory.insert(input.to_string(), choice.clone());
+    }
+
+    let sugg_mutex = crate::session::get_phonetic_suggestion();
+    let (mut candidates, mut selected_idx) = {
+        let mut sugg = match sugg_mutex.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        sugg.suggest_with_multi_context(input, context, false, true, &candidate_memory)
+    };
+
+    if candidates.is_empty() {
+        candidates.push(def.to_string());
+    }
+
+    // 1. Verbatim Latin escape hatch & English/acronym promotion
+    apply_verbatim_and_english_promotion(
+        input,
+        lower,
+        def,
+        is_explicit_common,
+        &mut candidates,
+        &mut selected_idx,
+        db,
+    );
+
+    // 2. Pure literal Avro conversion retention
+    if !def.is_empty() && !candidates.iter().any(|c| c == def) {
+        let insert_pos = candidates.len().min(2);
+        candidates.insert(insert_pos, def.to_string());
+    }
+
+    // Digits / Currency Symbols dual candidate surfacing
+    let is_numeric_or_currency =
+        input.chars().all(|c| c.is_ascii_digit()) || input.starts_with('$');
+    if is_numeric_or_currency && !candidates.iter().any(|c| c == input) {
+        let insert_pos = candidates.len().min(1);
+        candidates.insert(insert_pos, input.to_string());
+    }
+
+    // Apply deferred bundled system autocorrect if active
+    if let Some(ref replacement) = autocorrect_replacement {
+        if let Some(pos) = candidates.iter().position(|c| c == replacement) {
+            candidates.remove(pos);
+        }
+        candidates.insert(0, replacement.clone());
+        selected_idx = 0;
+    }
+
+    // Anvaya concordant verb
+    let anvaya_state = lekhani_ai::AnvayaAgreementEngine::extract_state(context);
+    let concordant_cand = if anvaya_state.honorific_tier != lekhani_ai::HonorificRegister::Neutral {
+        lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(input, anvaya_state.honorific_tier)
+            .or_else(|| lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(lower, anvaya_state.honorific_tier))
+    } else {
+        None
+    };
+
+    // Sub-stage: Anvaya & overrides / elongation collapse
+    apply_anvaya_and_overrides(
+        input,
+        lower,
+        concordant_cand,
+        &mut candidates,
+        &mut selected_idx,
+    );
+
+    // Sub-stage: bo/cho inflections & geminates
+    apply_inflections_and_geminates(
+        lower,
+        def,
+        is_explicit_common,
+        concordant_cand,
+        &mut candidates,
+        &mut selected_idx,
+    );
+
+    // Sub-stage: Case fidelity & all-caps/title-case
+    apply_case_fidelity(
+        input,
+        lower,
+        def,
+        db,
+        &mut candidates,
+        &mut selected_idx,
+    );
+
+    // Sub-stage: Typo corrections & implicit Chandra Bindu
+    apply_typo_corrections(
+        input,
+        lower,
+        def,
+        is_explicit_common,
+        &mut candidates,
+        db,
+    );
+
+    // Primary selection
+    let has_explicit_avro_case = input
+        .chars()
+        .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
+    let has_explicit_intent = has_explicit_avro_intent(input);
 
     let primary = if let Some(ref choice) = remembered_choice {
         if !has_explicit_intent && !has_explicit_avro_case {
@@ -1836,43 +1915,9 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     };
 
     // Slot 3: Typo rescue extraction
-    // If the user has a typo correction candidate (from spatial proximity or error-pattern learning)
-    // and it differs meaningfully from Slot 1 (the primary AI pick), surface it explicitly.
-    // This ensures mistyped inputs always show at least one recovery option.
-    {
-        let slot1 = candidates.get(1).cloned();
-        // Find the first candidate that originated from a TypoFallback source
-        // by checking if it differs from slot0 and slot1 by edit distance > 1.
-        // We do this heuristically: candidates after the first 3 positions that are Bengali
-        // and not identical to candidates[0..3] are rescue candidates.
-        let typo_rescue: Option<String> = candidates
-            .iter()
-            .skip(3)
-            .find(|c| {
-                let c_chars: Vec<char> = c.chars().collect();
-                // Must be Bengali (not ASCII) and differ meaningfully from slot 1
-                let is_bengali = c_chars
-                    .iter()
-                    .any(|ch| ('\u{0980}'..='\u{09FF}').contains(ch));
-                let differs_from_slot1 = slot1
-                    .as_deref()
-                    .map(|s| edit_distance(s, c) > 1)
-                    .unwrap_or(true);
-                is_bengali && differs_from_slot1
-            })
-            .cloned();
+    extract_typo_rescue_slot3(&mut candidates);
 
-        if let Some(rescue) = typo_rescue {
-            // Remove from its current position and place at index 3
-            if let Some(pos) = candidates.iter().position(|c| c == &rescue) {
-                candidates.remove(pos);
-            }
-            let target = 3.min(candidates.len());
-            candidates.insert(target, rescue);
-        }
-    }
-
-    // 4. Core database PrefixTrie lookup to expand matching vocabulary
+    // Prefix trie expansion
     append_prefix_matches(input, &primary, &mut candidates);
 
     if remembered_choice.is_none() {
@@ -1889,7 +1934,7 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
         }
     }
 
-    // Guarantee the muscle-memory invariant: pure Avro conversion is NEVER dropped
+    // Guarantee muscle-memory invariant: pure Avro conversion is NEVER dropped
     let def_pure = get_avro_parser().convert(input);
     let def_norm = crate::probaho::nfc_normalize(&def_pure);
     if !def_norm.is_empty() && !normalized_candidates.contains(&def_norm) {
@@ -1898,6 +1943,108 @@ pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String
     }
 
     (primary, normalized_candidates)
+}
+
+/// Transliterates Romanized ASCII text to Bengali script using `lekhani-core`'s
+/// production PhoneticSuggestion engine, bilingual loanwords, and Avro Trie parser.
+///
+/// Returns (primary_transliteration, list_of_candidates).
+pub fn transliterate_avro_with_context(input: &str, context: &[&str]) -> (String, Vec<String>) {
+    if input.is_empty() {
+        return (String::new(), Vec::new());
+    }
+
+    // Soft apostrophe escape: mobile users type ' as a consonant/vowel separator (e.g. k'kh -> k`kh -> কখ)
+    let escaped_storage: String;
+    let effective_input = if input.contains('\'') {
+        escaped_storage = input.replace('\'', "`");
+        escaped_storage.as_str()
+    } else {
+        input
+    };
+    let input = effective_input;
+
+    let lower = input.to_lowercase();
+    let db = crate::session::get_core_database();
+
+    // Stage 1: User explicit autocorrect shortcuts
+    if let Some(res) = stage_user_autocorrect(input, &lower, db) {
+        return res;
+    }
+
+    // Stage 2: Social mentions & hashtags
+    if let Some(res) = stage_social_mentions(input) {
+        return res;
+    }
+
+    // Stage 3: Digit units, currency, ordinals & numerics
+    if let Some(res) = stage_digit_units_and_numbers(input) {
+        return res;
+    }
+
+    // Stage 4: Bilingual clitics (if enabled)
+    if let Some(res) = stage_bilingual_clitics(input) {
+        return res;
+    }
+
+    // Stage 5: Explicit Avro Grammar & Intent Fast-Path
+    if let Some(res) = stage_explicit_avro_intent(input, &lower, db) {
+        return res;
+    }
+
+    // Stage 6: Generative morphology & dialectal verb conjugations
+    if let Some(res) = stage_generative_morphology(input) {
+        return res;
+    }
+
+    let parser = get_avro_parser();
+    let def = parser.convert(input);
+
+    // Stage 7: Short input phonetic (< 2 chars)
+    if input.chars().count() <= 2 {
+        return stage_short_input_phonetic(input, &lower, &def, db);
+    }
+
+    // Candidate memory & system autocorrect lookup for general inputs
+    let mut remembered_choice: Option<String> = None;
+    if let Ok(learner) = db.learner.read() {
+        if let Some(error_override) = learner
+            .lookup_input_error(input)
+            .or_else(|| learner.lookup_input_error(&lower))
+        {
+            remembered_choice = Some(error_override.to_string());
+        } else if let Some(user_choice) = learner
+            .candidate_memory
+            .get(input)
+            .or_else(|| learner.candidate_memory.get(&lower))
+        {
+            remembered_choice = Some(user_choice.clone());
+        }
+    }
+
+    let is_explicit_common = has_override_word(input) || has_override_word(&lower);
+    let mut autocorrect_replacement: Option<String> = None;
+    if remembered_choice.is_none() && !is_explicit_common {
+        if let Some(replacement) = db
+            .autocorrect
+            .get(input)
+            .or_else(|| db.autocorrect.get(&lower))
+        {
+            autocorrect_replacement = Some(replacement.clone());
+        }
+    }
+
+    // Stage 8: Upstream Phonetic Engine with Multi-Tier Contextual Ranking
+    stage_phonetic_engine(
+        input,
+        context,
+        &lower,
+        &def,
+        db,
+        remembered_choice,
+        autocorrect_replacement,
+        is_explicit_common,
+    )
 }
 
 /// Convenience wrapper for zero-context transliteration
