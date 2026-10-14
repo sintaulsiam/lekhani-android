@@ -2574,85 +2574,55 @@ class LekhaniInputMethodService : InputMethodService() {
         updateGboardDynamicRow(keyToken)
 
         result.commitText?.let { rawText ->
-            val text = if (isUrlOrEmailOrNumericField() && rawText == "।") "." else rawText
-            val isSinglePunct = !isUrlOrEmailOrNumericField() && text.length == 1 && text[0] in listOf('।', '॥', '?', '!', ';', ',', '.')
-            val isCommittedWordWithPunct = !isUrlOrEmailOrNumericField() && text.length > 1 && text.last() in listOf('।', '॥', '?', '!', ';', ',', '.')
-            val isPunctuation = isSinglePunct || isCommittedWordWithPunct
-            val finalText = if (isSinglePunct) {
-                if (text == ",") {
-                    val before = try { ic.getTextBeforeCursor(1, 0)?.toString() } catch (_: Exception) { null }
-                    if (before != null && before.isNotEmpty() && before[0].isDigit()) {
-                        text
-                    } else {
-                        "$text "
+            val textBefore = try { ic.getTextBeforeCursor(4, 0)?.toString() } catch (_: Exception) { null }
+            when (val punctResult = SmartPunctuationCoordinator.processCommit(rawText, textBefore, isUrlOrEmailOrNumericField())) {
+                is SmartPunctuationCoordinator.PunctuationResult.Replace -> {
+                    ic.beginBatchEdit()
+                    try {
+                        ic.deleteSurroundingText(punctResult.deleteLength, 0)
+                        ic.commitText(punctResult.textToCommit, 1)
+                        preeditShadow = ""
+                        rawInputBuffer.clear()
+                        lastAutoDariCommitTime = 0L
+                    } finally {
+                        ic.endBatchEdit()
                     }
-                } else if (text == "।") {
-                    val before = try { ic.getTextBeforeCursor(4, 0)?.toString() } catch (_: Exception) { null }
-                    if (before != null && (before.endsWith("।। ") || before.endsWith("।।"))) {
-                        // 3rd dot typed in succession -> convert to ellipsis "… "
-                        ic.beginBatchEdit()
-                        try {
-                            val delLen = if (before.endsWith("।। ")) 3 else 2
-                            ic.deleteSurroundingText(delLen, 0)
-                            ic.commitText("… ", 1)
-                            preeditShadow = ""
-                            rawInputBuffer.clear()
-                            lastAutoDariCommitTime = 0L
-                        } finally {
-                            ic.endBatchEdit()
-                        }
-                        updateAutoCaps()
-                        return
-                    } else if (before != null && (before.endsWith("। ") || before.endsWith("।"))) {
-                        // 2nd dot typed in succession -> convert to Double Dari "।। "
-                        ic.beginBatchEdit()
-                        try {
-                            val delLen = if (before.endsWith("। ")) 2 else 1
-                            ic.deleteSurroundingText(delLen, 0)
-                            ic.commitText("।। ", 1)
-                            preeditShadow = ""
-                            rawInputBuffer.clear()
-                            lastAutoDariCommitTime = 0L
-                        } finally {
-                            ic.endBatchEdit()
-                        }
-                        updateAutoCaps()
-                        return
-                    } else {
-                        "$text "
-                    }
-                } else {
-                    "$text "
+                    updateAutoCaps()
+                    return
                 }
-            } else if (isCommittedWordWithPunct) {
-                "$text "
-            } else {
-                text
-            }
-
-            if (text == "।") {
-                lastAutoDariCommitTime = android.os.SystemClock.uptimeMillis()
-            } else {
-                lastAutoDariCommitTime = 0L
-            }
-
-            if (finalText.endsWith(" ")) {
-                lastCommitWithTrailingSpaceTime = android.os.SystemClock.uptimeMillis()
-            }
-
-            ic.beginBatchEdit()
-            try {
-                if (isPunctuation) {
-                    val before = try { ic.getTextBeforeCursor(1, 0)?.toString() } catch (_: Exception) { null }
-                    if (before == " ") {
-                        ic.deleteSurroundingText(1, 0)
+                is SmartPunctuationCoordinator.PunctuationResult.Commit -> {
+                    lastAutoDariCommitTime = if (punctResult.isDari) android.os.SystemClock.uptimeMillis() else 0L
+                    if (punctResult.finalText.endsWith(" ")) {
+                        lastCommitWithTrailingSpaceTime = android.os.SystemClock.uptimeMillis()
                     }
+                    ic.beginBatchEdit()
+                    try {
+                        if (punctResult.shouldDeletePrecedingSpace) {
+                            ic.deleteSurroundingText(1, 0)
+                        }
+                        ic.commitText(punctResult.finalText, 1)
+                        preeditShadow = ""
+                        rawInputBuffer.clear()
+                    } finally {
+                        ic.endBatchEdit()
+                    }
+                    updateAutoCaps()
                 }
-                ic.commitText(finalText, 1)
-                preeditShadow = ""
-                rawInputBuffer.clear()
-            } finally {
-                ic.endBatchEdit()
+                is SmartPunctuationCoordinator.PunctuationResult.PassThrough -> {
+                    lastAutoDariCommitTime = 0L
+                    if (punctResult.text.endsWith(" ")) {
+                        lastCommitWithTrailingSpaceTime = android.os.SystemClock.uptimeMillis()
+                    }
+                    ic.beginBatchEdit()
+                    try {
+                        ic.commitText(punctResult.text, 1)
+                        preeditShadow = ""
+                        rawInputBuffer.clear()
+                    } finally {
+                        ic.endBatchEdit()
+                    }
+                    updateAutoCaps()
+                }
             }
 
             updateAutoCaps()
@@ -2895,29 +2865,30 @@ class LekhaniInputMethodService : InputMethodService() {
 
         // 0. Double-tap space shortcut: insert Bengali Dāṛi ("। ") or English period (". ")
         val now = android.os.SystemClock.uptimeMillis()
-        if (keyboardPrefs.doubleSpaceDariEnabled && !session.isComposing() && !isUrlOrEmailOrNumericField() && (now - lastSpaceTapTime <= 450)) {
-            val textBefore = try { ic.getTextBeforeCursor(6, 0)?.toString() } catch (_: Exception) { null }
-            if (textBefore != null && textBefore.endsWith(" ") && textBefore.length >= 2) {
-                val prevChar = textBefore[textBefore.length - 2]
-                val isPunctuation = prevChar in listOf('।', '॥', '.', '?', '!', ',', ';', ':', '\n', ' ')
-                if (!isPunctuation) {
-                    val punctuation = if (session.getLayout() == LekhaniLayoutType.ENGLISH) ". " else "। "
-                    icDispatcher.withBatchEdit {
-                        it.deleteSurroundingText(1, 0)
-                        it.commitText(punctuation, 1)
-                    }
-                    lastSpaceTapTime = 0L
-                    clearUndo()
-                    refreshSurroundingContext()
-                    if (session.getLayout() == LekhaniLayoutType.ENGLISH) {
-                        keyboardView?.setShifted(true)
-                    }
-                    if (isNumericMode && !isNumericFieldMode) {
-                        restoreAlphaKeyboard()
-                    }
-                    return
-                }
+        val textBefore = try { ic.getTextBeforeCursor(6, 0)?.toString() } catch (_: Exception) { null }
+        val doubleSpaceShortcut = SmartPunctuationCoordinator.resolveDoubleSpaceShortcut(
+            textBefore = textBefore,
+            isEnglish = (session.getLayout() == LekhaniLayoutType.ENGLISH),
+            doubleSpaceDariEnabled = keyboardPrefs.doubleSpaceDariEnabled,
+            isComposing = session.isComposing(),
+            isUrlOrEmailOrNumeric = isUrlOrEmailOrNumericField(),
+            timeDeltaMs = (now - lastSpaceTapTime)
+        )
+        if (doubleSpaceShortcut != null) {
+            icDispatcher.withBatchEdit {
+                it.deleteSurroundingText(1, 0)
+                it.commitText(doubleSpaceShortcut, 1)
             }
+            lastSpaceTapTime = 0L
+            clearUndo()
+            refreshSurroundingContext()
+            if (session.getLayout() == LekhaniLayoutType.ENGLISH) {
+                keyboardView?.setShifted(true)
+            }
+            if (isNumericMode && !isNumericFieldMode) {
+                restoreAlphaKeyboard()
+            }
+            return
         }
         lastSpaceTapTime = now
 
