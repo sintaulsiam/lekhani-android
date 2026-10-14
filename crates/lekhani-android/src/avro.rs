@@ -386,20 +386,24 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
     // Mobile users type all-lowercase 't' for both ত and ট (e.g. taka -> টাকা, thik -> ঠিক,
     // tupi -> টুপি, choto -> ছোট, daktar -> ডাক্তার, dal -> ডাল, dim -> ডিম).
     if lower.len() >= 3 {
-        if lower.starts_with('t') {
+        if let Some(stripped) = lower.strip_prefix('t') {
             if !["tha", "tho", "the", "thi", "thu"].contains(&lower.as_str()) {
-                variant_keys.push(format!("T{}", &lower[1..]));
+                variant_keys.push(format!("T{}", stripped));
             }
-            if lower.starts_with("th") && lower.len() >= 4 {
-                variant_keys.push(format!("Th{}", &lower[2..]));
+            if let Some(stripped_th) = lower.strip_prefix("th") {
+                if lower.len() >= 4 {
+                    variant_keys.push(format!("Th{}", stripped_th));
+                }
             }
         }
-        if lower.starts_with('d') {
+        if let Some(stripped) = lower.strip_prefix('d') {
             if !["dha", "dho", "dhe", "dhi", "dhu"].contains(&lower.as_str()) {
-                variant_keys.push(format!("D{}", &lower[1..]));
+                variant_keys.push(format!("D{}", stripped));
             }
-            if lower.starts_with("dh") && lower.len() >= 4 {
-                variant_keys.push(format!("Dh{}", &lower[2..]));
+            if let Some(stripped_dh) = lower.strip_prefix("dh") {
+                if lower.len() >= 4 {
+                    variant_keys.push(format!("Dh{}", stripped_dh));
+                }
             }
         }
     }
