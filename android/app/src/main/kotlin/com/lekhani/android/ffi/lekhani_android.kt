@@ -840,6 +840,16 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
+
+
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -871,6 +881,8 @@ internal interface UniffiLib : Library {
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_apply_retro_correction(`ptr`: Pointer,`correction`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_classify_candidates(`ptr`: Pointer,`input`: RustBuffer.ByValue,`candidates`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_clear_autocorrect_rules(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_clear_learned_history(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -886,6 +898,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_export_dictionary_json(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_autocorrect_rules(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_candidate_items(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_layout(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
@@ -910,6 +924,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_import_raw_words(`ptr`: Pointer,`words`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_auto_learn_enabled(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_bilingual_clitic_enabled(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_composing(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
@@ -939,6 +955,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_record_retro_correction_dismissed(`ptr`: Pointer,`explicit`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_record_touch_sample(`ptr`: Pointer,`key`: RustBuffer.ByValue,`touchX`: Float,`touchY`: Float,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_reset(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_save_user_autocorrect(`ptr`: Pointer,`path`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -948,6 +966,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_select_candidate(`ptr`: Pointer,`candidate`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_auto_learn_enabled(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_bilingual_clitic_enabled(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_context(`ptr`: Pointer,`context`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
@@ -1117,6 +1137,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_apply_retro_correction(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_classify_candidates(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_autocorrect_rules(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_learned_history(
@@ -1132,6 +1154,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_autocorrect_rules(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_candidate_items(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout(
     ): Short
@@ -1156,6 +1180,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_raw_words(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_auto_learn_enabled(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_bilingual_clitic_enabled(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_composing(
     ): Short
@@ -1185,6 +1211,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_record_retro_correction_dismissed(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_record_touch_sample(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_reset(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_save_user_autocorrect(
@@ -1194,6 +1222,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_select_candidate(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_auto_learn_enabled(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_bilingual_clitic_enabled(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_context(
     ): Short
@@ -1265,6 +1295,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_apply_retro_correction() != 46802.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_classify_candidates() != 15213.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_clear_autocorrect_rules() != 53080.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1287,6 +1320,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_autocorrect_rules() != 32480.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_candidate_items() != 31651.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout() != 51391.toShort()) {
@@ -1325,6 +1361,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_auto_learn_enabled() != 12179.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_bilingual_clitic_enabled() != 14668.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_composing() != 7700.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1358,13 +1397,16 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key() != 59149.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key_with_touch() != 57392.toShort()) {
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key_with_touch() != 14157.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_rank_spatial_keys() != 49411.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_record_retro_correction_dismissed() != 50557.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_record_touch_sample() != 40899.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_reset() != 35329.toShort()) {
@@ -1380,6 +1422,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_auto_learn_enabled() != 12005.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_bilingual_clitic_enabled() != 55451.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_context() != 4383.toShort()) {
@@ -1543,6 +1588,29 @@ public object FfiConverterFloat: FfiConverter<Float, Float> {
 
     override fun write(value: Float, buf: ByteBuffer) {
         buf.putFloat(value)
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterDouble: FfiConverter<Double, Double> {
+    override fun lift(value: Double): Double {
+        return value
+    }
+
+    override fun read(buf: ByteBuffer): Double {
+        return buf.getDouble()
+    }
+
+    override fun lower(value: Double): Double {
+        return value
+    }
+
+    override fun allocationSize(value: Double) = 8UL
+
+    override fun write(value: Double, buf: ByteBuffer) {
+        buf.putDouble(value)
     }
 }
 
@@ -1819,6 +1887,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `applyRetroCorrection`(`correction`: RetroCorrection): TypingResult
     
     /**
+     * Classifies an arbitrary list of candidate strings against an input token.
+     */
+    fun `classifyCandidates`(`input`: kotlin.String, `candidates`: List<kotlin.String>): List<CandidateItem>
+    
+    /**
      * Clear all custom user autocorrect rules.
      */
     fun `clearAutocorrectRules`(): kotlin.Boolean
@@ -1859,6 +1932,11 @@ public interface AndroidLekhaniSessionInterface {
      * Retrieve all custom user autocorrect rules as a key-value map.
      */
     fun `getAutocorrectRules`(): Map<kotlin.String, kotlin.String>
+    
+    /**
+     * Returns rich semantic candidate items for the active composing buffer or context.
+     */
+    fun `getCandidateItems`(): List<CandidateItem>
     
     /**
      * Return the currently active layout.
@@ -1929,6 +2007,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `isAutoLearnEnabled`(): kotlin.Boolean
     
     /**
+     * Returns whether bilingual clitic resolution is currently enabled.
+     */
+    fun `isBilingualCliticEnabled`(): kotlin.Boolean
+    
+    /**
      * Returns whether the keyboard is currently composing a word.
      */
     fun `isComposing`(): kotlin.Boolean
@@ -1992,7 +2075,7 @@ public interface AndroidLekhaniSessionInterface {
     /**
      * Process a typed character or key token with physical touch coordinates (x, y).
      * Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
-     * on key boundaries.
+     * on key boundaries and dynamically calibrates personal touch centroids.
      */
     fun `processKeyWithTouch`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float): TypingResult
     
@@ -2005,6 +2088,11 @@ public interface AndroidLekhaniSessionInterface {
      * Record whether the user explicitly or passively dismissed a retro-correction chip.
      */
     fun `recordRetroCorrectionDismissed`(`explicit`: kotlin.Boolean)
+    
+    /**
+     * Calibrates the personal spatial touch model with a verified key tap coordinate (x, y).
+     */
+    fun `recordTouchSample`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float)
     
     /**
      * Reset and clear all internal composing state.
@@ -2032,6 +2120,11 @@ public interface AndroidLekhaniSessionInterface {
      * Enable or disable autonomous dictionary learning from user typing.
      */
     fun `setAutoLearnEnabled`(`enabled`: kotlin.Boolean)
+    
+    /**
+     * Enable or disable bilingual hyphen/unhyphenated clitic resolution (default: false).
+     */
+    fun `setBilingualCliticEnabled`(`enabled`: kotlin.Boolean)
     
     /**
      * Provide the text before the cursor (from `getTextBeforeCursor(256, 0)`)
@@ -2249,6 +2342,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Classifies an arbitrary list of candidate strings against an input token.
+     */override fun `classifyCandidates`(`input`: kotlin.String, `candidates`: List<kotlin.String>): List<CandidateItem> {
+            return FfiConverterSequenceTypeCandidateItem.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_classify_candidates(
+        it, FfiConverterString.lower(`input`),FfiConverterSequenceString.lower(`candidates`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Clear all custom user autocorrect rules.
      */
     @Throws(LekhaniException::class)override fun `clearAutocorrectRules`(): kotlin.Boolean {
@@ -2370,6 +2478,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     callWithPointer {
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_autocorrect_rules(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Returns rich semantic candidate items for the active composing buffer or context.
+     */
+    @Throws(LekhaniException::class)override fun `getCandidateItems`(): List<CandidateItem> {
+            return FfiConverterSequenceTypeCandidateItem.lift(
+    callWithPointer {
+    uniffiRustCallWithError(LekhaniException) { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_candidate_items(
         it, _status)
 }
     }
@@ -2574,6 +2698,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Returns whether bilingual clitic resolution is currently enabled.
+     */override fun `isBilingualCliticEnabled`(): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_is_bilingual_clitic_enabled(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Returns whether the keyboard is currently composing a word.
      */override fun `isComposing`(): kotlin.Boolean {
             return FfiConverterBoolean.lift(
@@ -2750,7 +2889,7 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     /**
      * Process a typed character or key token with physical touch coordinates (x, y).
      * Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
-     * on key boundaries.
+     * on key boundaries and dynamically calibrates personal touch centroids.
      */
     @Throws(LekhaniException::class)override fun `processKeyWithTouch`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float): TypingResult {
             return FfiConverterTypeTypingResult.lift(
@@ -2788,6 +2927,20 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_record_retro_correction_dismissed(
         it, FfiConverterBoolean.lower(`explicit`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Calibrates the personal spatial touch model with a verified key tap coordinate (x, y).
+     */override fun `recordTouchSample`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_record_touch_sample(
+        it, FfiConverterString.lower(`key`),FfiConverterFloat.lower(`touchX`),FfiConverterFloat.lower(`touchY`),_status)
 }
     }
     
@@ -2865,6 +3018,20 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     callWithPointer {
     uniffiRustCall() { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_auto_learn_enabled(
+        it, FfiConverterBoolean.lower(`enabled`),_status)
+}
+    }
+    
+    
+
+    
+    /**
+     * Enable or disable bilingual hyphen/unhyphenated clitic resolution (default: false).
+     */override fun `setBilingualCliticEnabled`(`enabled`: kotlin.Boolean)
+        = 
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_set_bilingual_clitic_enabled(
         it, FfiConverterBoolean.lower(`enabled`),_status)
 }
     }
@@ -3452,6 +3619,61 @@ public object FfiConverterTypeAudioAnalysisResult: FfiConverterRustBuffer<AudioA
 
 
 /**
+ * Detailed candidate item with semantic metadata, exported via UniFFI.
+ */
+data class CandidateItem (
+    /**
+     * The candidate text to be committed if selected
+     */
+    var `text`: kotlin.String, 
+    /**
+     * Semantic classification of this candidate
+     */
+    var `kind`: CandidateKind, 
+    /**
+     * Relative ranking score (1.0 = top pick)
+     */
+    var `score`: kotlin.Double, 
+    /**
+     * True if this candidate is the current primary preedit / default commit
+     */
+    var `isPrimary`: kotlin.Boolean
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeCandidateItem: FfiConverterRustBuffer<CandidateItem> {
+    override fun read(buf: ByteBuffer): CandidateItem {
+        return CandidateItem(
+            FfiConverterString.read(buf),
+            FfiConverterTypeCandidateKind.read(buf),
+            FfiConverterDouble.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: CandidateItem) = (
+            FfiConverterString.allocationSize(value.`text`) +
+            FfiConverterTypeCandidateKind.allocationSize(value.`kind`) +
+            FfiConverterDouble.allocationSize(value.`score`) +
+            FfiConverterBoolean.allocationSize(value.`isPrimary`)
+    )
+
+    override fun write(value: CandidateItem, buf: ByteBuffer) {
+            FfiConverterString.write(value.`text`, buf)
+            FfiConverterTypeCandidateKind.write(value.`kind`, buf)
+            FfiConverterDouble.write(value.`score`, buf)
+            FfiConverterBoolean.write(value.`isPrimary`, buf)
+    }
+}
+
+
+
+/**
  * Input geometry configuration exported via UniFFI
  */
 data class KeyGeometryConfig (
@@ -3662,6 +3884,65 @@ public object FfiConverterTypeTypingResult: FfiConverterRustBuffer<TypingResult>
             FfiConverterUInt.write(value.`cursorPosition`, buf)
     }
 }
+
+
+
+/**
+ * Semantic category of a keyboard candidate item for rich UI strip rendering.
+ */
+
+enum class CandidateKind {
+    
+    /**
+     * Deterministic Avro rule transliteration (Slot 0 / Slot 1 bypass)
+     */
+    DETERMINISTIC_AVRO,
+    /**
+     * High-frequency statistical / context-ranked candidate
+     */
+    CONTEXTUAL_AI,
+    /**
+     * Exact user override / learned personal dictionary word
+     */
+    LEARNED_MEMORY,
+    /**
+     * Typo recovery / fat-finger spatial correction
+     */
+    TYPO_RESCUE,
+    /**
+     * Literal English passthrough / tech acronym
+     */
+    ENGLISH_PASSTHROUGH,
+    /**
+     * Bengali numeric or currency representation
+     */
+    NUMERIC_LITERAL,
+    /**
+     * Honorific / grammatical agreement verb (Anvaya)
+     */
+    GRAMMAR_CONCORDANT;
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeCandidateKind: FfiConverterRustBuffer<CandidateKind> {
+    override fun read(buf: ByteBuffer) = try {
+        CandidateKind.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: CandidateKind) = 4UL
+
+    override fun write(value: CandidateKind, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
 
 
 
@@ -3953,6 +4234,34 @@ public object FfiConverterSequenceString: FfiConverterRustBuffer<List<kotlin.Str
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterString.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeCandidateItem: FfiConverterRustBuffer<List<CandidateItem>> {
+    override fun read(buf: ByteBuffer): List<CandidateItem> {
+        val len = buf.getInt()
+        return List<CandidateItem>(len) {
+            FfiConverterTypeCandidateItem.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<CandidateItem>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeCandidateItem.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<CandidateItem>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeCandidateItem.write(it, buf)
         }
     }
 }
