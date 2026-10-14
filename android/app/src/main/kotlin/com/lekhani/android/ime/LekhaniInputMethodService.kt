@@ -211,12 +211,25 @@ class LekhaniInputMethodService : InputMethodService() {
     private var lastNavBarLeftInset: Int = 0
     private var lastNavBarRightInset: Int = 0
 
-    private var isNumericMode: Boolean = false
-    private var isMoreSymbolsMode: Boolean = false
-    private var isBengaliDigitsMode: Boolean = false
-    private var isNumericFieldMode: Boolean = false
-    private var isPhoneDialpadMode: Boolean = false
-    private var previousLayoutBeforeNumeric: LekhaniLayoutType? = null
+    private val modeController = KeyboardModeController()
+    private var isNumericMode: Boolean
+        get() = modeController.isNumericMode
+        set(value) { modeController.isNumericMode = value }
+    private var isMoreSymbolsMode: Boolean
+        get() = modeController.isMoreSymbolsMode
+        set(value) { modeController.isMoreSymbolsMode = value }
+    private var isBengaliDigitsMode: Boolean
+        get() = modeController.isBengaliDigitsMode
+        set(value) { modeController.isBengaliDigitsMode = value }
+    private var isNumericFieldMode: Boolean
+        get() = modeController.isNumericFieldMode
+        set(value) { modeController.isNumericFieldMode = value }
+    private var isPhoneDialpadMode: Boolean
+        get() = modeController.isPhoneDialpadMode
+        set(value) { modeController.isPhoneDialpadMode = value }
+    private var previousLayoutBeforeNumeric: LekhaniLayoutType?
+        get() = modeController.previousLayoutBeforeNumeric
+        set(value) { modeController.previousLayoutBeforeNumeric = value }
     private val recentsManager: EmojiRecentsManager by lazy { EmojiRecentsManager(this) }
     private val clipboardStore: LekhaniClipboardStore by lazy { LekhaniClipboardStore(this) }
     private val clipboardCoordinator: SmartClipboardCoordinator by lazy {
@@ -1453,24 +1466,7 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     private fun crossfadeViewMode(activeView: View?, vararg otherViews: View?) {
-        for (view in otherViews) {
-            view?.animate()?.cancel()
-            view?.visibility = View.GONE
-            view?.alpha = 0f
-        }
-        activeView?.let { view ->
-            if (view.visibility == View.VISIBLE && view.alpha == 1f) {
-                return
-            }
-            view.animate()?.cancel()
-            view.alpha = 0f
-            view.visibility = View.VISIBLE
-            view.animate()
-                .alpha(1f)
-                .setDuration(120)
-                .setInterpolator(android.view.animation.DecelerateInterpolator())
-                .start()
-        }
+        modeController.crossfade(activeView, *otherViews)
     }
 
     /**
@@ -1779,30 +1775,17 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun updateNumberSymbolsKeyboard() {
         val currentLayoutType = session.getLayout()
-        val isEnglish = currentLayoutType == LekhaniLayoutType.ENGLISH
-        val layout = when {
-            isPhoneDialpadMode -> NumberSymbolsLayout.phoneDialpadLayout
-            isNumericFieldMode -> if (isBengaliDigitsMode) NumberSymbolsLayout.bengaliNumpadPinLayout else NumberSymbolsLayout.numpadPinLayout
-            isMoreSymbolsMode -> NumberSymbolsLayout.moreSymbolsLayout
-            isEnglish -> NumberSymbolsLayout.englishNumericLayout
-            isBengaliDigitsMode -> NumberSymbolsLayout.bengaliNumericLayout
-            else -> NumberSymbolsLayout.numericLayout
-        }
+        val layout = modeController.resolveNumberSymbolsLayout(currentLayoutType)
         keyboardView?.setLayout(layout, currentLayoutType, shifted = false)
         keyboardView?.setGboardKarsActive(false)
         updateCandidatesVisibility()
     }
 
     private fun restoreAlphaKeyboard() {
-        isNumericMode = false
-        isMoreSymbolsMode = false
-        isNumericFieldMode = false
-        isPhoneDialpadMode = false
-        val currentLayoutType = previousLayoutBeforeNumeric ?: session.getLayout()
-        previousLayoutBeforeNumeric = null
-        session.setLayout(currentLayoutType)
-        emojiSearchSession?.setLayout(currentLayoutType)
-        keyboardView?.setLayout(LayoutRegistry.get(currentLayoutType), currentLayoutType, shifted = false)
+        val targetLayout = modeController.restoreAlphaKeyboard(session.getLayout())
+        session.setLayout(targetLayout)
+        emojiSearchSession?.setLayout(targetLayout)
+        keyboardView?.setLayout(LayoutRegistry.get(targetLayout), targetLayout, shifted = false)
         keyboardView?.setGboardKarsActive(false)
         updateCandidatesVisibility()
     }
