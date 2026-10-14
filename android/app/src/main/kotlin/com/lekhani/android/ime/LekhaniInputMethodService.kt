@@ -3425,113 +3425,28 @@ class LekhaniInputMethodService : InputMethodService() {
             clearCandidates()
             return
         }
-        val filtered = raw.filter { cand ->
-            !blacklist.isBlacklisted(cand) &&
-            (!isEngLayout || cand.all { it.code < 128 } || EmojiData.isEmoji(cand) || cand.startsWith("="))
-        }.distinct().toMutableList()
 
-        // 1. Avro Verbatim Token & Code Shield:
-        // Configurable positioning: Bengali First (Recommended) vs English First (Classic)
-        val rawInput = rawInputBuffer.toString()
-        var primaryIndex = 0
-        var verbatimIndex = -1
-        if (session.getLayout() == LekhaniLayoutType.AVRO && rawInput.isNotBlank()) {
-            if (keyboardPrefs.avroShowEnglishPreview) {
-                filtered.remove(rawInput)
-                val isCode = keyboardPrefs.codeShieldEnabled && SmartAssistant.isCodeToken(rawInput)
-                val isBengaliFirst = keyboardPrefs.avroStripOrder == KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
-
-                if (isCode) {
-                    filtered.add(0, rawInput)
-                    primaryIndex = 0
-                    verbatimIndex = 0
-                } else if (isBengaliFirst) {
-                    // Bengali First (Recommended / Default):
-                    // Slot 0: Primary Bengali candidate (from Rust engine)
-                    // Slot 1: Verbatim English token
-                    primaryIndex = 0
-                    if (filtered.isNotEmpty()) {
-                        filtered.add(1, rawInput)
-                        verbatimIndex = 1
-                    } else {
-                        filtered.add(0, rawInput)
-                        verbatimIndex = 0
-                    }
-                } else {
-                    // English First (Classic Avro):
-                    // Slot 0: Verbatim English token
-                    // Slot 1: Primary Bengali candidate
-                    filtered.add(0, rawInput)
-                    verbatimIndex = 0
-                    primaryIndex = if (filtered.size > 1) 1 else 0
-                }
-            } else {
-                primaryIndex = 0
-            }
-        }
-
-        // 2. Smart Math Evaluation: e.g. "500+250=" -> "= 750"
-        val mathAnswer = SmartAssistant.evaluateMath(rawInput)
-        if (mathAnswer != null && !filtered.contains("= $mathAnswer") && !filtered.contains(mathAnswer)) {
-            filtered.add(0, "= $mathAnswer")
-            primaryIndex = 0
-        }
-
-        // 3. Dynamic Date & Time Suggestions
-        val isEng = session.getLayout() == LekhaniLayoutType.ENGLISH
-        val topCandidate = filtered.getOrNull(primaryIndex) ?: filtered.firstOrNull() ?: ""
-        if (rawInput.length >= 3 || topCandidate.length >= 3) {
-            if (SmartAssistant.isDateQuery(rawInput) || SmartAssistant.isDateQuery(topCandidate)) {
-                val dateStr = SmartAssistant.getFormattedDate(!isEng)
-                if (!filtered.contains(dateStr)) filtered.add(dateStr)
-            }
-            if (SmartAssistant.isTimeQuery(rawInput) || SmartAssistant.isTimeQuery(topCandidate)) {
-                val timeStr = SmartAssistant.getFormattedTime(!isEng)
-                if (!filtered.contains(timeStr)) filtered.add(timeStr)
-            }
-        }
-
-        // 4. Inline Contextual Emojis: Gboard-style trailing suggestions (only when token length >= 2)
-        if (rawInput.length >= 2 || topCandidate.length >= 2) {
-            val contextualEmojis = mutableListOf<String>()
-            if (rawInput.length >= 2) {
-                contextualEmojis.addAll(EmojiData.findContextualEmojis(rawInput, 2))
-            }
-            if (topCandidate.length >= 2 && contextualEmojis.size < 2) {
-                contextualEmojis.addAll(EmojiData.findContextualEmojis(topCandidate, 2 - contextualEmojis.size))
-            }
-            for (emoji in contextualEmojis.distinct()) {
-                if (!filtered.contains(emoji)) {
-                    filtered.add(emoji)
+        val params = CandidateStripCoordinator.Params(
+            rawCandidates = raw,
+            rawInput = rawInputBuffer.toString(),
+            layout = session.getLayout(),
+            undo = undo,
+            englishPredictiveSuggestions = keyboardPrefs.englishPredictiveSuggestions,
+            avroShowEnglishPreview = keyboardPrefs.avroShowEnglishPreview,
+            codeShieldEnabled = keyboardPrefs.codeShieldEnabled,
+            avroStripOrder = keyboardPrefs.avroStripOrder,
+            isBlacklisted = { blacklist.isBlacklisted(it) },
+            verbParadigmChecker = { word ->
+                try {
+                    session.getVerbHonorificParadigm(word).size > 1
+                } catch (_: Exception) {
+                    false
                 }
             }
-        }
+        )
 
-        val newState = if (filtered.isEmpty()) {
-            if (undo != null) CandidateStripState.Undo(undo) else CandidateStripState.Empty
-        } else {
-            CandidateStripState.Candidates(
-                HomophoneAnnotator.annotate(
-                    filtered,
-                    primaryIdx = primaryIndex,
-                    verbatimIdx = verbatimIndex,
-                    verbParadigmChecker = { word ->
-                        try {
-                            session.getVerbHonorificParadigm(word).size > 1
-                        } catch (_: Exception) {
-                            false
-                        }
-                    }
-                ),
-                undoInfo = undo
-            )
-        }
-        // Skip redundant emission: if candidates haven't changed, don't trigger
-        // a Compose recomposition — this is the primary cause of the per-keystroke jitter.
-        val cur = _candidateState.value
-        if (newState is CandidateStripState.Candidates && cur is CandidateStripState.Candidates
-            && newState.items == cur.items
-            && newState.undoInfo == cur.undoInfo) {
+        val newState = CandidateStripCoordinator.resolveStripState(params)
+        if (CandidateStripCoordinator.shouldSkipEmission(_candidateState.value, newState)) {
             return
         }
         _candidateState.value = newState
