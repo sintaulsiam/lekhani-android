@@ -1254,21 +1254,9 @@ impl AndroidLekhaniSession {
                             0
                         };
                         let words = &words_buf[..count];
-                        let (preedit, mut candidates) =
-                            crate::avro::transliterate_avro_with_context(&raw, words);
-                        let is_fastpath = crate::avro::is_avro_special_fastpath(&raw);
-                        if !is_fastpath && count > 0 && candidates.len() > 1 {
-                            let scorer = get_context_scorer();
-                            let right_word = state.right_context.split_whitespace().next();
-                            scorer.rank_candidates_in_place_bidirectional(
-                                words,
-                                right_word,
-                                &mut candidates,
-                            );
-                        }
-                        if !is_fastpath {
-                            crate::avro::prioritize_common_or_override_candidate(&raw, &mut candidates);
-                        }
+                        let right_word = state.right_context.split_whitespace().next();
+                        let (preedit, candidates) =
+                            crate::avro::resolve_avro_candidates(&raw, words, right_word);
                         candidates.first().cloned().unwrap_or(preedit)
                     }
                 } else {
@@ -1378,17 +1366,9 @@ impl AndroidLekhaniSession {
                     0
                 };
                 let words = &words_buf[..count];
-                let (_preedit, mut candidates) =
-                    crate::avro::transliterate_avro_with_context(&raw_token, words);
-                if count > 0 && candidates.len() > 1 {
-                    let scorer = get_context_scorer();
-                    let right_word = state.right_context.split_whitespace().next();
-                    scorer.rank_candidates_in_place_bidirectional(
-                        words,
-                        right_word,
-                        &mut candidates,
-                    );
-                }
+                let right_word = state.right_context.split_whitespace().next();
+                let (top_word, candidates) =
+                    crate::avro::resolve_avro_candidates(&raw_token, words, right_word);
 
                 if candidates.is_empty() {
                     Ok(TypingResult {
@@ -1398,7 +1378,6 @@ impl AndroidLekhaniSession {
                         cursor_position: 0,
                     })
                 } else {
-                    let top_word = candidates[0].clone();
                     let len = top_word.graphemes(true).count() as u32;
                     Ok(TypingResult {
                         preedit: top_word.clone(),
@@ -1819,36 +1798,12 @@ impl AndroidLekhaniSession {
                         0
                     };
                     let words = &words_buf[..count];
-                    let (preedit, mut candidates) = crate::avro::transliterate_avro_with_context(
+                    let right_word = state.right_context.split_whitespace().next();
+                    let (preedit, candidates) = crate::avro::resolve_avro_candidates(
                         &state.composing_buffer,
                         words,
+                        right_word,
                     );
-                    let is_fastpath = crate::avro::is_avro_special_fastpath(&state.composing_buffer);
-                    if !is_fastpath && count > 0 && candidates.len() > 1 {
-                        let scorer = get_context_scorer();
-                        let right_word = state.right_context.split_whitespace().next();
-                        scorer.rank_candidates_in_place_bidirectional(
-                            words,
-                            right_word,
-                            &mut candidates,
-                        );
-                        crate::avro::prioritize_common_or_override_candidate(
-                            &state.composing_buffer,
-                            &mut candidates,
-                        );
-                        if let Some(top) = candidates.first() {
-                            let db = get_core_database();
-                            if db.is_exact_dictionary_word(&preedit)
-                                && (top.chars().count() > preedit.chars().count()
-                                    || !crate::avro::are_phonetically_compatible(&preedit, top))
-                            {
-                                if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
-                                    let cand = candidates.remove(pos);
-                                    candidates.insert(0, cand);
-                                }
-                            }
-                        }
-                    }
                     let len = preedit.graphemes(true).count() as u32;
                     Ok(TypingResult {
                         preedit,
@@ -2720,8 +2675,8 @@ mod tests {
         let _ = session.process_key("o".into()).unwrap();
         let _ = session.process_key("r".into()).unwrap();
         let res_book = session.process_key("a".into()).unwrap();
-        // In-flight preedit strictly equals the typed phonetic rule, while candidate strip has AI homophone rank
-        assert_eq!(res_book.preedit, "পরা");
+        // WYSIWYG Invariant: in-flight preedit strictly synchronizes with candidates[0]
+        assert_eq!(res_book.preedit, "পড়া");
         assert_eq!(res_book.candidates.first().map(|s| s.as_str()), Some("পড়া"));
         let commit_book = session.handle_space().unwrap();
         assert_eq!(commit_book.commit_text, Some("পড়া ".into()));
@@ -2753,7 +2708,8 @@ mod tests {
             "Continuous boi -> pora: preedit={}, candidates={:?}",
             res_cont.preedit, res_cont.candidates
         );
-        assert_eq!(res_cont.preedit, "পরা");
+        // WYSIWYG Invariant: in-flight preedit strictly synchronizes with candidates[0]
+        assert_eq!(res_cont.preedit, "পড়া");
         assert_eq!(res_cont.candidates.first().map(|s| s.as_str()), Some("পড়া"));
         let commit_cont = session2.handle_space().unwrap();
         assert_eq!(commit_cont.commit_text, Some("পড়া ".into()));
