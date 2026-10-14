@@ -251,7 +251,6 @@ class LekhaniInputMethodService : InputMethodService() {
     // Raw keystroke buffer and undo action state
     private val rawInputBuffer = StringBuilder()
     private val avroHistory = AvroWordHistory(maxEntries = 100)
-    private var activeInspectedWord: InspectedWord? = null
     // Nullable backing field for lazy word-inspection session — allows safe null-check
     // in onFinishInput() without reflection on a private lazy delegate.
     private var _wordInspectionSession: AndroidLekhaniSession? = null
@@ -259,6 +258,17 @@ class LekhaniInputMethodService : InputMethodService() {
         get() = _wordInspectionSession ?: AndroidLekhaniSession().apply {
             setLayout(LekhaniLayoutType.AVRO)
         }.also { _wordInspectionSession = it }
+    private val avroInspectionCoordinator: AvroInspectionCoordinator by lazy {
+        AvroInspectionCoordinator(
+            wordInspectionSession = wordInspectionSession,
+            avroHistory = avroHistory,
+            blacklist = blacklist,
+            keyboardPrefs = keyboardPrefs,
+        )
+    }
+    private var activeInspectedWord: InspectedWord?
+        get() = avroInspectionCoordinator.activeInspectedWord
+        set(value) { avroInspectionCoordinator.setInspectedWord(value) }
     private var activeUndoInfo: UndoInfo? = null
     private var undoDismissJob: kotlinx.coroutines.Job? = null
     private var refreshContextJob: kotlinx.coroutines.Job? = null
@@ -2434,58 +2444,40 @@ class LekhaniInputMethodService : InputMethodService() {
             }
         }
 
-        val inspected = activeInspectedWord
-        if (inspected != null && !session.isComposing() &&
-            session.getLayout() == LekhaniLayoutType.AVRO &&
-            !isCurrentFieldPrivate && keyboardPrefs.avroDynamicRecomposition &&
-            isAvroPhoneticKey(keyToken)
-        ) {
-            val rawPrefix = if (inspected.charsAfterCursor == 0) {
-                inspected.rawPhonetic
-            } else {
-                val prefixText = inspected.word.take(inspected.charsBeforeCursor)
-                avroHistory.get(prefixText) ?: AvroReverseTransliterator.bengaliToAvro(prefixText)
-            }
+        if (!session.isComposing() && session.getLayout() == LekhaniLayoutType.AVRO && !isCurrentFieldPrivate) {
+            val plan = avroInspectionCoordinator.prepareDynamicRecomposition(keyToken, ic)
+            if (plan != null) {
+                rawInputBuffer.clear()
+                rawInputBuffer.append(plan.fullRawText)
 
-            if (rawPrefix.isNotBlank()) {
-                activeInspectedWord = null
-                ic.beginBatchEdit()
-                try {
-                    if (inspected.charsBeforeCursor > 0) {
-                        ic.deleteSurroundingText(inspected.charsBeforeCursor, 0)
-                    }
-                    rawInputBuffer.clear()
-                    rawInputBuffer.append(rawPrefix).append(keyToken)
-
-                    session.reset()
-                    val immediateBefore = try {
-                        ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString()
-                    } catch (_: Exception) { null }
-                    if (!immediateBefore.isNullOrEmpty()) {
-                        session.setContext(immediateBefore)
-                    }
-
-                    var result: com.lekhani.android.ffi.TypingResult? = null
-                    for (i in 0 until rawInputBuffer.length) {
-                        result = session.processKey(rawInputBuffer[i].toString())
-                    }
-
-                    if (result != null) {
-                        result.commitText?.let { commitTxt ->
-                            ic.commitText(commitTxt, 1)
-                            preeditShadow = ""
-                            rawInputBuffer.clear()
-                            publishCandidates(result.candidates)
-                        } ?: run {
-                            preeditShadow = result.preedit
-                            setComposingTextSafe(ic, result.preedit)
-                            publishCandidates(result.candidates)
-                        }
-                    }
-                    return
-                } finally {
-                    ic.endBatchEdit()
+                session.reset()
+                val immediateBefore = try {
+                    ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString()
+                } catch (_: Exception) { null }
+                if (!immediateBefore.isNullOrEmpty()) {
+                    session.setContext(immediateBefore)
                 }
+
+                var result: com.lekhani.android.ffi.TypingResult? = null
+                for (i in 0 until rawInputBuffer.length) {
+                    result = session.processKey(rawInputBuffer[i].toString())
+                }
+
+                if (result != null) {
+                    result.commitText?.let { commitTxt ->
+                        ic.commitText(commitTxt, 1)
+                        preeditShadow = ""
+                        rawInputBuffer.clear()
+                        publishCandidates(result.candidates)
+                    } ?: run {
+                        preeditShadow = result.preedit
+                        setComposingTextSafe(ic, result.preedit)
+                        publishCandidates(result.candidates)
+                    }
+                }
+                refreshSurroundingContext()
+                updateAutoCaps()
+                return
             }
             activeInspectedWord = null
             clearCandidates()
@@ -2695,44 +2687,31 @@ class LekhaniInputMethodService : InputMethodService() {
             }
         } else {
             rawInputBuffer.clear()
-            val inspected = activeInspectedWord
-            if (inspected != null &&
-                inspected.charsAfterCursor == 0 &&
-                session.getLayout() == LekhaniLayoutType.AVRO &&
-                !isCurrentFieldPrivate &&
-                keyboardPrefs.avroPhoneticBackspaceReopening &&
-                inspected.rawPhonetic.isNotBlank()
-            ) {
-                val rawToReopen = inspected.rawPhonetic.dropLast(1)
-                activeInspectedWord = null
-                ic.beginBatchEdit()
-                try {
-                    if (inspected.charsBeforeCursor > 0) {
-                        ic.deleteSurroundingText(inspected.charsBeforeCursor, 0)
+            val reopenPlan = if (session.getLayout() == LekhaniLayoutType.AVRO && !isCurrentFieldPrivate) {
+                avroInspectionCoordinator.prepareBackspaceReopening(ic)
+            } else null
+            if (reopenPlan != null) {
+                rawInputBuffer.clear()
+                session.reset()
+                val rawToReopen = reopenPlan.rawToReopen
+                if (rawToReopen.isNotEmpty()) {
+                    rawInputBuffer.append(rawToReopen)
+                    val immediateBefore = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null }
+                    if (!immediateBefore.isNullOrEmpty()) {
+                        session.setContext(immediateBefore)
                     }
-                    rawInputBuffer.clear()
-                    session.reset()
-                    if (rawToReopen.isNotEmpty()) {
-                        rawInputBuffer.append(rawToReopen)
-                        val immediateBefore = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null }
-                        if (!immediateBefore.isNullOrEmpty()) {
-                            session.setContext(immediateBefore)
-                        }
-                        var result: com.lekhani.android.ffi.TypingResult? = null
-                        for (i in 0 until rawInputBuffer.length) {
-                            result = session.processKey(rawInputBuffer[i].toString())
-                        }
-                        if (result != null) {
-                            preeditShadow = result.preedit
-                            setComposingTextSafe(ic, result.preedit)
-                            publishCandidates(result.candidates)
-                        }
-                    } else {
-                        preeditShadow = ""
-                        clearCandidates()
+                    var result: com.lekhani.android.ffi.TypingResult? = null
+                    for (i in 0 until rawInputBuffer.length) {
+                        result = session.processKey(rawInputBuffer[i].toString())
                     }
-                } finally {
-                    ic.endBatchEdit()
+                    if (result != null) {
+                        preeditShadow = result.preedit
+                        setComposingTextSafe(ic, result.preedit)
+                        publishCandidates(result.candidates)
+                    }
+                } else {
+                    preeditShadow = ""
+                    clearCandidates()
                 }
                 refreshSurroundingContext()
                 updateAutoCaps()
@@ -3058,32 +3037,21 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         // 3a. Inspected word replacement (when user tapped candidate strip for a word at cursor)
-        val inspected = activeInspectedWord
-        if (inspected != null && !session.isComposing()) {
-            activeInspectedWord = null
-            ic.beginBatchEdit()
-            try {
-                if (inspected.charsBeforeCursor > 0 || inspected.charsAfterCursor > 0) {
-                    ic.deleteSurroundingText(inspected.charsBeforeCursor, inspected.charsAfterCursor)
-                }
-                val charAfter = try { ic.getTextAfterCursor(1, 0)?.toString()?.firstOrNull() } catch (_: Exception) { null }
-                val shouldOmitTrailingSpace = keyboardPrefs.smartPunctuationSpacing && charAfter != null && charAfter in SMART_PUNCTUATION_CHARS
-                val textToCommit = if (shouldOmitTrailingSpace || !inspected.hasTrailingSpace) actualCandidate else "$actualCandidate "
-                ic.commitText(textToCommit, 1)
+        if (!session.isComposing()) {
+            val commitRes = avroInspectionCoordinator.commitCandidateForInspectedWord(actualCandidate, ic)
+            if (commitRes != null) {
                 preeditShadow = ""
-                if (textToCommit.endsWith(" ")) {
+                if (commitRes.textCommitted.endsWith(" ")) {
                     lastCommitWithTrailingSpaceTime = android.os.SystemClock.uptimeMillis()
                 }
-            } finally {
-                ic.endBatchEdit()
+                if (session.getLayout() == LekhaniLayoutType.AVRO && commitRes.rawPhonetic.isNotBlank()) {
+                    avroHistory.record(actualCandidate, commitRes.rawPhonetic, withSpace = commitRes.textCommitted.endsWith(" "))
+                }
+                refreshSurroundingContext()
+                updateAutoCaps()
+                updateAvroStripForWordAtCursor(ic)
+                return
             }
-            if (session.getLayout() == LekhaniLayoutType.AVRO && inspected.rawPhonetic.isNotBlank()) {
-                avroHistory.record(actualCandidate, inspected.rawPhonetic, withSpace = inspected.hasTrailingSpace)
-            }
-            refreshSurroundingContext()
-            updateAutoCaps()
-            updateAvroStripForWordAtCursor(ic)
-            return
         }
 
         val result = try {
@@ -4364,56 +4332,6 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
-    // ── Avro Dynamic Word Recomposition ────────────────────────────────────────
-
-    private fun isWordChar(c: Char): Boolean {
-        if (c.isWhitespace()) return false
-        if (c == '।' || c == '॥' || c == ',' || c == '.' || c == '?' || c == '!' ||
-            c == ';' || c == ':' || c == '"' || c == '\'' || c == '(' || c == ')' ||
-            c == '[' || c == ']' || c == '{' || c == '}' || c == '<' || c == '>' ||
-            c == '/' || c == '\\' || c == '@' || c == '#' || c == '$' || c == '%' ||
-            c == '^' || c == '&' || c == '*' || c == '+' || c == '=' || c == '~' || c == '`') {
-            return false
-        }
-        return true
-    }
-
-    // ── Avro Dynamic Word Inspection (Gboard-Style) ─────────────────────────────
-
-    /**
-     * Ephemeral inspection state for a word at or around the cursor in Avro phonetic mode.
-     * When the user taps into a word, navigates, or backspaces on committed text,
-     * the word is inspected without modifying the document, displaying the English
-     * transliteration preview and candidate alternatives on the candidate strip.
-     *
-     * @param word The full word token around the cursor
-     * @param charsBeforeCursor Number of characters of the word before the cursor
-     * @param charsAfterCursor Number of characters of the word after the cursor
-     * @param rawEnglish The canonical Avro English phonetic representation
-     */
-    private data class InspectedWord(
-        val word: String,
-        val charsBeforeCursor: Int,
-        val charsAfterCursor: Int,
-        val rawPhonetic: String,
-        val previewEnglish: String,
-        val hasTrailingSpace: Boolean = false,
-    ) {
-        val rawEnglish: String get() = rawPhonetic
-    }
-
-    /**
-     * Inspects the word under or adjacent to the cursor in Avro phonetic mode
-     * without mutating or destroying document text.
-     *
-     * Displays the English phonetic preview in Slot 0 (e.g. "sonar") and the
-     * canonical Bengali word in Slot 1 (e.g. "সোনার"), followed by alternative
-     * candidate suggestions.
-     *
-     * If the user taps a suggestion on the strip, [onCandidateSelected] cleanly
-     * replaces the inspected word. If the user continues typing or moves away,
-     * the document remains pristine.
-     */
     private fun updateAvroStripForWordAtCursor(ic: InputConnection) {
         if (currentMode != InputViewMode.KEYBOARD) return
         if (session.getLayout() != LekhaniLayoutType.AVRO) return
@@ -4428,210 +4346,23 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
-        val before = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null } ?: ""
-        val after = try { ic.getTextAfterCursor(64, 0)?.toString() } catch (_: Exception) { null } ?: ""
-
-        // Backward scan in before to find the start of the current word
-        var beforeWordCount = 0
-        var i = before.length - 1
-        while (i >= 0 && isWordChar(before[i])) {
-            beforeWordCount++
-            i--
-        }
-
-        // Forward scan in after to find the end of the current word
-        var afterWordCount = 0
-        var j = 0
-        while (j < after.length && isWordChar(after[j])) {
-            afterWordCount++
-            j++
-        }
-
-        val totalWordLen = beforeWordCount + afterWordCount
-
-        if (totalWordLen == 0) {
-            val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit &&
-                keyboardPrefs.isNextWordActive(session.getLayout())) {
-                // Anti-flicker cache: if the strip is already stably showing predictions for this context, do not re-emit
-                val curState = _candidateState.value
-                if (trimmedBefore == lastPredictedContext && curState is CandidateStripState.Candidates && curState.items.isNotEmpty()) {
-                    return
-                }
-                session.setContext(trimmedBefore)
-                val nextWords = try {
-                    session.predictNextWords(5u)
-                } catch (_: Exception) {
-                    emptyList()
-                }
-                if (nextWords.isNotEmpty()) {
-                    lastPredictedContext = trimmedBefore
-                    activeInspectedWord = null
-                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = 0, verbatimIdx = -1)
-                    val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
-                    if (curItems != annotated) {
-                        _candidateState.value = CandidateStripState.Candidates(annotated)
-                        updateCandidatesVisibility()
-                    }
-                    return
-                }
-            }
-            if (activeInspectedWord != null || _candidateState.value is CandidateStripState.Candidates) {
-                activeInspectedWord = null
-                clearCandidates()
-            }
-            return
-        }
-
-        val word = before.substring(before.length - beforeWordCount) + after.substring(0, afterWordCount)
-        val isBengali = AvroReverseTransliterator.isBengaliWord(word)
-        val isAsciiWord = !isBengali && word.isNotEmpty() && word.all { it in 'a'..'z' || it in 'A'..'Z' }
-        if (!isBengali && !isAsciiWord) {
-            val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit &&
-                keyboardPrefs.isNextWordActive(session.getLayout())) {
-                session.setContext(trimmedBefore)
-                val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
-                if (nextWords.isNotEmpty()) {
-                    activeInspectedWord = null
-                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = 0, verbatimIdx = -1)
-                    val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
-                    if (curItems != annotated) {
-                        _candidateState.value = CandidateStripState.Candidates(annotated)
-                        updateCandidatesVisibility()
-                    }
-                    return
-                }
-            }
-            if (activeInspectedWord != null) {
-                activeInspectedWord = null
-                clearCandidates()
-            }
-            return
-        }
-
-        val rawEnglish = if (isBengali) {
-            avroHistory.get(word) ?: AvroReverseTransliterator.bengaliToAvro(word)
-        } else {
-            word
-        }
-        if (rawEnglish.isBlank()) {
-            val trimmedBefore = before.trimEnd()
-            if (trimmedBefore.isNotEmpty() && !suppressNextWordAfterCommit &&
-                keyboardPrefs.isNextWordActive(session.getLayout())) {
-                session.setContext(trimmedBefore)
-                val nextWords = try { session.predictNextWords(5u) } catch (_: Exception) { emptyList() }
-                if (nextWords.isNotEmpty()) {
-                    activeInspectedWord = null
-                    val annotated = HomophoneAnnotator.annotate(nextWords, primaryIdx = 0, verbatimIdx = -1)
-                    val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
-                    if (curItems != annotated) {
-                        _candidateState.value = CandidateStripState.Candidates(annotated)
-                        updateCandidatesVisibility()
-                    }
-                    return
-                }
-            }
-            if (activeInspectedWord != null) {
-                activeInspectedWord = null
-                clearCandidates()
-            }
-            return
-        }
-
-        // Format English preview token in clean Title Case (e.g. "Amar", "Sonar", "Bangla") matching Gboard
-        val formattedEnglish = rawEnglish.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-
-        // Zero-allocation & zero-flicker deduplication:
-        // If the user is navigating within or over the same word, just update cursor offsets
-        // without re-querying the engine or triggering Compose recomposition.
-        val prevInspected = activeInspectedWord
-        if (prevInspected != null && prevInspected.word == word && prevInspected.rawPhonetic == rawEnglish) {
-            activeInspectedWord = prevInspected.copy(
-                charsBeforeCursor = beforeWordCount,
-                charsAfterCursor = afterWordCount,
-                hasTrailingSpace = false
-            )
-            return
-        }
-
-        activeInspectedWord = InspectedWord(
-            word = word,
-            charsBeforeCursor = beforeWordCount,
-            charsAfterCursor = afterWordCount,
-            rawPhonetic = rawEnglish,
-            previewEnglish = formattedEnglish,
-            hasTrailingSpace = false
-        )
-
-        // Query candidate suggestions from the Avro engine via wordInspectionSession with surrounding context
-        val candidatesList = mutableListOf<String>()
-        try {
-            wordInspectionSession.reset()
-            val sentenceBefore = before.substring(0, (before.length - beforeWordCount).coerceAtLeast(0)).trim()
-            if (sentenceBefore.isNotEmpty()) {
-                wordInspectionSession.setContext(sentenceBefore.takeLast(CONTEXT_CHAR_LIMIT))
-            }
-            val sentenceAfter = after.substring(afterWordCount.coerceAtMost(after.length)).trim()
-            if (sentenceAfter.isNotEmpty()) {
-                wordInspectionSession.setRightContext(sentenceAfter.take(64))
-            }
-            var lastRes: com.lekhani.android.ffi.TypingResult? = null
-            for (ch in rawEnglish) {
-                lastRes = wordInspectionSession.processKey(ch.toString())
-            }
-            if (lastRes != null) {
-                candidatesList.addAll(lastRes.candidates)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error querying wordInspectionSession: ${e.message}")
-        }
-
-        // Build candidate list:
-        // Slot 0: formattedEnglish preview (e.g. "Sonar", "Amar", "Bangla") with isVerbatimPreview = true
-        // Slot 1: primary candidate (the word currently in document, e.g. "সোনার", "আমার", "বাংলা")
-        // Slot 2+: alternative suggestions (e.g. "অমর", "বাংলার")
-        val displayCandidates = mutableListOf<String>()
-        val primaryCandidate = if (isBengali) word else (candidatesList.firstOrNull() ?: word)
-        val isBengaliFirst = keyboardPrefs.avroStripOrder == KeyboardPreferences.STRIP_ORDER_BENGALI_FIRST
-
-        if (keyboardPrefs.avroShowEnglishPreview) {
-            if (isBengaliFirst) {
-                // Slot 0: Primary Bengali candidate
-                displayCandidates.add(primaryCandidate)
-                // Slot 1: English preview token
-                displayCandidates.add(formattedEnglish)
-            } else {
-                // Slot 0: English preview token (Classic)
-                displayCandidates.add(formattedEnglish)
-                // Slot 1: Primary Bengali candidate
-                displayCandidates.add(primaryCandidate)
-            }
-        } else {
-            // English preview disabled: Slot 0 is Bengali
-            displayCandidates.add(primaryCandidate)
-        }
-
-        for (cand in candidatesList) {
-            val isEnglishDup = cand.equals(formattedEnglish, ignoreCase = true) || cand.equals(rawEnglish, ignoreCase = true)
-            if (!isEnglishDup && !displayCandidates.contains(cand) && !blacklist.isBlacklisted(cand)) {
-                displayCandidates.add(cand)
-            }
-        }
-
-        val primaryIdx = if (!keyboardPrefs.avroShowEnglishPreview || isBengaliFirst) 0 else 1
-        val verbatimIdx = if (!keyboardPrefs.avroShowEnglishPreview) -1 else if (isBengaliFirst) 1 else 0
-
-        val annotated = HomophoneAnnotator.annotate(
-            displayCandidates,
-            primaryIdx = primaryIdx,
-            verbatimIdx = verbatimIdx
-        )
-
         val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
-        if (curItems != annotated) {
-            _candidateState.value = CandidateStripState.Candidates(annotated)
-            updateCandidatesVisibility()
+        when (val res = avroInspectionCoordinator.inspectWordAtCursor(
+            ic = ic,
+            mainSession = session,
+            currentCandidateItems = curItems,
+            lastPredictedContext = lastPredictedContext,
+            suppressNextWordAfterCommit = suppressNextWordAfterCommit,
+        )) {
+            is AvroInspectionResult.NoChange -> Unit
+            is AvroInspectionResult.Clear -> {
+                clearCandidates()
+            }
+            is AvroInspectionResult.Update -> {
+                res.newPredictedContext?.let { lastPredictedContext = it }
+                _candidateState.value = CandidateStripState.Candidates(res.items)
+                updateCandidatesVisibility()
+            }
         }
     }
 
