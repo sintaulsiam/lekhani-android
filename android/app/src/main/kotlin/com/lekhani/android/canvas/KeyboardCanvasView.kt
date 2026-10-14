@@ -143,76 +143,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
                 invalidate()
             }
         }
-    private val resizeGuidePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.STROKE
-    }
-
-    // Side Dock buttons for One-Handed mode (zero allocation in onDraw)
+    // Side Dock buttons for One-Handed mode
     private val sideDockButtons = arrayOf(
         SideDockButton(SideDockAction.EXPAND_STANDARD),
         SideDockButton(SideDockAction.SWAP_SIDE),
         SideDockButton(SideDockAction.TOGGLE_FLOATING),
     )
     private var isSideDockVisible: Boolean = false
-    private val sideDockBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = 0x1AFFFFFF.toInt()
-    }
-    private val sideDockTextPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
-        color = 0xFFFFFFFF.toInt()
-        textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-    }
-
-    // Pre-allocated vector icon paths and paints for zero-allocation vector drawing
-    private val vectorIconPath = Path()
-    private val vectorIconStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
-    private val vectorIconFillPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-    }
-    private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
-        textAlign = Paint.Align.RIGHT
-        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-    }
-
-    // Spacebar cursor slide navigation paint
-    private val spaceSlideTrackPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 3f
-        color = 0x8000E5B8.toInt()
-    }
-    private val spaceSlideThumbPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = 0xFF00E5B8.toInt()
-    }
-
-    // Backspace swipe badge paint
-    private val backspaceBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = 0xFFE53935.toInt()
-    }
-    private val backspaceBadgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
-        color = 0xFFFFFFFF.toInt()
-        textAlign = Paint.Align.CENTER
-        typeface = Typeface.DEFAULT_BOLD
-    }
-
-    // Key Glow paint (Material 3 Expressive press effect)
-    private val keyGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2.5f
-        color = 0x6600E5B8.toInt()
-    }
-
-    // Key tactile 3D shadow paint (Material 3 depth)
-    private val keyShadowPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = 0x44000000
-    }
 
     // Swipe flick gestures (Probaho 2.0 / rapid shifted & subscript access)
     var swipeUpFlickEnabled: Boolean = true
@@ -220,11 +157,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // Power-user long-press clipboard shortcuts (C=Copy, V=Paste, X=Cut, A=SelectAll) on Latin layouts
     private var longPressClipboardShortcuts: Boolean = false
 
-    // Bilateral Thumb Aura paint (Probaho 2.0 vowel-consonant realm tint)
+    // Bilateral Thumb Aura (Probaho 2.0 vowel-consonant realm tint)
     private var showBilateralAura: Boolean = false
-    private val vowelAuraPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-    }
 
     // ── PopupWindow-based Key Preview & Alternate Popups ──────────────────────
     // Both live in their own window layer so they're never clipped by this view's
@@ -232,13 +166,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private val keyPreviewPopup = KeyPreviewPopupWindow(context)
     private val alternatePopup = AlternatePopupWindow(context)
 
-    private val keyDrawRect = RectF()
-
     private var wallpaperBitmap: Bitmap? = null
     private var wallpaperOpacity: Float = 0.25f
-    private val wallpaperPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG or Paint.FILTER_BITMAP_FLAG)
-    private val wallpaperSrcRect = Rect()
-    private val wallpaperDstRect = RectF()
 
     // ── Layout state ──────────────────────────────────────────────────────────
 
@@ -268,93 +197,58 @@ class KeyboardCanvasView @JvmOverloads constructor(
     /** Flat list of all keys with pixel bounds. Rebuilt only in [onSizeChanged]. */
     private val resolvedKeys = ArrayList<ResolvedKey>(50)
 
-    // ── Pre-allocated drawing primitives (ZERO allocation in onDraw) ──────────
+    // ── Keycap & Hardware Canvas Rendering Pipeline ───────────────────────────
+    private val keycapPaintPipeline = KeycapPaintPipeline(keyboardPainter)
 
-    // Key backgrounds
-    private val keyBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = KEY_COLOR_NORMAL
-    }
-    private val keyShiftBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = KEY_COLOR_SHIFT
-    }
-    private val keySpaceBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = KEY_COLOR_SPACE
-    }
-    private val keyHasantaBgPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = KEY_COLOR_HASANTA
-    }
+    private val paintHost = object : KeycapPaintPipeline.Host {
+        override val width: Float get() = this@KeyboardCanvasView.width.toFloat()
+        override val height: Float get() = this@KeyboardCanvasView.height.toFloat()
+        override val density: Float get() = this@KeyboardCanvasView.cachedDensity.takeIf { it > 0f } ?: this@KeyboardCanvasView.resources.displayMetrics.density
+        override val activeTheme: KeyboardTheme get() = this@KeyboardCanvasView.activeTheme
+        override val isThemeApplied: Boolean get() = this@KeyboardCanvasView.isThemeApplied
+        override val formFactor: KeyboardPreferences.FormFactor get() = this@KeyboardCanvasView.formFactor
+        override val isShifted: Boolean get() = this@KeyboardCanvasView.isShifted
+        override val isCapsLock: Boolean get() = this@KeyboardCanvasView.isCapsLock
+        override val isShiftActive: Boolean get() = this@KeyboardCanvasView.isShiftActive
+        override val isBottomRowKeyEmoji: Boolean get() = this@KeyboardCanvasView.isBottomRowKeyEmoji
+        override val layoutType: com.lekhani.android.ffi.LekhaniLayoutType get() = this@KeyboardCanvasView.layoutType
+        override val spacebarSwipeMode: KeyboardPreferences.SpacebarSwipeMode get() = this@KeyboardCanvasView.spacebarSwipeMode
+        override val enabledLayoutsCount: Int get() = this@KeyboardCanvasView.enabledLayoutsCount
+        override val showKeyBorders: Boolean get() = this@KeyboardCanvasView.showKeyBorders
+        override val showHomeRowAccents: Boolean get() = this@KeyboardCanvasView.showHomeRowAccents
+        override val showKeyHints: Boolean get() = this@KeyboardCanvasView.showKeyHints
+        override val showBilateralAura: Boolean get() = this@KeyboardCanvasView.showBilateralAura
+        override val showLayoutNameOnSpacebar: Boolean get() = this@KeyboardCanvasView.showLayoutNameOnSpacebar
+        override val isUiLanguageEnglish: Boolean get() = this@KeyboardCanvasView.isUiLanguageEnglish
+        override val keyGlowRippleEnabled: Boolean get() = this@KeyboardCanvasView.keyGlowRippleEnabled
+        override val keyShadowLip: Float get() = this@KeyboardCanvasView.keyShadowLip
+        override val keyCornerRadius: Float get() = this@KeyboardCanvasView.keyCornerRadius
+        override val homeRowAccentHeight: Float get() = this@KeyboardCanvasView.homeRowAccentHeight
+        override val enterActionIcon: EnterKeyResolver.ActionIcon get() = this@KeyboardCanvasView.enterActionIcon
+        override val isResizeVisualGuide: Boolean get() = this@KeyboardCanvasView.isResizeVisualGuide
+        override val isSideDockVisible: Boolean get() = this@KeyboardCanvasView.isSideDockVisible
+        override val sideDockButtons: Array<SideDockButton> get() = this@KeyboardCanvasView.sideDockButtons
+        override val resolvedKeys: List<ResolvedKey> get() = this@KeyboardCanvasView.resolvedKeys
+        override val wallpaperBitmap: Bitmap? get() = this@KeyboardCanvasView.wallpaperBitmap
+        override val wallpaperOpacity: Float get() = this@KeyboardCanvasView.wallpaperOpacity
 
-    // Key border
-    private val keyBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 1.2f
-        color = KEY_BORDER_COLOR
-    }
+        override val pressedKeyIndex: Int get() = this@KeyboardCanvasView.pressedKeyIndex
+        override val pressStartTime: Long get() = this@KeyboardCanvasView.pressStartTime
+        override val glideTypingEnabled: Boolean get() = this@KeyboardCanvasView.glideTypingEnabled
+        override val isGliding: Boolean get() = this@KeyboardCanvasView.isGliding
+        override val glidePointsX: FloatArray get() = this@KeyboardCanvasView.glidePointsX
+        override val glidePointsY: FloatArray get() = this@KeyboardCanvasView.glidePointsY
+        override val glidePointCount: Int get() = this@KeyboardCanvasView.glidePointCount
+        override val glideCurX: Float get() = this@KeyboardCanvasView.glideCurX
+        override val glideCurY: Float get() = this@KeyboardCanvasView.glideCurY
+        override val isSpaceCursorMoving: Boolean get() = this@KeyboardCanvasView.isSpaceCursorMoving
+        override val spaceSlideLastX: Float get() = this@KeyboardCanvasView.spaceSlideLastX
+        override val isBackspaceSwiping: Boolean get() = this@KeyboardCanvasView.isBackspaceSwiping
+        override val backspaceDeletedWordCount: Int get() = this@KeyboardCanvasView.backspaceDeletedWordCount
 
-    // Pre-allocated array for zero-allocation dynamic 120 FPS RGB Chroma calculation
-    private val rgbHsv = FloatArray(3)
-
-    /**
-     * Computes the dynamic RGB Chroma color based on [mode], animation timestamp [now],
-     * and horizontal position ratio [xRatio] (0f..1f) across keyboard surface.
-     * Reuses pre-allocated [rgbHsv] for zero allocations inside the 120 FPS hot path.
-     */
-    private fun getChromaColor(mode: ChromaMode, now: Long, xRatio: Float = 0.5f): Int {
-        return ThemeChromaUtils.getColor(mode, now, xRatio, rgbHsv)
-    }
-
-    // Key labels
-    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
-        color = LABEL_COLOR
-        textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-    }
-    private val labelPaintSmall = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG or Paint.DITHER_FLAG).apply {
-        color = LABEL_COLOR_DIM
-        textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-    }
-
-    // Home row accent underline
-    private val homeRowAccentPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = ACCENT_TEAL
-    }
-
-    // Zone divider (between left vowel and right consonant halves)
-    private val zoneDividerPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 0.8f
-        color = ZONE_DIVIDER_COLOR
-    }
-
-    // Ripple animation
-    private val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = RIPPLE_COLOR
-    }
-
-    // Glide / Gesture typing path and glow paints (zero allocation in onDraw)
-    private val glidePath = android.graphics.Path()
-    private val glideGlowPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-        color = Color.parseColor("#4000D4A0") // semi-transparent teal glow
-    }
-    private val glideStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-        color = Color.parseColor("#00E5B8") // vibrant teal stroke
-    }
-    private val glideDotPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
-        style = Paint.Style.FILL
-        color = Color.parseColor("#E0FFFFFF") // glowing tip
+        override fun applyInitialTheme(theme: KeyboardTheme) = this@KeyboardCanvasView.applyTheme(theme)
+        override fun invalidate() = this@KeyboardCanvasView.invalidate()
+        override fun postInvalidateOnAnimation() = this@KeyboardCanvasView.postInvalidateOnAnimation()
     }
 
     // Delegate touch state to TouchGestureDispatcher
@@ -651,8 +545,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             KeyboardPreferences.FONT_MONOSPACE -> Typeface.MONOSPACE
             else -> Typeface.DEFAULT
         }
-        labelPaint.typeface = tf
-        labelPaintSmall.typeface = tf
+        keycapPaintPipeline.setTypeface(tf)
 
         val theme = ThemeRegistry.resolveTheme(context, prefs.themeId)
         applyTheme(theme)
@@ -698,27 +591,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     fun applyTheme(theme: KeyboardTheme) {
         activeTheme = theme
         isThemeApplied = true
-        keyBgPaint.color = theme.keyNormalColor
-        keyShiftBgPaint.color = theme.keyShiftColor
-        keySpaceBgPaint.color = theme.keySpaceColor
-        keyHasantaBgPaint.color = theme.keyHasantaColor
-        keyBorderPaint.color = theme.keyBorderColor
-        labelPaint.color = theme.labelColor
-        labelPaintSmall.color = theme.labelDimColor
-        homeRowAccentPaint.color = theme.accentColor
-        ripplePaint.color = theme.rippleColor
-        glideStrokePaint.color = theme.glideStrokeColor
-        glideGlowPaint.color = theme.glideGlowColor
-        zoneDividerPaint.color = theme.keySpaceColor
-
-        keyGlowPaint.color        = androidx.core.graphics.ColorUtils.setAlphaComponent(theme.accentColor, 0x66)
-        spaceSlideTrackPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(theme.accentColor, 0x80)
-        spaceSlideThumbPaint.color = theme.accentColor
-        vectorIconStrokePaint.color = theme.labelColor
-        vectorIconFillPaint.color = theme.labelColor
-        hintPaint.color = theme.labelDimColor
-        vowelAuraPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(theme.accentColor, 18)
-
+        keycapPaintPipeline.applyTheme(theme)
         keyPreviewPopup.applyTheme(theme)
         alternatePopup.applyTheme(theme)
         invalidate()
@@ -914,14 +787,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyCornerRadius = 7.5f * density
         homeRowAccentHeight = 2.5f * density
         touchGestureDispatcher.updateDimensions(density)
-
-        glideStrokePaint.strokeWidth = 4.5f * density
-        glideGlowPaint.strokeWidth = 11f * density
-        spaceSlideTrackPaint.strokeWidth = 2.5f * density
-        keyGlowPaint.strokeWidth = 2.2f * density
-        sideDockTextPaint.textSize = 20f * density
-        backspaceBadgeTextPaint.textSize = 12f * density
-        vectorIconStrokePaint.strokeWidth = 2.2f * density
+        keycapPaintPipeline.updateDimensions(density)
 
         val currentLayout = layout ?: return
         val hasExtraNumberRow = showDedicatedNumberRow && !isNumberSymbolsActive()
@@ -941,10 +807,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         spacebarRowHeight = keyHeight
         labelSize = (keyHeight * 0.36f * fontScale).coerceAtLeast(9.5f * density)
         labelSizeSmall = (keyHeight * 0.21f * fontScale).coerceAtLeast(7.5f * density)
-
-        labelPaint.textSize = labelSize
-        labelPaintSmall.textSize = labelSizeSmall
-        hintPaint.textSize = labelSizeSmall * 0.92f
+        keycapPaintPipeline.updateTextSizes(labelSize, labelSizeSmall)
         // Popup text sizes are set inside KeyPreviewPopupWindow and AlternatePopupWindow
 
         // Zone divider: exactly at x = width / 2 (5 keys left, 5 keys right)
@@ -999,410 +862,13 @@ class KeyboardCanvasView @JvmOverloads constructor(
         )
     }
 
-    // Vector Drawing Helpers — Zero allocations permitted
+    // ── Hardware Canvas Rendering ─────────────────────────────────────────────
 
-    private fun drawVectorBackspace(canvas: Canvas, cx: Float, cy: Float, size: Float, paint: Paint) {
-        keyboardPainter.drawVectorBackspace(canvas, cx, cy, size, paint)
-    }
-
-    private fun drawVectorShift(canvas: Canvas, cx: Float, cy: Float, size: Float, isShifted: Boolean, isLocked: Boolean, strokePaint: Paint, fillPaint: Paint) {
-        keyboardPainter.drawVectorShift(canvas, cx, cy, size, isShifted, isLocked, strokePaint, fillPaint)
-    }
-
-    private fun getAdaptiveSpaceRow(originalRow: List<Key>): List<Key> =
-        keyboardGeometryEngine.getAdaptiveSpaceRow(originalRow, fieldType, isNumberSymbolsActive())
-
-    private fun drawVectorEnter(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorEnter(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorSearch(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorSearch(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorSend(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorSend(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorGo(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorGo(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorNext(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorNext(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorDone(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorDone(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorExpand(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorExpand(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorChevron(canvas: Canvas, cx: Float, cy: Float, size: Float, isLeft: Boolean, strokePaint: Paint) {
-        keyboardPainter.drawVectorChevron(canvas, cx, cy, size, isLeft, strokePaint)
-    }
-
-    private fun drawVectorFloating(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorFloating(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorGlobe(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorGlobe(canvas, cx, cy, size, strokePaint)
-    }
-
-    private fun drawVectorSmiley(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        keyboardPainter.drawVectorSmiley(canvas, cx, cy, size, strokePaint, vectorIconFillPaint)
-    }
-
-    private fun drawVectorNumpad(canvas: Canvas, cx: Float, cy: Float, size: Float, fillPaint: Paint) {
-        keyboardPainter.drawVectorNumpad(canvas, cx, cy, size, fillPaint)
-    }
-
-    private fun drawMiniVectorDialpad(canvas: Canvas, cx: Float, cy: Float, size: Float, paint: Paint) {
-        val dotRadius = (size * 0.09f).coerceAtLeast(1.0f)
-        val spX = size * 0.32f
-        val spY = size * 0.30f
-
-        canvas.drawCircle(cx - spX, cy - spY, dotRadius, paint)
-        canvas.drawCircle(cx, cy - spY, dotRadius, paint)
-        canvas.drawCircle(cx + spX, cy - spY, dotRadius, paint)
-
-        canvas.drawCircle(cx - spX, cy, dotRadius, paint)
-        canvas.drawCircle(cx, cy, dotRadius, paint)
-        canvas.drawCircle(cx + spX, cy, dotRadius, paint)
-
-        canvas.drawCircle(cx - spX, cy + spY, dotRadius, paint)
-        canvas.drawCircle(cx, cy + spY, dotRadius, paint)
-        canvas.drawCircle(cx + spX, cy + spY, dotRadius, paint)
-    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (!isThemeApplied) {
-            try {
-                val initialTheme = ThemeRegistry.resolveTheme(context, KeyboardPreferences.get(context).themeId)
-                applyTheme(initialTheme)
-            } catch (_: Exception) {}
-        }
-        if (resolvedKeys.isEmpty()) return
-
-        // ── Keyboard Canvas Background ─────────────────────────────────────
-        canvas.drawColor(activeTheme.backgroundColor)
-        wallpaperBitmap?.let { bmp ->
-            if (!bmp.isRecycled) {
-                wallpaperSrcRect.set(0, 0, bmp.width, bmp.height)
-                wallpaperDstRect.set(0f, 0f, width.toFloat(), height.toFloat())
-                wallpaperPaint.alpha = (wallpaperOpacity * 255).toInt().coerceIn(0, 255)
-                canvas.drawBitmap(bmp, wallpaperSrcRect, wallpaperDstRect, wallpaperPaint)
-            }
-        }
-
-        val now = SystemClock.uptimeMillis()
-        var centerChromaColor = 0
-        if (activeTheme.isRgbChroma) {
-            centerChromaColor = getChromaColor(activeTheme.chromaMode, now, 0.5f)
-            keyBorderPaint.color = centerChromaColor
-            keyBorderPaint.strokeWidth = when (activeTheme.chromaStyle) {
-                ChromaStyle.FULL_BORDER -> 1.6f * cachedDensity
-                ChromaStyle.AMBIENT_BREATHE -> 0.9f * cachedDensity
-                ChromaStyle.CLEAN_MINIMAL -> 1.0f * cachedDensity
-            }
-            homeRowAccentPaint.color = centerChromaColor
-            keyGlowPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(centerChromaColor, 0x80)
-            spaceSlideThumbPaint.color = centerChromaColor
-            glideStrokePaint.color = centerChromaColor
-            glideDotPaint.color = centerChromaColor
-            postInvalidateOnAnimation()
-        }
-        // Use the cached density — never call resources.displayMetrics in onDraw (120 FPS hot path)
-        val density = cachedDensity
-
-        // ── Side Dock Buttons (One-Handed mode, crisp vector rendering) ───
-        if (isSideDockVisible) {
-            val dockIconSize = 18f * density
-            for (btn in sideDockButtons) {
-                canvas.drawRoundRect(btn.bounds, 10f * density, 10f * density, sideDockBgPaint)
-                val bcx = btn.bounds.centerX()
-                val bcy = btn.bounds.centerY()
-                when (btn.action) {
-                    SideDockAction.EXPAND_STANDARD -> drawVectorExpand(canvas, bcx, bcy, dockIconSize, vectorIconStrokePaint)
-                    SideDockAction.SWAP_SIDE -> drawVectorChevron(canvas, bcx, bcy, dockIconSize, isLeft = (formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_LEFT), vectorIconStrokePaint)
-                    SideDockAction.TOGGLE_FLOATING -> drawVectorFloating(canvas, bcx, bcy, dockIconSize, vectorIconStrokePaint)
-                }
-            }
-        }
-
-        // ── Keys ───────────────────────────────────────────────────────────
-        for (i in resolvedKeys.indices) {
-            val resolved = resolvedKeys[i]
-            val key = resolved.key
-            val bounds = resolved.bounds
-
-            // Select background paint
-            val bgPaint = when {
-                key.action == KeyAction.Backspace || key.action == KeyAction.Shift ||
-                key.action == KeyAction.SwitchNumeric || key.action == KeyAction.SwitchMoreSymbols ||
-                key.action == KeyAction.SwitchAlpha || key.action == KeyAction.SwitchNumpad || key.action == KeyAction.ToggleBengaliDigits ||
-                key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
-                key.action == KeyAction.SwitchEmoji || key.action == KeyAction.SwitchClipboard ||
-                key.action == KeyAction.CursorLeft || key.action == KeyAction.CursorRight ||
-                key.action == KeyAction.Tab -> keyShiftBgPaint
-                key.action == KeyAction.Space -> keySpaceBgPaint
-                else -> keyBgPaint
-            }
-
-            // 3D Keycap tactile depth & depression
-            val drawBounds = if (i == pressedKeyIndex) {
-                // Key pressed down: depressed into the keyboard surface
-                keyDrawRect.set(bounds.left, bounds.top + keyShadowLip, bounds.right, bounds.bottom)
-                if (keyGlowRippleEnabled) {
-                    scratchRect.set(keyDrawRect.left - 2.5f, keyDrawRect.top - 2.5f, keyDrawRect.right + 2.5f, keyDrawRect.bottom + 2.5f)
-                    canvas.drawRoundRect(scratchRect, keyCornerRadius + 2.5f, keyCornerRadius + 2.5f, keyGlowPaint)
-                }
-                keyDrawRect
-            } else {
-                // Key bottom shadow
-                scratchRect.set(bounds.left, bounds.top + keyShadowLip, bounds.right, bounds.bottom)
-                canvas.drawRoundRect(scratchRect, keyCornerRadius, keyCornerRadius, keyShadowPaint)
-                // Key elevated top surface
-                keyDrawRect.set(bounds.left, bounds.top, bounds.right, bounds.bottom - keyShadowLip)
-                keyDrawRect
-            }
-
-            // Draw key background with rounded corners
-            canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, bgPaint)
-
-            // Probaho Bilateral Thumb Aura: subtle tint on Left Hand (vowels realm) character keys
-            if (showBilateralAura &&
-                layoutType == com.lekhani.android.ffi.LekhaniLayoutType.PROBAHO &&
-                drawBounds.centerX() < width / 2f &&
-                key.action is KeyAction.Character &&
-                !activeTheme.isRgbChroma
-            ) {
-                canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, vowelAuraPaint)
-            }
-
-            // Draw key border (enabled by user preference OR dynamic RGB chroma)
-            val shouldDrawKeyBorder = when {
-                activeTheme.isRgbChroma -> {
-                    when (activeTheme.chromaStyle) {
-                        ChromaStyle.FULL_BORDER -> true
-                        ChromaStyle.AMBIENT_BREATHE -> true
-                        ChromaStyle.CLEAN_MINIMAL -> {
-                            // In CLEAN_MINIMAL: floating borderless keys, dynamic accent only on Enter and Spacebar!
-                            key.action == KeyAction.Enter || key.action == KeyAction.Space
-                        }
-                    }
-                }
-                else -> showKeyBorders
-            }
-
-            if (shouldDrawKeyBorder) {
-                if (activeTheme.isRgbChroma) {
-                    val xRatio = if (width > 0) (drawBounds.centerX() / width.toFloat()).coerceIn(0f, 1f) else 0.5f
-                    val chromaColor = getChromaColor(activeTheme.chromaMode, now, xRatio)
-                    if (activeTheme.chromaStyle == ChromaStyle.AMBIENT_BREATHE) {
-                        keyBorderPaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(chromaColor, 0x99)
-                    } else {
-                        keyBorderPaint.color = chromaColor
-                    }
-                }
-                canvas.drawRoundRect(drawBounds, keyCornerRadius, keyCornerRadius, keyBorderPaint)
-            }
-
-            // Home row accent underline (optional tactile hint, disabled by default)
-            if (showHomeRowAccents && key.isHomeRow) {
-                scratchRect.set(
-                    drawBounds.left + keyCornerRadius,
-                    drawBounds.bottom - homeRowAccentHeight,
-                    drawBounds.right - keyCornerRadius,
-                    drawBounds.bottom,
-                )
-                canvas.drawRect(scratchRect, homeRowAccentPaint)
-            }
-
-            // Draw ripple if this key is pressed
-            if (i == pressedKeyIndex) {
-                val elapsed = (now - pressStartTime).coerceAtMost(RIPPLE_DURATION_MS)
-                val fraction = elapsed.toFloat() / RIPPLE_DURATION_MS
-                val rippleAlpha = ((1f - fraction) * RIPPLE_MAX_ALPHA).toInt().coerceIn(0, 255)
-                if (activeTheme.isRgbChroma) {
-                    val xRatio = if (width > 0) (drawBounds.centerX() / width.toFloat()).coerceIn(0f, 1f) else 0.5f
-                    val rippleBaseColor = getChromaColor(activeTheme.chromaMode, now, xRatio)
-                    ripplePaint.color = androidx.core.graphics.ColorUtils.setAlphaComponent(rippleBaseColor, rippleAlpha)
-                } else {
-                    ripplePaint.alpha = rippleAlpha
-                }
-                rippleRect.set(drawBounds)
-                canvas.drawRoundRect(rippleRect, keyCornerRadius, keyCornerRadius, ripplePaint)
-                if (fraction < 1f) invalidate()
-            }
-
-            // Draw label
-            val labelText = if (key.action == KeyAction.Space) {
-                com.lekhani.android.model.LayoutRegistry.getSpacebarDisplayLabel(
-                    layoutType,
-                    showLayoutNameOnSpacebar,
-                    isUiLanguageEnglish
-                )
-            } else {
-                com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(key.displayLabel(isShifted))
-            }
-            val cx = drawBounds.centerX()
-            val cy = drawBounds.centerY() - (labelPaint.ascent() + labelPaint.descent()) / 2f
-            val cySmall = drawBounds.centerY() - (labelPaintSmall.ascent() + labelPaintSmall.descent()) / 2f
-
-            when (key.action) {
-                KeyAction.Backspace -> {
-                    val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
-                    drawVectorBackspace(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                }
-                KeyAction.Shift -> {
-                    val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
-                    drawVectorShift(canvas, cx, drawBounds.centerY(), iconSize, isShifted, isCapsLock, vectorIconStrokePaint, vectorIconFillPaint)
-                }
-                KeyAction.Enter -> {
-                    val iconSize = (drawBounds.height() * 0.42f).coerceAtLeast(16f * density)
-                    if (activeTheme.isRgbChroma) {
-                        vectorIconStrokePaint.color = keyBorderPaint.color
-                    }
-                    val resolvedIcon = if (isShiftActive) EnterKeyResolver.ActionIcon.NEWLINE else enterActionIcon
-                    when (resolvedIcon) {
-                        EnterKeyResolver.ActionIcon.SEARCH -> drawVectorSearch(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                        EnterKeyResolver.ActionIcon.SEND -> drawVectorSend(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                        EnterKeyResolver.ActionIcon.GO -> drawVectorGo(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                        EnterKeyResolver.ActionIcon.NEXT -> drawVectorNext(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                        EnterKeyResolver.ActionIcon.DONE -> drawVectorDone(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                        EnterKeyResolver.ActionIcon.NEWLINE -> drawVectorEnter(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                    }
-                    if (activeTheme.isRgbChroma) {
-                        vectorIconStrokePaint.color = activeTheme.labelColor
-                    }
-                }
-                KeyAction.SwitchLayout -> {
-                    val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
-                    if (isBottomRowKeyEmoji) {
-                        drawVectorSmiley(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                    } else {
-                        drawVectorGlobe(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                        val hint = key.hintLabel?.let { com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(it) }
-                        if (hint != null) {
-                            val hintX = drawBounds.right - 5f * density
-                            val hintY = drawBounds.top + 13f * density
-                            canvas.drawText(hint, hintX, hintY, hintPaint)
-                        }
-                    }
-                }
-                KeyAction.SwitchEmoji -> {
-                    val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
-                    drawVectorSmiley(canvas, cx, drawBounds.centerY(), iconSize, vectorIconStrokePaint)
-                }
-                KeyAction.SwitchNumpad -> {
-                    val iconSize = (drawBounds.height() * 0.40f).coerceAtLeast(16f * density)
-                    drawVectorNumpad(canvas, cx, drawBounds.centerY(), iconSize, vectorIconFillPaint)
-                }
-                KeyAction.Space -> {
-                    if (spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH && enabledLayoutsCount > 1 && !isSpaceCursorMoving) {
-                        canvas.drawText("‹   $labelText   ›", cx, cySmall, labelPaintSmall)
-                    } else {
-                        canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
-                    }
-                }
-                KeyAction.SwitchNumeric -> {
-                    canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
-                    // No secondary hint icon — the ?123 label is self-explanatory.
-                    // Long-press numpad is discoverable without a hint glyph (matches Gboard/SwiftKey convention).
-                }
-                KeyAction.SwitchMoreSymbols, KeyAction.SwitchAlpha, KeyAction.ToggleBengaliDigits -> {
-                    canvas.drawText(labelText, cx, cySmall, labelPaintSmall)
-                    if (showKeyHints) {
-                        val hint = key.displayHint(isShifted)?.let { com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(it) }
-                        if (hint != null) {
-                            val hintX = drawBounds.right - 5f * density
-                            val hintY = drawBounds.top + 13f * density
-                            canvas.drawText(hint, hintX, hintY, hintPaint)
-                        }
-                    }
-                }
-                else -> {
-                    canvas.drawText(labelText, cx, cy, labelPaint)
-                    if (showKeyHints) {
-                        val hint = key.displayHint(isShifted)?.let { com.lekhani.android.model.BengaliDiacriticsFormatter.formatForDisplay(it) }
-                        if (hint != null) {
-                            val hintX = drawBounds.right - 5f * density
-                            val hintY = drawBounds.top + 13f * density
-                            canvas.drawText(hint, hintX, hintY, hintPaint)
-                        }
-                    }
-                }
-            }
-
-            // Spacebar cursor slide visualization
-            if (isSpaceCursorMoving && key.action == KeyAction.Space) {
-                val midY = bounds.centerY()
-                canvas.drawLine(bounds.left + 16f * density, midY, bounds.right - 16f * density, midY, spaceSlideTrackPaint)
-                val dotX = glideCurX.coerceIn(bounds.left + 24f * density, bounds.right - 24f * density)
-                canvas.drawCircle(dotX, midY, 6f * density, spaceSlideThumbPaint)
-            }
-
-            // Backspace swipe to delete badge visualization
-            if (isBackspaceSwiping && key.action == KeyAction.Backspace && backspaceDeletedWordCount > 0) {
-                val badgeW = 60f * density
-                val badgeH = 22f * density
-                val badgeL = bounds.centerX() - badgeW / 2f
-                val badgeT = bounds.top - 18f * density
-                scratchRect.set(badgeL, badgeT, badgeL + badgeW, badgeT + badgeH)
-                canvas.drawRoundRect(scratchRect, 6f * density, 6f * density, backspaceBadgePaint)
-                val textY = scratchRect.centerY() - (backspaceBadgeTextPaint.ascent() + backspaceBadgeTextPaint.descent()) / 2f
-                canvas.drawText("-$backspaceDeletedWordCount", scratchRect.centerX(), textY, backspaceBadgeTextPaint)
-            }
-        }
-
-        // ── Popups are now rendered by PopupWindow (KeyPreviewPopupWindow / AlternatePopupWindow)
-        // ── and live in their own window layer. Nothing to draw here.
-
-        // ── Glide / Gesture typing trail (zero allocation, 120 FPS Bezier smoothing) ──
-        if (glideTypingEnabled && isGliding && glidePointCount > 0) {
-            glidePath.rewind()
-            glidePath.moveTo(glidePointsX[0], glidePointsY[0])
-            for (p in 1 until glidePointCount) {
-                val prevX = glidePointsX[p - 1]
-                val prevY = glidePointsY[p - 1]
-                val currX = glidePointsX[p]
-                val currY = glidePointsY[p]
-                val midX = (prevX + currX) / 2f
-                val midY = (prevY + currY) / 2f
-                glidePath.quadTo(prevX, prevY, midX, midY)
-            }
-            val lastX = glidePointsX[glidePointCount - 1]
-            val lastY = glidePointsY[glidePointCount - 1]
-            glidePath.quadTo(lastX, lastY, (lastX + glideCurX) / 2f, (lastY + glideCurY) / 2f)
-            glidePath.lineTo(glideCurX, glideCurY)
-
-            canvas.drawPath(glidePath, glideGlowPaint)
-            canvas.drawPath(glidePath, glideStrokePaint)
-            canvas.drawCircle(glideCurX, glideCurY, glideStrokePaint.strokeWidth * 0.75f, glideDotPaint)
-        }
-
-        // ── Resize Visual Guide Bounding Outline ─────────────────────────
-        if (isResizeVisualGuide) {
-            val pad = 3f * density
-            resizeGuidePaint.color = activeTheme.accentColor
-            resizeGuidePaint.strokeWidth = 2.5f * density
-            scratchRect.set(pad, pad, width - pad, height - pad)
-            canvas.drawRoundRect(scratchRect, 10f * density, 10f * density, resizeGuidePaint)
-        }
+        keycapPaintPipeline.render(canvas, paintHost)
     }
-
-    private fun isSpacebarKey(key: Key): Boolean =
-        key.action == KeyAction.Space || key.action == KeyAction.SwitchNumeric ||
-        key.action == KeyAction.SwitchMoreSymbols || key.action == KeyAction.SwitchAlpha ||
-        key.action == KeyAction.SwitchNumpad || key.action == KeyAction.ToggleBengaliDigits ||
-        key.action == KeyAction.SwitchLayout || key.action == KeyAction.Enter ||
-        key.action == KeyAction.CursorLeft || key.action == KeyAction.CursorRight ||
-        key.action == KeyAction.Tab
 
     // Touch handling — ZERO allocations permitted here
 
@@ -1604,26 +1070,5 @@ class KeyboardCanvasView @JvmOverloads constructor(
         }
     }
 
-    // Constants — all colours and metrics in one place
-
-    companion object {
-        // Palette (dark theme — Material 3 Expressive)
-        private val KEY_COLOR_NORMAL   = Color.parseColor("#1A2035")
-        private val KEY_COLOR_SHIFT    = Color.parseColor("#141926")
-        private val KEY_COLOR_SPACE    = Color.parseColor("#1E2840")
-        private val KEY_COLOR_HASANTA  = Color.parseColor("#003D4D")  // teal-tinted for discoverability
-        private val KEY_BORDER_COLOR   = Color.parseColor("#2A3550")
-        private val LABEL_COLOR        = Color.parseColor("#E8EAF0")
-        private val LABEL_COLOR_DIM    = Color.parseColor("#9098B0")
-        private val ACCENT_TEAL        = Color.parseColor("#00D4A0")  // home row underline
-        private val ZONE_DIVIDER_COLOR = Color.parseColor("#1E2840")
-        private val RIPPLE_COLOR       = Color.parseColor("#4000D4A0") // semi-transparent teal
-
-        private const val RIPPLE_DURATION_MS = 180L
-        private const val RIPPLE_MAX_ALPHA   = 80
-
-        // Hit-testing parameters
-        private const val KEY_Y_TOLERANCE = 20f   // px — vertical grace zone beyond key bounds
-        private const val ROW_Y_BIAS      = 1.8f  // amplify vertical distance in scoring
-    }
 }
+
