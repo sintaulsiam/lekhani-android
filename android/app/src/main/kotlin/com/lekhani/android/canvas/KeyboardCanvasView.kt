@@ -179,11 +179,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         typeface = Typeface.create("sans-serif", Typeface.NORMAL)
     }
 
-    // Spacebar cursor slide navigation state
-    private var isSpaceCursorMoving: Boolean = false
-    private var spaceSlideLastX: Float = 0f
-    private var spaceSlideStepPx: Float = 0f
-    private var spaceSlideThresholdPx: Float = 0f
+    // Spacebar cursor slide navigation paint
     private val spaceSlideTrackPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f
@@ -194,14 +190,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         color = 0xFF00E5B8.toInt()
     }
 
-    // Backspace swipe to delete state
-    private var isBackspaceSwiping: Boolean = false
-    private var isSwipeDeleteGestureActive: Boolean = false
-    private var isBackspaceDisarmed: Boolean = false
-    private var backspaceSwipeStartX: Float = 0f
-    private var backspaceSwipeStartY: Float = 0f
-    private var backspaceDeletedWordCount: Int = 0
-    private var backspaceSwipeStepPx: Float = 0f
+    // Backspace swipe badge paint
     private val backspaceBadgePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.DITHER_FLAG).apply {
         style = Paint.Style.FILL
         color = 0xFFE53935.toInt()
@@ -226,10 +215,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     // Swipe flick gestures (Probaho 2.0 / rapid shifted & subscript access)
-    private var swipeUpFlickEnabled: Boolean = true
-    private var isFlickGestureActive: Boolean = false
-    private var isFlickDownActive: Boolean = false
-    private var flickThresholdPx: Float = 0f
+    var swipeUpFlickEnabled: Boolean = true
 
     // Power-user long-press clipboard shortcuts (C=Copy, V=Paste, X=Cut, A=SelectAll) on Latin layouts
     private var longPressClipboardShortcuts: Boolean = false
@@ -371,98 +357,104 @@ class KeyboardCanvasView @JvmOverloads constructor(
         color = Color.parseColor("#E0FFFFFF") // glowing tip
     }
 
-    // Glide coordinates buffer & state (pre-allocated, zero allocation in onTouchEvent)
-    private val MAX_GLIDE_POINTS = 256
-    private val glidePointsX = FloatArray(MAX_GLIDE_POINTS)
-    private val glidePointsY = FloatArray(MAX_GLIDE_POINTS)
-    private var glidePointCount = 0
-    private var isGliding = false
-    private val visitedGlideKeys = ArrayList<String>(32)
-    private var lastVisitedKeyIdx = -1
-    private var glideMinDistancePx = 0f
-    private var glideSampleDistSq = 0f
-    private var touchStartX = 0f
-    private var touchStartY = 0f
-    private var glideCurX = 0f
-    private var glideCurY = 0f
+    // Delegate touch state to TouchGestureDispatcher
+    private val touchHost = object : TouchGestureDispatcher.Host {
+        override val view: View get() = this@KeyboardCanvasView
+        override val resolvedKeys: List<ResolvedKey> get() = this@KeyboardCanvasView.resolvedKeys
+        override val isShifted: Boolean get() = this@KeyboardCanvasView.isShifted
+        override val isCapsLock: Boolean get() = this@KeyboardCanvasView.isCapsLock
+        override val isBottomRowKeyEmoji: Boolean get() = this@KeyboardCanvasView.isBottomRowKeyEmoji
+        override val layoutType: com.lekhani.android.ffi.LekhaniLayoutType get() = this@KeyboardCanvasView.layoutType
+        override val spacebarSwipeMode: KeyboardPreferences.SpacebarSwipeMode get() = this@KeyboardCanvasView.spacebarSwipeMode
+        override val swipeToDeleteEnabled: Boolean get() = this@KeyboardCanvasView.swipeToDeleteEnabled
+        override val swipeUpFlickEnabled: Boolean get() = this@KeyboardCanvasView.swipeUpFlickEnabled
+        override val glideTypingEnabled: Boolean get() = this@KeyboardCanvasView.glideTypingEnabled
+        override val showKeyPreviews: Boolean get() = this@KeyboardCanvasView.showKeyPreviews
+        override val longPressDelayMs: Long get() = this@KeyboardCanvasView.longPressDelayMs
+        override val longPressClipboardShortcuts: Boolean get() = this@KeyboardCanvasView.longPressClipboardShortcuts
+        override val isSideDockVisible: Boolean get() = this@KeyboardCanvasView.isSideDockVisible
+        override val sideDockButtons: Array<SideDockButton> get() = this@KeyboardCanvasView.sideDockButtons
+        override val formFactor: KeyboardPreferences.FormFactor get() = this@KeyboardCanvasView.formFactor
+        override val keyMarginH: Float get() = this@KeyboardCanvasView.keyMarginH
+        override val density: Float get() = this@KeyboardCanvasView.cachedDensity.takeIf { it > 0f } ?: this@KeyboardCanvasView.resources.displayMetrics.density
+        override val feedbackManager: LekhaniFeedbackManager? get() = this@KeyboardCanvasView.feedbackManager
+        override val keyListener: KeyListener? get() = this@KeyboardCanvasView.keyListener
 
-    // ── Touch / ripple state (pre-allocated, mutated in place) ───────────────
+        override fun findKeyIndex(x: Float, y: Float): Int =
+            this@KeyboardCanvasView.findKeyIndex(x, y)
 
-    /** Index into [resolvedKeys] of the currently pressed key, or -1 */
-    private var pressedKeyIndex: Int = -1
+        override fun dispatchKey(key: Key, touchX: Float, touchY: Float) =
+            this@KeyboardCanvasView.dispatchKey(key, touchX, touchY)
 
-    /** Active pointer ID currently tracking [pressedKeyIndex] */
-    private var pressedPointerId: Int = -1
+        override fun showKeyPreview(key: Key, bounds: RectF) {
+            val densityVal = density
+            keyPreviewPopup.show(
+                anchor = this@KeyboardCanvasView,
+                label = key.displayLabel(isShifted),
+                keyLeft = bounds.left,
+                keyTop = bounds.top,
+                keyRight = bounds.right,
+                keyBottom = bounds.bottom,
+                density = densityVal,
+            )
+        }
 
-    /** Timestamp (ms) when the current press began, for ripple animation */
-    private var pressStartTime: Long = 0L
+        override fun showFlickKeyPreview(label: String, bounds: RectF) {
+            val densityVal = density
+            keyPreviewPopup.show(
+                anchor = this@KeyboardCanvasView,
+                label = label,
+                keyLeft = bounds.left,
+                keyTop = bounds.top,
+                keyRight = bounds.right,
+                keyBottom = bounds.bottom,
+                density = densityVal,
+            )
+        }
+
+        override fun dismissKeyPreview() = keyPreviewPopup.dismiss()
+
+        override fun showAlternatePopup(resolvedKey: ResolvedKey, alts: Array<String>) {
+            this@KeyboardCanvasView.showAlternatePopup(resolvedKey, alts)
+        }
+
+        override fun dismissAlternatePopup() = alternatePopup.dismiss()
+
+        override fun isAlternatePopupShowing(): Boolean = alternatePopup.isShowing
+
+        override fun onAlternatePopupTouchMove(x: Float, y: Float, viewLocationX: Int): Boolean =
+            alternatePopup.onTouchMove(x, y, viewLocationX)
+
+        override val alternatePopupSelectedLabel: String? get() = alternatePopup.selectedLabel
+
+        override fun getResolvedAlternates(key: Key, isShifted: Boolean): Array<String> =
+            this@KeyboardCanvasView.getResolvedAlternates(key, isShifted)
+
+        override fun invalidate() = this@KeyboardCanvasView.invalidate()
+    }
+
+    private val touchGestureDispatcher = TouchGestureDispatcher(touchHost)
+
+    private val pressedKeyIndex get() = touchGestureDispatcher.pressedKeyIndex
+    private val pressStartTime get() = touchGestureDispatcher.pressStartTime
+    private val isGliding get() = touchGestureDispatcher.isGliding
+    private val glidePointsX get() = touchGestureDispatcher.glidePointsX
+    private val glidePointsY get() = touchGestureDispatcher.glidePointsY
+    private val glidePointCount get() = touchGestureDispatcher.glidePointCount
+    private val glideCurX get() = touchGestureDispatcher.glideCurX
+    private val glideCurY get() = touchGestureDispatcher.glideCurY
+    private val isBackspaceSwiping get() = touchGestureDispatcher.isBackspaceSwiping
+    private val backspaceDeletedWordCount get() = touchGestureDispatcher.backspaceDeletedWordCount
+    private val isSpaceCursorMoving get() = touchGestureDispatcher.isSpaceCursorMoving
+    private val spaceSlideLastX get() = touchGestureDispatcher.spaceSlideLastX
+    private val isFlickGestureActive get() = touchGestureDispatcher.isFlickGestureActive
+    private val isFlickDownActive get() = touchGestureDispatcher.isFlickDownActive
 
     /** Ripple RectF — reused each frame, never reallocated */
     private val rippleRect = RectF()
 
     /** Reusable scratch RectF for hit-testing math */
     private val scratchRect = RectF()
-
-    /** Whether the current touch has triggered a long-press (suppresses tap) */
-    private var isLongPressTriggered: Boolean = false
-
-    /** Spacebar swipe gesture detection state (zero allocation) */
-    private var spaceTouchStartX: Float = 0f
-    private var spaceTouchStartY: Float = 0f
-    private var isSpaceSwiping: Boolean = false
-    private var swipeThresholdPx: Float = 0f
-
-    /** Pre-allocated long-press runnable for alternate hints and actions (zero allocation) */
-    private val longPressRunnable = Runnable {
-        if (pressedKeyIndex in resolvedKeys.indices) {
-            val key = resolvedKeys[pressedKeyIndex].key
-            isLongPressTriggered = true
-            feedbackManager?.onLongPressFeedback(this@KeyboardCanvasView)
-                ?: performHapticFeedback(
-                    HapticFeedbackConstants.LONG_PRESS)
-            val longAction = key.activeLongPressAction(isShifted)
-
-            // Optional clipboard shortcuts on English/Avro Latin layouts (C=Copy, V=Paste, X=Cut, A=SelectAll)
-            if (longPressClipboardShortcuts && (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || layoutType == com.lekhani.android.ffi.LekhaniLayoutType.AVRO)) {
-                val clipboardAction = when (key.label.lowercase()) {
-                    "c" -> KeyAction.Copy
-                    "v" -> KeyAction.Paste
-                    "x" -> KeyAction.Cut
-                    "a" -> KeyAction.SelectAll
-                    else -> null
-                }
-                if (clipboardAction != null) {
-                    keyPreviewPopup.dismiss()
-                    keyListener?.onKey(key, clipboardAction)
-                    invalidate()
-                    return@Runnable
-                }
-            }
-
-            val actionToken = (key.action as? KeyAction.Character)?.token
-            val alts = getResolvedAlternates(key, isShifted)
-            when {
-                key.action == KeyAction.Space || key.action == KeyAction.SwitchLayout -> {
-                    keyListener?.onSpaceLongPress()
-                }
-                alts.isNotEmpty() -> {
-                    showAlternatePopup(resolvedKeys[pressedKeyIndex], alts)
-                }
-                longAction != null -> {
-                    keyListener?.onKey(key, longAction)
-                }
-                else -> {
-                    val activeHint = key.displayHint(isShifted)
-                    if (activeHint != null) {
-                        keyListener?.onKey(key, KeyAction.Character(activeHint))
-                    } else if (key.shiftedLabel != null && key.shiftedLabel != key.label) {
-                        keyListener?.onKey(key, key.shiftedAction)
-                    }
-                }
-            }
-            invalidate()
-        }
-    }
 
     /**
      * Resolves up to 4 alternate characters for long-press popups.
@@ -530,28 +522,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
             density = density,
         )
     }
-
-    private var backspaceRepeatCount = 0
-
-    /** Pre-allocated runnable for continuous rapid Backspace deletion on hold (zero allocation) */
-    private val backspaceRepeatRunnable = object : Runnable {
-        override fun run() {
-            if (pressedKeyIndex in resolvedKeys.indices && !isBackspaceSwiping) {
-                val key = resolvedKeys[pressedKeyIndex].key
-                if (key.action == KeyAction.Backspace) {
-                    isLongPressTriggered = true
-                    backspaceRepeatCount++
-                    feedbackManager?.onKeyFeedback(this@KeyboardCanvasView)
-                        ?: performHapticFeedback(
-                            HapticFeedbackConstants.KEYBOARD_TAP)
-                    keyListener?.onKey(key, KeyAction.Backspace)
-                    val nextDelay = if (backspaceRepeatCount > 10) 35L else 55L
-                    postDelayed(this, nextDelay)
-                }
-            }
-        }
-    }
-
     // ── Dimensions (set in onSizeChanged) ────────────────────────────────────
 
     /** Cached display density — set once in [onSizeChanged], never in [onDraw] or [onTouchEvent]. */
@@ -819,14 +789,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * Disarms and cancels any active swipe-to-delete gesture (e.g. when user taps Copy in the preview strip).
      */
     fun cancelSwipeDelete() {
-        if (isBackspaceSwiping || isSwipeDeleteGestureActive || isBackspaceDisarmed) {
-            isBackspaceSwiping = false
-            isSwipeDeleteGestureActive = false
-            isBackspaceDisarmed = true
-            backspaceDeletedWordCount = 0
-            removeCallbacks(backspaceRepeatRunnable)
-            invalidate()
-        }
+        touchGestureDispatcher.cancelSwipeDelete()
     }
 
     fun setLayout(
@@ -841,8 +804,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         isCapsLock = false
         isGboardKarsActive = false
         gboardActiveConsonant = ""
-        pressedKeyIndex = -1
-        pressedPointerId = -1
+        touchGestureDispatcher.resetTouchState()
         keyPreviewPopup.dismiss()
         alternatePopup.dismiss()
         accessibilityHelper.invalidateRoot()
@@ -951,16 +913,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
         keyMarginV = marginVDp * density
         keyCornerRadius = 7.5f * density
         homeRowAccentHeight = 2.5f * density
-        swipeThresholdPx = 28f * density
-        flickThresholdPx = 11f * density
-        spaceSlideThresholdPx = 16f * density
-        spaceSlideStepPx = 16f * density
-        backspaceSwipeStepPx = 28f * density
+        touchGestureDispatcher.updateDimensions(density)
 
         glideStrokePaint.strokeWidth = 4.5f * density
         glideGlowPaint.strokeWidth = 11f * density
-        glideMinDistancePx = 52f * density
-        glideSampleDistSq = (18f * density) * (18f * density)
         spaceSlideTrackPaint.strokeWidth = 2.5f * density
         keyGlowPaint.strokeWidth = 2.2f * density
         sideDockTextPaint.textSize = 20f * density
@@ -1451,671 +1407,30 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // Touch handling — ZERO allocations permitted here
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val action = event.actionMasked
-        val actionIndex = event.actionIndex
-        val px = event.getX(actionIndex)
-        val py = event.getY(actionIndex)
-
-        when (action) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
-                if (action == MotionEvent.ACTION_POINTER_DOWN) {
-                    // Commit pending key from previous pointer before switching to new pointer
-                    if (pressedKeyIndex in resolvedKeys.indices && !isGliding && !isSpaceSwiping &&
-                        !isSpaceCursorMoving && !isBackspaceSwiping && !isLongPressTriggered) {
-                        dispatchKey(resolvedKeys[pressedKeyIndex].key)
-                    }
-                    removeCallbacks(longPressRunnable)
-                    removeCallbacks(backspaceRepeatRunnable)
-                }
-
-                pressedPointerId = event.getPointerId(actionIndex)
-                touchStartX = px
-                touchStartY = py
-                glideCurX = px
-                glideCurY = py
-                isGliding = false
-                glidePointCount = 0
-                visitedGlideKeys.clear()
-                lastVisitedKeyIdx = -1
-
-                // Side Dock Buttons hit-testing (One-Handed mode)
-                if (isSideDockVisible) {
-                    for (btn in sideDockButtons) {
-                        if (btn.bounds.contains(px, py)) {
-                            feedbackManager?.onKeyFeedback(this)
-                                ?: performHapticFeedback(
-                                    HapticFeedbackConstants.KEYBOARD_TAP)
-                            when (btn.action) {
-                                SideDockAction.EXPAND_STANDARD -> keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.STANDARD)
-                                SideDockAction.SWAP_SIDE -> {
-                                    val next = if (formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_LEFT) {
-                                        KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT
-                                    } else {
-                                        KeyboardPreferences.FormFactor.ONE_HANDED_LEFT
-                                    }
-                                    keyListener?.onFormFactorChange(next)
-                                }
-                                SideDockAction.TOGGLE_FLOATING -> keyListener?.onFormFactorChange(KeyboardPreferences.FormFactor.FLOATING)
-                            }
-                            return true
-                        }
-                    }
-                }
-
-                val idx = findKeyIndex(px, py)
-                if (idx >= 0) {
-                    pressedKeyIndex = idx
-                    pressStartTime = SystemClock.uptimeMillis()
-                    isLongPressTriggered = false
-                    isFlickGestureActive = false
-                    isFlickDownActive = false
-                    isSpaceSwiping = false
-                    isSpaceCursorMoving = false
-                    isBackspaceSwiping = false
-                    backspaceDeletedWordCount = 0
-
-                    feedbackManager?.onKeyFeedback(this)
-                        ?: performHapticFeedback(
-                            HapticFeedbackConstants.KEYBOARD_TAP)
-
-                    val key = resolvedKeys[idx].key
-                    val keyAct = key.activeAction(isShifted)
-                    if (glideTypingEnabled && keyAct is KeyAction.Character) {
-                        glidePointsX[0] = px
-                        glidePointsY[0] = py
-                        glidePointCount = 1
-                        visitedGlideKeys.clear()
-                        visitedGlideKeys.add(keyAct.token)
-                        lastVisitedKeyIdx = idx
-                    }
-                    if (key.action == KeyAction.Space) {
-                        spaceTouchStartX = px
-                        spaceTouchStartY = py
-                        spaceSlideLastX = px
-                        postDelayed(longPressRunnable, longPressDelayMs)
-                    } else if (keyAct is KeyAction.Character || key.action == KeyAction.SwitchLayout || key.activeLongPressAction(isShifted) != null) {
-                        postDelayed(longPressRunnable, longPressDelayMs)
-                    } else if (key.action == KeyAction.Backspace) {
-                        backspaceSwipeStartX = px
-                        backspaceSwipeStartY = py
-                        backspaceRepeatCount = 0
-                        isSwipeDeleteGestureActive = false
-                        isBackspaceDisarmed = false
-                        postDelayed(backspaceRepeatRunnable, 350L)
-                    }
-                    // Show key preview popup for character keys (lives in its own window layer)
-                    if (showKeyPreviews && keyAct is KeyAction.Character && key.label.isNotEmpty()) {
-                        val bounds = resolvedKeys[idx].bounds
-                        keyPreviewPopup.show(
-                            anchor = this,
-                            label = key.displayLabel(isShifted),
-                            keyLeft = bounds.left,
-                            keyTop = bounds.top,
-                            keyRight = bounds.right,
-                            keyBottom = bounds.bottom,
-                            density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
-                        )
-                    }
-                    invalidate()
-                }
-                return true
-            }
-
-            MotionEvent.ACTION_MOVE -> {
-                if (alternatePopup.isShowing) {
-                    val viewLocation = IntArray(2)
-                    getLocationInWindow(viewLocation)
-                    val changed = alternatePopup.onTouchMove(event.x, event.y, viewLocation[0])
-                    if (changed) feedbackManager?.onTickFeedback(this)
-                    return true
-                }
-
-                val curIndex = if (pressedPointerId >= 0) event.findPointerIndex(pressedPointerId) else 0
-                val curX = if (curIndex in 0 until event.pointerCount) event.getX(curIndex) else event.x
-                val curY = if (curIndex in 0 until event.pointerCount) event.getY(curIndex) else event.y
-                glideCurX = curX
-                glideCurY = curY
-
-                val moveDistSq = (curX - touchStartX) * (curX - touchStartX) + (curY - touchStartY) * (curY - touchStartY)
-                val touchSlopPx = 8f * resources.displayMetrics.density
-
-                val isOverBackspace = if (pressedKeyIndex in resolvedKeys.indices) {
-                    val bKey = resolvedKeys[pressedKeyIndex].key
-                    if (bKey.action == KeyAction.Backspace) {
-                        val bBounds = resolvedKeys[pressedKeyIndex].bounds
-                        val slopX = 28f * resources.displayMetrics.density
-                        val slopY = 20f * resources.displayMetrics.density
-                        curX >= bBounds.left - slopX && curX <= bBounds.right + slopX &&
-                        curY >= bBounds.top - slopY && curY <= bBounds.bottom + slopY
-                    } else false
-                } else false
-
-                if (!isOverBackspace && moveDistSq > touchSlopPx * touchSlopPx) {
-                    removeCallbacks(longPressRunnable)
-                    removeCallbacks(backspaceRepeatRunnable)
-                    // Dismiss key preview once the finger moves (unless flick gesture is active)
-                    if (!isFlickGestureActive) {
-                        keyPreviewPopup.dismiss()
-                    }
-                }
-
-                if (pressedKeyIndex in resolvedKeys.indices) {
-                    val key = resolvedKeys[pressedKeyIndex].key
-
-                    // Spacebar cursor slide navigation (active when spacebarSwipeMode == CURSOR_NAV)
-                    if (key.action == KeyAction.Space && spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV) {
-                        val dx = curX - spaceTouchStartX
-                        val absDx = kotlin.math.abs(dx)
-                        if (!isSpaceCursorMoving && absDx > spaceSlideThresholdPx) {
-                            isSpaceCursorMoving = true
-                            isSpaceSwiping = false
-                            removeCallbacks(longPressRunnable)
-                        }
-                        if (isSpaceCursorMoving) {
-                            val stepDelta = curX - spaceSlideLastX
-                            if (stepDelta >= spaceSlideStepPx) {
-                                val steps = (stepDelta / spaceSlideStepPx).toInt()
-                                keyListener?.onCursorMove(steps)
-                                spaceSlideLastX += steps * spaceSlideStepPx
-                                feedbackManager?.onTickFeedback(this)
-                                    ?: performHapticFeedback(
-                                        HapticFeedbackConstants.CLOCK_TICK)
-                                invalidate()
-                            } else if (stepDelta <= -spaceSlideStepPx) {
-                                val steps = (-stepDelta / spaceSlideStepPx).toInt()
-                                keyListener?.onCursorMove(-steps)
-                                spaceSlideLastX -= steps * spaceSlideStepPx
-                                feedbackManager?.onTickFeedback(this)
-                                    ?: performHapticFeedback(
-                                        HapticFeedbackConstants.CLOCK_TICK)
-                                invalidate()
-                            }
-                            return true
-                        }
-                    }
-
-                    // Swipe-to-delete gesture on Backspace
-                    if (key.action == KeyAction.Backspace && swipeToDeleteEnabled) {
-                        val dx = curX - backspaceSwipeStartX
-                        val dy = curY - backspaceSwipeStartY
-
-                        // If not already swiping, verify with IME that there is text to delete
-                        if (!isBackspaceSwiping && keyListener?.canSwipeDelete() == false) {
-                            return true
-                        }
-
-                        if (isBackspaceDisarmed) {
-                            return true
-                        }
-
-                        // Early cancellation of hold-repeat as soon as horizontal swipe intent is detected
-                        val density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
-                        if (kotlin.math.abs(dx) > 8f * density) {
-                            removeCallbacks(backspaceRepeatRunnable)
-                        }
-
-                        // Downward swipe cancellation
-                        if (dy > 32f * density) {
-                            if (isBackspaceSwiping) {
-                                isBackspaceSwiping = false
-                                isSwipeDeleteGestureActive = false
-                                isBackspaceDisarmed = true
-                                backspaceDeletedWordCount = 0
-                                keyListener?.onSwipeDeletePreview(0)
-                                feedbackManager?.onTickFeedback(this)
-                                    ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                invalidate()
-                            }
-                            return true
-                        }
-
-                        if (dx < -swipeThresholdPx) {
-                            removeCallbacks(backspaceRepeatRunnable)
-                            isBackspaceSwiping = true
-                            isSwipeDeleteGestureActive = true
-                            val words = ((-dx - swipeThresholdPx) / backspaceSwipeStepPx).toInt() + 1
-                            val clamped = words.coerceIn(1, 15)
-                            if (clamped != backspaceDeletedWordCount) {
-                                backspaceDeletedWordCount = clamped
-                                keyListener?.onSwipeDeletePreview(backspaceDeletedWordCount)
-                                feedbackManager?.onTickFeedback(this)
-                                    ?: performHapticFeedback(
-                                        HapticFeedbackConstants.CLOCK_TICK)
-                                invalidate()
-                            }
-                            return true
-                        } else if (isBackspaceSwiping) {
-                            // User dragged back right towards Backspace key
-                            if (dx > -16f * density) {
-                                isBackspaceSwiping = false
-                                isSwipeDeleteGestureActive = false
-                                backspaceDeletedWordCount = 0
-                                keyListener?.onSwipeDeletePreview(0)
-                                feedbackManager?.onTickFeedback(this)
-                                    ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                invalidate()
-                            } else {
-                                if (backspaceDeletedWordCount != 0) {
-                                    backspaceDeletedWordCount = 0
-                                    keyListener?.onSwipeDeletePreview(0)
-                                    feedbackManager?.onTickFeedback(this)
-                                        ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                    invalidate()
-                                }
-                            }
-                            return true
-                        }
-                    }
-
-                    // Spacebar layout swipe detection (active when spacebarSwipeMode == LAYOUT_SWITCH)
-                    if (key.action == KeyAction.Space && spacebarSwipeMode == KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH && !isSpaceSwiping && !isSpaceCursorMoving && !isLongPressTriggered) {
-                        val dx = curX - spaceTouchStartX
-                        val dy = curY - spaceTouchStartY
-                        val absDx = kotlin.math.abs(dx)
-                        val absDy = kotlin.math.abs(dy)
-                        if (dy < -swipeThresholdPx && absDy > absDx * 1.3f) {
-                            // Upward swipe on spacebar opens Cursor/Text Editor immediately
-                            isSpaceSwiping = true
-                            pressedKeyIndex = -1
-                            pressedPointerId = -1
-                            removeCallbacks(longPressRunnable)
-                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            keyListener?.onSpaceSwipeUp()
-                            return true
-                        } else if (absDx > swipeThresholdPx && absDx > absDy * 1.3f) {
-                            isSpaceSwiping = true
-                            pressedKeyIndex = -1
-                            pressedPointerId = -1
-                            removeCallbacks(longPressRunnable)
-                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            // Spacebar swipe direction matches visual order (Left to Right):
-                            // • Swipe Right (dx > 0): Advance to NEXT layout (index + 1)
-                            // • Swipe Left (dx < 0): Retreat to PREVIOUS layout (index - 1)
-                            if (dx > 0) {
-                                keyListener?.onSpaceSwipe(1)  // Next layout (forward)
-                            } else {
-                                keyListener?.onSpaceSwipe(-1) // Previous layout (backward)
-                            }
-                            return true
-                        }
-                    }
-                }
-
-                // ── Swipe Flick Gesture Detection (Probaho 2.0 / rapid shifted & subscript access) ──
-                if (swipeUpFlickEnabled && !isGliding && !isSpaceSwiping && !isSpaceCursorMoving && !isBackspaceSwiping && !alternatePopup.isShowing) {
-                    if (pressedKeyIndex in resolvedKeys.indices) {
-                        val flickKey = resolvedKeys[pressedKeyIndex].key
-                        val dy = curY - touchStartY
-                        val dx = curX - touchStartX
-                        val absDx = kotlin.math.abs(dx)
-
-                        // 1. Swipe-Up Flick (Shifted character / Aspirated partner)
-                        if (flickKey.action is KeyAction.Character && flickKey.shiftedLabel != null && flickKey.shiftedLabel != flickKey.label) {
-                            if (-dy > flickThresholdPx && -dy > absDx * 0.75f) {
-                                if (!isFlickGestureActive && !isFlickDownActive) {
-                                    isFlickGestureActive = true
-                                    removeCallbacks(longPressRunnable)
-                                    val bounds = resolvedKeys[pressedKeyIndex].bounds
-                                    keyPreviewPopup.show(
-                                        anchor = this,
-                                        label = flickKey.shiftedLabel!!,
-                                        keyLeft = bounds.left,
-                                        keyTop = bounds.top,
-                                        keyRight = bounds.right,
-                                        keyBottom = bounds.bottom,
-                                        density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
-                                    )
-                                    feedbackManager?.onTickFeedback(this)
-                                        ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                }
-                            } else if (isFlickGestureActive && -dy < flickThresholdPx * 0.35f) {
-                                isFlickGestureActive = false
-                                val bounds = resolvedKeys[pressedKeyIndex].bounds
-                                keyPreviewPopup.show(
-                                    anchor = this,
-                                    label = flickKey.displayLabel(isShifted),
-                                    keyLeft = bounds.left,
-                                    keyTop = bounds.top,
-                                    keyRight = bounds.right,
-                                    keyBottom = bounds.bottom,
-                                    density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
-                                )
-                                feedbackManager?.onTickFeedback(this)
-                                    ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            }
-                        }
-
-                        // 2. Swipe-Down Flick (Subscript numeric digit / secondary symbol)
-                        if (flickKey.hintLabel != null && flickKey.longPressAction != null && !isFlickGestureActive) {
-                            if (dy > flickThresholdPx && dy > absDx * 0.75f) {
-                                if (!isFlickDownActive) {
-                                    isFlickDownActive = true
-                                    removeCallbacks(longPressRunnable)
-                                    val bounds = resolvedKeys[pressedKeyIndex].bounds
-                                    keyPreviewPopup.show(
-                                        anchor = this,
-                                        label = flickKey.hintLabel!!,
-                                        keyLeft = bounds.left,
-                                        keyTop = bounds.top,
-                                        keyRight = bounds.right,
-                                        keyBottom = bounds.bottom,
-                                        density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
-                                    )
-                                    feedbackManager?.onTickFeedback(this)
-                                        ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                }
-                            } else if (isFlickDownActive && dy < flickThresholdPx * 0.35f) {
-                                isFlickDownActive = false
-                                val bounds = resolvedKeys[pressedKeyIndex].bounds
-                                keyPreviewPopup.show(
-                                    anchor = this,
-                                    label = flickKey.displayLabel(isShifted),
-                                    keyLeft = bounds.left,
-                                    keyTop = bounds.top,
-                                    keyRight = bounds.right,
-                                    keyBottom = bounds.bottom,
-                                    density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density,
-                                )
-                                feedbackManager?.onTickFeedback(this)
-                                    ?: performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            }
-                        }
-                    }
-                }
-
-                // Glide / Swipe typing gesture detection
-                val totalDx = curX - touchStartX
-                val totalDy = curY - touchStartY
-                val totalDistSq = totalDx * totalDx + totalDy * totalDy
-
-                if (glideTypingEnabled && !isGliding && !isSpaceSwiping && !isSpaceCursorMoving && !isBackspaceSwiping &&
-                    totalDistSq > glideMinDistancePx * glideMinDistancePx) {
-                    if (pressedKeyIndex in resolvedKeys.indices &&
-                        resolvedKeys[pressedKeyIndex].key.activeAction(isShifted) is KeyAction.Character) {
-                        isGliding = true
-                        removeCallbacks(longPressRunnable)
-                    }
-                }
-
-                if (glideTypingEnabled && isGliding) {
-                    val lastP = glidePointCount - 1
-                    if (lastP >= 0) {
-                        val dx = curX - glidePointsX[lastP]
-                        val dy = curY - glidePointsY[lastP]
-                        if (dx * dx + dy * dy >= glideSampleDistSq && glidePointCount < MAX_GLIDE_POINTS) {
-                            glidePointsX[glidePointCount] = curX
-                            glidePointsY[glidePointCount] = curY
-                            glidePointCount++
-                        }
-                    }
-
-                    val keyIdx = findKeyIndex(curX, curY)
-                    if (keyIdx >= 0 && keyIdx != lastVisitedKeyIdx) {
-                        val actionK = resolvedKeys[keyIdx].key.activeAction(isShifted)
-                        if (actionK is KeyAction.Character) {
-                            visitedGlideKeys.add(actionK.token)
-                            lastVisitedKeyIdx = keyIdx
-                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        }
-                    }
-                    invalidate()
-                    return true
-                }
-
-                return true
-            }
-
-            MotionEvent.ACTION_POINTER_UP -> {
-                val pointerId = event.getPointerId(actionIndex)
-                if (pointerId == pressedPointerId) {
-                    removeCallbacks(longPressRunnable)
-                    removeCallbacks(backspaceRepeatRunnable)
-                    val targetKeyIdx = if (pressedKeyIndex in resolvedKeys.indices) {
-                        val bounds = resolvedKeys[pressedKeyIndex].bounds
-                        val slop = (keyMarginH * 1.5f).coerceAtLeast(10f * resources.displayMetrics.density)
-                        if (px >= bounds.left - slop && px <= bounds.right + slop &&
-                            py >= bounds.top - slop && py <= bounds.bottom + slop) {
-                            pressedKeyIndex
-                        } else {
-                            val idx = findKeyIndex(px, py)
-                            if (idx == pressedKeyIndex) pressedKeyIndex else -1
-                        }
-                    } else {
-                        -1
-                    }
-                    if (targetKeyIdx >= 0 && !isLongPressTriggered && !isSpaceSwiping &&
-                        !isGliding && !isBackspaceSwiping && !isSpaceCursorMoving) {
-                        dispatchKey(resolvedKeys[targetKeyIdx].key)
-                    }
-                    pressedKeyIndex = -1
-                    pressedPointerId = -1
-                    isLongPressTriggered = false
-                    isFlickGestureActive = false
-                    isSpaceSwiping = false
-                    keyPreviewPopup.dismiss()
-                    alternatePopup.dismiss()
-                    invalidate()
-                }
-                return true
-            }
-
-            MotionEvent.ACTION_UP -> {
-                removeCallbacks(longPressRunnable)
-                removeCallbacks(backspaceRepeatRunnable)
-                keyPreviewPopup.dismiss()
-                if (alternatePopup.isShowing) {
-                    val chosen = alternatePopup.selectedLabel
-                    alternatePopup.dismiss()
-                    if (chosen != null && pressedKeyIndex in resolvedKeys.indices) {
-                        val key = resolvedKeys[pressedKeyIndex].key
-                        keyListener?.onKey(key, KeyAction.Character(chosen))
-                        feedbackManager?.onKeyFeedback(this)
-                    }
-                    pressedKeyIndex = -1
-                    pressedPointerId = -1
-                    invalidate()
-                    return true
-                }
-
-                if (isSpaceSwiping) {
-                    isSpaceSwiping = false
-                    pressedKeyIndex = -1
-                    pressedPointerId = -1
-                    invalidate()
-                    return true
-                }
-
-                if (isSpaceCursorMoving) {
-                    isSpaceCursorMoving = false
-                    pressedKeyIndex = -1
-                    pressedPointerId = -1
-                    invalidate()
-                    return true
-                }
-
-                if (isBackspaceSwiping || isSwipeDeleteGestureActive || isBackspaceDisarmed) {
-                    val count = backspaceDeletedWordCount
-                    val wasSwiping = isBackspaceSwiping
-                    val wasDisarmed = isBackspaceDisarmed
-                    isBackspaceSwiping = false
-                    isSwipeDeleteGestureActive = false
-                    isBackspaceDisarmed = false
-                    backspaceDeletedWordCount = 0
-                    if (wasSwiping && count > 0 && !wasDisarmed) {
-                        keyListener?.onSwipeDelete(count)
-                        feedbackManager?.onKeyFeedback(this)
-                            ?: performHapticFeedback(
-                                HapticFeedbackConstants.KEYBOARD_TAP)
-                    } else if (!wasDisarmed) {
-                        keyListener?.onSwipeDeletePreview(0)
-                    }
-                    pressedKeyIndex = -1
-                    pressedPointerId = -1
-                    invalidate()
-                    return true
-                }
-
-                if (glideTypingEnabled && isGliding) {
-                    if (visitedGlideKeys.size >= 2) {
-                        keyListener?.onGlideGesture(visitedGlideKeys)
-                    } else if (visitedGlideKeys.size == 1 && pressedKeyIndex >= 0) {
-                        dispatchKey(resolvedKeys[pressedKeyIndex].key)
-                    }
-                    isGliding = false
-                    glidePointCount = 0
-                    visitedGlideKeys.clear()
-                    lastVisitedKeyIdx = -1
-                    pressedKeyIndex = -1
-                    pressedPointerId = -1
-                    isLongPressTriggered = false
-                    isFlickGestureActive = false
-                    isSpaceSwiping = false
-                    keyPreviewPopup.dismiss()
-                    invalidate()
-                    return true
-                }
-
-                val upDy = py - touchStartY
-                val upDx = px - touchStartX
-                val isFlickRelease = swipeUpFlickEnabled && pressedKeyIndex in resolvedKeys.indices && run {
-                    val flickKey = resolvedKeys[pressedKeyIndex].key
-                    flickKey.action is KeyAction.Character &&
-                        flickKey.shiftedLabel != null &&
-                        flickKey.shiftedLabel != flickKey.label &&
-                        (isFlickGestureActive || (-upDy >= flickThresholdPx && -upDy > kotlin.math.abs(upDx) * 0.75f))
-                }
-                val isFlickDownRelease = swipeUpFlickEnabled && pressedKeyIndex in resolvedKeys.indices && run {
-                    val flickKey = resolvedKeys[pressedKeyIndex].key
-                    flickKey.hintLabel != null &&
-                        flickKey.longPressAction != null &&
-                        (isFlickDownActive || (upDy >= flickThresholdPx && upDy > kotlin.math.abs(upDx) * 0.75f))
-                }
-
-                if (isFlickGestureActive || isFlickRelease) {
-                    isFlickGestureActive = false
-                    isFlickDownActive = false
-                    keyPreviewPopup.dismiss()
-                    if (pressedKeyIndex in resolvedKeys.indices) {
-                        val flickKey = resolvedKeys[pressedKeyIndex].key
-                        keyListener?.onKeyWithTouch(flickKey, flickKey.shiftedAction, touchStartX, touchStartY)
-                        keyListener?.onKey(flickKey, flickKey.shiftedAction)
-                        feedbackManager?.onKeyFeedback(this)
-                            ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    }
-                    pressedKeyIndex = -1
-                    pressedPointerId = -1
-                    isLongPressTriggered = false
-                    isSpaceSwiping = false
-                    invalidate()
-                    return true
-                }
-
-                if (isFlickDownActive || isFlickDownRelease) {
-                    isFlickGestureActive = false
-                    isFlickDownActive = false
-                    keyPreviewPopup.dismiss()
-                    if (pressedKeyIndex in resolvedKeys.indices) {
-                        val flickKey = resolvedKeys[pressedKeyIndex].key
-                        flickKey.longPressAction?.let { act ->
-                            keyListener?.onKeyWithTouch(flickKey, act, touchStartX, touchStartY)
-                            keyListener?.onKey(flickKey, act)
-                            feedbackManager?.onKeyFeedback(this)
-                                ?: performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        }
-                    }
-                    pressedKeyIndex = -1
-                    pressedPointerId = -1
-                    isLongPressTriggered = false
-                    isSpaceSwiping = false
-                    invalidate()
-                    return true
-                }
-
-                val targetKeyIdx = if (pressedKeyIndex in resolvedKeys.indices) {
-                    val bounds = resolvedKeys[pressedKeyIndex].bounds
-                    val slopDensity = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
-                    val slop = (keyMarginH * 1.5f).coerceAtLeast(10f * slopDensity)
-                    if (px >= bounds.left - slop && px <= bounds.right + slop &&
-                        py >= bounds.top - slop && py <= bounds.bottom + slop) {
-                        pressedKeyIndex
-                    } else {
-                        val idx = findKeyIndex(px, py)
-                        if (idx == pressedKeyIndex) pressedKeyIndex else -1
-                    }
-                } else {
-                    -1
-                }
-                if (targetKeyIdx >= 0 && !isLongPressTriggered && !isSpaceSwiping) {
-                    dispatchKey(resolvedKeys[targetKeyIdx].key)
-                }
-                pressedKeyIndex = -1
-                pressedPointerId = -1
-                isLongPressTriggered = false
-                isSpaceSwiping = false
-                invalidate()
-                return true
-            }
-
-            MotionEvent.ACTION_CANCEL -> {
-                removeCallbacks(longPressRunnable)
-                removeCallbacks(backspaceRepeatRunnable)
-                keyPreviewPopup.dismiss()
-                alternatePopup.dismiss()
-                isGliding = false
-                isSpaceCursorMoving = false
-                isBackspaceSwiping = false
-                isSwipeDeleteGestureActive = false
-                isBackspaceDisarmed = false
-                backspaceDeletedWordCount = 0
-                keyListener?.onSwipeDeletePreview(0)
-                isSpaceSwiping = false
-                isFlickGestureActive = false
-                isFlickDownActive = false
-                pressedKeyIndex = -1
-                pressedPointerId = -1
-                invalidate()
-                return true
-            }
+        if (touchGestureDispatcher.onTouchEvent(event)) {
+            return true
         }
         return super.onTouchEvent(event)
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        removeCallbacks(longPressRunnable)
-        removeCallbacks(backspaceRepeatRunnable)
+        touchGestureDispatcher.onDetachedFromWindow()
         // Dismiss both PopupWindows to avoid "window leaked" exceptions when IME hides
         keyPreviewPopup.dismiss()
         alternatePopup.dismiss()
     }
 
-    /**
-     * Gaussian spatial nearest-key lookup.
-     *
-     * Instead of a simple point-in-rectangle hit test, we use a weighted
-     * distance metric that biases toward key centres — this makes the keyboard
-     * more forgiving of touches that land on the narrow gap between keys.
-     *
-     * The Gaussian weight for key i is:
-     *   w_i = exp(-d_i² / (2σ²))
-     * where d_i is the Euclidean distance from the touch point to the key centre
-     * and σ is the standard deviation (half the average key width).
-     *
-     * The key with the maximum weight wins.
-     *
-     * Since this is the hot path and must be allocation-free, all arithmetic
-     * operates on pre-computed centre coordinates stored in [resolvedKeys].
-     */
     private fun findKeyIndex(x: Float, y: Float): Int {
         return keyboardTouchTracker.findKeyIndex(x, y, resolvedKeys, width.toFloat(), height.toFloat())
     }
 
-    private fun dispatchKey(key: Key) {
+    private fun dispatchKey(key: Key, touchX: Float, touchY: Float) {
         var action = key.activeAction(isShifted)
         if (action == KeyAction.SwitchLayout && isBottomRowKeyEmoji) {
             action = KeyAction.SwitchEmoji
         }
-        keyListener?.onKeyWithTouch(key, action, touchStartX, touchStartY)
+        keyListener?.onKeyWithTouch(key, action, touchX, touchY)
         keyListener?.onKey(key, action)
 
         // Auto-release shift after one character (one-shot shift), unless Caps Lock is active
@@ -2123,6 +1438,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
             isShifted = false
             invalidate()
         }
+    }
+
+    private fun dispatchKey(key: Key) {
+        dispatchKey(key, touchGestureDispatcher.touchStartX, touchGestureDispatcher.touchStartY)
     }
 
     // Accessibility / TalkBack Exploration (WCAG 2.1)
