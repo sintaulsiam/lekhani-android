@@ -29,7 +29,7 @@ object NumberSymbolsLayout {
             ),
             // Row 2: Standard currency / math symbols
             listOf(
-                Ch("@"), Ch("#"), Ch("$"), Ch("%"), Ch("&"),
+                Ch("@"), Ch("#"), Ch("$", shifted = "৳", hint = "৳"), Ch("%"), Ch("&"),
                 Ch("*"), Ch("-"), Ch("+"), Ch("("), Ch(")"),
             ),
             // Row 3: More symbols toggle, punctuations, and backspace

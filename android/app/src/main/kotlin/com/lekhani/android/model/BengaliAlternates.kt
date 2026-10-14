@@ -74,6 +74,12 @@ object BengaliAlternates {
         put("ঁ", arrayOf("ং", "ঃ"))
         put("্", arrayOf("ঁ", "্‌", "‌", "‍")) // Chandrabindu, Hasanta, ZWNJ, ZWJ
 
+        // ── Currency Symbols ────────────────────────────────────────────────────
+        put("$", arrayOf("৳", "€", "₹", "£", "¥"))
+        put("৳", arrayOf("$", "₹", "€", "£", "¥"))
+        put("€", arrayOf("$", "৳", "£", "¥", "₹"))
+        put("₹", arrayOf("৳", "$", "€", "£", "¥"))
+
         // ── Bengali Digits & Numeric Shortcuts ──────────────────────────────────
         put("১", arrayOf("1", "১"))
         put("২", arrayOf("2", "২"))
@@ -85,6 +91,18 @@ object BengaliAlternates {
         put("৮", arrayOf("8", "৮"))
         put("৯", arrayOf("9", "৯"))
         put("০", arrayOf("0", "০"))
+
+        // ── English Digits Alternate to Bengali ─────────────────────────────────
+        put("1", arrayOf("১", "¹", "½"))
+        put("2", arrayOf("২", "²", "⅓"))
+        put("3", arrayOf("৩", "³", "¼"))
+        put("4", arrayOf("৪", "⁴"))
+        put("5", arrayOf("৫", "⅝"))
+        put("6", arrayOf("৬"))
+        put("7", arrayOf("৭", "⅞"))
+        put("8", arrayOf("৮"))
+        put("9", arrayOf("৯"))
+        put("0", arrayOf("০", "ⁿ", "∅"))
 
         // ── Punctuation ─────────────────────────────────────────────────────────
         put("।", arrayOf("॥", ".", "?", "!"))
