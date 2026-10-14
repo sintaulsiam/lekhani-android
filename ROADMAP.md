@@ -366,7 +366,11 @@
   - Streamed to native session via `session.set_right_context()` with zero-allocation ring-buffer trimming.
   - Bidirectional N-gram scoring in `get_bengali_next_words` combining preceding context $w_{t-1}$ with following token $w_{t+1}$ to eliminate tense/agreement ambiguities.
   - Validated via `test_bidirectional_context_next_words` integration test.
-- [ ] **Phase 3: Gestural Micro-Flick Verb Disambiguation Picker** (Upward micro-flick on candidate pills).
+- [x] **Phase 3: Gestural Micro-Flick Verb Disambiguation Picker** (Upward micro-flick on candidate pills):
+  - Added vertical upward flick gesture detector (`draggable(Orientation.Vertical)` with upward velocity threshold) to `CandidatePill` in `CandidateStripView.kt`.
+  - Seamlessly queries native `session.get_verb_honorific_paradigm(verb)` producing 3-tier sociolinguistic agreement variations.
+  - Surfaces Material 3 Expressive `VerbParadigmStrip` floating chips (`Formal/আপনি`, `Familiar/তুমি`, `Intimate/তুই`) for 1-tap agreement disambiguation with zero emojis in UI chrome.
+  - Instant back navigation and zero-friction commit integration.
 - [ ] **Phase 4: Semantic Topic Vector Disambiguation** (32-D dense embeddings).
 - [ ] **Phase 5: Continuous Adaptive Thumb Morphology Calibration** (Online EMA updating key centroids).
 - [ ] **Phase 6: On-Device Bengali Glide / Swipe Trajectory Decoder Prototype**.

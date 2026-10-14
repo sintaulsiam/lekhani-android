@@ -22,6 +22,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
@@ -159,10 +162,12 @@ fun CandidateStripView(
     onEmojiSearchClear: (() -> Unit)? = null,
     onEmojiSearchExitToKeyboard: (() -> Unit)? = null,
     onUndoClick: ((UndoInfo) -> Unit)? = null,
+    onGetVerbParadigm: ((String) -> List<String>)? = null,
 ) {
     val state by stateFlow.collectAsState()
     val hasItems = state is CandidateStripState.Candidates && !isToolsMenuOpen
     var showToolbarOverride by remember { mutableStateOf(false) }
+    var activeVerbParadigm by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
 
     val currentTopCandidate = (state as? CandidateStripState.Candidates)?.items?.firstOrNull()?.text
     var lastCandidateText by remember { mutableStateOf<String?>(null) }
@@ -170,6 +175,7 @@ fun CandidateStripView(
     LaunchedEffect(currentTopCandidate, hasItems) {
         if (!hasItems || (currentTopCandidate != null && currentTopCandidate != lastCandidateText)) {
             showToolbarOverride = false
+            activeVerbParadigm = null
         }
         lastCandidateText = currentTopCandidate
     }
@@ -253,12 +259,33 @@ fun CandidateStripView(
                         }
 
                         Box(modifier = Modifier.weight(1f)) {
-                            StripContent(
-                                items = currentMode.candidates.items,
-                                onCandidateClick = onCandidateClick,
-                                onBlacklist = onBlacklist,
-                                theme = theme,
-                            )
+                            val activeParadigm = activeVerbParadigm
+                            if (activeParadigm != null) {
+                                VerbParadigmStrip(
+                                    baseVerb = activeParadigm.first,
+                                    paradigm = activeParadigm.second,
+                                    onSelect = { choice ->
+                                        activeVerbParadigm = null
+                                        onCandidateClick(choice)
+                                    },
+                                    onDismiss = { activeVerbParadigm = null },
+                                    theme = theme,
+                                    isEnglish = isEnglish,
+                                )
+                            } else {
+                                StripContent(
+                                    items = currentMode.candidates.items,
+                                    onCandidateClick = onCandidateClick,
+                                    onBlacklist = onBlacklist,
+                                    onFlickUp = { word ->
+                                        val p = onGetVerbParadigm?.invoke(word)
+                                        if (!p.isNullOrEmpty() && p.size > 1) {
+                                            activeVerbParadigm = Pair(word, p)
+                                        }
+                                    },
+                                    theme = theme,
+                                )
+                            }
                         }
                     }
                 }
@@ -754,11 +781,128 @@ private fun ToolbarContent(
     }
 }
 
+/**
+ * 3-Tier Sociolinguistic Verb Paradigm Disambiguation Strip.
+ * Triggered on gestural micro-flick upward over a candidate pill.
+ */
+@Composable
+private fun VerbParadigmStrip(
+    baseVerb: String,
+    paradigm: List<String>,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+    theme: KeyboardTheme,
+    isEnglish: Boolean = false,
+) {
+    val scrollState = rememberScrollState()
+    val accentColor = Color(theme.accentColor)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(StripHeight)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Dismiss / back button
+        Box(
+            modifier = Modifier
+                .size(StripHeight)
+                .clip(CircleShape)
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = if (isEnglish) "Back" else "ফিরে যান",
+                tint = accentColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(Modifier.width(4.dp))
+
+        // Title badge / indicator
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = accentColor.copy(alpha = 0.15f),
+            modifier = Modifier.height(28.dp),
+        ) {
+            Box(
+                modifier = Modifier.padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isEnglish) "Honorifics" else "ক্রিয়ার রূপ",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor,
+                )
+            }
+        }
+
+        Spacer(Modifier.width(6.dp))
+
+        // Horizontal list of paradigm options
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(scrollState),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val registerHints = if (isEnglish) {
+                listOf("Formal", "Familiar", "Intimate")
+            } else {
+                listOf("আপনি", "তুমি", "তুই")
+            }
+
+            paradigm.forEachIndexed { index, verbOption ->
+                val hint = registerHints.getOrNull(index)
+                val isCurrent = (verbOption == baseVerb)
+
+                Surface(
+                    onClick = { onSelect(verbOption) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isCurrent) accentColor.copy(alpha = 0.22f) else Color(theme.keyNormalColor),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isCurrent) accentColor.copy(alpha = 0.8f) else Color(theme.labelColor).copy(alpha = 0.2f)
+                    ),
+                    modifier = Modifier.height(34.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = verbOption,
+                            fontSize = 15.sp,
+                            fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isCurrent) (if (theme.isDark) Color(0xFFFFFFFF) else Color(0xFF000000)) else Color(theme.labelColor),
+                        )
+                        if (hint != null) {
+                            Text(
+                                text = "($hint)",
+                                fontSize = 11.sp,
+                                color = accentColor.copy(alpha = 0.85f),
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun StripContent(
     items: List<CandidateItem>,
     onCandidateClick: (String) -> Unit,
     onBlacklist: (String) -> Unit,
+    onFlickUp: ((String) -> Unit)? = null,
     theme: KeyboardTheme,
 ) {
     val scrollState = rememberScrollState()
@@ -789,6 +933,7 @@ private fun StripContent(
                     item = item,
                     onClick = { onCandidateClick(item.text) },
                     onLongClick = { onBlacklist(item.text) },
+                    onFlickUp = { onFlickUp?.invoke(item.text) },
                     theme = theme,
                 )
             }
@@ -815,6 +960,7 @@ private fun CandidatePill(
     item: CandidateItem,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onFlickUp: (() -> Unit)? = null,
     theme: KeyboardTheme,
 ) {
     var isFlashingBlacklist by remember { mutableStateOf(false) }
@@ -882,6 +1028,15 @@ private fun CandidatePill(
                 if (pillBorder != null) Modifier.border(pillBorder, RoundedCornerShape(17.dp)) else Modifier
             )
             .background(pillBg)
+            .draggable(
+                state = rememberDraggableState { },
+                orientation = Orientation.Vertical,
+                onDragStopped = { velocity ->
+                    if (velocity < -100f) {
+                        onFlickUp?.invoke()
+                    }
+                }
+            )
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = {

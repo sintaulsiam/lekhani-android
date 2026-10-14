@@ -881,6 +881,13 @@ class LekhaniInputMethodService : InputMethodService() {
                                     CandidateStripState.Candidates(filtered, undoInfo = current.undoInfo)
                             }
                         },
+                        onGetVerbParadigm = { verb ->
+                            try {
+                                session.getVerbHonorificParadigm(verb)
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                        },
                         theme = currentTheme,
                         activeTools = currentTools,
                         isEnglish = (keyboardPrefs.uiLanguage == "en"),
