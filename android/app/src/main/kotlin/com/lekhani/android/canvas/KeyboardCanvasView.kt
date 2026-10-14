@@ -95,7 +95,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var fontScale: Float = 1.0f
     var showKeyBorders: Boolean = false
     var showHomeRowAccents: Boolean = false
-    var spacebarSwipeMode: KeyboardPreferences.SpacebarSwipeMode = KeyboardPreferences.SpacebarSwipeMode.CURSOR_NAV
+    var spacebarSwipeMode: KeyboardPreferences.SpacebarSwipeMode = KeyboardPreferences.SpacebarSwipeMode.LAYOUT_SWITCH
     var bottomRowKeyMode: KeyboardPreferences.BottomRowKeyMode = KeyboardPreferences.BottomRowKeyMode.SMART
     var enabledLayoutsCount: Int = 2
 
