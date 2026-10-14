@@ -148,8 +148,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
     }
 
     // Side Dock buttons for One-Handed mode (zero allocation in onDraw)
-    enum class SideDockAction { EXPAND_STANDARD, SWAP_SIDE, TOGGLE_FLOATING }
-    private class SideDockButton(var action: SideDockAction, val bounds: RectF = RectF())
     private val sideDockButtons = arrayOf(
         SideDockButton(SideDockAction.EXPAND_STANDARD),
         SideDockButton(SideDockAction.SWAP_SIDE),
@@ -279,6 +277,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     // ── Dedicated Collaborators (Strategy / Painter & Touch decomposition) ───
     private val keyboardPainter = KeyboardPainter()
     private val keyboardTouchTracker = KeyboardTouchTracker()
+    private val keyboardGeometryEngine = KeyboardGeometryEngine()
 
     /** Flat list of all keys with pixel bounds. Rebuilt only in [onSizeChanged]. */
     private val resolvedKeys = ArrayList<ResolvedKey>(50)
@@ -1004,7 +1003,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
      * Must NOT be called from [onDraw] or [onTouchEvent].
      */
     private fun computeKeyBounds() {
-        resolvedKeys.clear()
         accessibilityHelper.invalidateRoot()
         val currentLayout = layout ?: return
         val w = width.toFloat()
@@ -1013,489 +1011,57 @@ class KeyboardCanvasView @JvmOverloads constructor(
 
         val density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
         val isLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val effectiveChinDp = if (isLandscape || formFactor == KeyboardPreferences.FormFactor.FLOATING) 0f else bottomChinPaddingDp
-        val chinPx = effectiveChinDp * density
-        val availableH = (h - chinPx).coerceAtLeast(100f)
 
-        when (formFactor) {
-            KeyboardPreferences.FormFactor.ONE_HANDED_LEFT -> {
-                isSideDockVisible = true
-                val kbW = w * 0.82f
-                val dockLeft = kbW
-                val dockW = w - kbW
-                setupSideDockButtons(dockLeft, 0f, dockW, availableH, isLeft = false)
-                layoutKeysStandard(0f, kbW, availableH)
-            }
-            KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT -> {
-                isSideDockVisible = true
-                val dockW = w * 0.18f
-                val kbLeft = dockW
-                val kbW = w - dockW
-                setupSideDockButtons(0f, 0f, dockW, availableH, isLeft = true)
-                layoutKeysStandard(kbLeft, kbW, availableH)
-            }
-            KeyboardPreferences.FormFactor.FLOATING -> {
-                isSideDockVisible = false
-                layoutKeysStandard(0f, w, availableH)
-            }
-            KeyboardPreferences.FormFactor.SPLIT -> {
-                isSideDockVisible = false
-                layoutKeysSplit(w, availableH)
-            }
-            KeyboardPreferences.FormFactor.STANDARD -> {
-                isSideDockVisible = false
-                layoutKeysStandard(0f, w, availableH)
-            }
-        }
-    }
-
-    private fun setupSideDockButtons(left: Float, top: Float, width: Float, height: Float, isLeft: Boolean) {
-        val btnH = (height / 3f).coerceAtLeast(30f)
-        val pad = 4f * resources.displayMetrics.density
-
-        sideDockButtons[0].action = SideDockAction.EXPAND_STANDARD
-        sideDockButtons[0].bounds.set(left + pad, top + pad, left + width - pad, top + btnH - pad)
-
-        sideDockButtons[1].action = SideDockAction.SWAP_SIDE
-        sideDockButtons[1].bounds.set(left + pad, top + btnH + pad, left + width - pad, top + 2f * btnH - pad)
-
-        sideDockButtons[2].action = SideDockAction.TOGGLE_FLOATING
-        sideDockButtons[2].bounds.set(left + pad, top + 2f * btnH + pad, left + width - pad, top + 3f * btnH - pad)
-    }
-
-    private fun layoutKeysStandard(originX: Float, totalW: Float, totalH: Float, yOffset: Float = 0f) {
-        val currentLayout = layout ?: return
-        val density = resources.displayMetrics.density
-
-        val baseRows = currentLayout.rows.mapIndexed { rowIndex, originalRow ->
-            if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
-                when (rowIndex) {
-                    0 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicVowelsRow(gboardActiveConsonant) else originalRow
-                    4 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicRow5(gboardActiveConsonant) else originalRow
-                    else -> originalRow
-                }
-            } else {
-                originalRow
-            }
-        }
-        val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
-            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || !avroNumeralsBengali)
-            val numRow = if (isEnglishDigits) englishDedicatedNumberRow else bengaliDedicatedNumberRow
-            listOf(numRow) + baseRows
-        } else {
-            baseRows
-        }
-
-        val rowCount = allRows.size
-        val totalRows = rowCount + 1
-        val effectiveMarginV = if (totalH / totalRows < 40f * density) {
-            (keyMarginV * 0.5f).coerceAtLeast(1.5f * density)
-        } else {
-            keyMarginV
-        }
-        val totalMarginsV = (totalRows + 1) * effectiveMarginV
-        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(18f * density)
-
-        val sidePadding = (keyMarginH * 0.75f).coerceAtLeast(2f * density)
-        val availableRowW = (totalW - 2f * sidePadding).coerceAtLeast(10f)
-
-        // Find reference key width based on the primary 10-key row (or numpad row)
-        val isNumpad = isNumpadLayout()
-        val maxKeysInRow = if (isNumpad) {
-            allRows.maxOfOrNull { it.size } ?: 3
-        } else {
-            allRows.maxOfOrNull { it.size }?.coerceAtLeast(10) ?: 10
-        }
-        val standardGaps = (maxKeysInRow - 1) * keyMarginH
-        val standardUnitWidth = (availableRowW - standardGaps) / maxKeysInRow
-
-        var currentRowTop = yOffset + effectiveMarginV
-        for ((rowIndex, row) in allRows.withIndex()) {
-            val hasShiftAtStart = row.isNotEmpty() && row.first().action == KeyAction.Shift
-            val hasBackspaceAtEnd = row.isNotEmpty() && row.last().action == KeyAction.Backspace
-
-            if (hasShiftAtStart && hasBackspaceAtEnd && row.size > 2) {
-                // Bottom letter row: [Shift] ... [letters] ... [Backspace]
-                // Distribute width proportionally using ergonomic weights (~1.32x for Shift/Backspace)
-                // so middle letters are comfortable and wide, while Shift and Backspace are balanced,
-                // matching Gboard/iOS gold standards rather than oversized slabs.
-                val middleLetterCount = row.size - 2
-                val rawShiftWeight = row.first().widthWeight
-                val rawBackWeight = row.last().widthWeight
-                val funcWeight = if (rawShiftWeight > 1.0f) rawShiftWeight.coerceIn(1.25f, 1.35f) else 1.32f
-                val backWeight = if (rawBackWeight > 1.0f) rawBackWeight.coerceIn(1.25f, 1.35f) else 1.32f
-
-                val rowWeight = funcWeight + backWeight + middleLetterCount * 1.0f
-                val totalGaps = (row.size - 1) * keyMarginH
-                val unitWidth = (availableRowW - totalGaps) / rowWeight
-                val shiftKeyWidth = unitWidth * funcWeight
-                val backKeyWidth = unitWidth * backWeight
-
-                var keyLeft = originX + sidePadding
-                for (i in row.indices) {
-                    val key = row[i]
-                    val keyWidth = when (i) {
-                        0 -> shiftKeyWidth
-                        row.lastIndex -> backKeyWidth
-                        else -> unitWidth * key.widthWeight
-                    }
-                    resolvedKeys.add(
-                        ResolvedKey(
-                            key = key,
-                            bounds = RectF(keyLeft, currentRowTop, keyLeft + keyWidth, currentRowTop + kHeight)
-                        )
-                    )
-                    keyLeft += keyWidth + keyMarginH
-                }
-            } else {
-                val rowWeight = row.sumOf { it.widthWeight.toDouble() }.toFloat()
-                val totalGaps = (row.size - 1) * keyMarginH
-                val isStandardCharRow = row.all { it.widthWeight == 1.0f }
-                val isDedicatedNumberRow = (showDedicatedNumberRow && !isNumberSymbolsActive() && rowIndex == 0)
-
-                val (rowSideInset, unitWidth) = when {
-                    // Dedicated Number Row: evenly spans full available width across all keys (no side margins)
-                    isDedicatedNumberRow -> {
-                        val w = (availableRowW - totalGaps) / rowWeight
-                        Pair(0f, w)
-                    }
-                    // Numpad / Phone Dialpad: evenly distribute large keys across available width
-                    isNumpad -> {
-                        val w = (availableRowW - totalGaps) / rowWeight
-                        Pair(0f, w)
-                    }
-                    // Gboard: 10 keys per row, uniform width across all rows, no insets
-                    layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD -> {
-                        val w = (availableRowW - totalGaps) / rowWeight
-                        Pair(0f, w)
-                    }
-                    // Probhat 9-key row (া স ড ত গ হ জ ক ল): gentle 0.5-key QWERTY offset, keys expand naturally
-                    layoutType == com.lekhani.android.ffi.LekhaniLayoutType.PROBHAT && row.size == 9 -> {
-                        val halfKeyOffset = standardUnitWidth * 0.5f
-                        val contentW = availableRowW - 2f * halfKeyOffset
-                        val w = (contentW - totalGaps) / rowWeight
-                        Pair(halfKeyOffset, w)
-                    }
-                    // English / National 9-key home row below 10-key row: gentle 0.5-key QWERTY offset
-                    isStandardCharRow && row.size == maxKeysInRow - 1 -> {
-                        val halfKeyOffset = standardUnitWidth * 0.5f
-                        Pair(halfKeyOffset, standardUnitWidth)
-                    }
-                    // Probaho and 10-key home rows: elegant second row side padding like other layouts
-                    (rowIndex == 1 || (showDedicatedNumberRow && rowIndex == 2)) && currentLayout.rows.size >= 3 -> {
-                        val halfKeyOffset = standardUnitWidth * 0.35f
-                        val contentW = availableRowW - 2f * halfKeyOffset
-                        val w = (contentW - totalGaps) / rowWeight
-                        Pair(halfKeyOffset, w)
-                    }
-                    // Default fallback
-                    isStandardCharRow && row.size < maxKeysInRow -> {
-                        val contentW = row.size * standardUnitWidth + totalGaps
-                        val inset = ((availableRowW - contentW) / 2f).coerceAtLeast(0f)
-                        Pair(inset, standardUnitWidth)
-                    }
-                    else -> {
-                        val w = (availableRowW - totalGaps) / rowWeight
-                        Pair(0f, w)
-                    }
-                }
-
-                var keyLeft = originX + sidePadding + rowSideInset
-                for (key in row) {
-                    val keyWidth = unitWidth * key.widthWeight
-                    resolvedKeys.add(
-                        ResolvedKey(
-                            key = key,
-                            bounds = RectF(keyLeft, currentRowTop, keyLeft + keyWidth, currentRowTop + kHeight)
-                        )
-                    )
-                    keyLeft += keyWidth + keyMarginH
-                }
-            }
-            currentRowTop += kHeight + effectiveMarginV
-        }
-
-        // Spacebar row: proportional, sleek, and never oversized
-        val spaceRow = getAdaptiveSpaceRow(currentLayout.spacebarRow)
-        val totalSpaceWeight = spaceRow.sumOf { it.widthWeight.toDouble() }.toFloat()
-        val spaceGaps = (spaceRow.size - 1) * keyMarginH
-        val spaceUnitWidth = (availableRowW - spaceGaps) / totalSpaceWeight
-        val spaceRowTop = currentRowTop
-        val spaceKeyHeight = kHeight
-
-        var spaceKeyLeft = originX + sidePadding
-        for (key in spaceRow) {
-            val keyWidth = spaceUnitWidth * key.widthWeight
-            resolvedKeys.add(
-                ResolvedKey(
-                    key = key,
-                    bounds = RectF(spaceKeyLeft, spaceRowTop, spaceKeyLeft + keyWidth, spaceRowTop + spaceKeyHeight)
-                )
-            )
-            spaceKeyLeft += keyWidth + keyMarginH
-        }
-    }
-
-    private fun layoutKeysSplit(totalW: Float, totalH: Float) {
-        val currentLayout = layout ?: return
-        val density = resources.displayMetrics.density
-
-        val baseRows = currentLayout.rows.mapIndexed { rowIndex, originalRow ->
-            if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD) {
-                when (rowIndex) {
-                    0 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicVowelsRow(gboardActiveConsonant) else originalRow
-                    4 -> if (isGboardKarsActive) com.lekhani.android.model.GboardBengaliLayout.getDynamicRow5(gboardActiveConsonant) else originalRow
-                    else -> originalRow
-                }
-            } else {
-                originalRow
-            }
-        }
-        val allRows = if (showDedicatedNumberRow && !isNumberSymbolsActive()) {
-            val isEnglishDigits = (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.ENGLISH || !avroNumeralsBengali)
-            val numRow = if (isEnglishDigits) englishDedicatedNumberRow else bengaliDedicatedNumberRow
-            listOf(numRow) + baseRows
-        } else {
-            baseRows
-        }
-
-        val rowCount = allRows.size
-        val totalRows = rowCount + 1
-        val effectiveMarginV = if (totalH / totalRows < 40f * density) {
-            (keyMarginV * 0.5f).coerceAtLeast(1.5f * density)
-        } else {
-            keyMarginV
-        }
-        val totalMarginsV = (totalRows + 1) * effectiveMarginV
-        val kHeight = ((totalH - totalMarginsV) / totalRows).coerceAtLeast(18f * density)
-
-        val centerGap = totalW * 0.14f
-        val clusterW = (totalW - centerGap) / 2f
-        val rightClusterOrigin = clusterW + centerGap
-
-        var currentRowTop = effectiveMarginV
-        for ((rowIndex, row) in allRows.withIndex()) {
-            val halfCount = (row.size + 1) / 2
-            val leftKeys = row.take(halfCount)
-            val rightKeys = row.drop(halfCount)
-
-            val leftWeight = leftKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
-            val leftUnitW = (clusterW - keyMarginH * (leftKeys.size + 1)) / leftWeight
-            var keyLeft = keyMarginH
-            for (key in leftKeys) {
-                val keyW = leftUnitW * key.widthWeight
-                resolvedKeys.add(ResolvedKey(key, RectF(keyLeft, currentRowTop, keyLeft + keyW, currentRowTop + kHeight)))
-                keyLeft += keyW + keyMarginH
-            }
-
-            val rightWeight = rightKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
-            val rightUnitW = (clusterW - keyMarginH * (rightKeys.size + 1)) / rightWeight
-            var rightKeyLeft = rightClusterOrigin + keyMarginH
-            for (key in rightKeys) {
-                val keyW = rightUnitW * key.widthWeight
-                resolvedKeys.add(ResolvedKey(key, RectF(rightKeyLeft, currentRowTop, rightKeyLeft + keyW, currentRowTop + kHeight)))
-                rightKeyLeft += keyW + keyMarginH
-            }
-
-            currentRowTop += kHeight + effectiveMarginV
-        }
-
-        // Spacebar row in Split mode — ergonomic split spacebar for both thumbs
-        val spaceRow = getAdaptiveSpaceRow(currentLayout.spacebarRow)
-        val spaceIndex = spaceRow.indexOfFirst { it.action == KeyAction.Space }
-        val spaceKey = if (spaceIndex >= 0) spaceRow[spaceIndex] else Key(
-            label = "Space", shiftedLabel = "Space",
-            action = KeyAction.Space, shiftedAction = KeyAction.Space,
-            widthWeight = 2.4f, contentDesc = "Space",
+        val params = KeyboardGeometryEngine.Params(
+            layout = currentLayout,
+            layoutType = layoutType,
+            formFactor = formFactor,
+            width = w,
+            height = h,
+            density = density,
+            isLandscape = isLandscape,
+            bottomChinPaddingDp = bottomChinPaddingDp,
+            keyMarginH = keyMarginH,
+            keyMarginV = keyMarginV,
+            showDedicatedNumberRow = showDedicatedNumberRow,
+            isNumberSymbolsActive = isNumberSymbolsActive(),
+            isNumpad = isNumpadLayout(),
+            avroNumeralsBengali = avroNumeralsBengali,
+            englishDedicatedNumberRow = englishDedicatedNumberRow,
+            bengaliDedicatedNumberRow = bengaliDedicatedNumberRow,
+            isGboardKarsActive = isGboardKarsActive,
+            gboardActiveConsonant = gboardActiveConsonant,
+            fieldType = fieldType,
         )
-        val leftSpaceKeys: List<Key>
-        val rightSpaceKeys: List<Key>
-        if (spaceIndex >= 0) {
-            val leftSide = spaceRow.take(spaceIndex)
-            val rightSide = spaceRow.drop(spaceIndex + 1)
-            leftSpaceKeys = leftSide + spaceKey.copy(widthWeight = 2.4f)
-            rightSpaceKeys = listOf(spaceKey.copy(widthWeight = 2.4f)) + rightSide
-        } else {
-            val halfCount = (spaceRow.size + 1) / 2
-            leftSpaceKeys = spaceRow.take(halfCount)
-            rightSpaceKeys = spaceRow.drop(halfCount)
-        }
-        val spaceRowTop = currentRowTop
-        val spaceKeyHeight = kHeight
 
-        val leftWeight = leftSpaceKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
-        val leftUnitW = (clusterW - keyMarginH * (leftSpaceKeys.size + 1)) / leftWeight
-        var keyLeft = keyMarginH
-        for (key in leftSpaceKeys) {
-            val keyW = leftUnitW * key.widthWeight
-            resolvedKeys.add(ResolvedKey(key, RectF(keyLeft, spaceRowTop, keyLeft + keyW, spaceRowTop + spaceKeyHeight)))
-            keyLeft += keyW + keyMarginH
-        }
-
-        val rightWeight = rightSpaceKeys.sumOf { it.widthWeight.toDouble() }.toFloat()
-        val rightUnitW = (clusterW - keyMarginH * (rightSpaceKeys.size + 1)) / rightWeight
-        var rightKeyLeft = rightClusterOrigin + keyMarginH
-        for (key in rightSpaceKeys) {
-            val keyW = rightUnitW * key.widthWeight
-            resolvedKeys.add(ResolvedKey(key, RectF(rightKeyLeft, spaceRowTop, rightKeyLeft + keyW, spaceRowTop + spaceKeyHeight)))
-            rightKeyLeft += keyW + keyMarginH
-        }
-
-        // Notify session of updated key geometries for spatial Gaussian touch correction
-        val configs = resolvedKeys.mapNotNull { rk ->
-            val charToken = (rk.key.action as? KeyAction.Character)?.token ?: rk.key.label
-            if (charToken.isNotEmpty()) {
-                com.lekhani.android.ffi.KeyGeometryConfig(
-                    label = charToken,
-                    centerX = rk.bounds.centerX(),
-                    centerY = rk.bounds.centerY(),
-                    width = rk.bounds.width(),
-                    height = rk.bounds.height(),
-                )
-            } else null
-        }
-        keyListener?.onGeometryChanged(configs)
+        keyboardGeometryEngine.computeKeyBounds(
+            params = params,
+            resolvedKeys = resolvedKeys,
+            sideDockButtons = sideDockButtons,
+            onSideDockVisibilityChange = { isSideDockVisible = it },
+            onGeometryCalculated = { keyListener?.onGeometryChanged(it) }
+        )
     }
 
     // Vector Drawing Helpers — Zero allocations permitted
 
     private fun drawVectorBackspace(canvas: Canvas, cx: Float, cy: Float, size: Float, paint: Paint) {
-        vectorIconPath.rewind()
-        val halfW = size * 0.52f
-        val halfH = size * 0.35f
-        val tipW = size * 0.34f
-
-        vectorIconPath.moveTo(cx - halfW, cy)
-        vectorIconPath.lineTo(cx - halfW + tipW, cy - halfH)
-        vectorIconPath.lineTo(cx + halfW, cy - halfH)
-        vectorIconPath.lineTo(cx + halfW, cy + halfH)
-        vectorIconPath.lineTo(cx - halfW + tipW, cy + halfH)
-        vectorIconPath.close()
-        canvas.drawPath(vectorIconPath, paint)
-
-        val crossHalf = size * 0.14f
-        val crossCx = cx + tipW * 0.32f
-        canvas.drawLine(crossCx - crossHalf, cy - crossHalf, crossCx + crossHalf, cy + crossHalf, paint)
-        canvas.drawLine(crossCx - crossHalf, cy + crossHalf, crossCx + crossHalf, cy - crossHalf, paint)
+        keyboardPainter.drawVectorBackspace(canvas, cx, cy, size, paint)
     }
 
     private fun drawVectorShift(canvas: Canvas, cx: Float, cy: Float, size: Float, isShifted: Boolean, isLocked: Boolean, strokePaint: Paint, fillPaint: Paint) {
-        vectorIconPath.rewind()
-        val halfW = size * 0.40f
-        val headH = size * 0.36f
-        val stemHalfW = size * 0.18f
-        val totalHalfH = size * 0.44f
-
-        vectorIconPath.moveTo(cx, cy - totalHalfH)
-        vectorIconPath.lineTo(cx + halfW, cy - totalHalfH + headH)
-        vectorIconPath.lineTo(cx + stemHalfW, cy - totalHalfH + headH)
-        vectorIconPath.lineTo(cx + stemHalfW, cy + totalHalfH)
-        vectorIconPath.lineTo(cx - stemHalfW, cy + totalHalfH)
-        vectorIconPath.lineTo(cx - stemHalfW, cy - totalHalfH + headH)
-        vectorIconPath.lineTo(cx - halfW, cy - totalHalfH + headH)
-        vectorIconPath.close()
-
-        if (isLocked) {
-            fillPaint.color = activeTheme.accentColor
-            canvas.drawPath(vectorIconPath, fillPaint)
-            // Underline bar under the arrow to indicate locked state
-            val barY = cy + totalHalfH + size * 0.14f
-            val oldStrokeWidth = strokePaint.strokeWidth
-            strokePaint.color = activeTheme.accentColor
-            strokePaint.strokeWidth = size * 0.12f
-            canvas.drawLine(cx - halfW * 0.75f, barY, cx + halfW * 0.75f, barY, strokePaint)
-            strokePaint.strokeWidth = oldStrokeWidth
-        } else if (isShifted) {
-            fillPaint.color = activeTheme.accentColor
-            canvas.drawPath(vectorIconPath, fillPaint)
-        } else {
-            strokePaint.color = activeTheme.labelColor
-            canvas.drawPath(vectorIconPath, strokePaint)
-        }
+        keyboardPainter.drawVectorShift(canvas, cx, cy, size, isShifted, isLocked, strokePaint, fillPaint)
     }
 
-    private fun getAdaptiveSpaceRow(originalRow: List<Key>): List<Key> {
-        if (fieldType == EnterKeyResolver.FieldType.NORMAL || isNumberSymbolsActive()) return originalRow
-
-        val spaceIndex = originalRow.indexOfFirst { it.action == KeyAction.Space }
-        if (spaceIndex < 0) return originalRow
-
-        return originalRow.mapIndexed { idx, key ->
-            when (idx) {
-                spaceIndex - 1 -> {
-                    if (fieldType == EnterKeyResolver.FieldType.EMAIL) {
-                        Key(
-                            label = "@",
-                            shiftedLabel = "@",
-                            action = KeyAction.Character("@"),
-                            shiftedAction = KeyAction.Character("@"),
-                            widthWeight = key.widthWeight,
-                            contentDesc = "At symbol",
-                        )
-                    } else {
-                        Key(
-                            label = "/",
-                            shiftedLabel = "/",
-                            action = KeyAction.Character("/"),
-                            shiftedAction = KeyAction.Character("/"),
-                            widthWeight = key.widthWeight,
-                            contentDesc = "Forward slash",
-                        )
-                    }
-                }
-                spaceIndex + 1 -> {
-                    if (key.action is KeyAction.Character && (key.action as KeyAction.Character).token == ".") {
-                        key
-                    } else if (key.action !is KeyAction.Enter) {
-                        Key(
-                            label = ".",
-                            shiftedLabel = ".",
-                            action = KeyAction.Character("."),
-                            shiftedAction = KeyAction.Character("."),
-                            widthWeight = key.widthWeight,
-                            contentDesc = "Period",
-                        )
-                    } else {
-                        key
-                    }
-                }
-                else -> key
-            }
-        }
-    }
+    private fun getAdaptiveSpaceRow(originalRow: List<Key>): List<Key> =
+        keyboardGeometryEngine.getAdaptiveSpaceRow(originalRow, fieldType, isNumberSymbolsActive())
 
     private fun drawVectorEnter(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        vectorIconPath.rewind()
-        val w = size * 0.60f
-        val h = size * 0.42f
-        val left = cx - w / 2f
-        val right = cx + w / 2f
-        val top = cy - h / 2f
-        val bottom = cy + h / 2f
-        val arrowSize = size * 0.20f
-
-        vectorIconPath.moveTo(right, top)
-        vectorIconPath.lineTo(right, bottom)
-        vectorIconPath.lineTo(left, bottom)
-
-        vectorIconPath.moveTo(left + arrowSize, bottom - arrowSize)
-        vectorIconPath.lineTo(left, bottom)
-        vectorIconPath.lineTo(left + arrowSize, bottom + arrowSize)
-
-        canvas.drawPath(vectorIconPath, strokePaint)
+        keyboardPainter.drawVectorEnter(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorSearch(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
-        val r = size * 0.25f
-        val glassCx = cx - size * 0.08f
-        val glassCy = cy - size * 0.08f
-        canvas.drawCircle(glassCx, glassCy, r, strokePaint)
-        val cos45 = 0.7071f
-        val startX = glassCx + r * cos45
-        val startY = glassCy + r * cos45
-        val endX = startX + size * 0.30f * cos45
-        val endY = startY + size * 0.30f * cos45
-        canvas.drawLine(startX, startY, endX, endY, strokePaint)
+        keyboardPainter.drawVectorSearch(canvas, cx, cy, size, strokePaint)
     }
 
     private fun drawVectorSend(canvas: Canvas, cx: Float, cy: Float, size: Float, strokePaint: Paint) {
