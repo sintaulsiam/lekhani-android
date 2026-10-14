@@ -1082,11 +1082,23 @@ private fun CandidatePill(
             // Verb honorific paradigm flick indicator
             if (item.hasVerbParadigm) {
                 Spacer(Modifier.width(2.dp))
+                val infiniteTransition = rememberInfiniteTransition(label = "VerbFlickBounce")
+                val bounceOffset by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = -2.5f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 650, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "VerbFlickBounceOffset"
+                )
                 Icon(
                     imageVector = Icons.Filled.KeyboardArrowUp,
                     contentDescription = "Verb honorific paradigm available on flick up",
-                    tint = itemTextColor.copy(alpha = 0.55f),
-                    modifier = Modifier.size(11.dp)
+                    tint = if (item.isPrimary) primaryText.copy(alpha = 0.85f) else Color(theme.accentColor).copy(alpha = 0.90f),
+                    modifier = Modifier
+                        .size(12.dp)
+                        .offset(y = bounceOffset.dp)
                 )
             }
         }
