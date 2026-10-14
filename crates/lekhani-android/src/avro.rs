@@ -98,6 +98,13 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
         return;
     }
 
+    if is_bilingual_clitic_enabled()
+        && (resolve_bilingual_hyphen_clitic(input).is_some()
+            || resolve_unhyphenated_bilingual_clitic(input).is_some())
+    {
+        return;
+    }
+
     // 1. Check dynamic/bundled supervised phonetic overrides (phonetic_overrides.bin / json)
     let is_title_case = input.len() >= 3
         && input.chars().next().is_some_and(|c| c.is_uppercase())
@@ -996,13 +1003,15 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
         let stem_bn = get_avro_parser().convert(&effective);
         let word = format!("{}তাছি", stem_bn);
-        return Some((word.clone(), vec![word]));
+        let std_word = format!("{}ছি", stem_bn);
+        return Some((word.clone(), vec![word, std_word]));
     }
     if let Some(stem) = lower.strip_suffix("tasi") {
         let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
         let stem_bn = get_avro_parser().convert(&effective);
         let word = format!("{}তাসি", stem_bn);
-        return Some((word.clone(), vec![word]));
+        let std_word = format!("{}ছি", stem_bn);
+        return Some((word.clone(), vec![word, std_word]));
     }
 
     // b. 1st-person dialect future: -um -> -ুম (e.g. bos-um -> বসুম, kor-um -> করুম)
@@ -1010,7 +1019,8 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         if stem.len() >= 2 && stem.chars().all(|c| c.is_ascii_alphabetic()) {
             let stem_bn = get_avro_parser().convert(stem);
             let word = format!("{}ুম", stem_bn);
-            return Some((word.clone(), vec![word]));
+            let std_word = format!("{}ব", stem_bn);
+            return Some((word.clone(), vec![word, std_word]));
         }
     }
     // 1st-person dialect future: -mu -> -মু (e.g. ja-mu -> যামু, kha-mu -> খামু)
@@ -1019,7 +1029,8 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
             let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
             let stem_bn = get_avro_parser().convert(&effective);
             let word = format!("{}মু", stem_bn);
-            return Some((word.clone(), vec![word]));
+            let std_word = format!("{}ব", stem_bn);
+            return Some((word.clone(), vec![word, std_word]));
         }
     }
 
@@ -1028,7 +1039,8 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         if !stem.is_empty() && stem.chars().all(|c| c.is_ascii_alphabetic()) {
             let stem_bn = get_avro_parser().convert(stem);
             let word = format!("{}স", stem_bn);
-            return Some((word.clone(), vec![word]));
+            let std_word = format!("{}িস", stem_bn);
+            return Some((word.clone(), vec![word, std_word]));
         }
     }
 
@@ -1095,19 +1107,18 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     None
 }
 
-/// Returns true if the token is a social mention, hashtag, digit unit, bilingual clitic, or generative morphology
+/// Returns true if the token is strictly non-phonetic (social mention, hashtag, or numeric expression)
+/// where NLP context scoring is irrelevant.
 pub fn is_avro_special_fastpath(input: &str) -> bool {
     input.starts_with('@')
         || input.starts_with('#')
         || (!input.is_empty()
             && input.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ',')
             && input.chars().any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c)))
-        || has_explicit_avro_intent(input)
         || resolve_digit_unit_candidates(input).is_some()
         || (is_bilingual_clitic_enabled()
             && (resolve_bilingual_hyphen_clitic(input).is_some()
                 || resolve_unhyphenated_bilingual_clitic(input).is_some()))
-        || resolve_generative_morphology(input).is_some()
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1232,6 +1243,9 @@ fn stage_generative_morphology(input: &str) -> Option<(String, Vec<String>)> {
         let def_pure = get_avro_parser().convert(input);
         if !def_pure.is_empty() && !candidates.contains(&def_pure) {
             candidates.push(def_pure);
+        }
+        if !candidates.iter().any(|c| c.eq_ignore_ascii_case(input)) {
+            candidates.push(input.to_string());
         }
         return Some((primary, candidates));
     }
@@ -2183,7 +2197,14 @@ pub(crate) fn resolve_avro_candidates(
             );
         }
 
-        if has_candidate_memory {
+        if has_explicit_avro_intent(raw) {
+            if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
+                if pos != 0 {
+                    let cand = candidates.remove(pos);
+                    candidates.insert(0, cand);
+                }
+            }
+        } else if has_candidate_memory {
             let db = crate::session::get_core_database();
             if let Ok(learner) = db.learner.read() {
                 let preferred = learner
