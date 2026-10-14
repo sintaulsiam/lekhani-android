@@ -1358,12 +1358,15 @@ pub struct CandidateAccumulator {
 }
 
 impl CandidateAccumulator {
-    pub fn new(initial: Vec<String>) -> Self {
+    pub fn new(mut initial: Vec<String>) -> Self {
+        if initial.capacity() < 8 {
+            initial.reserve(8usize.saturating_sub(initial.len()));
+        }
         Self { items: initial }
     }
 
     pub fn with_capacity(cap: usize) -> Self {
-        Self { items: Vec::with_capacity(cap) }
+        Self { items: Vec::with_capacity(cap.max(8)) }
     }
 
     pub fn contains(&self, text: &str) -> bool {
