@@ -168,6 +168,7 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
 
     // 3. Check phonetic variant equivalences (geminates, S-class, Sanskrit initial vowels, compound Reph)
     // Equivalences are alternative phonetic suggestions; they must sit at index 1+ and never clobber Slot 0.
+    // 3. Check phonetic variant equivalences (geminates, S-class, retroflex stops, elided vowels)
     let equivs = get_phonetic_equivalence_candidates(input);
     let mut inserted_idx = 0;
     for eq_word in equivs {
@@ -361,21 +362,79 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
         variant_keys.push(lower.replace("bahan", "bohon"));
     }
 
-    // 7. Retroflex 'd' -> 'D' (ড) auto-disambiguation for dialect suffix '-da' or specific retroflex nouns
-    if lower.ends_with("da") || lower == "dal" || lower == "daktar" || lower == "dab" {
-        let mut with_cap_d = lower.clone();
-        if with_cap_d.starts_with('d') {
-            with_cap_d.replace_range(0..1, "D");
-            variant_keys.push(with_cap_d.clone());
+    // 7. Touchscreen Retroflex Stop auto-disambiguation (t <-> T, d <-> D):
+    // Mobile users type all-lowercase 't' for both ত and ট (e.g. taka -> টাকা, thik -> ঠিক,
+    // tupi -> টুপি, choto -> ছোট, daktar -> ডাক্তার, dal -> ডাল, dim -> ডিম).
+    if lower.starts_with('t') {
+        variant_keys.push(format!("T{}", &lower[1..]));
+        if lower.starts_with("th") {
+            variant_keys.push(format!("Th{}", &lower[2..]));
         }
-        if with_cap_d.ends_with("da") {
-            let len = with_cap_d.len();
-            with_cap_d.replace_range(len - 2..len - 1, "D");
-            variant_keys.push(with_cap_d);
+    }
+    if lower.starts_with('d') {
+        variant_keys.push(format!("D{}", &lower[1..]));
+        if lower.starts_with("dh") {
+            variant_keys.push(format!("Dh{}", &lower[2..]));
+        }
+    }
+    if lower.ends_with("da") || lower.ends_with("to") || lower.ends_with("ta") || lower.ends_with("ti") {
+        if lower.ends_with("da") {
+            let len = lower.len();
+            let mut with_d = lower.clone();
+            with_d.replace_range(len - 2..len - 1, "D");
+            variant_keys.push(with_d);
+        }
+        if lower.ends_with("to") {
+            let len = lower.len();
+            let mut with_t = lower.clone();
+            with_t.replace_range(len - 2..len - 1, "T");
+            variant_keys.push(with_t);
+        }
+    }
+    if !is_exact_dict_base {
+        if lower.contains('t') {
+            let t_indices: Vec<usize> = lower
+                .char_indices()
+                .filter_map(|(idx, ch)| if ch == 't' { Some(idx) } else { None })
+                .collect();
+            for &idx in &t_indices {
+                let mut with_cap_t = lower.clone();
+                with_cap_t.replace_range(idx..idx + 1, "T");
+                variant_keys.push(with_cap_t);
+            }
+        }
+        if lower.contains('d') {
+            let d_indices: Vec<usize> = lower
+                .char_indices()
+                .filter_map(|(idx, ch)| if ch == 'd' { Some(idx) } else { None })
+                .collect();
+            for &idx in &d_indices {
+                let mut with_cap_d = lower.clone();
+                with_cap_d.replace_range(idx..idx + 1, "D");
+                variant_keys.push(with_cap_d);
+            }
         }
     }
 
-    // 8. Colloquial dialect verb inflection breaker: 'nch' -> 'n`ch' (e.g. 'hunchos' -> 'hun`chos' -> 'হুনছস')
+    // 8. Missing Inherent Vowel Elision for Casual "Banglish" (e.g. bndhu -> bondhu -> বন্ধু):
+    // Only runs when the base transliteration is NOT already an exact dictionary word or common override.
+    if !is_exact_dict_base && lower.len() >= 3 && !lower.contains('o') {
+        let consonants = "bcdgjklmnpqstvxz";
+        let bytes = lower.as_bytes();
+        for i in 0..bytes.len().saturating_sub(1) {
+            let c1 = bytes[i] as char;
+            let c2 = bytes[i + 1] as char;
+            if c1 != c2 && consonants.contains(c1) && consonants.contains(c2) {
+                let mut with_o = String::with_capacity(lower.len() + 1);
+                with_o.push_str(&lower[..=i]);
+                with_o.push('o');
+                with_o.push_str(&lower[i + 1..]);
+                variant_keys.push(with_o);
+            }
+        }
+    }
+
+    // 9. Colloquial dialect verb inflection breaker: 'nch' -> 'n`ch' (e.g. 'hunchos' -> 'hun`chos' -> 'হুনছস')
     if lower.contains("nch") {
         variant_keys.push(lower.replace("nch", "n`ch"));
     }
@@ -437,8 +496,12 @@ pub fn are_phonetically_compatible(w1: &str, w2: &str) -> bool {
     if is_ja_ya(c1) && is_ja_ya(c2) {
         return true;
     }
-    let is_ta = |c| c == 'ত' || c == 'ৎ';
-    if is_ta(c1) && is_ta(c2) {
+    let is_dental_retroflex_t = |c| c == 'ত' || c == 'ট' || c == 'ৎ' || c == 'থ' || c == 'ঠ';
+    if is_dental_retroflex_t(c1) && is_dental_retroflex_t(c2) {
+        return true;
+    }
+    let is_dental_retroflex_d = |c| c == 'দ' || c == 'ড' || c == 'ধ' || c == 'ঢ';
+    if is_dental_retroflex_d(c1) && is_dental_retroflex_d(c2) {
         return true;
     }
     let is_vowel = |c| "অআইঈউঊঋএঐওঔািীুূৃেৈোৌ".contains(c);
