@@ -499,4 +499,45 @@ object NumberSymbolsLayout {
             ),
         ),
     )
+
+    val bengaliDedicatedNumberRow: List<Key> = listOf(
+        Key("১", shiftedLabel = "1", hintLabel = "1", action = KeyAction.Character("১"), longPressAction = KeyAction.Character("1"), contentDesc = "Bengali digit 1, hold for English 1"),
+        Key("২", shiftedLabel = "2", hintLabel = "2", action = KeyAction.Character("২"), longPressAction = KeyAction.Character("2"), contentDesc = "Bengali digit 2, hold for English 2"),
+        Key("৩", shiftedLabel = "3", hintLabel = "3", action = KeyAction.Character("৩"), longPressAction = KeyAction.Character("3"), contentDesc = "Bengali digit 3, hold for English 3"),
+        Key("৪", shiftedLabel = "4", hintLabel = "4", action = KeyAction.Character("৪"), longPressAction = KeyAction.Character("4"), contentDesc = "Bengali digit 4, hold for English 4"),
+        Key("৫", shiftedLabel = "5", hintLabel = "5", action = KeyAction.Character("৫"), longPressAction = KeyAction.Character("5"), contentDesc = "Bengali digit 5, hold for English 5"),
+        Key("৬", shiftedLabel = "6", hintLabel = "6", action = KeyAction.Character("৬"), longPressAction = KeyAction.Character("6"), contentDesc = "Bengali digit 6, hold for English 6"),
+        Key("৭", shiftedLabel = "7", hintLabel = "7", action = KeyAction.Character("৭"), longPressAction = KeyAction.Character("7"), contentDesc = "Bengali digit 7, hold for English 7"),
+        Key("৮", shiftedLabel = "8", hintLabel = "8", action = KeyAction.Character("৮"), longPressAction = KeyAction.Character("8"), contentDesc = "Bengali digit 8, hold for English 8"),
+        Key("৯", shiftedLabel = "9", hintLabel = "9", action = KeyAction.Character("৯"), longPressAction = KeyAction.Character("9"), contentDesc = "Bengali digit 9, hold for English 9"),
+        Key("০", shiftedLabel = "0", hintLabel = "0", action = KeyAction.Character("০"), longPressAction = KeyAction.Character("0"), contentDesc = "Bengali digit 0, hold for English 0"),
+    )
+
+    val englishDedicatedNumberRow: List<Key> = listOf(
+        Key("1", shiftedLabel = "১", hintLabel = "১", action = KeyAction.Character("1"), longPressAction = KeyAction.Character("১"), contentDesc = "Digit 1, hold for Bengali ১"),
+        Key("2", shiftedLabel = "২", hintLabel = "২", action = KeyAction.Character("২"), longPressAction = KeyAction.Character("২"), contentDesc = "Digit 2, hold for Bengali ২"),
+        Key("3", shiftedLabel = "৩", hintLabel = "৩", action = KeyAction.Character("৩"), longPressAction = KeyAction.Character("৩"), contentDesc = "Digit 3, hold for Bengali ৩"),
+        Key("4", shiftedLabel = "৪", hintLabel = "৪", action = KeyAction.Character("৪"), longPressAction = KeyAction.Character("৪"), contentDesc = "Digit 4, hold for Bengali ৪"),
+        Key("5", shiftedLabel = "৫", hintLabel = "৫", action = KeyAction.Character("৫"), longPressAction = KeyAction.Character("৫"), contentDesc = "Digit 5, hold for Bengali ৫"),
+        Key("6", shiftedLabel = "৬", hintLabel = "৬", action = KeyAction.Character("৬"), longPressAction = KeyAction.Character("৬"), contentDesc = "Digit 6, hold for Bengali ৬"),
+        Key("7", shiftedLabel = "৭", hintLabel = "৭", action = KeyAction.Character("৭"), longPressAction = KeyAction.Character("৭"), contentDesc = "Digit 7, hold for Bengali ৭"),
+        Key("8", shiftedLabel = "৮", hintLabel = "৮", action = KeyAction.Character("৮"), longPressAction = KeyAction.Character("৮"), contentDesc = "Digit 8, hold for Bengali ৮"),
+        Key("9", shiftedLabel = "৯", hintLabel = "৯", action = KeyAction.Character("৯"), longPressAction = KeyAction.Character("৯"), contentDesc = "Digit 9, hold for Bengali ৯"),
+        Key("0", shiftedLabel = "০", hintLabel = "০", action = KeyAction.Character("0"), longPressAction = KeyAction.Character("০"), contentDesc = "Digit 0, hold for Bengali ০"),
+    )
+
+    fun isNumberSymbolsActive(layout: KeyboardLayout?): Boolean =
+        layout == numericLayout ||
+        layout == bengaliNumericLayout ||
+        layout == englishNumericLayout ||
+        layout == moreSymbolsLayout ||
+        layout == phoneDialpadLayout ||
+        layout == numpadPinLayout ||
+        layout == bengaliNumpadPinLayout
+
+    fun isNumpadLayout(layout: KeyboardLayout?): Boolean =
+        layout == phoneDialpadLayout ||
+        layout == numpadPinLayout ||
+        layout == bengaliNumpadPinLayout
 }
+
