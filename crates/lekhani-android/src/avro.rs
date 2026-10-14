@@ -167,11 +167,23 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     }
 
     // 3. Check phonetic variant equivalences (geminates, S-class, Sanskrit initial vowels, compound Reph)
-    // Equivalences are alternative phonetic suggestions; they must sit at index 1+ and never clobber Slot 0.
     // 3. Check phonetic variant equivalences (geminates, S-class, retroflex stops, elided vowels)
     let equivs = get_phonetic_equivalence_candidates(input);
     let mut inserted_idx = 0;
     for eq_word in equivs {
+        let eq_freq = db.get_frequency(&eq_word);
+        let top_freq = candidates.first().map(|w| db.get_frequency(w)).unwrap_or(0);
+
+        // If top candidate is already significantly more frequent than eq_word (e.g. desh -> দেশ vs ডেশ),
+        // keep top candidate at Slot 0 and insert eq_word at index 1+.
+        // Conversely, if eq_word is a real high-frequency word and top is a low-frequency / non-word
+        // (e.g. bakkya -> বাক্য vs বাক্কা, dharmo -> ধর্ম vs ধারম), promote eq_word to Slot 0!
+        let target_idx = if inserted_idx == 0 && top_freq > eq_freq && top_freq >= 50 {
+            1.min(candidates.len())
+        } else {
+            inserted_idx.min(candidates.len())
+        };
+
         if let Some(pos) = candidates.iter().position(|c| c == &eq_word) {
             if pos == 0 {
                 // Already the top candidate; keep at Slot 0 and advance inserted_idx!
@@ -179,11 +191,19 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
                 continue;
             }
             let cand = candidates.remove(pos);
-            candidates.insert(inserted_idx, cand);
-            inserted_idx += 1;
+            candidates.insert(target_idx, cand);
+            if target_idx == 0 {
+                inserted_idx = 1;
+            } else {
+                inserted_idx += 1;
+            }
         } else {
-            candidates.insert(inserted_idx, eq_word);
-            inserted_idx += 1;
+            candidates.insert(target_idx, eq_word);
+            if target_idx == 0 {
+                inserted_idx = 1;
+            } else {
+                inserted_idx += 1;
+            }
         }
         if candidates.len() > 12 {
             candidates.pop();
@@ -365,19 +385,25 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
     // 7. Touchscreen Retroflex Stop auto-disambiguation (t <-> T, d <-> D):
     // Mobile users type all-lowercase 't' for both ত and ট (e.g. taka -> টাকা, thik -> ঠিক,
     // tupi -> টুপি, choto -> ছোট, daktar -> ডাক্তার, dal -> ডাল, dim -> ডিম).
-    if lower.starts_with('t') {
-        variant_keys.push(format!("T{}", &lower[1..]));
-        if lower.starts_with("th") {
-            variant_keys.push(format!("Th{}", &lower[2..]));
+    if lower.len() >= 3 {
+        if lower.starts_with('t') {
+            if !["tha", "tho", "the", "thi", "thu"].contains(&lower.as_str()) {
+                variant_keys.push(format!("T{}", &lower[1..]));
+            }
+            if lower.starts_with("th") && lower.len() >= 4 {
+                variant_keys.push(format!("Th{}", &lower[2..]));
+            }
+        }
+        if lower.starts_with('d') {
+            if !["dha", "dho", "dhe", "dhi", "dhu"].contains(&lower.as_str()) {
+                variant_keys.push(format!("D{}", &lower[1..]));
+            }
+            if lower.starts_with("dh") && lower.len() >= 4 {
+                variant_keys.push(format!("Dh{}", &lower[2..]));
+            }
         }
     }
-    if lower.starts_with('d') {
-        variant_keys.push(format!("D{}", &lower[1..]));
-        if lower.starts_with("dh") {
-            variant_keys.push(format!("Dh{}", &lower[2..]));
-        }
-    }
-    if lower.ends_with("da") || lower.ends_with("to") || lower.ends_with("ta") || lower.ends_with("ti") {
+    if lower.len() >= 3 && (lower.ends_with("da") || lower.ends_with("to") || lower.ends_with("ta") || lower.ends_with("ti")) {
         if lower.ends_with("da") {
             let len = lower.len();
             let mut with_d = lower.clone();
@@ -391,7 +417,7 @@ pub fn get_phonetic_equivalence_candidates(input: &str) -> Vec<String> {
             variant_keys.push(with_t);
         }
     }
-    if !is_exact_dict_base {
+    if lower.len() >= 3 && !is_exact_dict_base {
         if lower.contains('t') {
             let t_indices: Vec<usize> = lower
                 .char_indices()
@@ -1677,7 +1703,9 @@ fn apply_case_fidelity(
     let has_explicit_intent = has_explicit_avro_intent(ctx.input);
     let is_all_caps = ctx.input.chars().count() >= 2 && ctx.input.chars().all(|c| c.is_ascii_uppercase());
     if is_all_caps {
-        let is_common_bengali_all_caps = !is_common_tech_acronym(ctx.input) && has_override_word(ctx.lower);
+        let lower_conv = parser.convert(ctx.lower);
+        let is_bengali_dict = !lower_conv.is_empty() && (ctx.db.is_exact_dictionary_word(&lower_conv) || ctx.db.trie.contains_exact(&lower_conv));
+        let is_common_bengali_all_caps = !is_common_tech_acronym(ctx.input) && (has_override_word(ctx.lower) || is_bengali_dict);
         if is_common_bengali_all_caps {
             let resolved_lower = if let Some(ac) = ctx.db.autocorrect.get(ctx.lower) {
                 ac.clone()
