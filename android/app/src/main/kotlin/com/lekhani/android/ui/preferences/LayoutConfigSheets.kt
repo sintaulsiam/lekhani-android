@@ -461,6 +461,7 @@ fun AvroSettingsDialog(
     var avroStripOrder by remember { mutableStateOf(prefs.avroStripOrder) }
     var avroPhoneticBackspaceReopening by remember { mutableStateOf(prefs.avroPhoneticBackspaceReopening) }
     var avroNumeralsBengali by remember { mutableStateOf(prefs.avroNumeralsBengali) }
+    var pureAvroMode by remember { mutableStateOf(prefs.pureAvroMode) }
     var showCheatSheet by remember { mutableStateOf(false) }
 
     Dialog(
@@ -616,6 +617,35 @@ fun AvroSettingsDialog(
                                     onCheckedChange = {
                                         avroDynamicRecomposition = it
                                         prefs.avroDynamicRecomposition = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Strict Avro First Mode
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Strict Avro First" else "কঠোর অভ্র মোড",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Prioritize literal desktop Avro case rules (e.g. taka → তাকা, Taka → টাকা)"
+                                               else "কম্পিউটারের মতো হুবহু বড়-ছোট অক্ষরের নিয়ম প্রথমে রাখুন (যেমন: taka → তাকা, Taka → টাকা)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = pureAvroMode,
+                                    onCheckedChange = {
+                                        pureAvroMode = it
+                                        prefs.pureAvroMode = it
                                     }
                                 )
                             }
