@@ -204,7 +204,6 @@ class LekhaniInputMethodService : InputMethodService() {
     private var consumedBackOnKeyDown: Boolean = false
     private var isEnglishDictLoaded: Boolean = false
     private var previousLayoutBeforePassword: LekhaniLayoutType? = null
-    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
     private var layoutPrefListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
     private var lastMeasuredKeyboardHeightPx: Int = 0
     private var lastMeasuredStripHeightPx: Int = 0
@@ -218,12 +217,18 @@ class LekhaniInputMethodService : InputMethodService() {
     private var isNumericFieldMode: Boolean = false
     private var isPhoneDialpadMode: Boolean = false
     private var previousLayoutBeforeNumeric: LekhaniLayoutType? = null
-
     private val recentsManager: EmojiRecentsManager by lazy { EmojiRecentsManager(this) }
     private val clipboardStore: LekhaniClipboardStore by lazy { LekhaniClipboardStore(this) }
-    private var lastCopiedText: String? = null
-    private var lastCopiedTime: Long = 0L
-    private var isQuickChipDismissed: Boolean = false
+    private val clipboardCoordinator: SmartClipboardCoordinator by lazy {
+        SmartClipboardCoordinator(
+            context = this,
+            clipboardStore = clipboardStore,
+            onNewClipDetected = { checkAndShowQuickChip() }
+        )
+    }
+    private var isQuickChipDismissed: Boolean
+        get() = clipboardCoordinator.isQuickChipDismissed
+        set(value) { clipboardCoordinator.isQuickChipDismissed = value }
     private var lastAutoDariCommitTime: Long = 0L
 
     // ── WebView / Chromium composing shadow buffer ─────────────────────────────
@@ -355,13 +360,8 @@ class LekhaniInputMethodService : InputMethodService() {
         applyLayoutSpecificPreferences(savedLayout)
         Log.i(TAG, "Lekhani IME created; layout = $savedLayout")
 
-        // Listen for system clipboard updates; guard against password field capture
-        val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-        val listener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
-            syncSystemClipboard()
-        }
-        clipboardListener = listener
-        sysClipboard?.addPrimaryClipChangedListener(listener)
+        // Attach smart clipboard coordinator for primary clip sync
+        clipboardCoordinator.attach()
 
         // Listen for layout changes from Settings (e.g. LayoutFlowScreen card tap, Chin slider)
         val prefListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
@@ -405,57 +405,23 @@ class LekhaniInputMethodService : InputMethodService() {
      * Guaranteed to work in Android 10+ where background listeners may be restricted.
      */
     private fun syncSystemClipboard() {
-        val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager ?: return
-        runCatching {
-            if (!isCurrentFieldPrivate && sysClipboard.hasPrimaryClip()) {
-                val clip = sysClipboard.primaryClip
-                if (clip != null && clip.itemCount > 0) {
-                    val item = clip.getItemAt(0)
-                    val text = item?.text?.toString() ?: item?.coerceToText(this@LekhaniInputMethodService)?.toString()
-                    if (LekhaniClipboardStore.isValidClipText(text)) {
-                        val trimmed = text!!.trim()
-                        if (trimmed != lastCopiedText) {
-                            lastCopiedText = trimmed
-                            lastCopiedTime = System.currentTimeMillis()
-                            isQuickChipDismissed = false
-                        }
-                        clipboardStore.addClip(trimmed)
-                    }
-                }
-            }
-        }.onFailure { e ->
-            Log.w(TAG, "Failed to sync system primary clip: ${e.message}")
-        }
+        clipboardCoordinator.syncSystemClipboard(isCurrentFieldPrivate)
     }
 
     private fun checkAndShowQuickChip() {
-        if (isCurrentFieldPrivate || isQuickChipDismissed) return
-        if (session.isComposing() || preeditShadow.isNotEmpty()) return
-
-        val text = lastCopiedText ?: return
-        if (!LekhaniClipboardStore.isValidClipText(text)) return
-        val ageMs = System.currentTimeMillis() - lastCopiedTime
-        if (ageMs in 0..120_000) {
-            val isEng = session.getLayout() == LekhaniLayoutType.ENGLISH
-            val chipInfo = SmartAssistant.inspectClipboard(text, isEng)
-            if (chipInfo != null) {
-                _candidateState.value = CandidateStripState.QuickChip(
-                    label = chipInfo.label,
-                    icon = chipInfo.icon,
-                    pasteText = chipInfo.fullText,
-                    chipType = chipInfo.type,
-                )
-                updateCandidatesVisibility()
-            }
+        val quickChip = clipboardCoordinator.resolveQuickChip(
+            isPrivateField = isCurrentFieldPrivate,
+            isComposing = session.isComposing() || preeditShadow.isNotEmpty(),
+            isEnglish = session.getLayout() == LekhaniLayoutType.ENGLISH,
+        )
+        if (quickChip != null) {
+            _candidateState.value = quickChip
+            updateCandidatesVisibility()
         }
     }
 
     override fun onDestroy() {
-        clipboardListener?.let { listener ->
-            val sysClipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-            sysClipboard?.removePrimaryClipChangedListener(listener)
-            clipboardListener = null
-        }
+        clipboardCoordinator.detach()
         layoutPrefListener?.let { listener ->
             devicePrefs.unregisterOnSharedPreferenceChangeListener(listener)
             layoutPrefListener = null
