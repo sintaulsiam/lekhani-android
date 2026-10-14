@@ -361,7 +361,11 @@
   - Dual-surfacing resolution: Slot 0 code-mix passthrough, Slot 1 phonetic Bengali transcription (`হোয়াটসঅ্যাপে`, `মিটিংয়ের`), Slot 2 raw input.
   - Zero dictionary poisoning and airtight single-letter clitic validation protecting core Bengali vocabulary (`pore`, `kore`, `amar`, `tumi`, `ammi`).
   - Extended bilingual loanword inventory and technical collocation disambiguation across `lekhani-engine` and `lekhani-android`.
-- [ ] **Phase 2: Bidirectional In-Sentence Context Rescoring** (`getTextBeforeCursor` + `getTextAfterCursor`).
+- [x] **Phase 2: Bidirectional In-Sentence Context Rescoring** (`getTextBeforeCursor` + `getTextAfterCursor`):
+  - Extracted 64 trailing characters post-cursor via `InputConnection.getTextAfterCursor(64, 0)` in `LekhaniInputMethodService.kt`.
+  - Streamed to native session via `session.set_right_context()` with zero-allocation ring-buffer trimming.
+  - Bidirectional N-gram scoring in `get_bengali_next_words` combining preceding context $w_{t-1}$ with following token $w_{t+1}$ to eliminate tense/agreement ambiguities.
+  - Validated via `test_bidirectional_context_next_words` integration test.
 - [ ] **Phase 3: Gestural Micro-Flick Verb Disambiguation Picker** (Upward micro-flick on candidate pills).
 - [ ] **Phase 4: Semantic Topic Vector Disambiguation** (32-D dense embeddings).
 - [ ] **Phase 5: Continuous Adaptive Thumb Morphology Calibration** (Online EMA updating key centroids).
