@@ -68,6 +68,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -1077,6 +1078,16 @@ private fun CandidatePill(
             if (item.homophones != null) {
                 Spacer(Modifier.width(4.dp))
                 HomophoneBadge(alternate = item.homophones, theme = theme)
+            }
+            // Verb honorific paradigm flick indicator
+            if (item.hasVerbParadigm) {
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowUp,
+                    contentDescription = "Verb honorific paradigm available on flick up",
+                    tint = itemTextColor.copy(alpha = 0.55f),
+                    modifier = Modifier.size(11.dp)
+                )
             }
         }
     }

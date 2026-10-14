@@ -21,6 +21,7 @@ data class CandidateItem(
     val isBlacklisted: Boolean = false,
     val isEmoji: Boolean = false,
     val isVerbatimPreview: Boolean = false,
+    val hasVerbParadigm: Boolean = false,
 )
 
 /**

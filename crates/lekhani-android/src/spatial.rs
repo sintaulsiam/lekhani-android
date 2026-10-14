@@ -27,6 +27,8 @@ pub struct SpatialKey {
     pub label: String,
     pub center_x: f32,
     pub center_y: f32,
+    pub visual_center_x: f32,
+    pub visual_center_y: f32,
     pub width: f32,
     pub height: f32,
     pub inv_sigma_xx: f32,
@@ -65,6 +67,8 @@ impl SpatialKey {
             label,
             center_x,
             center_y: effective_center_y,
+            visual_center_x: center_x,
+            visual_center_y: effective_center_y,
             width: safe_width,
             height: safe_height,
             inv_sigma_xx,
@@ -72,6 +76,20 @@ impl SpatialKey {
             inv_sigma_xy,
             log_norm,
         }
+    }
+
+    /// Dynamically calibrates personal touch center using an exponential moving average.
+    /// Clamped to at most +/- 20% of key dimension to prevent drifting into neighboring keys.
+    pub fn calibrate_touch(&mut self, touch_x: f32, touch_y: f32) {
+        const LEARNING_RATE: f32 = 0.05;
+        let max_drift_x = self.width * 0.20;
+        let max_drift_y = self.height * 0.20;
+
+        let new_cx = self.center_x + LEARNING_RATE * (touch_x - self.center_x);
+        let new_cy = self.center_y + LEARNING_RATE * (touch_y - self.center_y);
+
+        self.center_x = new_cx.clamp(self.visual_center_x - max_drift_x, self.visual_center_x + max_drift_x);
+        self.center_y = new_cy.clamp(self.visual_center_y - max_drift_y, self.visual_center_y + max_drift_y);
     }
 
     /// Compute the spatial log-probability `ln P(key | x, y)`.
@@ -137,6 +155,16 @@ impl SpatialTouchModel {
             }
         }
         -20.0
+    }
+
+    /// Record a confirmed physical touch sample for a key to dynamically calibrate personal touch centers.
+    pub fn record_touch_sample(&mut self, label: &str, touch_x: f32, touch_y: f32) {
+        for key in &mut self.keys {
+            if key.label == label {
+                key.calibrate_touch(touch_x, touch_y);
+                break;
+            }
+        }
     }
 
     /// Rank candidate keys by descending spatial probability given a touch point (x, y).
@@ -253,5 +281,30 @@ mod tests {
         let model = SpatialTouchModel::new();
         let prob = model.log_prob_for_key("nonexistent", 50.0, 50.0);
         assert_eq!(prob, -20.0);
+    }
+
+    #[test]
+    fn test_dynamic_touch_calibration() {
+        let mut model = SpatialTouchModel::new();
+        model.update_geometry(vec![KeyGeometryConfig {
+            label: "k".to_string(),
+            center_x: 100.0,
+            center_y: 200.0,
+            width: 40.0,
+            height: 50.0,
+        }]);
+
+        let initial_prob_offset = model.log_prob_for_key("k", 106.0, 204.0);
+
+        // Typist consistently hits key 'k' slightly to the right at x = 106
+        for _ in 0..10 {
+            model.record_touch_sample("k", 106.0, 204.0);
+        }
+
+        let calibrated_prob = model.log_prob_for_key("k", 106.0, 204.0);
+        assert!(
+            calibrated_prob > initial_prob_offset,
+            "Calibrated touch center must increase probability for typist's consistent touch offset"
+        );
     }
 }

@@ -94,6 +94,7 @@ object HomophoneAnnotator {
         candidates: List<String>,
         primaryIdx: Int = 0,
         verbatimIdx: Int = -1,
+        verbParadigmChecker: ((String) -> Boolean)? = null,
     ): List<CandidateItem> {
         return candidates.mapIndexed { i, text ->
             val emoji = com.lekhani.android.data.emoji.EmojiData.isEmoji(text)
@@ -104,6 +105,7 @@ object HomophoneAnnotator {
                 homophones = if (emoji || isVerbatim) null else pairs[text],
                 isEmoji = emoji,
                 isVerbatimPreview = isVerbatim,
+                hasVerbParadigm = if (emoji || isVerbatim) false else (verbParadigmChecker?.invoke(text) == true),
             )
         }
     }

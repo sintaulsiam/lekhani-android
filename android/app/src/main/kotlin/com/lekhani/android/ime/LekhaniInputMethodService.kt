@@ -3539,7 +3539,18 @@ class LekhaniInputMethodService : InputMethodService() {
             if (undo != null) CandidateStripState.Undo(undo) else CandidateStripState.Empty
         } else {
             CandidateStripState.Candidates(
-                HomophoneAnnotator.annotate(filtered, primaryIdx = primaryIndex, verbatimIdx = verbatimIndex),
+                HomophoneAnnotator.annotate(
+                    filtered,
+                    primaryIdx = primaryIndex,
+                    verbatimIdx = verbatimIndex,
+                    verbParadigmChecker = { word ->
+                        try {
+                            session.getVerbHonorificParadigm(word).size > 1
+                        } catch (_: Exception) {
+                            false
+                        }
+                    }
+                ),
                 undoInfo = undo
             )
         }

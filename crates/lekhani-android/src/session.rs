@@ -1124,9 +1124,16 @@ impl AndroidLekhaniSession {
             .unwrap_or_default()
     }
 
+    /// Calibrates the personal spatial touch model with a verified key tap coordinate (x, y).
+    pub fn record_touch_sample(&self, key: String, touch_x: f32, touch_y: f32) {
+        if let Ok(mut state) = self.state.lock() {
+            state.spatial_model.record_touch_sample(&key, touch_x, touch_y);
+        }
+    }
+
     /// Process a typed character or key token with physical touch coordinates (x, y).
     /// Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
-    /// on key boundaries.
+    /// on key boundaries and dynamically calibrates personal touch centroids.
     pub fn process_key_with_touch(
         &self,
         key: String,
@@ -1136,12 +1143,13 @@ impl AndroidLekhaniSession {
         let mut result = self.process_key(key.clone())?;
 
         // If spatial model is populated, check for adjacent fat-finger candidates
-        let state = self
+        let mut state = self
             .state
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
         if !state.spatial_model.is_empty() {
+            state.spatial_model.record_touch_sample(&key, touch_x, touch_y);
             let spatial_candidates = state.spatial_model.rank_keys_at(touch_x, touch_y, 2);
             if spatial_candidates.len() >= 2 {
                 let neighbor = if spatial_candidates[0].key == key {
