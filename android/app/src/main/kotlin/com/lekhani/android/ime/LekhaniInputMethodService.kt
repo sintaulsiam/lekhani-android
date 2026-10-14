@@ -2976,9 +2976,10 @@ class LekhaniInputMethodService : InputMethodService() {
             if (isAvro && originalRaw.isNotBlank()) {
                 avroHistory.record(trimmedCommitted, originalRaw, withSpace = text.endsWith(" "))
             }
+            val isEnglish = session.getLayout() == LekhaniLayoutType.ENGLISH
             val candidateOriginal = when {
-                preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted && preeditBeforeSpace != originalRaw -> preeditBeforeSpace
-                originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
+                preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted -> preeditBeforeSpace
+                isEnglish && originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
                 else -> null
             }
             val undo = if (candidateOriginal != null && candidateOriginal.isNotBlank()) {
