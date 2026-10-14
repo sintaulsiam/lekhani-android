@@ -480,7 +480,20 @@ class KeyboardCanvasView @JvmOverloads constructor(
         layout == com.lekhani.android.model.NumberSymbolsLayout.numpadPinLayout ||
         layout == com.lekhani.android.model.NumberSymbolsLayout.bengaliNumpadPinLayout
 
-    private val accessibilityHelper = KeyboardAccessibilityHelper()
+    private val accessibilityHost = object : KeyboardAccessibilityDelegate.Host {
+        override val view: View get() = this@KeyboardCanvasView
+        override val resolvedKeys: List<ResolvedKey> get() = this@KeyboardCanvasView.resolvedKeys
+        override val isShifted: Boolean get() = this@KeyboardCanvasView.isShifted
+        override val isCapsLock: Boolean get() = this@KeyboardCanvasView.isCapsLock
+        override val isShiftActive: Boolean get() = this@KeyboardCanvasView.isShiftActive
+        override val isBottomRowKeyEmoji: Boolean get() = this@KeyboardCanvasView.isBottomRowKeyEmoji
+        override val enterActionIcon: EnterKeyResolver.ActionIcon get() = this@KeyboardCanvasView.enterActionIcon
+        override val feedbackManager: LekhaniFeedbackManager? get() = this@KeyboardCanvasView.feedbackManager
+        override val keyListener: KeyListener? get() = this@KeyboardCanvasView.keyListener
+        override fun findKeyIndex(x: Float, y: Float): Int = this@KeyboardCanvasView.findKeyIndex(x, y)
+    }
+
+    private val accessibilityHelper = KeyboardAccessibilityDelegate(accessibilityHost)
 
     // Initialization
 
@@ -909,166 +922,6 @@ class KeyboardCanvasView @JvmOverloads constructor(
     private fun dispatchKey(key: Key) {
         dispatchKey(key, touchGestureDispatcher.touchStartX, touchGestureDispatcher.touchStartY)
     }
-
-    // Accessibility / TalkBack Exploration (WCAG 2.1)
-
-    @Suppress("DEPRECATION") // setBoundsInParent is the correct API for ExploreByTouchHelper virtual views
-    private inner class KeyboardAccessibilityHelper : ExploreByTouchHelper(this@KeyboardCanvasView) {
-        override fun getVirtualViewAt(x: Float, y: Float): Int {
-            val keyIndex = findKeyIndex(x, y)
-            return if (keyIndex in resolvedKeys.indices) keyIndex else HOST_ID
-        }
-
-        override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
-            for (i in resolvedKeys.indices) {
-                virtualViewIds.add(i)
-            }
-        }
-
-        override fun onPopulateNodeForVirtualView(virtualViewId: Int, node: AccessibilityNodeInfoCompat) {
-            if (virtualViewId !in resolvedKeys.indices) {
-                node.text = ""
-                node.setBoundsInParent(Rect())
-                return
-            }
-            val resolved = resolvedKeys[virtualViewId]
-            val key = resolved.key
-            val bounds = resolved.bounds
-
-            val rect = Rect(
-                bounds.left.toInt(),
-                bounds.top.toInt(),
-                bounds.right.toInt(),
-                bounds.bottom.toInt()
-            )
-            node.setBoundsInParent(rect)
-
-            val desc = getBengaliAccessibilityDescription(key, isShifted)
-            node.contentDescription = desc
-            node.className = "android.widget.Button"
-            node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK)
-            node.isClickable = true
-            node.isEnabled = true
-        }
-
-        override fun onPerformActionForVirtualView(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
-            if (action == AccessibilityNodeInfoCompat.ACTION_CLICK && virtualViewId in resolvedKeys.indices) {
-                val key = resolvedKeys[virtualViewId].key
-                val act = key.activeAction(isShifted)
-                feedbackManager?.onKeyFeedback(this@KeyboardCanvasView)
-                    ?: performHapticFeedback(
-                        HapticFeedbackConstants.KEYBOARD_TAP)
-                keyListener?.onKey(key, act)
-                return true
-            }
-            return false
-        }
-    }
-
-    private fun getBengaliAccessibilityDescription(key: Key, shifted: Boolean): String {
-        val label = key.displayLabel(shifted)
-        return when (key.action) {
-            KeyAction.Space -> "স্পেসবার (Spacebar)"
-            KeyAction.Backspace -> "ব্যাকস্পেস (Backspace)"
-            KeyAction.Enter -> {
-                val resolvedIcon = if (isShiftActive) EnterKeyResolver.ActionIcon.NEWLINE else enterActionIcon
-                when (resolvedIcon) {
-                    EnterKeyResolver.ActionIcon.SEARCH -> "অনুসন্ধান (Search)"
-                    EnterKeyResolver.ActionIcon.SEND -> "পাঠান (Send)"
-                    EnterKeyResolver.ActionIcon.GO -> "যান (Go)"
-                    EnterKeyResolver.ActionIcon.NEXT -> "পরবর্তী (Next)"
-                    EnterKeyResolver.ActionIcon.DONE -> "সম্পন্ন (Done)"
-                    EnterKeyResolver.ActionIcon.NEWLINE -> "এন্টার (Enter)"
-                }
-            }
-            KeyAction.Shift -> when {
-                isCapsLock -> "ক্যাপস লক সক্রিয় (Caps Lock Active)"
-                shifted -> "শিফট সক্রিয় (Shift Active)"
-                else -> "শিফট (Shift)"
-            }
-            KeyAction.SwitchNumeric -> "সংখ্যা ও প্রতীক (Numbers and symbols)"
-            KeyAction.SwitchMoreSymbols -> "অতিরিক্ত প্রতীক (More symbols)"
-            KeyAction.SwitchAlpha -> "বর্ণমালা (Alphabet)"
-            KeyAction.SwitchNumpad -> "নম্বর প্যাড (Number pad)"
-            KeyAction.ToggleBengaliDigits -> "সংখ্যা পরিবর্তন (Toggle Digits)"
-            KeyAction.SwitchLayout -> if (isBottomRowKeyEmoji) "ইমোজি (Emoji)" else "লেআউট পরিবর্তন (Switch Layout)"
-            KeyAction.VoiceTyping -> "ভয়েস টাইপিং (Voice Typing)"
-            KeyAction.SwitchEmoji -> "ইমোজি (Emoji)"
-            KeyAction.SwitchClipboard -> "ক্লিপবোর্ড (Clipboard)"
-            else -> {
-                if (key.contentDesc.isNotBlank() && key.contentDesc != key.label) {
-                    key.contentDesc
-                } else {
-                    when (label) {
-                        "অ" -> "অ, স্বর অ"
-                        "আ" -> "আ, স্বর আ"
-                        "ই" -> "ই, হ্রস্ব ই"
-                        "ঈ" -> "ঈ, দীর্ঘ ঈ"
-                        "উ" -> "উ, হ্রস্ব উ"
-                        "ঊ" -> "ঊ, দীর্ঘ ঊ"
-                        "ঋ" -> "ঋ, রি"
-                        "এ" -> "এ"
-                        "ঐ" -> "ঐ"
-                        "ও" -> "ও"
-                        "ঔ" -> "ঔ"
-                        "ক" -> "ক"
-                        "খ" -> "খ"
-                        "গ" -> "গ"
-                        "ঘ" -> "ঘ"
-                        "ঙ" -> "ঙ, উঙ"
-                        "চ" -> "চ"
-                        "ছ" -> "ছ"
-                        "জ" -> "জ, বর্গীয় জ"
-                        "ঝ" -> "ঝ"
-                        "ঞ" -> "ঞ, ইঞ"
-                        "ট" -> "ট"
-                        "ঠ" -> "ঠ"
-                        "ড" -> "ড"
-                        "ঢ" -> "ঢ"
-                        "ণ" -> "ণ, মূর্ধন্য ণ"
-                        "ত" -> "ত"
-                        "থ" -> "থ"
-                        "দ" -> "দ"
-                        "ধ" -> "ধ"
-                        "ন" -> "ন, দন্ত্য ন"
-                        "প" -> "প"
-                        "ফ" -> "ফ"
-                        "ব" -> "ব"
-                        "ভ" -> "ভ"
-                        "ম" -> "ম"
-                        "য" -> "য, অন্তঃস্থ য"
-                        "র" -> "র"
-                        "ল" -> "ল"
-                        "শ" -> "শ, তালব্য শ"
-                        "ষ" -> "ষ, মূর্ধন্য ষ"
-                        "স" -> "স, দন্ত্য স"
-                        "হ" -> "হ"
-                        "ড়" -> "ড়, ড-এ বিন্দু ড়"
-                        "ঢ়" -> "ঢ়, ঢ-এ বিন্দু ঢ়"
-                        "য়" -> "য়, অন্তঃস্থ য়"
-                        "ৎ" -> "ৎ, খণ্ড ত"
-                        "ং" -> "ং, অনুস্বার"
-                        "ঃ" -> "ঃ, বিসর্গ"
-                        "ঁ" -> "ঁ, চন্দ্রবিন্দু"
-                        "্" -> "্, হসন্ত"
-                        "া" -> "আ-কার"
-                        "ি" -> "ই-কার"
-                        "ী" -> "ঈ-কার"
-                        "ু" -> "উ-কার"
-                        "ূ" -> "ঊ-কার"
-                        "ৃ" -> "ঋ-কার"
-                        "ে" -> "এ-কার"
-                        "ৈ" -> "ঐ-কার"
-                        "ো" -> "ও-কার"
-                        "ৌ" -> "ঔ-কার"
-                        "।" -> "দাঁড়ি (Dari)"
-                        "॥" -> "ডাবল দাঁড়ি (Double Dari)"
-                        else -> label
-                    }
-                }
-            }
-        }
-    }
-
 }
+
 
