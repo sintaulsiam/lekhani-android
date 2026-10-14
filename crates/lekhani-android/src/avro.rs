@@ -1229,6 +1229,7 @@ fn stage_explicit_avro_intent(
                     }
                 }
             }
+            append_prefix_matches(input, &def, &mut candidates);
             if !candidates.iter().any(|c| c.eq_ignore_ascii_case(input)) {
                 candidates.push(input.to_string());
             }
@@ -3206,6 +3207,12 @@ mod tests {
 
         let (kk, _) = transliterate_avro("k`k");
         assert_eq!(kk, "কক", "k`k must break conjunct into 'কক'");
+
+        // 5. Explicit Avro intent must NOT starve vocabulary prefix completions
+        let (bari, bari_cands) = transliterate_avro("baRi");
+        assert_eq!(bari, "বাড়ি", "baRi must lock Slot 0 to 'বাড়ি'");
+        assert!(bari_cands.len() > 2, "baRi must include Trie prefix completions, not just raw def");
+        assert!(bari_cands.iter().any(|c| c.starts_with("বাড়ি") && c != "বাড়ি"), "baRi candidates must include prefix expansions like বাড়িতে/বাড়ির");
     }
 }
 
