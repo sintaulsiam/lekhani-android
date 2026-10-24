@@ -850,6 +850,10 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -895,6 +899,8 @@ internal interface UniffiLib : Library {
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_delete_user_word(`ptr`: Pointer,`word`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_exact_form(`ptr`: Pointer,`text`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_export_dictionary_json(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_autocorrect_rules(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -905,6 +911,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_learned_words_count(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_lps_letter_chips(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_retro_correction(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_spatial_log_prob(`ptr`: Pointer,`key`: RustBuffer.ByValue,`touchX`: Float,`touchY`: Float,uniffi_out_err: UniffiRustCallStatus, 
@@ -1151,6 +1159,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_user_word(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_exact_form(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_autocorrect_rules(
@@ -1160,6 +1170,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_layout(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_learned_words_count(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_lps_letter_chips(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_retro_correction(
     ): Short
@@ -1316,6 +1328,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_user_word() != 53550.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_exact_form() != 22974.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json() != 62876.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1329,6 +1344,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_learned_words_count() != 57943.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_lps_letter_chips() != 8980.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_retro_correction() != 31987.toShort()) {
@@ -1924,6 +1942,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `deleteUserWord`(`word`: kotlin.String): kotlin.Boolean
     
     /**
+     * Generates canonical exact LPS Latin form for given Bengali text.
+     */
+    fun `exactForm`(`text`: kotlin.String): kotlin.String
+    
+    /**
      * Export the personal learned dictionary and bigram associations to JSON.
      */
     fun `exportDictionaryJson`(): kotlin.String
@@ -1947,6 +1970,11 @@ public interface AndroidLekhaniSessionInterface {
      * Retrieve the count of auto-learned words from typing stream.
      */
     fun `getLearnedWordsCount`(): kotlin.UInt
+    
+    /**
+     * Returns the letter-level disambiguation chips for the active LPS composing buffer.
+     */
+    fun `getLpsLetterChips`(): List<LpsLetterChipItem>
     
     /**
      * Evaluates the active clause for Project "পশ্চাৎ-শোধন" (Retro-Correction).
@@ -2455,6 +2483,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Generates canonical exact LPS Latin form for given Bengali text.
+     */override fun `exactForm`(`text`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_exact_form(
+        it, FfiConverterString.lower(`text`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Export the personal learned dictionary and bigram associations to JSON.
      */
     @Throws(LekhaniException::class)override fun `exportDictionaryJson`(): kotlin.String {
@@ -2525,6 +2568,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     callWithPointer {
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_learned_words_count(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Returns the letter-level disambiguation chips for the active LPS composing buffer.
+     */override fun `getLpsLetterChips`(): List<LpsLetterChipItem> {
+            return FfiConverterSequenceTypeLpsLetterChipItem.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_get_lps_letter_chips(
         it, _status)
 }
     }
@@ -3721,6 +3779,45 @@ public object FfiConverterTypeKeyGeometryConfig: FfiConverterRustBuffer<KeyGeome
 
 
 /**
+ * Letter-level ambiguous chip group for UI presentation in mobile candidate strip.
+ */
+data class LpsLetterChipItem (
+    var `charIndex`: kotlin.UInt, 
+    var `active`: kotlin.String, 
+    var `siblings`: List<kotlin.String>
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeLpsLetterChipItem: FfiConverterRustBuffer<LpsLetterChipItem> {
+    override fun read(buf: ByteBuffer): LpsLetterChipItem {
+        return LpsLetterChipItem(
+            FfiConverterUInt.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: LpsLetterChipItem) = (
+            FfiConverterUInt.allocationSize(value.`charIndex`) +
+            FfiConverterString.allocationSize(value.`active`) +
+            FfiConverterSequenceString.allocationSize(value.`siblings`)
+    )
+
+    override fun write(value: LpsLetterChipItem, buf: ByteBuffer) {
+            FfiConverterUInt.write(value.`charIndex`, buf)
+            FfiConverterString.write(value.`active`, buf)
+            FfiConverterSequenceString.write(value.`siblings`, buf)
+    }
+}
+
+
+
+/**
  * Project "পশ্চাৎ-শোধন" (Retro-Correction) Suggestion
  *
  * Surfaces a discrete, 1-tap contextual fix chip when a grammatical agreement
@@ -4080,6 +4177,10 @@ enum class LekhaniLayoutType {
      */
     AVRO,
     /**
+     * Lekhani Phonetic Standard v1.0
+     */
+    LPS_PHONETIC,
+    /**
      * Official Bangladesh BBS fixed standard (National / জাতীয়)
      */
     NATIONAL,
@@ -4290,6 +4391,34 @@ public object FfiConverterSequenceTypeKeyGeometryConfig: FfiConverterRustBuffer<
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeKeyGeometryConfig.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeLpsLetterChipItem: FfiConverterRustBuffer<List<LpsLetterChipItem>> {
+    override fun read(buf: ByteBuffer): List<LpsLetterChipItem> {
+        val len = buf.getInt()
+        return List<LpsLetterChipItem>(len) {
+            FfiConverterTypeLpsLetterChipItem.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<LpsLetterChipItem>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeLpsLetterChipItem.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<LpsLetterChipItem>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeLpsLetterChipItem.write(it, buf)
         }
     }
 }
