@@ -11,7 +11,8 @@ pub use audio::{restore_bengali_punctuation, AsrAudioProcessor, AudioAnalysisRes
 pub use error::LekhaniError;
 pub use layout::LekhaniLayoutType;
 pub use session::{
-    set_dictionary_directory, AndroidLekhaniSession, CandidateItem, CandidateKind, TypingResult,
+    set_dictionary_directory, AndroidLekhaniSession, CandidateItem, CandidateKind,
+    LpsLetterChipItem, TypingResult,
 };
 pub use spatial::{KeyGeometryConfig, SpatialKeyCandidate, SpatialTouchModel};
 

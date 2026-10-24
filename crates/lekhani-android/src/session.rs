@@ -491,6 +491,14 @@ pub struct CandidateItem {
     pub is_primary: bool,
 }
 
+/// Letter-level ambiguous chip group for UI presentation in mobile candidate strip.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct LpsLetterChipItem {
+    pub char_index: u32,
+    pub active: String,
+    pub siblings: Vec<String>,
+}
+
 /// Project "পশ্চাৎ-শোধন" (Retro-Correction) Suggestion
 ///
 /// Surfaces a discrete, 1-tap contextual fix chip when a grammatical agreement
@@ -957,6 +965,35 @@ impl AndroidLekhaniSession {
             .lock()
             .map(|s| s.layout)
             .unwrap_or(LekhaniLayoutType::Probaho)
+    }
+
+    /// Returns the letter-level disambiguation chips for the active LPS composing buffer.
+    pub fn get_lps_letter_chips(&self) -> Vec<LpsLetterChipItem> {
+        if let Ok(state) = self.state.lock() {
+            if state.layout == LekhaniLayoutType::LpsPhonetic && !state.composing_buffer.is_empty() {
+                let engine = lekhani_parser::lps::LpsEngine::new();
+                let (cands, _) = engine.parse(&state.composing_buffer);
+                for cand in cands {
+                    if !cand.chips.is_empty() {
+                        return cand
+                            .chips
+                            .into_iter()
+                            .map(|c| LpsLetterChipItem {
+                                char_index: c.char_index as u32,
+                                active: c.active,
+                                siblings: c.siblings,
+                            })
+                            .collect();
+                    }
+                }
+            }
+        }
+        Vec::new()
+    }
+
+    /// Generates canonical exact LPS Latin form for given Bengali text.
+    pub fn exact_form(&self, text: String) -> String {
+        lekhani_parser::lps::exact(&text)
     }
 
     /// Enable or disable auto-promotion of word-initial vowel signs (e.g. া -> আ)
@@ -4089,6 +4126,26 @@ mod tests {
         let custom_items = session.classify_candidates("500tk".into(), vec!["৫০০ টাকা".into(), "500tk".into()]);
         assert_eq!(custom_items[0].kind, CandidateKind::NumericLiteral);
         assert_eq!(custom_items[1].kind, CandidateKind::EnglishPassthrough);
+    }
+
+    #[test]
+    fn test_lps_phonetic_session_and_letter_chips() {
+        let session = AndroidLekhaniSession::new();
+        session.set_layout(LekhaniLayoutType::LpsPhonetic);
+
+        let mut last_res = None;
+        for ch in "bari".chars() {
+            last_res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+
+        let res = last_res.unwrap();
+        assert!(res.candidates.iter().any(|c| c == "ব\u{09BE}\u{09DC}\u{09BF}" || c == "বারি"));
+
+        let chips = session.get_lps_letter_chips();
+        assert!(!chips.is_empty(), "LPS session must expose letter disambiguation chips");
+
+        assert_eq!(session.exact_form("কলম".into()), "k-l-m");
+        assert_eq!(session.exact_form("বই".into()), "b-i");
     }
 }
 
