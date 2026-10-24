@@ -694,7 +694,7 @@ fun LekhaniSettingsScreen(
             isEnglish = isEnglish,
             onDismiss = { selectedLayoutConfig = null }
         )
-        LekhaniLayoutType.AVRO -> AvroSettingsDialog(
+        LekhaniLayoutType.AVRO, LekhaniLayoutType.LPS_PHONETIC -> AvroSettingsDialog(
             prefs = keyboardPrefs,
             isEnglish = isEnglish,
             onDismiss = { selectedLayoutConfig = null }

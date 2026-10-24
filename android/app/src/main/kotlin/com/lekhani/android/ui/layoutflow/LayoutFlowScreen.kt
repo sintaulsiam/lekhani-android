@@ -104,12 +104,13 @@ private data class LayoutCardStyle(
 )
 
 private fun layoutCardStyle(type: LekhaniLayoutType): LayoutCardStyle = when (type) {
-    LekhaniLayoutType.PROBAHO  -> LayoutCardStyle(Color(0xFF4527A0), Color(0xFF7B1FA2), "প্র",  "FLOW")
-    LekhaniLayoutType.AVRO     -> LayoutCardStyle(Color(0xFFBF360C), Color(0xFFFF8F00), "a→আ", "PHONETIC")
-    LekhaniLayoutType.NATIONAL -> LayoutCardStyle(Color(0xFF0D47A1), Color(0xFF0288D1), "ক খ",  "BBS")
-    LekhaniLayoutType.PROBHAT  -> LayoutCardStyle(Color(0xFF1B5E20), Color(0xFF43A047), "অ আ", "FIXED")
-    LekhaniLayoutType.GBOARD   -> LayoutCardStyle(Color(0xFF263238), Color(0xFF546E7A), "বাং",  "GBOARD")
-    LekhaniLayoutType.ENGLISH  -> LayoutCardStyle(Color(0xFF1A237E), Color(0xFF1976D2), "Aa",   "QWERTY")
+    LekhaniLayoutType.PROBAHO      -> LayoutCardStyle(Color(0xFF4527A0), Color(0xFF7B1FA2), "প্র",  "FLOW")
+    LekhaniLayoutType.AVRO         -> LayoutCardStyle(Color(0xFFBF360C), Color(0xFFFF8F00), "a→আ", "PHONETIC")
+    LekhaniLayoutType.LPS_PHONETIC -> LayoutCardStyle(Color(0xFFD84315), Color(0xFFFF6F00), "লে",  "LPS v1")
+    LekhaniLayoutType.NATIONAL     -> LayoutCardStyle(Color(0xFF0D47A1), Color(0xFF0288D1), "ক খ",  "BBS")
+    LekhaniLayoutType.PROBHAT      -> LayoutCardStyle(Color(0xFF1B5E20), Color(0xFF43A047), "অ আ", "FIXED")
+    LekhaniLayoutType.GBOARD       -> LayoutCardStyle(Color(0xFF263238), Color(0xFF546E7A), "বাং",  "GBOARD")
+    LekhaniLayoutType.ENGLISH      -> LayoutCardStyle(Color(0xFF1A237E), Color(0xFF1976D2), "Aa",   "QWERTY")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -613,12 +614,13 @@ private fun LayoutChip(
     val style = layoutCardStyle(type)
 
     val shortName = when (type) {
-        LekhaniLayoutType.PROBAHO  -> if (isEnglish) "Probaho" else "প্রবাহ"
-        LekhaniLayoutType.AVRO     -> if (isEnglish) "Avro" else "অভ্র"
-        LekhaniLayoutType.NATIONAL -> if (isEnglish) "National" else "জাতীয়"
-        LekhaniLayoutType.PROBHAT  -> if (isEnglish) "Probhat" else "প্রভাত"
-        LekhaniLayoutType.GBOARD   -> if (isEnglish) "Gboard" else "জিবোর্ড"
-        LekhaniLayoutType.ENGLISH  -> if (isEnglish) "English" else "ইংরেজি"
+        LekhaniLayoutType.PROBAHO      -> if (isEnglish) "Probaho" else "প্রবাহ"
+        LekhaniLayoutType.AVRO         -> if (isEnglish) "Avro" else "অভ্র"
+        LekhaniLayoutType.LPS_PHONETIC -> if (isEnglish) "LPS" else "লেখনী"
+        LekhaniLayoutType.NATIONAL     -> if (isEnglish) "National" else "জাতীয়"
+        LekhaniLayoutType.PROBHAT      -> if (isEnglish) "Probhat" else "প্রভাত"
+        LekhaniLayoutType.GBOARD       -> if (isEnglish) "Gboard" else "জিবোর্ড"
+        LekhaniLayoutType.ENGLISH      -> if (isEnglish) "English" else "ইংরেজি"
     }
 
     Box(
