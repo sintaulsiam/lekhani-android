@@ -737,38 +737,12 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         }
     }
 
-    // ── 1. Academic Tatshama Suffixes & Compounding (Exceptions & Prefixes) ──
-    // a. Suffix -rayon / -ayon (Natva Vidhana rule): Murdhanya ণ after r/sh, dental ন otherwise
-    if let Some(stem) = lower.strip_suffix("rayon") {
-        if !stem.is_empty() {
-            let (stem_bn, _) = transliterate_avro(stem);
-            let word = format!("{}রায়ণ", stem_bn);
-            return Some((word.clone(), vec![word]));
-        }
-    }
-    if let Some(stem) = lower.strip_suffix("ayon") {
-        if !stem.is_empty() {
-            let (stem_bn, _) = transliterate_avro(stem);
-            let word = format!("{}ায়ন", stem_bn);
-            return Some((word.clone(), vec![word]));
-        }
-    }
-
-    // b. Initial diphthong oi- -> ঐ- (e.g. oitihashik -> ঐতিহাসিক, oikyo -> ঐক্য)
+    // ── 1. Academic Tatshama Suffixes & Prefixes ──
+    // a. Initial diphthong oi- -> ঐ- (e.g. oitihashik -> ঐতিহাসিক, oikyo -> ঐক্য)
     if lower.starts_with("oi") && lower.len() >= 4 {
         let remainder = &lower[2..];
         let (rem_bn, _) = transliterate_avro(remainder);
         let word = format!("ঐ{}", rem_bn);
-        return Some((word.clone(), vec![word]));
-    }
-    // Suffix -koron -> -করণ (e.g. shoroli-koron -> সরলীকরণ, nogori-koron -> নগরীকরণ)
-    if let Some(stem) = lower.strip_suffix("koron") {
-        let (mut stem_bn, _) = transliterate_avro(stem);
-        if stem_bn.ends_with('ই') || stem_bn.ends_with('ি') {
-            stem_bn.pop();
-            stem_bn.push('ী');
-        }
-        let word = format!("{}করণ", stem_bn);
         return Some((word.clone(), vec![word]));
     }
     // Prefix shwor- -> স্বর- (e.g. shwor-dhoni -> স্বরধ্বনি, shwor-borno -> স্বরবর্ণ)
@@ -786,12 +760,6 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         {
             return Some((bn_loan.to_string(), vec![bn_loan.to_string()]));
         }
-    }
-    // Inherent vocalic retroflexion: -arshon -> -র্শন (e.g. darshon -> দর্শন, sparshon -> স্পর্শন)
-    if let Some(stem) = lower.strip_suffix("arshon") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let word = format!("{}র্শন", stem_bn);
-        return Some((word.clone(), vec![word]));
     }
 
     // ── 2. Colloquial & Regional Dialect Verb Morphology ─────────────────────
@@ -818,7 +786,7 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         return Some((dialect_hyp.dialect, cands));
     }
 
-    // f. Bengali dual-stem hyphen compounds (e.g. hrisswota-dirghotar -> হ্রস্বতা-দীর্ঘতার)
+    // ── 3. Bengali Dual-Stem Hyphen Compounds (e.g. hrisswota-dirghotar -> হ্রস্বতা-দীর্ঘতার) ──
     if lower.contains('-') {
         let parts: Vec<&str> = lower.split('-').collect();
         if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
@@ -836,17 +804,6 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
             };
             if !p1_str.is_empty() && !p2_str.is_empty() {
                 let word = format!("{}-{}", p1_str, p2_str);
-                return Some((word.clone(), vec![word]));
-            }
-        }
-    }
-    if lower.contains('-') {
-        let parts: Vec<&str> = lower.split('-').collect();
-        if parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty() {
-            let (p1, _) = transliterate_avro(parts[0]);
-            let (p2, _) = transliterate_avro(parts[1]);
-            if !p1.is_empty() && !p2.is_empty() && p1 != parts[0] && p2 != parts[1] {
-                let word = format!("{}-{}", p1, p2);
                 return Some((word.clone(), vec![word]));
             }
         }
