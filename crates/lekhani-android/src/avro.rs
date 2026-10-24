@@ -957,6 +957,121 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     }
     let lower = input.to_lowercase();
 
+    // ── 0a. Soft-Hyphen Compounding (e.g. bishwobiddaloy-gulote, antorjatik-bhabe) ───
+    if input.contains('-') && !input.starts_with('-') && !input.ends_with('-') {
+        let parts: Vec<&str> = input.split('-').collect();
+        if parts.len() >= 2 && parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')) {
+            let mut bn_parts = Vec::with_capacity(parts.len());
+            for p in &parts {
+                let (bn, _) = transliterate_avro(p);
+                let effective = if !bn.is_empty() && bn != *p {
+                    bn
+                } else {
+                    get_avro_parser().convert(p)
+                };
+                bn_parts.push(effective);
+            }
+            if bn_parts.iter().all(|s| !s.is_empty()) {
+                let unified = bn_parts.join("");
+                let hyphenated = bn_parts.join("-");
+                let mut cands = vec![unified.clone()];
+                if hyphenated != unified {
+                    cands.push(hyphenated);
+                }
+                cands.push(input.to_string());
+                return Some((unified, cands));
+            }
+        }
+    }
+
+    // ── 0b. Universal Morpheme Snapping for Long Compounds (len >= 7) ────────
+    let db = crate::session::get_core_database();
+    let def_conv = get_avro_parser().convert(input);
+    let is_whole_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
+        || db.lookup_override(input).is_some()
+        || db.lookup_override(&lower).is_some();
+
+    if !is_whole_dict_word && lower.len() >= 7 {
+        const PRODUCTIVE_COMPOUND_SUFFIXES: &[(&str, &str)] = &[
+            ("shongkranto", "সংক্রান্ত"),
+            ("shilotar", "শীলতার"),
+            ("shilota", "শীলতা"),
+            ("sheelota", "শীলতা"),
+            ("hinbhabe", "হীনভাবে"),
+            ("heenbhabe", "হীনভাবে"),
+            ("mulokbhabe", "মূলকভাবে"),
+            ("dorshider", "দর্শীদের"),
+            ("babosthar", "ব্যবস্থার"),
+            ("babostha", "ব্যবস্থা"),
+            ("shongsthan", "সংস্থান"),
+            ("shonghar", "সংহার"),
+            ("shleshon", "শ্লেষণ"),
+            ("bekkhan", "বেক্ষণ"),
+            ("gulotei", "গুলোতেই"),
+            ("guloteo", "গুলোতেও"),
+            ("derkei", "দেরকেই"),
+            ("derkeo", "দেরকেও"),
+            ("guloke", "গুলোকে"),
+            ("gulote", "গুলোতে"),
+            ("gulor", "গুলোর"),
+            ("hinta", "হীনতা"),
+            ("heenta", "হীনতা"),
+            ("derke", "দেরকে"),
+            ("tattik", "তাত্ত্বিক"),
+            ("banjoner", "ব্যঞ্জনের"),
+            ("banjon", "ব্যঞ্জন"),
+            ("bhabe", "ভাবে"),
+            ("vabe", "ভাবে"),
+            ("sheel", "শীল"),
+            ("shil", "শীল"),
+            ("heen", "হীন"),
+            ("hin", "হীন"),
+            ("mulok", "মূলক"),
+            ("jonit", "জনিত"),
+            ("bhittik", "ভিত্তিক"),
+            ("prapto", "প্রাপ্ত"),
+            ("dorshi", "দর্শী"),
+            ("gulo", "গুলো"),
+            ("gula", "গুলা"),
+            ("guli", "গুলি"),
+            ("der", "দের"),
+            ("purwok", "পূর্বক"),
+            ("purbok", "পূর্বক"),
+            ("shishto", "বিশিষ্ট"),
+            ("biddaloy", "বিদ্যালয়"),
+            ("porichalona", "পরিচালনা"),
+        ];
+
+        for &(suf, b_suf) in PRODUCTIVE_COMPOUND_SUFFIXES {
+            if lower.ends_with(suf) && lower.len() > suf.len() + 2 {
+                let stem = &lower[..lower.len() - suf.len()];
+                let (stem_bn, _) = transliterate_avro(stem);
+                let effective_stem = if !stem_bn.is_empty() && stem_bn != stem {
+                    stem_bn
+                } else {
+                    get_avro_parser().convert(stem)
+                };
+
+                if !effective_stem.is_empty()
+                    && (db.is_exact_dictionary_word(&effective_stem)
+                        || db.trie.contains_exact(&effective_stem)
+                        || db.lookup_override(stem).is_some()
+                        || db.get_frequency(&effective_stem) > 0
+                        || effective_stem.chars().count() >= 3)
+                {
+                    let unified = format!("{}{}", effective_stem, b_suf);
+                    let hyphenated = format!("{}-{}", effective_stem, b_suf);
+                    let mut cands = vec![unified.clone()];
+                    if hyphenated != unified {
+                        cands.push(hyphenated);
+                    }
+                    cands.push(input.to_string());
+                    return Some((unified, cands));
+                }
+            }
+        }
+    }
+
     // ── 1. Academic Tatshama Suffixes & Compounding ──────────────────────────
     // a. Suffix -tattik -> -তাত্ত্বিক (e.g. dhoni-tattik -> ধ্বনিতাত্ত্বিক, rup-tattik -> রূপতাত্ত্বিক, bakko-tattik -> বাক্যতাত্ত্বিক)
     if let Some(stem) = lower.strip_suffix("tattik") {
@@ -3308,6 +3423,30 @@ mod tests {
         assert_eq!(bari, "বাড়ি", "baRi must lock Slot 0 to 'বাড়ি'");
         assert!(bari_cands.len() > 2, "baRi must include Trie prefix completions, not just raw def");
         assert!(bari_cands.iter().any(|c| c.starts_with("বাড়ি") && c != "বাড়ি"), "baRi candidates must include prefix expansions like বাড়িতে/বাড়ির");
+    }
+
+    #[test]
+    fn test_universal_morpheme_snapping_and_soft_hyphen_compounding() {
+        // 1. Soft-hyphen compounding joins segments into canonical compound Bengali words
+        let (res_hyphen, cands_hyphen) = transliterate_avro("antorjatik-bhabe");
+        assert_eq!(res_hyphen, "আন্তর্জাতিকভাবে", "antorjatik-bhabe must compound to 'আন্তর্জাতিকভাবে'");
+        assert!(cands_hyphen.contains(&"আন্তর্জাতিক-ভাবে".to_string()));
+
+        let (res_univ_hyphen, _) = transliterate_avro("bishwobiddaloy-gulote");
+        assert_eq!(res_univ_hyphen, "বিশ্ববিদ্যালয়গুলোতে", "bishwobiddaloy-gulote must compound to 'বিশ্ববিদ্যালয়গুলোতে'");
+
+        // 2. Continuous unhyphenated compound snapping for complex long words
+        let (res_snap1, _) = transliterate_avro("antorjatikbhabe");
+        assert_eq!(res_snap1, "আন্তর্জাতিকভাবে", "antorjatikbhabe must snap to 'আন্তর্জাতিকভাবে'");
+
+        let (res_snap2, _) = transliterate_avro("shadhinotahinbhabe");
+        assert_eq!(res_snap2, "স্বাধীনতাহীনভাবে", "shadhinotahinbhabe must snap to 'স্বাধীনতাহীনভাবে'");
+
+        let (res_snap3, _) = transliterate_avro("dayittoshilota");
+        assert_eq!(crate::probaho::nfc_normalize(&res_snap3), crate::probaho::nfc_normalize("দায়িত্বশীলতা"), "dayittoshilota must snap to 'দায়িত্বশীলতা'");
+
+        let (res_snap4, _) = transliterate_avro("shikkhokderke");
+        assert_eq!(crate::probaho::nfc_normalize(&res_snap4), crate::probaho::nfc_normalize("শিক্ষকদেরকে"), "shikkhokderke must snap to 'শিক্ষকদেরকে'");
     }
 }
 
