@@ -1057,76 +1057,27 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     }
 
     // ── 2. Colloquial & Regional Dialect Verb Morphology ─────────────────────
-    // a. Continuous progressive aspect: -tachi -> -তাছি, -tasi -> -তাসি (e.g. ditachi, jaitachi, kortachi, khaitasi)
-    if let Some(stem) = lower.strip_suffix("tachi") {
-        let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
-        let stem_bn = get_avro_parser().convert(&effective);
-        let word = format!("{}তাছি", stem_bn);
-        let std_word = format!("{}ছি", stem_bn);
-        return Some((word.clone(), vec![word, std_word]));
-    }
-    if let Some(stem) = lower.strip_suffix("tasi") {
-        let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
-        let stem_bn = get_avro_parser().convert(&effective);
-        let word = format!("{}তাসি", stem_bn);
-        let std_word = format!("{}ছি", stem_bn);
-        return Some((word.clone(), vec![word, std_word]));
-    }
-
-    // b. 1st-person dialect future: -um -> -ুম (e.g. bos-um -> বসুম, kor-um -> করুম)
-    if let Some(stem) = lower.strip_suffix("um") {
-        if stem.len() >= 2 && stem.chars().all(|c| c.is_ascii_alphabetic()) {
-            let stem_bn = get_avro_parser().convert(stem);
-            let word = format!("{}ুম", stem_bn);
-            let std_word = format!("{}ব", stem_bn);
-            return Some((word.clone(), vec![word, std_word]));
+    let resolve_stem = |stem: &str| -> Option<String> {
+        let (stem_bn, _) = transliterate_avro(stem);
+        if !stem_bn.is_empty() && stem_bn != stem {
+            Some(stem_bn)
+        } else {
+            let conv = get_avro_parser().convert(stem);
+            if !conv.is_empty() {
+                Some(conv)
+            } else {
+                None
+            }
         }
-    }
-    // 1st-person dialect future: -mu -> -মু (e.g. ja-mu -> যামু, kha-mu -> খামু)
-    if let Some(stem) = lower.strip_suffix("mu") {
-        if stem.len() >= 2 && stem.chars().all(|c| c.is_ascii_alphabetic()) {
-            let effective = if stem.starts_with('j') { stem.replacen('j', "z", 1) } else { stem.to_string() };
-            let stem_bn = get_avro_parser().convert(&effective);
-            let word = format!("{}মু", stem_bn);
-            let std_word = format!("{}ব", stem_bn);
-            return Some((word.clone(), vec![word, std_word]));
+    };
+    if let Some(dialect_hyp) =
+        lekhani_core::phonetic::morphology::decompose_dialect_verbal_token(&lower, resolve_stem)
+    {
+        let mut cands = vec![dialect_hyp.dialect.clone()];
+        if dialect_hyp.standard != dialect_hyp.dialect {
+            cands.push(dialect_hyp.standard);
         }
-    }
-
-    // c. 2nd-person dialect familiar: -os -> -স (e.g. k-os -> কস, dhor-os -> ধরস, dich-os -> দিছস)
-    if let Some(stem) = lower.strip_suffix("os") {
-        if !stem.is_empty() && stem.chars().all(|c| c.is_ascii_alphabetic()) {
-            let stem_bn = get_avro_parser().convert(stem);
-            let word = format!("{}স", stem_bn);
-            let std_word = format!("{}িস", stem_bn);
-            return Some((word.clone(), vec![word, std_word]));
-        }
-    }
-
-    // d. Dialect future/infinitive: -ibo -> -হইব / -হইবো (e.g. ho-ibo -> হইব, kor-ibo -> করিব)
-    if let Some(stem) = lower.strip_suffix("ibo") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let w1 = format!("{}ইব", stem_bn);
-        let w2 = format!("{}ইবো", stem_bn);
-        return Some((w1.clone(), vec![w1, w2]));
-    }
-
-    // e. Dialect participles: -eika -> -েইকা (e.g. theika -> থেইকা), -oiya -> -ইয়া (e.g. koiya -> কইয়া)
-    if let Some(stem) = lower.strip_suffix("eika") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let word = format!("{}েইকা", stem_bn);
-        return Some((word.clone(), vec![word]));
-    }
-    if let Some(stem) = lower.strip_suffix("oiya") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let word = format!("{}ইয়া", stem_bn);
-        return Some((word.clone(), vec![word]));
-    }
-    // Temporal dialect suffix -jka -> -জকা (e.g. ai-jka -> আইজকা, kail-jka -> কাইলকা)
-    if let Some(stem) = lower.strip_suffix("jka") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let word = format!("{}জকা", stem_bn);
-        return Some((word.clone(), vec![word]));
+        return Some((dialect_hyp.dialect, cands));
     }
 
     // f. Bengali dual-stem hyphen compounds (e.g. hrisswota-dirghotar -> হ্রস্বতা-দীর্ঘতার)
