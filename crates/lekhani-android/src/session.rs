@@ -971,7 +971,7 @@ impl AndroidLekhaniSession {
     pub fn get_lps_letter_chips(&self) -> Vec<LpsLetterChipItem> {
         if let Ok(state) = self.state.lock() {
             if state.layout == LekhaniLayoutType::LpsPhonetic && !state.composing_buffer.is_empty() {
-                let engine = lekhani_parser::lps::LpsEngine::new();
+                let engine = crate::layout::get_lps_engine();
                 let (cands, _) = engine.parse(&state.composing_buffer);
                 for cand in cands {
                     if !cand.chips.is_empty() {
@@ -1228,6 +1228,15 @@ impl AndroidLekhaniSession {
                                 }
                             }
                         }
+                        LekhaniLayoutType::LpsPhonetic => {
+                            let engine = lekhani_parser::lps::LpsEngine::new();
+                            let (alt_cands, _) = engine.parse(&alt_buf);
+                            for cand in alt_cands {
+                                if !result.candidates.contains(&cand.text) && result.candidates.len() < 7 {
+                                    result.candidates.push(cand.text);
+                                }
+                            }
+                        }
                         LekhaniLayoutType::Probaho | LekhaniLayoutType::Probhat => {
                             let db = get_core_database();
                             let prefix_matches = db.trie.find_prefix_entries(&alt_buf, 3);
@@ -1270,14 +1279,14 @@ impl AndroidLekhaniSession {
         // Punctuation and newlines immediately flush the composing buffer as committed text.
         // Exception: In Avro layout, a dot preceded by purely numeric digits is a decimal fraction separator (e.g. 8.4, 21.7).
         let is_decimal_dot_in_flight = key == "."
-            && state.layout == LekhaniLayoutType::Avro
+            && (state.layout == LekhaniLayoutType::Avro || state.layout == LekhaniLayoutType::LpsPhonetic)
             && !state.composing_buffer.is_empty()
             && state.composing_buffer.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c));
         let is_punct = (key == "।"
             || key == "॥"
             || key == ","
             || key == ";"
-            || (key == ":" && state.layout != LekhaniLayoutType::Avro)
+            || (key == ":" && state.layout != LekhaniLayoutType::Avro && state.layout != LekhaniLayoutType::LpsPhonetic)
             || key == "?"
             || key == "!"
             || key == "."
@@ -1304,6 +1313,11 @@ impl AndroidLekhaniSession {
                             crate::avro::resolve_avro_candidates(&raw, words, right_word);
                         candidates.first().cloned().unwrap_or(preedit)
                     }
+                } else if state.layout == LekhaniLayoutType::LpsPhonetic && !state.composing_buffer.is_empty() {
+                    let raw = std::mem::take(&mut state.composing_buffer);
+                    let engine = lekhani_parser::lps::LpsEngine::new();
+                    let (cands, _) = engine.parse(&raw);
+                    cands.first().map(|c| c.text.clone()).unwrap_or(raw)
                 } else {
                     std::mem::take(&mut state.composing_buffer)
                 };
@@ -1877,6 +1891,31 @@ impl AndroidLekhaniSession {
                         cursor_position: len,
                     })
                 }
+            } else if state.layout == LekhaniLayoutType::LpsPhonetic {
+                state.composing_buffer.pop();
+                if state.composing_buffer.is_empty() {
+                    Ok(TypingResult {
+                        preedit: String::new(),
+                        commit_text: None,
+                        candidates: Vec::new(),
+                        cursor_position: 0,
+                    })
+                } else {
+                    let engine = lekhani_parser::lps::LpsEngine::new();
+                    let (lps_cands, _) = engine.parse(&state.composing_buffer);
+                    let mut candidates: Vec<String> = lps_cands.iter().map(|c| c.text.clone()).collect();
+                    let preedit = candidates.first().cloned().unwrap_or_else(|| state.composing_buffer.clone());
+                    if !state.is_private_field && !candidates.contains(&state.composing_buffer) {
+                        candidates.push(state.composing_buffer.clone());
+                    }
+                    let len = unicode_segmentation::UnicodeSegmentation::graphemes(preedit.as_str(), true).count() as u32;
+                    Ok(TypingResult {
+                        preedit,
+                        commit_text: None,
+                        candidates,
+                        cursor_position: len,
+                    })
+                }
             } else {
                 // Key-by-key char deletion for all Bengali fixed layouts
                 // (Probaho, National, Probhat, Gboard) inside active composing buffer
@@ -2041,6 +2080,7 @@ impl AndroidLekhaniSession {
         // seamlessly continue typing subsequent Kars/consonants (e.g. `শিক্` + `ক্ষ` -> `শিক্ষ` + `া` -> `শিক্ষা`).
         if state.layout != LekhaniLayoutType::Avro
             && state.layout != LekhaniLayoutType::English
+            && state.layout != LekhaniLayoutType::LpsPhonetic
             && state.composing_buffer.ends_with('্')
         {
             let mut chars: Vec<char> = state.composing_buffer.chars().collect();
@@ -4146,6 +4186,31 @@ mod tests {
 
         assert_eq!(session.exact_form("কলম".into()), "k-l-m");
         assert_eq!(session.exact_form("বই".into()), "b-i");
+
+        // Context-aware ranking test for "তুমি ছাড়া"
+        let session2 = AndroidLekhaniSession::new();
+        session2.set_layout(LekhaniLayoutType::LpsPhonetic);
+        session2.set_context("তুমি".to_string());
+        let mut chhara_res = None;
+        for ch in "chhara".chars() {
+            chhara_res = Some(session2.process_key(ch.to_string()).unwrap());
+        }
+        let res2 = chhara_res.unwrap();
+        assert!(res2.candidates.contains(&"ছারা".to_string()));
+
+        // Test Backspace in LPS
+        let bs_res = session.handle_backspace().unwrap();
+        assert!(!bs_res.candidates.is_empty());
+        assert!(bs_res.preedit.starts_with('ব'));
+
+        // Test punctuation commit in LPS
+        let session3 = AndroidLekhaniSession::new();
+        session3.set_layout(LekhaniLayoutType::LpsPhonetic);
+        for ch in "k-l-m".chars() {
+            session3.process_key(ch.to_string()).unwrap();
+        }
+        let punct_res = session3.process_key("।".to_string()).unwrap();
+        assert_eq!(punct_res.commit_text.as_deref(), Some("কলম।"));
     }
 }
 
