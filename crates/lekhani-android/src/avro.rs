@@ -957,118 +957,45 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     }
     let lower = input.to_lowercase();
 
-    // ── 0a. Soft-Hyphen Compounding (e.g. bishwobiddaloy-gulote, antorjatik-bhabe) ───
-    if input.contains('-') && !input.starts_with('-') && !input.ends_with('-') {
-        let parts: Vec<&str> = input.split('-').collect();
-        if parts.len() >= 2 && parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')) {
-            let mut bn_parts = Vec::with_capacity(parts.len());
-            for p in &parts {
-                let (bn, _) = transliterate_avro(p);
-                let effective = if !bn.is_empty() && bn != *p {
-                    bn
-                } else {
-                    get_avro_parser().convert(p)
-                };
-                bn_parts.push(effective);
-            }
-            if bn_parts.iter().all(|s| !s.is_empty()) {
-                let unified = bn_parts.join("");
-                let hyphenated = bn_parts.join("-");
-                let mut cands = vec![unified.clone()];
-                if hyphenated != unified {
-                    cands.push(hyphenated);
-                }
-                cands.push(input.to_string());
-                return Some((unified, cands));
-            }
-        }
-    }
-
-    // ── 0b. Universal Morpheme Snapping for Long Compounds (len >= 7) ────────
+    // ── 0. Morphological Compound Lattice (Soft-Hyphen & Unhyphenated Morpheme Snapping) ──
     let db = crate::session::get_core_database();
     let def_conv = get_avro_parser().convert(input);
     let is_whole_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
         || db.lookup_override(input).is_some()
         || db.lookup_override(&lower).is_some();
 
-    if !is_whole_dict_word && lower.len() >= 7 {
-        const PRODUCTIVE_COMPOUND_SUFFIXES: &[(&str, &str)] = &[
-            ("shongkranto", "সংক্রান্ত"),
-            ("shilotar", "শীলতার"),
-            ("shilota", "শীলতা"),
-            ("sheelota", "শীলতা"),
-            ("hinbhabe", "হীনভাবে"),
-            ("heenbhabe", "হীনভাবে"),
-            ("mulokbhabe", "মূলকভাবে"),
-            ("dorshider", "দর্শীদের"),
-            ("babosthar", "ব্যবস্থার"),
-            ("babostha", "ব্যবস্থা"),
-            ("shongsthan", "সংস্থান"),
-            ("shonghar", "সংহার"),
-            ("shleshon", "শ্লেষণ"),
-            ("bekkhan", "বেক্ষণ"),
-            ("gulotei", "গুলোতেই"),
-            ("guloteo", "গুলোতেও"),
-            ("derkei", "দেরকেই"),
-            ("derkeo", "দেরকেও"),
-            ("guloke", "গুলোকে"),
-            ("gulote", "গুলোতে"),
-            ("gulor", "গুলোর"),
-            ("hinta", "হীনতা"),
-            ("heenta", "হীনতা"),
-            ("derke", "দেরকে"),
-            ("tattik", "তাত্ত্বিক"),
-            ("banjoner", "ব্যঞ্জনের"),
-            ("banjon", "ব্যঞ্জন"),
-            ("bhabe", "ভাবে"),
-            ("vabe", "ভাবে"),
-            ("sheel", "শীল"),
-            ("shil", "শীল"),
-            ("heen", "হীন"),
-            ("hin", "হীন"),
-            ("mulok", "মূলক"),
-            ("jonit", "জনিত"),
-            ("bhittik", "ভিত্তিক"),
-            ("prapto", "প্রাপ্ত"),
-            ("dorshi", "দর্শী"),
-            ("gulo", "গুলো"),
-            ("gula", "গুলা"),
-            ("guli", "গুলি"),
-            ("der", "দের"),
-            ("purwok", "পূর্বক"),
-            ("purbok", "পূর্বক"),
-            ("shishto", "বিশিষ্ট"),
-            ("biddaloy", "বিদ্যালয়"),
-            ("porichalona", "পরিচালনা"),
-        ];
+    if !is_whole_dict_word {
+        let resolve_stem = |stem: &str| -> Option<String> {
+            let (stem_bn, _) = transliterate_avro(stem);
+            let effective = if !stem_bn.is_empty() && stem_bn != stem {
+                stem_bn
+            } else {
+                get_avro_parser().convert(stem)
+            };
+            if !effective.is_empty()
+                && (db.is_exact_dictionary_word(&effective)
+                    || db.trie.contains_exact(&effective)
+                    || db.lookup_override(stem).is_some()
+                    || db.get_frequency(&effective) > 0
+                    || effective.chars().count() >= 3)
+            {
+                Some(effective)
+            } else {
+                None
+            }
+        };
 
-        for &(suf, b_suf) in PRODUCTIVE_COMPOUND_SUFFIXES {
-            if lower.ends_with(suf) && lower.len() > suf.len() + 2 {
-                let stem = &lower[..lower.len() - suf.len()];
-                let (stem_bn, _) = transliterate_avro(stem);
-                let effective_stem = if !stem_bn.is_empty() && stem_bn != stem {
-                    stem_bn
-                } else {
-                    get_avro_parser().convert(stem)
-                };
-
-                if !effective_stem.is_empty()
-                    && (db.is_exact_dictionary_word(&effective_stem)
-                        || db.trie.contains_exact(&effective_stem)
-                        || db.lookup_override(stem).is_some()
-                        || db.get_frequency(&effective_stem) > 0
-                        || effective_stem.chars().count() >= 3)
-                {
-                    let unified = format!("{}{}", effective_stem, b_suf);
-                    let hyphenated = format!("{}-{}", effective_stem, b_suf);
-                    let mut cands = vec![unified.clone()];
-                    if hyphenated != unified {
-                        cands.push(hyphenated);
-                    }
-                    cands.push(input.to_string());
-                    return Some((unified, cands));
+        if let Some(compound) =
+            lekhani_core::phonetic::morphology::decompose_compound_token(input, resolve_stem)
+        {
+            let mut cands = vec![compound.unified.clone()];
+            if let Some(hyphenated) = compound.hyphenated {
+                if hyphenated != compound.unified {
+                    cands.push(hyphenated);
                 }
             }
+            cands.push(input.to_string());
+            return Some((compound.unified, cands));
         }
     }
 
