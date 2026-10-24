@@ -259,6 +259,15 @@ fun CandidateStripView(
                             )
                         }
 
+                        if (currentMode.candidates.lpsChips.isNotEmpty()) {
+                            LpsChipsGroup(
+                                chips = currentMode.candidates.lpsChips,
+                                candidates = currentMode.candidates.items,
+                                onCandidateClick = onCandidateClick,
+                                theme = theme,
+                            )
+                        }
+
                         Box(modifier = Modifier.weight(1f)) {
                             val activeParadigm = activeVerbParadigm
                             if (activeParadigm != null) {
@@ -1282,6 +1291,60 @@ private fun UndoChip(
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
             )
+        }
+    }
+}
+
+@Composable
+private fun LpsChipsGroup(
+    chips: List<com.lekhani.android.ffi.LpsLetterChipItem>,
+    candidates: List<CandidateItem>,
+    onCandidateClick: (String) -> Unit,
+    theme: KeyboardTheme,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        for (chip in chips.take(2)) {
+            val otherSiblings = chip.siblings.filter { it != chip.active }
+            for (sib in otherSiblings.take(2)) {
+                val match = candidates.firstOrNull { it.text.contains(sib) }
+                Surface(
+                    onClick = {
+                        if (match != null) {
+                            onCandidateClick(match.text)
+                        } else {
+                            val top = candidates.firstOrNull()?.text
+                            if (top != null && chip.charIndex.toInt() < top.length) {
+                                val replaced = top.substring(0, chip.charIndex.toInt()) +
+                                        sib +
+                                        top.substring((chip.charIndex + 1).toInt().coerceAtMost(top.length))
+                                onCandidateClick(replaced)
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(theme.accentColor).copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, Color(theme.accentColor).copy(alpha = 0.40f)),
+                    modifier = Modifier.height(30.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = sib,
+                            color = Color(theme.accentColor),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
         }
     }
 }

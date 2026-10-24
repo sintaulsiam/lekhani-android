@@ -33,6 +33,7 @@ object CandidateStripCoordinator {
         val avroStripOrder: String,
         val isBlacklisted: (String) -> Boolean,
         val verbParadigmChecker: (String) -> Boolean,
+        val lpsChips: List<com.lekhani.android.ffi.LpsLetterChipItem> = emptyList(),
     )
 
     fun resolveStripState(params: Params): CandidateStripState {
@@ -129,7 +130,8 @@ object CandidateStripCoordinator {
 
         return CandidateStripState.Candidates(
             items = items,
-            undoInfo = params.undo
+            undoInfo = params.undo,
+            lpsChips = params.lpsChips,
         )
     }
 
@@ -140,6 +142,7 @@ object CandidateStripCoordinator {
         return currentState is CandidateStripState.Candidates &&
                 newState is CandidateStripState.Candidates &&
                 currentState.items == newState.items &&
-                currentState.undoInfo == newState.undoInfo
+                currentState.undoInfo == newState.undoInfo &&
+                currentState.lpsChips == newState.lpsChips
     }
 }

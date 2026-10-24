@@ -50,6 +50,7 @@ sealed class CandidateStripState {
     data class Candidates(
         val items: List<CandidateItem>,
         val undoInfo: UndoInfo? = null,
+        val lpsChips: List<com.lekhani.android.ffi.LpsLetterChipItem> = emptyList(),
     ) : CandidateStripState()
 
     /**

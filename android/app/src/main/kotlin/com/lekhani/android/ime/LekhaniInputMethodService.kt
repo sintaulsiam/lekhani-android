@@ -3343,6 +3343,12 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
+        val lpsChips = if (session.getLayout() == LekhaniLayoutType.LPS_PHONETIC) {
+            try { session.getLpsLetterChips() } catch (_: Exception) { emptyList() }
+        } else {
+            emptyList()
+        }
+
         val params = CandidateStripCoordinator.Params(
             rawCandidates = raw,
             rawInput = rawInputBuffer.toString(),
@@ -3359,7 +3365,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 } catch (_: Exception) {
                     false
                 }
-            }
+            },
+            lpsChips = lpsChips,
         )
 
         val newState = CandidateStripCoordinator.resolveStripState(params)
