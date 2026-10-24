@@ -999,49 +999,8 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         }
     }
 
-    // ── 1. Academic Tatshama Suffixes & Compounding ──────────────────────────
-    // a. Suffix -tattik -> -তাত্ত্বিক (e.g. dhoni-tattik -> ধ্বনিতাত্ত্বিক, rup-tattik -> রূপতাত্ত্বিক, bakko-tattik -> বাক্যতাত্ত্বিক)
-    if let Some(stem) = lower.strip_suffix("tattik") {
-        if !stem.is_empty() {
-            let (stem_bn, _) = transliterate_avro(stem);
-            let word = format!("{}তাত্ত্বিক", stem_bn);
-            return Some((word.clone(), vec![word]));
-        }
-    }
-
-    // b. Suffix -babostha / -babosthar -> -ব্যবস্থা / -ব্যবস্থার (e.g. jogajogbabosthar -> যোগাযোগব্যবস্থার, nishkashonbabostha -> নিষ্কাশনব্যবস্থা)
-    if let Some(stem) = lower.strip_suffix("babosthar") {
-        if !stem.is_empty() {
-            let (stem_bn, _) = transliterate_avro(stem);
-            let word = format!("{}ব্যবস্থার", stem_bn);
-            return Some((word.clone(), vec![word]));
-        }
-    }
-    if let Some(stem) = lower.strip_suffix("babostha") {
-        if !stem.is_empty() {
-            let (stem_bn, _) = transliterate_avro(stem);
-            let word = format!("{}ব্যবস্থা", stem_bn);
-            return Some((word.clone(), vec![word]));
-        }
-    }
-
-    // c. Suffix -banjon / -banjoner -> -ব্যঞ্জন / -ব্যঞ্জনের (e.g. juktobanjoner -> যুক্তব্যঞ্জনের)
-    if let Some(stem) = lower.strip_suffix("banjoner") {
-        if !stem.is_empty() {
-            let (stem_bn, _) = transliterate_avro(stem);
-            let word = format!("{}ব্যঞ্জনের", stem_bn);
-            return Some((word.clone(), vec![word]));
-        }
-    }
-    if let Some(stem) = lower.strip_suffix("banjon") {
-        if !stem.is_empty() {
-            let (stem_bn, _) = transliterate_avro(stem);
-            let word = format!("{}ব্যঞ্জন", stem_bn);
-            return Some((word.clone(), vec![word]));
-        }
-    }
-
-    // d. Suffix -rayon / -ayon (Natva Vidhana rule): Murdhanya ণ after r/sh, dental ন otherwise
+    // ── 1. Academic Tatshama Suffixes & Compounding (Exceptions & Prefixes) ──
+    // a. Suffix -rayon / -ayon (Natva Vidhana rule): Murdhanya ণ after r/sh, dental ন otherwise
     if let Some(stem) = lower.strip_suffix("rayon") {
         if !stem.is_empty() {
             let (stem_bn, _) = transliterate_avro(stem);
@@ -1057,46 +1016,11 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         }
     }
 
-    // e. Suffix -shishto (e.g. bi-shishto -> বিশিষ্ট, pro-shishto -> প্রবিশিষ্ট)
-    if let Some(stem) = lower.strip_suffix("shishto") {
-        if !stem.is_empty() {
-            let (stem_bn, _) = transliterate_avro(stem);
-            let word = format!("{}বিশিষ্ট", stem_bn);
-            return Some((word.clone(), vec![word]));
-        }
-    }
-
-    // f. Initial diphthong oi- -> ঐ- (e.g. oitihashik -> ঐতিহাসিক, oikyo -> ঐক্য)
+    // b. Initial diphthong oi- -> ঐ- (e.g. oitihashik -> ঐতিহাসিক, oikyo -> ঐক্য)
     if lower.starts_with("oi") && lower.len() >= 4 {
         let remainder = &lower[2..];
         let (rem_bn, _) = transliterate_avro(remainder);
         let word = format!("ঐ{}", rem_bn);
-        return Some((word.clone(), vec![word]));
-    }
-
-    // g. Anusvara compounds with -shongsthan / -shonghar
-    if let Some(stem) = lower.strip_suffix("shongsthan") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let word = format!("{}সংস্থান", stem_bn);
-        return Some((word.clone(), vec![word]));
-    }
-    if let Some(stem) = lower.strip_suffix("shonghar") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let word = format!("{}সংহার", stem_bn);
-        return Some((word.clone(), vec![word]));
-    }
-
-    // h. Tatshama Murdhanya & conjunct morphology rules:
-    // Suffix -shleshon -> -শ্লেষণ (e.g. bi-shleshon -> বিশ্লেষণ, shong-shleshon -> সংশ্লেষণ)
-    if let Some(stem) = lower.strip_suffix("shleshon") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let word = format!("{}শ্লেষণ", stem_bn);
-        return Some((word.clone(), vec![word]));
-    }
-    // Suffix -bekkhan -> -বেক্ষণ (e.g. porjo-bekkhan -> পর্যবেক্ষণ, niri-bekkhan -> নিরীক্ষণ)
-    if let Some(stem) = lower.strip_suffix("bekkhan") {
-        let (stem_bn, _) = transliterate_avro(stem);
-        let word = format!("{}বেক্ষণ", stem_bn);
         return Some((word.clone(), vec![word]));
     }
     // Suffix -koron -> -করণ (e.g. shoroli-koron -> সরলীকরণ, nogori-koron -> নগরীকরণ)
