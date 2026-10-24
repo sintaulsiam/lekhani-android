@@ -1321,7 +1321,7 @@ private fun LpsChipsGroup(
                             if (top != null && chip.charIndex.toInt() < top.length) {
                                 val replaced = top.substring(0, chip.charIndex.toInt()) +
                                         sib +
-                                        top.substring((chip.charIndex + 1).toInt().coerceAtMost(top.length))
+                                        top.substring((chip.charIndex.toInt() + 1).coerceAtMost(top.length))
                                 onCandidateClick(replaced)
                             }
                         }
