@@ -3343,7 +3343,7 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
 
-        val lpsChips = if (session.getLayout() == LekhaniLayoutType.LPS_PHONETIC || session.getLayout() == LekhaniLayoutType.AVRO) {
+        val lpsChips = if (session.getLayout() == LekhaniLayoutType.LPS_PHONETIC) {
             try { session.getLpsLetterChips() } catch (_: Exception) { emptyList() }
         } else {
             emptyList()

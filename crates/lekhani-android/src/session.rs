@@ -967,17 +967,10 @@ impl AndroidLekhaniSession {
             .unwrap_or(LekhaniLayoutType::Probaho)
     }
 
-    /// Returns the letter-level disambiguation chips for the active LPS or casual Avro composing buffer.
+    /// Returns the letter-level disambiguation chips for the active LPS composing buffer.
     pub fn get_lps_letter_chips(&self) -> Vec<LpsLetterChipItem> {
         if let Ok(state) = self.state.lock() {
-            if (state.layout == LekhaniLayoutType::LpsPhonetic || state.layout == LekhaniLayoutType::Avro)
-                && !state.composing_buffer.is_empty()
-            {
-                if state.layout == LekhaniLayoutType::Avro
-                    && lekhani_parser::has_explicit_avro_intent(&state.composing_buffer)
-                {
-                    return Vec::new();
-                }
+            if state.layout == LekhaniLayoutType::LpsPhonetic && !state.composing_buffer.is_empty() {
                 let engine = crate::layout::get_lps_engine();
                 let (cands, _) = engine.parse(&state.composing_buffer);
                 for cand in cands {
@@ -4223,26 +4216,27 @@ mod tests {
     }
 
     #[test]
-    fn test_avro_casual_letter_chips_and_explicit_suppression() {
+    fn test_lps_chips_scoped_strictly_to_lps_layout() {
         let session = AndroidLekhaniSession::new();
-        session.set_layout(LekhaniLayoutType::Avro);
 
-        // 1. Casual lowercase typing in Avro (e.g. "dakar") surfaces letter chips for 'd' (দ vs ড)
+        // 1. LPS layout surfaces letter chips for phonotactic disambiguation (e.g. 'd' -> [দ, ড])
+        session.set_layout(LekhaniLayoutType::LpsPhonetic);
         for ch in "dakar".chars() {
             session.process_key(ch.to_string()).unwrap();
         }
         let chips = session.get_lps_letter_chips();
-        assert!(!chips.is_empty(), "Casual Avro session must expose letter disambiguation chips");
+        assert!(!chips.is_empty(), "LPS session must expose letter disambiguation chips");
         let has_d_chip = chips.iter().any(|c| c.siblings.contains(&"ড".to_string()) && c.siblings.contains(&"দ".to_string()));
-        assert!(has_d_chip, "Chips must contain [দ, ড] sibling group for initial d");
+        assert!(has_d_chip, "Chips must contain [দ, ড] sibling group for initial d in LPS");
 
-        // 2. Explicit Avro intent (e.g. "paR" with Shift-R) suppresses chips because user intent is unambiguous
+        // 2. Avro layout remains clean and classic: get_lps_letter_chips must return empty
         session.reset();
-        for ch in "paR".chars() {
+        session.set_layout(LekhaniLayoutType::Avro);
+        for ch in "dakar".chars() {
             session.process_key(ch.to_string()).unwrap();
         }
-        let chips_explicit = session.get_lps_letter_chips();
-        assert!(chips_explicit.is_empty(), "Explicit Avro intent with Shift key must suppress ambiguous letter chips");
+        let chips_avro = session.get_lps_letter_chips();
+        assert!(chips_avro.is_empty(), "Avro layout must NOT leak LPS letter chips; layouts remain cleanly separated");
     }
 }
 
