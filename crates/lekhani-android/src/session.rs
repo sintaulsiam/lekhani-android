@@ -4196,7 +4196,9 @@ mod tests {
             chhara_res = Some(session2.process_key(ch.to_string()).unwrap());
         }
         let res2 = chhara_res.unwrap();
+        let chhara_nfc = crate::probaho::nfc_normalize("ছাড়া");
         assert!(res2.candidates.contains(&"ছারা".to_string()));
+        assert!(res2.candidates.iter().any(|c| crate::probaho::nfc_normalize(c) == chhara_nfc));
 
         // Test Backspace in LPS
         let bs_res = session.handle_backspace().unwrap();
