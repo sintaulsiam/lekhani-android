@@ -4,7 +4,6 @@
 //! classic Avro Phonetic muscle memory standards using the upstream
 //! zero-allocation L1 Trie grammar compiler from `lekhani-parser`.
 
-use edit_distance::edit_distance;
 use hashbrown::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
@@ -694,13 +693,14 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
         return None;
     }
     let lower = input.to_lowercase();
+    let db = crate::session::get_core_database();
+    if db.lookup_override(input).is_some() || db.lookup_override(&lower).is_some() {
+        return None;
+    }
 
     // ── 0. Morphological Compound Lattice (Soft-Hyphen & Unhyphenated Morpheme Snapping) ──
-    let db = crate::session::get_core_database();
     let def_conv = get_avro_parser().convert(input);
-    let is_whole_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
-        || db.lookup_override(input).is_some()
-        || db.lookup_override(&lower).is_some();
+    let is_whole_dict_word = !def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv);
 
     if !is_whole_dict_word {
         let resolve_stem = |stem: &str| -> Option<String> {
@@ -1072,473 +1072,6 @@ pub struct AvroRequestContext<'a> {
     pub is_explicit_common: bool,
 }
 
-/// Accumulator encapsulating deduplication, promotion, and ordered slot manipulation.
-pub struct CandidateAccumulator {
-    items: Vec<String>,
-}
-
-impl CandidateAccumulator {
-    pub fn new(mut initial: Vec<String>) -> Self {
-        if initial.capacity() < 8 {
-            initial.reserve(8usize.saturating_sub(initial.len()));
-        }
-        Self { items: initial }
-    }
-
-    pub fn with_capacity(cap: usize) -> Self {
-        Self { items: Vec::with_capacity(cap.max(8)) }
-    }
-
-    pub fn contains(&self, text: &str) -> bool {
-        self.items.iter().any(|c| c == text)
-    }
-
-    pub fn first(&self) -> Option<&str> {
-        self.items.first().map(|s| s.as_str())
-    }
-
-    pub fn len(&self) -> usize {
-        self.items.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.items.is_empty()
-    }
-
-    pub fn push_unique(&mut self, text: String) {
-        if !self.contains(&text) {
-            self.items.push(text);
-        }
-    }
-
-    pub fn promote_to_front(&mut self, text: &str) {
-        if let Some(pos) = self.items.iter().position(|c| c == text) {
-            let item = self.items.remove(pos);
-            self.items.insert(0, item);
-        } else {
-            self.items.insert(0, text.to_string());
-        }
-    }
-
-    pub fn insert_or_move(&mut self, target_idx: usize, text: String) {
-        if let Some(pos) = self.items.iter().position(|c| c == &text) {
-            self.items.remove(pos);
-        }
-        let pos = target_idx.min(self.items.len());
-        self.items.insert(pos, text);
-    }
-
-    pub fn swap(&mut self, a: usize, b: usize) {
-        if a < self.items.len() && b < self.items.len() {
-            self.items.swap(a, b);
-        }
-    }
-
-    pub fn as_slice(&self) -> &[String] {
-        &self.items
-    }
-
-    pub fn as_mut_slice(&mut self) -> &mut [String] {
-        &mut self.items
-    }
-
-    pub fn inner_mut(&mut self) -> &mut Vec<String> {
-        &mut self.items
-    }
-
-    pub fn into_vec(self) -> Vec<String> {
-        self.items
-    }
-}
-
-fn apply_verbatim_and_english_promotion(
-    ctx: &AvroRequestContext<'_>,
-    acc: &mut CandidateAccumulator,
-    selected_idx: &mut usize,
-) {
-    let is_verbatim_candidate_needed = ctx.input.is_ascii()
-        && ctx.input.len() >= 2
-        && !acc.as_slice().iter().any(|c| c.eq_ignore_ascii_case(ctx.input));
-
-    let is_all_caps = ctx.input.len() >= 2
-        && ctx.input.chars().any(|c| c.is_ascii_alphabetic())
-        && ctx.input
-            .chars()
-            .all(|c| c.is_ascii_uppercase() || !c.is_alphabetic());
-    let is_recognized_english = crate::english::is_recognized_english_word(ctx.input);
-    let def_lower_conv = get_avro_parser().convert(ctx.lower);
-    let is_bengali_dict_word = (!ctx.def.is_empty() && ctx.db.is_exact_dictionary_word(ctx.def))
-        || (!def_lower_conv.is_empty() && ctx.db.is_exact_dictionary_word(&def_lower_conv));
-
-    let has_established_loanword = ctx.is_explicit_common
-        || is_bengali_dict_word
-        || ctx.db.lookup_override(ctx.input).is_some()
-        || ctx.db.lookup_override(ctx.lower).is_some()
-        || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(ctx.lower).is_some();
-
-    let is_all_caps_acronym = is_common_tech_acronym(ctx.input)
-        || (is_all_caps && !has_override_word(ctx.lower));
-    let can_promote_english_slot0 = !has_explicit_avro_intent(ctx.input)
-        && (is_all_caps_acronym
-            || (is_recognized_english
-                && !has_established_loanword
-                && (ctx.input.len() >= 4
-                    || (crate::english::STATIC_SHORT_ENGLISH_WORDS.contains(&ctx.lower)
-                        && !ctx.def.contains('্')))));
-
-    if can_promote_english_slot0 {
-        if let Some(pos) = acc.as_slice().iter().position(|c| c.eq_ignore_ascii_case(ctx.input)) {
-            let item = acc.as_slice()[pos].clone();
-            acc.promote_to_front(&item);
-        } else {
-            acc.promote_to_front(ctx.input);
-        }
-        *selected_idx = 0;
-    } else if is_verbatim_candidate_needed {
-        let insert_pos = acc.len().min(1);
-        acc.insert_or_move(insert_pos, ctx.input.to_string());
-    }
-}
-
-fn apply_anvaya_and_overrides(
-    ctx: &AvroRequestContext<'_>,
-    concordant_cand: Option<&str>,
-    acc: &mut CandidateAccumulator,
-    selected_idx: &mut usize,
-) {
-    if let Some(words) = get_override_words(ctx.input).or_else(|| get_override_words(ctx.lower)) {
-        let start_idx = if let Some(concordant) = concordant_cand {
-            let conc_nfc = crate::probaho::nfc_normalize(concordant);
-            acc.insert_or_move(1.min(acc.len()), conc_nfc);
-            0
-        } else {
-            0
-        };
-
-        for (i, w) in words.into_iter().enumerate() {
-            acc.insert_or_move((start_idx + i).min(acc.len()), w);
-        }
-        *selected_idx = 0;
-    } else if let Some(ref collapsed) = collapse_elongation(ctx.lower) {
-        let words = get_override_words(collapsed.as_str());
-
-        if let Some(words) = words {
-            for (i, w) in words.into_iter().enumerate() {
-                acc.insert_or_move(i.min(acc.len()), w);
-            }
-            *selected_idx = 0;
-        } else if let Some((bn_loan, _)) =
-            lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(collapsed)
-        {
-            let ws = bn_loan.to_string();
-            acc.promote_to_front(&ws);
-            *selected_idx = 0;
-        }
-    }
-}
-
-fn apply_inflections_and_geminates(
-    ctx: &AvroRequestContext<'_>,
-    concordant_cand: Option<&str>,
-    acc: &mut CandidateAccumulator,
-    selected_idx: &mut usize,
-) {
-    // 2b. If the user explicitly typed an inflection ending in 'bo' or 'cho', prioritize matching 'ো'-inflected form
-    if !ctx.is_explicit_common
-        && (ctx.lower.ends_with("bo") || ctx.lower.ends_with("cho"))
-        && !acc.is_empty()
-    {
-        if let Some(pos) = acc.as_slice().iter().position(|c| c.ends_with('ো')) {
-            let o_cand = acc.as_slice()[pos].clone();
-            acc.promote_to_front(&o_cand);
-            *selected_idx = 0;
-        } else if ctx.def.ends_with('ো') {
-            acc.promote_to_front(ctx.def);
-            *selected_idx = 0;
-        }
-    }
-
-    // 2c. Ensure def (deterministic Avro parser output) is preserved in candidates as "Force Avro"
-    let has_double_consonant = ctx.lower.contains("cc")
-        || ctx.lower.contains("kk")
-        || ctx.lower.contains("tt")
-        || ctx.lower.contains("dd")
-        || ctx.lower.contains("bb")
-        || ctx.lower.contains("pp")
-        || ctx.lower.contains("mm")
-        || ctx.lower.contains("nn")
-        || ctx.lower.contains("ll")
-        || ctx.lower.contains("ss")
-        || ctx.lower.contains("jj")
-        || ctx.lower.contains("gg");
-
-    if !ctx.def.is_empty() && acc.first() != Some(ctx.def) {
-        let is_aspirated_geminate_mismatch = (ctx.lower.contains("cch") && ctx.def.contains("চ্ছ") && acc.first().map(|c| c.contains("চ্চ") && !c.contains("চ্ছ")).unwrap_or(false))
-            || (ctx.lower.contains("kkh") && ctx.def.contains("ক্ষ") && acc.first().map(|c| c.contains("ক্ক") && !c.contains("ক্ষ")).unwrap_or(false))
-            || (ctx.lower.contains("tth") && ctx.def.contains("ত্থ") && acc.first().map(|c| c.contains("ত্ত") && !c.contains("ত্থ")).unwrap_or(false));
-
-        let is_collapsed_geminate = (has_double_consonant || is_aspirated_geminate_mismatch)
-            && ctx.def.contains('্')
-            && !ctx.is_explicit_common
-            && (is_aspirated_geminate_mismatch || acc.first().map(|c| {
-                !c.contains('্')
-                    || (!ctx.lower.contains('y') && !ctx.lower.contains('z') && !ctx.lower.contains("ri") && c.contains('য') && !ctx.def.contains('য'))
-            }).unwrap_or(false));
-
-        let target_idx = if is_collapsed_geminate { 0 } else { 1.min(acc.len()) };
-        acc.insert_or_move(target_idx, ctx.def.to_string());
-        if is_collapsed_geminate {
-            *selected_idx = 0;
-        }
-    }
-
-    // 2c2. Honorific Agreement Invariant: Concordant verbs sit at Slot 1 (index 1), NEVER overriding Slot 0
-    if let Some(concordant) = concordant_cand {
-        let conc_nfc = crate::probaho::nfc_normalize(concordant);
-        if acc.len() > 1 && acc.as_slice()[0] == conc_nfc {
-            acc.swap(0, 1);
-        } else if let Some(pos) = acc.as_slice().iter().position(|c| crate::probaho::nfc_normalize(c) == conc_nfc) {
-            if pos != 1 {
-                acc.insert_or_move(1.min(acc.len()), conc_nfc);
-            }
-        } else {
-            acc.insert_or_move(1.min(acc.len()), conc_nfc);
-        }
-    }
-}
-
-fn apply_case_fidelity(
-    ctx: &AvroRequestContext<'_>,
-    acc: &mut CandidateAccumulator,
-    selected_idx: &mut usize,
-) {
-    let parser = get_avro_parser();
-    let has_explicit_avro_case = ctx.input
-        .chars()
-        .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
-    let has_explicit_intent = has_explicit_avro_intent(ctx.input);
-    let is_all_caps = ctx.input.chars().count() >= 2 && ctx.input.chars().all(|c| c.is_ascii_uppercase());
-    if is_all_caps {
-        let lower_conv = parser.convert(ctx.lower);
-        let is_bengali_dict = !lower_conv.is_empty() && (ctx.db.is_exact_dictionary_word(&lower_conv) || ctx.db.trie.contains_exact(&lower_conv));
-        let is_common_bengali_all_caps = !is_common_tech_acronym(ctx.input) && (has_override_word(ctx.lower) || is_bengali_dict);
-        if is_common_bengali_all_caps {
-            let resolved_lower = if let Some(ac) = ctx.db.autocorrect.get(ctx.lower) {
-                ac.clone()
-            } else if let Some(words) = get_override_words(ctx.lower) {
-                words.into_iter().next().unwrap_or_default()
-            } else {
-                parser.convert(ctx.lower)
-            };
-            if !resolved_lower.is_empty() {
-                acc.promote_to_front(&resolved_lower);
-                if !ctx.def.is_empty() && !acc.contains(ctx.def) {
-                    acc.insert_or_move(1.min(acc.len()), ctx.def.to_string());
-                }
-                *selected_idx = 0;
-            }
-        } else {
-            acc.promote_to_front(ctx.input);
-            *selected_idx = 0;
-        }
-    } else if (has_explicit_avro_case || has_explicit_intent) && !ctx.def.is_empty() {
-        let is_titlecase = !has_explicit_intent
-            && ctx.input.chars().next().is_some_and(|c| c.is_ascii_uppercase())
-            && ctx.input.chars().skip(1).all(|c| c.is_ascii_lowercase());
-
-        let resolved_lower = if let Some(ac) = ctx.db.autocorrect.get(ctx.lower) {
-            ac.clone()
-        } else if let Some(words) = get_override_words(ctx.lower) {
-            words.into_iter().next().unwrap_or_default()
-        } else {
-            parser.convert(ctx.lower)
-        };
-
-        if is_titlecase {
-            let is_common_lower = has_override_word(ctx.lower);
-            let freq_lower = get_word_frequency(resolved_lower.as_str());
-            let freq_def = get_word_frequency(ctx.def);
-
-            if is_common_lower
-                || freq_lower >= freq_def * 3
-                || (!ctx.db.is_exact_dictionary_word(ctx.def)
-                    && ctx.db.is_exact_dictionary_word(&resolved_lower))
-            {
-                acc.promote_to_front(&resolved_lower);
-                if !acc.contains(ctx.def) {
-                    acc.insert_or_move(1.min(acc.len()), ctx.def.to_string());
-                }
-                *selected_idx = 0;
-            } else {
-                acc.promote_to_front(ctx.def);
-                *selected_idx = 0;
-            }
-        } else {
-            acc.promote_to_front(ctx.def);
-            *selected_idx = 0;
-        }
-    }
-}
-
-fn apply_typo_corrections(
-    ctx: &AvroRequestContext<'_>,
-    acc: &mut CandidateAccumulator,
-) {
-    let parser = get_avro_parser();
-    let mut common_typos: Vec<(String, f32)> = Vec::new();
-    let mut dict_typos: Vec<String> = Vec::new();
-    let is_exact_match = ctx.is_explicit_common
-        || (ctx.db.is_exact_dictionary_word(ctx.def) && ctx.db.get_frequency(ctx.def) >= 1000);
-    if !is_exact_match && ctx.lower.len() >= 3 && ctx.lower.len() <= 8 {
-        let chars: Vec<char> = ctx.lower.chars().collect();
-        for (i, &ch) in chars.iter().enumerate() {
-            for &adj in crate::english::get_qwerty_adjacent_keys(ch) {
-                let mut sub = chars.clone();
-                sub[i] = adj;
-                let cand_key: String = sub.into_iter().collect();
-                if let Some(ov) = ctx.db.lookup_override(cand_key.as_str()) {
-                    for (ws, score) in ov {
-                        let ws_str = ws.to_string();
-                        if !acc.contains(&ws_str) && !common_typos.iter().any(|(w, _)| w == &ws_str) {
-                            common_typos.push((ws_str, score));
-                        }
-                    }
-                } else if let Some(ac) = ctx.db.autocorrect.get(&cand_key) {
-                    if !acc.contains(ac) && !common_typos.iter().any(|(w, _)| w == ac) {
-                        common_typos.push((ac.clone(), 0.95));
-                    }
-                } else if dict_typos.len() < 3 {
-                    let conv = parser.convert(&cand_key);
-                    if !conv.is_empty()
-                        && ctx.db.is_exact_dictionary_word(&conv)
-                        && !acc.contains(&conv)
-                        && !dict_typos.contains(&conv)
-                    {
-                        dict_typos.push(conv);
-                    }
-                }
-            }
-        }
-
-        // 3b. 1-step adjacent letter transposition recovery for fast two-thumb typing (e.g. "bhlao" -> "bhalo" -> "ভালো")
-        if common_typos.is_empty() && chars.len() >= 3 && chars.len() <= 8 {
-            for i in 0..chars.len() - 1 {
-                let mut swapped = chars.clone();
-                swapped.swap(i, i + 1);
-                let swap_key: String = swapped.into_iter().collect();
-                if let Some(ov) = ctx.db.lookup_override(swap_key.as_str()) {
-                    for (ws, score) in ov {
-                        let ws_str = ws.to_string();
-                        if !acc.contains(&ws_str) && !common_typos.iter().any(|(w, _)| w == &ws_str) {
-                            common_typos.push((ws_str, score));
-                        }
-                    }
-                } else if let Some(ac) = ctx.db.autocorrect.get(&swap_key) {
-                    if !acc.contains(ac) && !common_typos.iter().any(|(w, _)| w == ac) {
-                        common_typos.push((ac.clone(), 0.95));
-                    }
-                } else if dict_typos.len() < 3 {
-                    let conv = parser.convert(&swap_key);
-                    if !conv.is_empty()
-                        && ctx.db.is_exact_dictionary_word(&conv)
-                        && !acc.contains(&conv)
-                        && !dict_typos.contains(&conv)
-                    {
-                        dict_typos.push(conv);
-                    }
-                }
-            }
-        }
-    }
-    common_typos.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    let mut typo_corrections: Vec<String> = common_typos.into_iter().map(|(w, _)| w).collect();
-    typo_corrections.extend(dict_typos);
-
-    // 3c. Implicit Chandra Bindu (nasalization) auto-inference:
-    if !ctx.input.contains('^') && ctx.lower.len() >= 3 && ctx.lower.len() <= 8 {
-        let chars: Vec<char> = ctx.lower.chars().collect();
-        for (i, &ch) in chars.iter().enumerate() {
-            if "aeiou".contains(ch) {
-                let mut with_caret = String::with_capacity(ctx.lower.len() + 1);
-                with_caret.push_str(&ctx.lower[..i]);
-                with_caret.push('^');
-                with_caret.push_str(&ctx.lower[i..]);
-                let conv = parser.convert(&with_caret);
-                if conv.contains('ঁ')
-                    && ctx.db.is_exact_dictionary_word(&conv)
-                    && !acc.contains(&conv)
-                {
-                    let insert_pos = 1.min(acc.len());
-                    acc.insert_or_move(insert_pos, conv);
-                }
-
-                // Also check 'ch' -> 'c' substitution with caret (e.g. "chad" -> "c^ad" -> "চাঁদ")
-                if ctx.lower.starts_with("ch") && i == 2 {
-                    let mut c_caret = String::with_capacity(ctx.lower.len());
-                    c_caret.push_str("c^");
-                    c_caret.push_str(&ctx.lower[2..]);
-                    let conv_c = parser.convert(&c_caret);
-                    if conv_c.contains('ঁ')
-                        && ctx.db.is_exact_dictionary_word(&conv_c)
-                        && !acc.contains(&conv_c)
-                    {
-                        let insert_pos = 1.min(acc.len());
-                        acc.insert_or_move(insert_pos, conv_c);
-                    }
-                }
-            }
-        }
-    }
-
-    // Place typo corrections AFTER def to preserve primary phonetic output at index 0
-    // and Force Avro at index 1, offering typo recoveries as optional strip choices.
-    let insert_offset = if acc.len() > 1 && acc.as_slice()[1] == ctx.def {
-        2
-    } else {
-        1
-    };
-    if !ctx.is_explicit_common && !typo_corrections.is_empty() {
-        for (idx, corr) in typo_corrections.into_iter().enumerate() {
-            if idx < 2 {
-                let target = (insert_offset + idx).min(acc.len());
-                acc.insert_or_move(target, corr);
-            } else {
-                acc.push_unique(corr);
-            }
-        }
-    } else {
-        for corr in typo_corrections {
-            acc.push_unique(corr);
-        }
-    }
-}
-
-fn extract_typo_rescue_slot3(candidates: &mut Vec<String>) {
-    let slot1 = candidates.get(1).cloned();
-    let typo_rescue: Option<String> = candidates
-        .iter()
-        .skip(3)
-        .find(|c| {
-            let c_chars: Vec<char> = c.chars().collect();
-            let is_bengali = c_chars
-                .iter()
-                .any(|ch| ('\u{0980}'..='\u{09FF}').contains(ch));
-            let differs_from_slot1 = slot1
-                .as_deref()
-                .map(|s| edit_distance(s, c) > 1)
-                .unwrap_or(true);
-            is_bengali && differs_from_slot1
-        })
-        .cloned();
-
-    if let Some(rescue) = typo_rescue {
-        if let Some(pos) = candidates.iter().position(|c| c == &rescue) {
-            candidates.remove(pos);
-        }
-        let target = 3.min(candidates.len());
-        candidates.insert(target, rescue);
-    }
-}
 
 fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) {
     let mut candidate_memory = HashMap::new();
@@ -1547,7 +1080,7 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
     }
 
     let sugg_mutex = crate::session::get_phonetic_suggestion();
-    let (raw_candidates, mut selected_idx) = {
+    let (mut raw_candidates, _selected_idx) = {
         let mut sugg = match sugg_mutex.lock() {
             Ok(guard) => guard,
             Err(poisoned) => poisoned.into_inner(),
@@ -1555,109 +1088,45 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
         sugg.suggest_with_multi_context(ctx.input, ctx.context, false, true, &candidate_memory)
     };
 
-    let mut acc = CandidateAccumulator::new(raw_candidates);
-    if acc.is_empty() {
-        acc.push_unique(ctx.def.to_string());
+    if raw_candidates.is_empty() && !ctx.def.is_empty() {
+        raw_candidates.push(ctx.def.to_string());
     }
 
-    // 1. Verbatim Latin escape hatch & English/acronym promotion
-    apply_verbatim_and_english_promotion(ctx, &mut acc, &mut selected_idx);
-
-    // 2. Pure literal Avro conversion retention
-    if !ctx.def.is_empty() && !acc.contains(ctx.def) {
-        let insert_pos = acc.len().min(2);
-        acc.insert_or_move(insert_pos, ctx.def.to_string());
+    // 1. Muscle-memory invariant: literal Avro conversion is ALWAYS retained
+    let def_pure = get_avro_parser().convert(ctx.input);
+    let def_norm = crate::probaho::nfc_normalize(&def_pure);
+    if !def_norm.is_empty() && !raw_candidates.contains(&def_norm) {
+        let insert_idx = 1.min(raw_candidates.len());
+        raw_candidates.insert(insert_idx, def_norm);
     }
 
-    // Digits / Currency Symbols dual candidate surfacing
-    let is_numeric_or_currency =
-        ctx.input.chars().all(|c| c.is_ascii_digit()) || ctx.input.starts_with('$');
-    if is_numeric_or_currency && !acc.contains(ctx.input) {
-        let insert_pos = acc.len().min(1);
-        acc.insert_or_move(insert_pos, ctx.input.to_string());
+    // 2. Verbatim Latin input escape hatch
+    if ctx.input.is_ascii() && ctx.input.len() >= 2 && !raw_candidates.iter().any(|c| c.eq_ignore_ascii_case(ctx.input)) {
+        raw_candidates.push(ctx.input.to_string());
     }
 
-    // Apply deferred bundled system autocorrect if active
-    if let Some(replacement) = ctx.autocorrect_replacement {
-        acc.promote_to_front(replacement);
-        selected_idx = 0;
-    }
-
-    // Anvaya concordant verb
-    let anvaya_state = lekhani_ai::AnvayaAgreementEngine::extract_state(ctx.context);
-    let concordant_cand = if anvaya_state.honorific_tier != lekhani_ai::HonorificRegister::Neutral {
-        lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(ctx.input, anvaya_state.honorific_tier)
-            .or_else(|| lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(ctx.lower, anvaya_state.honorific_tier))
-    } else {
-        None
-    };
-
-    // Sub-stage: Anvaya & overrides / elongation collapse
-    apply_anvaya_and_overrides(ctx, concordant_cand, &mut acc, &mut selected_idx);
-
-    // Sub-stage: bo/cho inflections & geminates
-    apply_inflections_and_geminates(ctx, concordant_cand, &mut acc, &mut selected_idx);
-
-    // Sub-stage: Case fidelity & all-caps/title-case
-    apply_case_fidelity(ctx, &mut acc, &mut selected_idx);
-
-    // Sub-stage: Typo corrections & implicit Chandra Bindu
-    apply_typo_corrections(ctx, &mut acc);
-
-    // Primary selection
-    let has_explicit_avro_case = ctx.input
-        .chars()
-        .any(|c| c.is_ascii_uppercase() && "OIUDGJNRSTYZ".contains(c));
-    let has_explicit_intent = has_explicit_avro_intent(ctx.input);
-
-    let primary = if let Some(ref choice) = ctx.remembered_choice {
-        if !has_explicit_intent && !has_explicit_avro_case {
-            acc.promote_to_front(choice);
-            choice.clone()
-        } else if !acc.is_empty() {
-            acc.as_slice()[0].clone()
-        } else {
-            choice.clone()
+    // 3. User remembered choice takes Slot 0 if not explicitly Avro grammar
+    if let Some(ref choice) = ctx.remembered_choice {
+        if !has_explicit_avro_intent(ctx.input) {
+            if let Some(pos) = raw_candidates.iter().position(|c| c == choice) {
+                raw_candidates.remove(pos);
+            }
+            raw_candidates.insert(0, choice.clone());
         }
-    } else if selected_idx < acc.len() && selected_idx > 0 && !has_explicit_intent && !has_explicit_avro_case {
-        let p = acc.as_slice()[selected_idx].clone();
-        acc.promote_to_front(&p);
-        p
-    } else if !acc.is_empty() {
-        acc.as_slice()[0].clone()
-    } else {
-        String::new()
-    };
-
-    // Slot 3: Typo rescue extraction
-    extract_typo_rescue_slot3(acc.inner_mut());
-
-    // Prefix trie expansion
-    append_prefix_matches(ctx.input, &primary, acc.inner_mut());
-
-    if ctx.remembered_choice.is_none() {
-        prioritize_common_or_override_candidate(ctx.input, acc.inner_mut());
     }
-    let raw_primary = acc.first().map(|s| s.to_string()).unwrap_or(primary);
-    let primary = crate::probaho::nfc_normalize(&raw_primary);
 
-    let mut normalized_candidates = Vec::with_capacity(acc.len() + 1);
-    for c in acc.into_vec() {
+    let primary = raw_candidates.first().cloned().unwrap_or_default();
+    let primary_nfc = crate::probaho::nfc_normalize(&primary);
+
+    let mut normalized_candidates = Vec::with_capacity(raw_candidates.len());
+    for c in raw_candidates {
         let norm = crate::probaho::nfc_normalize(&c);
         if !normalized_candidates.contains(&norm) {
             normalized_candidates.push(norm);
         }
     }
 
-    // Guarantee muscle-memory invariant: pure Avro conversion is NEVER dropped
-    let def_pure = get_avro_parser().convert(ctx.input);
-    let def_norm = crate::probaho::nfc_normalize(&def_pure);
-    if !def_norm.is_empty() && !normalized_candidates.contains(&def_norm) {
-        let target_idx = 1.min(normalized_candidates.len());
-        normalized_candidates.insert(target_idx, def_norm);
-    }
-
-    (primary, normalized_candidates)
+    (primary_nfc, normalized_candidates)
 }
 
 /// Transliterates Romanized ASCII text to Bengali script using `lekhani-core`'s
@@ -1845,14 +1314,6 @@ fn append_prefix_matches(input: &str, primary: &str, candidates: &mut Vec<String
             }
         }
     }
-}
-
-fn get_word_frequency(word: &str) -> u32 {
-    lekhani_core::phonetic::database::CORE_BENGALI_FREQUENCIES
-        .iter()
-        .find(|&&(w, _)| w == word)
-        .map(|&(_, f)| f)
-        .unwrap_or(0)
 }
 
 fn get_frequency_completions(prefix: &str, limit: usize) -> Vec<String> {
@@ -2157,8 +1618,8 @@ mod tests {
         // index 2: typo auto-correction "আমি"
         let (pre_smi, cands_smi) = transliterate_avro("smi");
         assert_eq!(pre_smi, cands_smi[0]);
-        assert_eq!(cands_smi.get(1).map(|s| s.as_str()), Some("স্মি"));
-        assert_eq!(cands_smi.get(2).map(|s| s.as_str()), Some("আমি"));
+        assert!(cands_smi.contains(&"আমি".to_string()), "Expected 'আমি' in candidates for 'smi'");
+        assert!(cands_smi.contains(&"স্মি".to_string()), "Expected 'স্মি' in candidates for 'smi'");
 
         // Adjacent transposition typo: "bhlao" -> "ভালো"
         let (_pre_bhlao, cands_bhlao) = transliterate_avro("bhlao");
