@@ -520,6 +520,32 @@ pub struct RetroCorrection {
     pub text_to_commit: String,
 }
 
+/// Disambiguation result comparing two competing homophones under running context topic.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct TopicDisambiguationResult {
+    /// The winning candidate word with highest semantic topic alignment
+    pub winner: String,
+    /// The runner-up competing candidate word
+    pub runner_up: String,
+    /// Confidence margin between winner and runner-up in [-1.0, 1.0]
+    pub confidence: f32,
+    /// Semantic domain hint in Bengali (e.g. "পড়ালেখা", "পোশাক", "আদালত", "নদী/তীর")
+    pub domain_hint: Option<String>,
+}
+
+/// Dynamic semantic topic annotation for a candidate in the candidate strip.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct CandidateTopicAnnotation {
+    /// The candidate word
+    pub candidate: String,
+    /// Contrasting homophone partner word (e.g. "পরা" for candidate "পড়া")
+    pub homophone_partner: Option<String>,
+    /// Inferred semantic domain hint (e.g. "পড়ালেখা", "পোশাক", "আদালত")
+    pub domain_hint: Option<String>,
+    /// True if this candidate is the disambiguated winner under active topic context
+    pub is_topic_winner: bool,
+}
+
 /// Bayesian short-window dampener for Project "পশ্চাৎ-শোধন" (Retro-Correction).
 ///
 /// Tracks the last 7 chip interactions in a bounded sliding window:
@@ -1603,6 +1629,96 @@ impl AndroidLekhaniSession {
             }
         }
         results
+    }
+
+    /// Disambiguates between two competing phonetic homophones based on surrounding conversational topic.
+    /// Returns the winning candidate, confidence delta, and optional semantic domain hint.
+    #[uniffi::method]
+    pub fn disambiguate_homophone(
+        &self,
+        cand_a: String,
+        cand_b: String,
+    ) -> Option<TopicDisambiguationResult> {
+        let state = self.state.lock().ok()?;
+        let tokens: Vec<&str> = if state.surrounding_context.is_empty() {
+            Vec::new()
+        } else {
+            state.surrounding_context.split_whitespace().collect()
+        };
+        if tokens.is_empty() {
+            return None;
+        }
+
+        let scorer = get_context_scorer();
+        let (winner, delta, domain_hint) =
+            scorer.disambiguate_homophone_with_domain_by_topic(&tokens, &cand_a, &cand_b)?;
+
+        let winner_str = winner.to_string();
+        let domain_hint_str = domain_hint.map(|s| s.to_string());
+        let runner_up = if winner_str == cand_a { cand_b } else { cand_a };
+        Some(TopicDisambiguationResult {
+            winner: winner_str,
+            runner_up,
+            confidence: delta,
+            domain_hint: domain_hint_str,
+        })
+    }
+
+    /// Evaluates the candidate list against the active semantic topic vector.
+    /// Detects homophones, determines topic-grounded winners, and attaches domain hints.
+    #[uniffi::method]
+    pub fn annotate_candidate_topics(
+        &self,
+        candidates: Vec<String>,
+    ) -> Vec<CandidateTopicAnnotation> {
+        if candidates.is_empty() {
+            return Vec::new();
+        }
+
+        let state = match self.state.lock() {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+
+        let scorer = get_context_scorer();
+        let tokens: Vec<&str> = if state.surrounding_context.is_empty() {
+            Vec::new()
+        } else {
+            state.surrounding_context.split_whitespace().collect()
+        };
+
+        let topic_vec = if !tokens.is_empty() {
+            Some(scorer.compute_topic_vector(&tokens))
+        } else {
+            None
+        };
+
+        candidates
+            .into_iter()
+            .map(|cand| {
+                let info = lekhani_ai::lookup_homophone_info(&cand);
+                let (homophone_partner, domain_hint) = match info {
+                    Some((partner, hint)) => (Some(partner.to_string()), Some(hint.to_string())),
+                    None => (None, None),
+                };
+
+                let is_topic_winner = if let (Some(ref topic), Some(ref partner)) = (&topic_vec, &homophone_partner) {
+                    topic
+                        .disambiguate(&cand, partner, scorer.embeddings())
+                        .map(|(winner, _)| winner == cand)
+                        .unwrap_or(false)
+                } else {
+                    false
+                };
+
+                CandidateTopicAnnotation {
+                    candidate: cand,
+                    homophone_partner,
+                    domain_hint,
+                    is_topic_winner,
+                }
+            })
+            .collect()
     }
 
     /// Add a custom word to the user dictionary with high initial priority.
@@ -4237,6 +4353,46 @@ mod tests {
         }
         let chips_avro = session.get_lps_letter_chips();
         assert!(chips_avro.is_empty(), "Avro layout must NOT leak LPS letter chips; layouts remain cleanly separated");
+    }
+
+    #[test]
+    fn test_homophone_topic_disambiguation_and_candidate_annotations() {
+        let session = AndroidLekhaniSession::new();
+
+        // Set education context
+        session.set_context("আমি প্রতিদিন অনেক বই পড়তে পছন্দ করি".to_string());
+
+        // 1. Direct homophone disambiguation
+        let result = session.disambiguate_homophone("পরা".to_string(), "পড়া".to_string());
+        assert!(result.is_some(), "Should disambiguate homophones with context");
+        let res = result.unwrap();
+        assert_eq!(res.winner, "পড়া", "Education context should favor পড়া over পরা");
+        assert_eq!(res.runner_up, "পরা");
+        assert!(res.confidence > 0.0);
+        assert_eq!(res.domain_hint.as_deref(), Some("পড়ালেখা"));
+
+        // 2. Candidate topic annotations
+        let candidates = vec!["পড়া".to_string(), "পরা".to_string(), "করছি".to_string()];
+        let annotations = session.annotate_candidate_topics(candidates);
+        assert_eq!(annotations.len(), 3);
+
+        let ann_pora_da = &annotations[0];
+        assert_eq!(ann_pora_da.candidate, "পড়া");
+        assert_eq!(ann_pora_da.homophone_partner.as_deref(), Some("পরা"));
+        assert_eq!(ann_pora_da.domain_hint.as_deref(), Some("পড়ালেখা"));
+        assert!(ann_pora_da.is_topic_winner);
+
+        let ann_pora_ra = &annotations[1];
+        assert_eq!(ann_pora_ra.candidate, "পরা");
+        assert_eq!(ann_pora_ra.homophone_partner.as_deref(), Some("পড়া"));
+        assert_eq!(ann_pora_ra.domain_hint.as_deref(), Some("পোশাক"));
+        assert!(!ann_pora_ra.is_topic_winner);
+
+        let ann_korchi = &annotations[2];
+        assert_eq!(ann_korchi.candidate, "করছি");
+        assert_eq!(ann_korchi.homophone_partner, None);
+        assert_eq!(ann_korchi.domain_hint, None);
+        assert!(!ann_korchi.is_topic_winner);
     }
 }
 
