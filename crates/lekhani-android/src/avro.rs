@@ -30,6 +30,14 @@ pub fn get_avro_parser() -> &'static lekhani_parser::LekhaniParser {
 /// Prioritizes candidate matching static common words or data-driven phonetic overrides.
 /// Places the preferred candidate at position 0 without reallocating when possible.
 pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec<String>) {
+    prioritize_common_or_override_candidate_with_context(input, candidates, false);
+}
+
+pub fn prioritize_common_or_override_candidate_with_context(
+    input: &str,
+    candidates: &mut Vec<String>,
+    has_context: bool,
+) {
     if candidates.len() <= 1 {
         return;
     }
@@ -75,7 +83,8 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
         || db.lookup_override(&lower).is_some()
         || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
 
-    let is_all_caps_acronym = is_all_caps && !has_override_word(&lower) && !is_bengali_dict_word;
+    let is_all_caps_acronym = is_common_tech_acronym(input)
+        || (is_all_caps && !has_override_word(&lower) && !is_bengali_dict_word);
     let can_promote_english_slot0 = is_all_caps_acronym
         || (is_recognized_english
             && !has_established_loanword
@@ -105,7 +114,7 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     }
 
     // 1. Check dynamic/bundled supervised phonetic overrides (phonetic_overrides.bin / json)
-    let is_title_case = input.len() >= 3
+    let is_title_case = input.len() >= 2
         && input.chars().next().is_some_and(|c| c.is_uppercase())
         && input
             .chars()
@@ -126,11 +135,17 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
     let mut inserted_idx = 0;
     if let Some(overrides) = override_opt {
         // Multi-homophone list (e.g. "pora" -> ["পরা", "পড়া"], "ki" -> ["কি", "কী"]):
-        // If the top candidate is ALREADY in the overrides list (e.g. ranked by context LM), keep it at position 0!
-        let has_top_in_overrides = if overrides.len() > 1 {
+        // If the top candidate is ALREADY in the overrides list with equal/higher score, keep it at position 0!
+        // Never keep a lower-scoring override or titlecase retroflex at position 0.
+        let top_override_score = overrides.first().map(|(_, s)| *s).unwrap_or(0.0);
+        let has_top_in_overrides = if !is_title_case && overrides.len() > 1 {
             if let Some(first_cand) = candidates.first() {
                 let first_nfc = crate::probaho::nfc_normalize(first_cand);
-                overrides.iter().any(|(w, _)| crate::probaho::nfc_normalize(w) == first_nfc)
+                if has_context {
+                    overrides.iter().any(|(w, _)| crate::probaho::nfc_normalize(w) == first_nfc)
+                } else {
+                    overrides.iter().any(|(w, s)| crate::probaho::nfc_normalize(w) == first_nfc && *s >= top_override_score)
+                }
             } else {
                 false
             }
@@ -163,6 +178,31 @@ pub fn prioritize_common_or_override_candidate(input: &str, candidates: &mut Vec
             }
         }
         return;
+    }
+
+    // 2. Sentence-initial titlecase & All-caps normalization when no explicit override exists (e.g. Din -> দিন vs ডিন, DESH -> দেশ vs ডেশ)
+    if is_title_case || (is_all_caps && !is_common_tech_acronym(input)) {
+        let def_lower_norm = crate::probaho::nfc_normalize(&def_lower_conv);
+        let def_norm = crate::probaho::nfc_normalize(&def_conv);
+        if !def_lower_norm.is_empty() && def_lower_norm != def_norm {
+            let lower_in_dict = db.is_exact_dictionary_word(&def_lower_norm);
+            let _def_in_dict = db.is_exact_dictionary_word(&def_norm);
+            let freq_lower = db.get_frequency(&def_lower_norm);
+            let freq_def = db.get_frequency(&def_norm);
+            if lower_in_dict || freq_lower >= freq_def {
+                if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == def_lower_norm) {
+                    let cand = candidates.remove(pos);
+                    candidates.insert(0, cand);
+                } else {
+                    candidates.insert(0, def_lower_norm);
+                }
+                if !candidates.iter().any(|c| crate::probaho::nfc_normalize(c) == def_norm) {
+                    let insert_idx = 1.min(candidates.len());
+                    candidates.insert(insert_idx, def_norm);
+                }
+                return;
+            }
+        }
     }
 
     // 3. Check phonetic variant equivalences (geminates, S-class, Sanskrit initial vowels, compound Reph)
@@ -269,6 +309,18 @@ pub fn are_phonetically_compatible(w1: &str, w2: &str) -> bool {
     }
     let is_dental_retroflex_d = |c| c == 'দ' || c == 'ড' || c == 'ধ' || c == 'ঢ';
     if is_dental_retroflex_d(c1) && is_dental_retroflex_d(c2) {
+        return true;
+    }
+    let is_palatal = |c| c == 'চ' || c == 'ছ';
+    if is_palatal(c1) && is_palatal(c2) {
+        return true;
+    }
+    let is_velar = |c| c == 'ক' || c == 'খ' || c == 'গ' || c == 'ঘ';
+    if is_velar(c1) && is_velar(c2) {
+        return true;
+    }
+    let is_labial = |c| c == 'প' || c == 'ফ' || c == 'ব' || c == 'ভ';
+    if is_labial(c1) && is_labial(c2) {
         return true;
     }
     let is_vowel = |c| "অআইঈউঊঋএঐওঔািীুূৃেৈোৌ".contains(c);
@@ -1115,8 +1167,14 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
         }
     }
 
+    if !has_explicit_avro_intent(ctx.input) && ctx.remembered_choice.is_none() {
+        prioritize_common_or_override_candidate_with_context(ctx.input, &mut raw_candidates, !ctx.context.is_empty());
+    }
+
     let primary = raw_candidates.first().cloned().unwrap_or_default();
     let primary_nfc = crate::probaho::nfc_normalize(&primary);
+
+    append_prefix_matches(ctx.input, &primary_nfc, &mut raw_candidates);
 
     let mut normalized_candidates = Vec::with_capacity(raw_candidates.len());
     for c in raw_candidates {
@@ -1388,7 +1446,7 @@ pub(crate) fn resolve_avro_candidates(
                 }
             }
         } else {
-            prioritize_common_or_override_candidate(raw, &mut candidates);
+            prioritize_common_or_override_candidate_with_context(raw, &mut candidates, !context_words.is_empty());
         }
 
         let lower = raw.to_lowercase();
@@ -1405,7 +1463,8 @@ pub(crate) fn resolve_avro_candidates(
             }
         }
 
-        if let Some(top) = candidates.first() {
+        if let Some(top_owned) = candidates.first().cloned() {
+            let top = top_owned.as_str();
             let db = crate::session::get_core_database();
             let has_override = db.lookup_override_inflected(raw).is_some()
                 || db.lookup_override_inflected(&lower).is_some();
@@ -1442,17 +1501,33 @@ pub(crate) fn resolve_avro_candidates(
                 && !is_explicit_common
                 && !has_override
                 && (db.is_exact_dictionary_word(&preedit) || is_geminate)
-                && (top.chars().count() > preedit.chars().count()
-                    || (!is_archaic_preedit
+                && (!are_phonetically_compatible(&preedit, top)
+                    || top.chars().count() > preedit.chars().count()
+                    || ((is_geminate || !is_archaic_preedit)
                         && !has_strong_context_preference
-                        && (!are_phonetically_compatible(&preedit, top)
-                            || !db.is_exact_dictionary_word(top)
+                        && (!db.is_exact_dictionary_word(top)
                             || (is_geminate && !top.contains('্'))
                             || (is_geminate && top.contains('য') && !preedit.contains('য')))))
             {
                 if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                     let cand = candidates.remove(pos);
                     candidates.insert(0, cand);
+                }
+            }
+
+            if !has_override {
+                let def_pure = get_avro_parser().convert(raw);
+                let def_nfc = crate::probaho::nfc_normalize(&def_pure);
+                if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == def_nfc) {
+                    let is_cch = raw.contains("cch") && def_nfc.contains("চ্ছ");
+                    let is_geminate_hijacked = is_geminate && top.contains('য') && !def_nfc.contains('য');
+                    if (!are_phonetically_compatible(&def_nfc, top) && db.is_exact_dictionary_word(&def_nfc))
+                        || is_cch
+                        || is_geminate_hijacked
+                    {
+                        let cand = candidates.remove(pos);
+                        candidates.insert(0, cand);
+                    }
                 }
             }
         }
