@@ -95,17 +95,25 @@ object HomophoneAnnotator {
         primaryIdx: Int = 0,
         verbatimIdx: Int = -1,
         verbParadigmChecker: ((String) -> Boolean)? = null,
+        topicAnnotations: List<com.lekhani.android.ffi.CandidateTopicAnnotation>? = null,
     ): List<CandidateItem> {
+        val topicMap = topicAnnotations?.associateBy { it.candidate }
         return candidates.mapIndexed { i, text ->
             val emoji = com.lekhani.android.data.emoji.EmojiData.isEmoji(text)
             val isVerbatim = (i == verbatimIdx && !emoji)
+            val topicAnn = topicMap?.get(text)
+            val partner = if (emoji || isVerbatim) null else (topicAnn?.homophonePartner ?: pairs[text])
+            val domain = if (emoji || isVerbatim) null else topicAnn?.domainHint
+            val isWinner = if (emoji || isVerbatim) false else (topicAnn?.isTopicWinner == true)
             CandidateItem(
                 text = text,
                 isPrimary = i == primaryIdx && !emoji,
-                homophones = if (emoji || isVerbatim) null else pairs[text],
+                homophones = partner,
                 isEmoji = emoji,
                 isVerbatimPreview = isVerbatim,
                 hasVerbParadigm = if (emoji || isVerbatim) false else (verbParadigmChecker?.invoke(text) == true),
+                domainHint = domain,
+                isTopicWinner = isWinner,
             )
         }
     }

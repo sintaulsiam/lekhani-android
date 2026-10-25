@@ -34,6 +34,7 @@ object CandidateStripCoordinator {
         val isBlacklisted: (String) -> Boolean,
         val verbParadigmChecker: (String) -> Boolean,
         val lpsChips: List<com.lekhani.android.ffi.LpsLetterChipItem> = emptyList(),
+        val topicAnnotator: ((List<String>) -> List<com.lekhani.android.ffi.CandidateTopicAnnotation>)? = null,
     )
 
     fun resolveStripState(params: Params): CandidateStripState {
@@ -121,11 +122,22 @@ object CandidateStripCoordinator {
             return if (params.undo != null) CandidateStripState.Undo(params.undo) else CandidateStripState.Empty
         }
 
+        val topicAnnotations = if (params.topicAnnotator != null && filtered.isNotEmpty() && !isEngLayout) {
+            try {
+                params.topicAnnotator.invoke(filtered)
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+
         val items = HomophoneAnnotator.annotate(
             filtered,
             primaryIdx = primaryIndex,
             verbatimIdx = verbatimIndex,
-            verbParadigmChecker = params.verbParadigmChecker
+            verbParadigmChecker = params.verbParadigmChecker,
+            topicAnnotations = topicAnnotations,
         )
 
         return CandidateStripState.Candidates(

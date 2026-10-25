@@ -1086,7 +1086,12 @@ private fun CandidatePill(
             // Homophone disambiguation badge
             if (item.homophones != null) {
                 Spacer(Modifier.width(4.dp))
-                HomophoneBadge(alternate = item.homophones, theme = theme)
+                HomophoneBadge(
+                    alternate = item.homophones,
+                    domainHint = item.domainHint,
+                    isTopicWinner = item.isTopicWinner,
+                    theme = theme,
+                )
             }
             // Verb honorific paradigm flick indicator
             if (item.hasVerbParadigm) {
@@ -1233,9 +1238,23 @@ private fun RetroCorrectionPill(
  * Example: "পড়া" shows a badge "≠ পরা" to help the user pick the right spelling.
  */
 @Composable
-private fun HomophoneBadge(alternate: String, theme: KeyboardTheme) {
-    val badgeBg = Color(theme.keyShiftColor)
+private fun HomophoneBadge(
+    alternate: String,
+    domainHint: String?,
+    isTopicWinner: Boolean,
+    theme: KeyboardTheme,
+) {
+    val badgeBg = if (isTopicWinner) {
+        Color(theme.accentColor).copy(alpha = 0.20f)
+    } else {
+        Color(theme.keyShiftColor)
+    }
     val badgeText = Color(theme.accentColor)
+    val text = if (!domainHint.isNullOrBlank()) {
+        "≠ $alternate • $domainHint"
+    } else {
+        "≠ $alternate"
+    }
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(BadgeCorner))
@@ -1243,10 +1262,10 @@ private fun HomophoneBadge(alternate: String, theme: KeyboardTheme) {
             .padding(horizontal = 6.dp, vertical = 1.dp),
     ) {
         Text(
-            text = "≠ $alternate",
+            text = text,
             fontSize = 9.sp,
             color = badgeText,
-            fontWeight = FontWeight.Medium,
+            fontWeight = if (isTopicWinner) FontWeight.Bold else FontWeight.Medium,
             maxLines = 1,
         )
     }

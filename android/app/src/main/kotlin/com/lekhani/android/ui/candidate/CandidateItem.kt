@@ -22,6 +22,8 @@ data class CandidateItem(
     val isEmoji: Boolean = false,
     val isVerbatimPreview: Boolean = false,
     val hasVerbParadigm: Boolean = false,
+    val domainHint: String? = null,
+    val isTopicWinner: Boolean = false,
 )
 
 /**

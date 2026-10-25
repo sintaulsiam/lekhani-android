@@ -854,6 +854,10 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -883,6 +887,8 @@ internal interface UniffiLib : Library {
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_add_user_word(`ptr`: Pointer,`word`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_annotate_candidate_topics(`ptr`: Pointer,`candidates`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_apply_retro_correction(`ptr`: Pointer,`correction`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_classify_candidates(`ptr`: Pointer,`input`: RustBuffer.ByValue,`candidates`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
@@ -899,6 +905,8 @@ internal interface UniffiLib : Library {
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_delete_user_word(`ptr`: Pointer,`word`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_disambiguate_homophone(`ptr`: Pointer,`candA`: RustBuffer.ByValue,`candB`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_exact_form(`ptr`: Pointer,`text`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_export_dictionary_json(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -1143,6 +1151,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_annotate_candidate_topics(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_apply_retro_correction(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_classify_candidates(
@@ -1158,6 +1168,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_autocorrect_rule(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_user_word(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_disambiguate_homophone(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_exact_form(
     ): Short
@@ -1304,6 +1316,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_add_user_word() != 58732.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_annotate_candidate_topics() != 14455.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_apply_retro_correction() != 46802.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1326,6 +1341,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_delete_user_word() != 53550.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_disambiguate_homophone() != 50047.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_exact_form() != 22974.toShort()) {
@@ -1900,6 +1918,12 @@ public interface AndroidLekhaniSessionInterface {
     fun `addUserWord`(`word`: kotlin.String): kotlin.Boolean
     
     /**
+     * Evaluates the candidate list against the active semantic topic vector.
+     * Detects homophones, determines topic-grounded winners, and attaches domain hints.
+     */
+    fun `annotateCandidateTopics`(`candidates`: List<kotlin.String>): List<CandidateTopicAnnotation>
+    
+    /**
      * Atomically applies a retro-correction to the active editor.
      */
     fun `applyRetroCorrection`(`correction`: RetroCorrection): TypingResult
@@ -1940,6 +1964,12 @@ public interface AndroidLekhaniSessionInterface {
      * Delete a word from the user dictionary and memory.
      */
     fun `deleteUserWord`(`word`: kotlin.String): kotlin.Boolean
+    
+    /**
+     * Disambiguates between two competing phonetic homophones based on surrounding conversational topic.
+     * Returns the winning candidate, confidence delta, and optional semantic domain hint.
+     */
+    fun `disambiguateHomophone`(`candA`: kotlin.String, `candB`: kotlin.String): TopicDisambiguationResult?
     
     /**
      * Generates canonical exact LPS Latin form for given Bengali text.
@@ -2354,6 +2384,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Evaluates the candidate list against the active semantic topic vector.
+     * Detects homophones, determines topic-grounded winners, and attaches domain hints.
+     */override fun `annotateCandidateTopics`(`candidates`: List<kotlin.String>): List<CandidateTopicAnnotation> {
+            return FfiConverterSequenceTypeCandidateTopicAnnotation.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_annotate_candidate_topics(
+        it, FfiConverterSequenceString.lower(`candidates`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Atomically applies a retro-correction to the active editor.
      */
     @Throws(LekhaniException::class)override fun `applyRetroCorrection`(`correction`: RetroCorrection): TypingResult {
@@ -2475,6 +2521,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_delete_user_word(
         it, FfiConverterString.lower(`word`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Disambiguates between two competing phonetic homophones based on surrounding conversational topic.
+     * Returns the winning candidate, confidence delta, and optional semantic domain hint.
+     */override fun `disambiguateHomophone`(`candA`: kotlin.String, `candB`: kotlin.String): TopicDisambiguationResult? {
+            return FfiConverterOptionalTypeTopicDisambiguationResult.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_disambiguate_homophone(
+        it, FfiConverterString.lower(`candA`),FfiConverterString.lower(`candB`),_status)
 }
     }
     )
@@ -3732,6 +3794,61 @@ public object FfiConverterTypeCandidateItem: FfiConverterRustBuffer<CandidateIte
 
 
 /**
+ * Dynamic semantic topic annotation for a candidate in the candidate strip.
+ */
+data class CandidateTopicAnnotation (
+    /**
+     * The candidate word
+     */
+    var `candidate`: kotlin.String, 
+    /**
+     * Contrasting homophone partner word (e.g. "পরা" for candidate "পড়া")
+     */
+    var `homophonePartner`: kotlin.String?, 
+    /**
+     * Inferred semantic domain hint (e.g. "পড়ালেখা", "পোশাক", "আদালত")
+     */
+    var `domainHint`: kotlin.String?, 
+    /**
+     * True if this candidate is the disambiguated winner under active topic context
+     */
+    var `isTopicWinner`: kotlin.Boolean
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeCandidateTopicAnnotation: FfiConverterRustBuffer<CandidateTopicAnnotation> {
+    override fun read(buf: ByteBuffer): CandidateTopicAnnotation {
+        return CandidateTopicAnnotation(
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: CandidateTopicAnnotation) = (
+            FfiConverterString.allocationSize(value.`candidate`) +
+            FfiConverterOptionalString.allocationSize(value.`homophonePartner`) +
+            FfiConverterOptionalString.allocationSize(value.`domainHint`) +
+            FfiConverterBoolean.allocationSize(value.`isTopicWinner`)
+    )
+
+    override fun write(value: CandidateTopicAnnotation, buf: ByteBuffer) {
+            FfiConverterString.write(value.`candidate`, buf)
+            FfiConverterOptionalString.write(value.`homophonePartner`, buf)
+            FfiConverterOptionalString.write(value.`domainHint`, buf)
+            FfiConverterBoolean.write(value.`isTopicWinner`, buf)
+    }
+}
+
+
+
+/**
  * Input geometry configuration exported via UniFFI
  */
 data class KeyGeometryConfig (
@@ -3924,6 +4041,61 @@ public object FfiConverterTypeSpatialKeyCandidate: FfiConverterRustBuffer<Spatia
             FfiConverterString.write(value.`key`, buf)
             FfiConverterFloat.write(value.`logProb`, buf)
             FfiConverterFloat.write(value.`distanceSquared`, buf)
+    }
+}
+
+
+
+/**
+ * Disambiguation result comparing two competing homophones under running context topic.
+ */
+data class TopicDisambiguationResult (
+    /**
+     * The winning candidate word with highest semantic topic alignment
+     */
+    var `winner`: kotlin.String, 
+    /**
+     * The runner-up competing candidate word
+     */
+    var `runnerUp`: kotlin.String, 
+    /**
+     * Confidence margin between winner and runner-up in [-1.0, 1.0]
+     */
+    var `confidence`: kotlin.Float, 
+    /**
+     * Semantic domain hint in Bengali (e.g. "পড়ালেখা", "পোশাক", "আদালত", "নদী/তীর")
+     */
+    var `domainHint`: kotlin.String?
+) {
+    
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeTopicDisambiguationResult: FfiConverterRustBuffer<TopicDisambiguationResult> {
+    override fun read(buf: ByteBuffer): TopicDisambiguationResult {
+        return TopicDisambiguationResult(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterFloat.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: TopicDisambiguationResult) = (
+            FfiConverterString.allocationSize(value.`winner`) +
+            FfiConverterString.allocationSize(value.`runnerUp`) +
+            FfiConverterFloat.allocationSize(value.`confidence`) +
+            FfiConverterOptionalString.allocationSize(value.`domainHint`)
+    )
+
+    override fun write(value: TopicDisambiguationResult, buf: ByteBuffer) {
+            FfiConverterString.write(value.`winner`, buf)
+            FfiConverterString.write(value.`runnerUp`, buf)
+            FfiConverterFloat.write(value.`confidence`, buf)
+            FfiConverterOptionalString.write(value.`domainHint`, buf)
     }
 }
 
@@ -4289,6 +4461,38 @@ public object FfiConverterOptionalTypeRetroCorrection: FfiConverterRustBuffer<Re
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeTopicDisambiguationResult: FfiConverterRustBuffer<TopicDisambiguationResult?> {
+    override fun read(buf: ByteBuffer): TopicDisambiguationResult? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeTopicDisambiguationResult.read(buf)
+    }
+
+    override fun allocationSize(value: TopicDisambiguationResult?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeTopicDisambiguationResult.allocationSize(value)
+        }
+    }
+
+    override fun write(value: TopicDisambiguationResult?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeTopicDisambiguationResult.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceShort: FfiConverterRustBuffer<List<kotlin.Short>> {
     override fun read(buf: ByteBuffer): List<kotlin.Short> {
         val len = buf.getInt()
@@ -4363,6 +4567,34 @@ public object FfiConverterSequenceTypeCandidateItem: FfiConverterRustBuffer<List
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeCandidateItem.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeCandidateTopicAnnotation: FfiConverterRustBuffer<List<CandidateTopicAnnotation>> {
+    override fun read(buf: ByteBuffer): List<CandidateTopicAnnotation> {
+        val len = buf.getInt()
+        return List<CandidateTopicAnnotation>(len) {
+            FfiConverterTypeCandidateTopicAnnotation.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<CandidateTopicAnnotation>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeCandidateTopicAnnotation.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<CandidateTopicAnnotation>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeCandidateTopicAnnotation.write(it, buf)
         }
     }
 }

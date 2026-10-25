@@ -84,4 +84,40 @@ class HomophoneAnnotatorTest {
         assertFalse(result[2].isVerbatimPreview)
         assertFalse(result[2].isPrimary)
     }
+
+    @Test
+    fun `topic annotations correctly augment candidate items with domain hints and winner status`() {
+        val candidates = listOf("পড়া", "পরা", "কলম")
+        val topicAnnotations = listOf(
+            com.lekhani.android.ffi.CandidateTopicAnnotation(
+                candidate = "পড়া",
+                homophonePartner = "পরা",
+                domainHint = "পড়ালেখা",
+                isTopicWinner = true,
+            ),
+            com.lekhani.android.ffi.CandidateTopicAnnotation(
+                candidate = "পরা",
+                homophonePartner = "পড়া",
+                domainHint = "পোশাক",
+                isTopicWinner = false,
+            ),
+        )
+
+        val result = HomophoneAnnotator.annotate(
+            candidates,
+            topicAnnotations = topicAnnotations
+        )
+
+        assertEquals("পরা", result[0].homophones)
+        assertEquals("পড়ালেখা", result[0].domainHint)
+        assertTrue(result[0].isTopicWinner)
+
+        assertEquals("পড়া", result[1].homophones)
+        assertEquals("পোশাক", result[1].domainHint)
+        assertFalse(result[1].isTopicWinner)
+
+        assertNull(result[2].homophones)
+        assertNull(result[2].domainHint)
+        assertFalse(result[2].isTopicWinner)
+    }
 }

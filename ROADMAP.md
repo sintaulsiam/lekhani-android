@@ -371,7 +371,11 @@
   - Seamlessly queries native `session.get_verb_honorific_paradigm(verb)` producing 3-tier sociolinguistic agreement variations.
   - Surfaces Material 3 Expressive `VerbParadigmStrip` floating chips (`Formal/আপনি`, `Familiar/তুমি`, `Intimate/তুই`) for 1-tap agreement disambiguation with zero emojis in UI chrome.
   - Instant back navigation and zero-friction commit integration.
-- [ ] **Phase 4: Semantic Topic Vector Disambiguation** (32-D dense embeddings).
+- [x] **Phase 4: Semantic Topic Vector Disambiguation** (32-D dense embeddings):
+  - UniFFI exposure of `annotate_candidate_topics` and `disambiguate_homophone` with domain hints and winner confidence in native `AndroidLekhaniSession`.
+  - Integration with `CandidateStripCoordinator` and `HomophoneAnnotator` augmenting candidate pills with contextual domain hints (`≠ পরা • পড়ালেখা`, `পোশাক`, `আদালত`, `সময়`).
+  - Material 3 candidate pill styling highlighting context-concordant topic winners with accent tinting.
+  - Full JVM unit test coverage in `HomophoneAnnotatorTest`.
 - [ ] **Phase 5: Continuous Adaptive Thumb Morphology Calibration** (Online EMA updating key centroids).
 - [ ] **Phase 6: On-Device Bengali Glide / Swipe Trajectory Decoder Prototype**.
 

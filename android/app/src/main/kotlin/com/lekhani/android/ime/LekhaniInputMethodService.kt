@@ -3367,6 +3367,13 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
             },
             lpsChips = lpsChips,
+            topicAnnotator = { candidates ->
+                try {
+                    session.annotateCandidateTopics(candidates)
+                } catch (_: Exception) {
+                    emptyList()
+                }
+            },
         )
 
         val newState = CandidateStripCoordinator.resolveStripState(params)
