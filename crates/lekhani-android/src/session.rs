@@ -1533,24 +1533,37 @@ impl AndroidLekhaniSession {
                     });
                 };
                 let db = get_core_database();
-                let entries = db.trie.find_prefix_entries(start_key, 250);
+                let prefix_2 = if keys.len() >= 2 {
+                    format!("{}{}", keys[0], keys[1])
+                } else {
+                    start_key.clone()
+                };
+                let mut entries = db.trie.find_prefix_entries(&prefix_2, 300);
+                if entries.is_empty() {
+                    entries = db.trie.find_prefix_entries(start_key, 1500);
+                }
+                let path_chars: Vec<char> = keys
+                    .iter()
+                    .filter_map(|k| k.chars().next())
+                    .collect();
+
                 let mut scored: Vec<(String, i64)> = Vec::new();
                 for (word, freq) in entries {
                     if !word.ends_with(end_key.as_str()) {
                         continue;
                     }
-                    let word_graphemes: Vec<&str> = word.graphemes(true).collect();
+                    let word_chars: Vec<char> = word.chars().collect();
                     let mut key_idx = 0;
                     let mut matched = true;
-                    let mut prev = "";
-                    for g in word_graphemes {
-                        if g == prev {
+                    let mut prev = '\0';
+                    for &c in &word_chars {
+                        if c == prev {
                             continue;
                         }
-                        prev = g;
+                        prev = c;
                         let mut found = false;
-                        while key_idx < keys.len() {
-                            if keys[key_idx] == g {
+                        while key_idx < path_chars.len() {
+                            if path_chars[key_idx] == c {
                                 key_idx += 1;
                                 found = true;
                                 break;
@@ -1563,7 +1576,7 @@ impl AndroidLekhaniSession {
                         }
                     }
                     if matched {
-                        let len_diff = (word.len() as isize - keys.len() as isize).abs();
+                        let len_diff = (word.chars().count() as isize - path_chars.len() as isize).abs();
                         scored.push((word.to_string(), freq as i64 - len_diff as i64 * 30));
                     }
                 }
@@ -3006,12 +3019,29 @@ mod tests {
     #[test]
     fn test_glide_decoding() {
         let session = AndroidLekhaniSession::new();
+        // 1. Avro Phonetic Glide
         session.set_layout(LekhaniLayoutType::Avro);
         let res = session
             .decode_glide(vec!["a".into(), "m".into(), "i".into()])
             .unwrap();
         assert_eq!(res.preedit, "আমি");
         assert_eq!(res.commit_text, Some("আমি ".into()));
+
+        // 2. English QWERTY Glide
+        session.set_layout(LekhaniLayoutType::English);
+        let res_en = session
+            .decode_glide(vec!["t".into(), "h".into(), "e".into()])
+            .unwrap();
+        assert_eq!(res_en.preedit, "the");
+        assert_eq!(res_en.commit_text, Some("the ".into()));
+
+        // 3. Fixed Bengali (Probaho) Glide
+        session.set_layout(LekhaniLayoutType::Probaho);
+        let res_bn = session
+            .decode_glide(vec!["আ".into(), "ম".into(), "া".into(), "র".into()])
+            .unwrap();
+        assert_eq!(res_bn.preedit, "আমার");
+        assert_eq!(res_bn.commit_text, Some("আমার ".into()));
     }
 
     #[test]

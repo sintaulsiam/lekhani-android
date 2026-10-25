@@ -381,7 +381,10 @@
   - Native UniFFI export (`export_spatial_calibration`) and import (`import_spatial_calibration`) for lightweight JSON serialization.
   - Device Protected Storage (`DPS`) persistence via `KeyboardPreferences.spatialCalibrationJson`, automatically restoring personal touch calibration on service startup and saving on input finish / service destroy.
   - Full unit test coverage in `spatial.rs` (`test_calibration_persists_across_geometry_update`, `test_calibration_json_export_import`).
-- [ ] **Phase 6: On-Device Bengali Glide / Swipe Trajectory Decoder Prototype**.
+- [x] **Phase 6: On-Device Bengali Glide / Swipe Trajectory Decoder Prototype**:
+  - Re-anchored fixed Bengali layout (Probaho, Probhat, National, Gboard) glide decoding to codepoint-decomposed grapheme paths matching raw touched letter keys.
+  - Multi-tier trie prefix queries with 2-key compound prefix matching and 1,500-entry fallback preventing alphabetical search cutoff.
+  - Added multi-layout unit test suite (`test_glide_decoding`) verifying Avro (`["a", "m", "i"]` $\to$ `আমি`), English (`["t", "h", "e"]` $\to$ `the`), and Probaho (`["আ", "ম", "া", "র"]` $\to$ `আমার`).
 
 
 
