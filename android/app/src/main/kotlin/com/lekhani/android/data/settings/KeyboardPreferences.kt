@@ -504,6 +504,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = prefs.getString(KEY_VAULT_TOOLS, DEFAULT_VAULT) ?: DEFAULT_VAULT
         set(value) = prefs.edit().putString(KEY_VAULT_TOOLS, value).apply()
 
+    var spatialCalibrationJson: String?
+        get() = prefs.getString(KEY_SPATIAL_CALIBRATION, null)
+        set(value) = prefs.edit().putString(KEY_SPATIAL_CALIBRATION, value).apply()
+
     fun getActiveToolbarTools(): List<ToolbarTool> {
         val raw = toolbarTools
         return raw.split(",")
@@ -719,6 +723,7 @@ class KeyboardPreferences private constructor(context: Context) {
         const val KEY_SWIPE_UP_FLICK = "swipe_up_flick"
         const val KEY_LONG_PRESS_CLIPBOARD_SHORTCUTS = "long_press_clipboard_shortcuts"
         const val KEY_CLIPBOARD_RETENTION_MINUTES = "clipboard_retention_minutes"
+        const val KEY_SPATIAL_CALIBRATION = "pref_spatial_calibration_json"
 
         const val KEY_CANDIDATE_STRIP_ENABLED = "candidate_strip_enabled"
         const val KEY_AUTOCORRECT_ENABLED = "autocorrect_enabled"

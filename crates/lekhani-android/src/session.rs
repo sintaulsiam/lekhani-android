@@ -1194,6 +1194,23 @@ impl AndroidLekhaniSession {
         }
     }
 
+    /// Exports learned touch calibration offsets to a compact JSON string for DPS persistence.
+    pub fn export_spatial_calibration(&self) -> String {
+        self.state
+            .lock()
+            .map(|s| s.spatial_model.export_calibration_json())
+            .unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// Imports personal touch calibration offsets from JSON and restores active key offsets.
+    pub fn import_spatial_calibration(&self, json_str: String) -> bool {
+        if let Ok(mut state) = self.state.lock() {
+            state.spatial_model.import_calibration_json(&json_str)
+        } else {
+            false
+        }
+    }
+
     /// Process a typed character or key token with physical touch coordinates (x, y).
     /// Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
     /// on key boundaries and dynamically calibrates personal touch centroids.

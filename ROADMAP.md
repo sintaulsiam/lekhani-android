@@ -376,7 +376,11 @@
   - Integration with `CandidateStripCoordinator` and `HomophoneAnnotator` augmenting candidate pills with contextual domain hints (`≠ পরা • পড়ালেখা`, `পোশাক`, `আদালত`, `সময়`).
   - Material 3 candidate pill styling highlighting context-concordant topic winners with accent tinting.
   - Full JVM unit test coverage in `HomophoneAnnotatorTest`.
-- [ ] **Phase 5: Continuous Adaptive Thumb Morphology Calibration** (Online EMA updating key centroids).
+- [x] **Phase 5: Continuous Adaptive Thumb Morphology Calibration** (Online EMA updating key centroids):
+  - Invariant normalized relative offsets (`dx_ratio`, `dy_ratio`) preserved across dynamic keyboard layout and orientation geometry updates.
+  - Native UniFFI export (`export_spatial_calibration`) and import (`import_spatial_calibration`) for lightweight JSON serialization.
+  - Device Protected Storage (`DPS`) persistence via `KeyboardPreferences.spatialCalibrationJson`, automatically restoring personal touch calibration on service startup and saving on input finish / service destroy.
+  - Full unit test coverage in `spatial.rs` (`test_calibration_persists_across_geometry_update`, `test_calibration_json_export_import`).
 - [ ] **Phase 6: On-Device Bengali Glide / Swipe Trajectory Decoder Prototype**.
 
 

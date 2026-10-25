@@ -9,6 +9,7 @@
 //! when keyboard geometry changes (e.g. `onSizeChanged`), guaranteeing zero
 //! heap allocations in the touch loop hot path.
 
+use std::collections::HashMap;
 use std::f32::consts::PI;
 
 /// Input geometry configuration exported via UniFFI
@@ -92,6 +93,25 @@ impl SpatialKey {
         self.center_y = new_cy.clamp(self.visual_center_y - max_drift_y, self.visual_center_y + max_drift_y);
     }
 
+    /// Returns learned relative offset ratios (dx_ratio, dy_ratio) normalized to key dimensions.
+    #[inline]
+    pub fn get_relative_offsets(&self) -> (f32, f32) {
+        let dx_ratio = (self.center_x - self.visual_center_x) / self.width;
+        let dy_ratio = (self.center_y - self.visual_center_y) / self.height;
+        (dx_ratio, dy_ratio)
+    }
+
+    /// Applies previously calibrated relative offset ratios to this key geometry.
+    #[inline]
+    pub fn apply_relative_offsets(&mut self, dx_ratio: f32, dy_ratio: f32) {
+        let max_drift_x = self.width * 0.20;
+        let max_drift_y = self.height * 0.20;
+        let target_cx = self.visual_center_x + dx_ratio * self.width;
+        let target_cy = self.visual_center_y + dy_ratio * self.height;
+        self.center_x = target_cx.clamp(self.visual_center_x - max_drift_x, self.visual_center_x + max_drift_x);
+        self.center_y = target_cy.clamp(self.visual_center_y - max_drift_y, self.visual_center_y + max_drift_y);
+    }
+
     /// Compute the spatial log-probability `ln P(key | x, y)`.
     /// Zero heap allocations.
     #[inline]
@@ -120,27 +140,62 @@ pub struct SpatialKeyCandidate {
 #[derive(Debug, Clone, Default)]
 pub struct SpatialTouchModel {
     keys: Vec<SpatialKey>,
+    learned_offsets: HashMap<String, (f32, f32)>,
 }
 
 impl SpatialTouchModel {
     pub fn new() -> Self {
         Self {
             keys: Vec::with_capacity(40),
+            learned_offsets: HashMap::with_capacity(40),
         }
     }
 
-    /// Update pre-computed key geometries on keyboard dimension / layout change.
+    /// Update pre-computed key geometries on keyboard dimension / layout change,
+    /// while continuously preserving personal touch calibration offsets.
     pub fn update_geometry(&mut self, configs: Vec<KeyGeometryConfig>) {
+        // Harvest current relative offsets before re-allocating
+        for key in &self.keys {
+            self.learned_offsets.insert(key.label.clone(), key.get_relative_offsets());
+        }
+
         self.keys.clear();
         self.keys.reserve(configs.len());
         for cfg in configs {
-            self.keys.push(SpatialKey::new(
-                cfg.label,
+            let mut key = SpatialKey::new(
+                cfg.label.clone(),
                 cfg.center_x,
                 cfg.center_y,
                 cfg.width,
                 cfg.height,
-            ));
+            );
+            if let Some(&(dx, dy)) = self.learned_offsets.get(&cfg.label) {
+                key.apply_relative_offsets(dx, dy);
+            }
+            self.keys.push(key);
+        }
+    }
+
+    /// Exports learned personal touch calibration offsets to a compact JSON string.
+    pub fn export_calibration_json(&self) -> String {
+        serde_json::to_string(&self.learned_offsets).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// Imports personal touch calibration offsets from JSON and updates active keys.
+    pub fn import_calibration_json(&mut self, json_str: &str) -> bool {
+        if let Ok(map) = serde_json::from_str::<HashMap<String, (f32, f32)>>(json_str) {
+            for (label, (dx, dy)) in &map {
+                self.learned_offsets.insert(label.clone(), (*dx, *dy));
+                for key in &mut self.keys {
+                    if key.label == *label {
+                        key.apply_relative_offsets(*dx, *dy);
+                        break;
+                    }
+                }
+            }
+            true
+        } else {
+            false
         }
     }
 
@@ -162,6 +217,7 @@ impl SpatialTouchModel {
         for key in &mut self.keys {
             if key.label == label {
                 key.calibrate_touch(touch_x, touch_y);
+                self.learned_offsets.insert(label.to_string(), key.get_relative_offsets());
                 break;
             }
         }
@@ -306,5 +362,76 @@ mod tests {
             calibrated_prob > initial_prob_offset,
             "Calibrated touch center must increase probability for typist's consistent touch offset"
         );
+    }
+
+    #[test]
+    fn test_calibration_persists_across_geometry_update() {
+        let mut model = SpatialTouchModel::new();
+        model.update_geometry(vec![KeyGeometryConfig {
+            label: "m".to_string(),
+            center_x: 200.0,
+            center_y: 300.0,
+            width: 50.0,
+            height: 60.0,
+        }]);
+
+        // Calibrate 'm' with systematic touch offset at x = 208, y = 310
+        for _ in 0..15 {
+            model.record_touch_sample("m", 208.0, 310.0);
+        }
+
+        let prob_before = model.log_prob_for_key("m", 208.0, 310.0);
+
+        // Simulate screen rotation or keyboard resizing with new dimensions
+        model.update_geometry(vec![KeyGeometryConfig {
+            label: "m".to_string(),
+            center_x: 200.0,
+            center_y: 300.0,
+            width: 50.0,
+            height: 60.0,
+        }]);
+
+        let prob_after = model.log_prob_for_key("m", 208.0, 310.0);
+        assert!(
+            (prob_before - prob_after).abs() < 1e-4,
+            "Calibrated offsets must persist across geometry updates (before: {}, after: {})",
+            prob_before,
+            prob_after
+        );
+    }
+
+    #[test]
+    fn test_calibration_json_export_import() {
+        let mut model = SpatialTouchModel::new();
+        model.update_geometry(vec![KeyGeometryConfig {
+            label: "space".to_string(),
+            center_x: 300.0,
+            center_y: 500.0,
+            width: 200.0,
+            height: 50.0,
+        }]);
+
+        for _ in 0..10 {
+            model.record_touch_sample("space", 315.0, 508.0);
+        }
+
+        let json = model.export_calibration_json();
+        assert!(json.contains("space"), "Exported JSON must contain calibrated key 'space'");
+
+        let mut fresh_model = SpatialTouchModel::new();
+        fresh_model.update_geometry(vec![KeyGeometryConfig {
+            label: "space".to_string(),
+            center_x: 300.0,
+            center_y: 500.0,
+            width: 200.0,
+            height: 50.0,
+        }]);
+
+        let success = fresh_model.import_calibration_json(&json);
+        assert!(success, "JSON import should succeed");
+
+        let p1 = model.log_prob_for_key("space", 315.0, 508.0);
+        let p2 = fresh_model.log_prob_for_key("space", 315.0, 508.0);
+        assert!((p1 - p2).abs() < 1e-4, "Imported calibration must match exported calibration");
     }
 }

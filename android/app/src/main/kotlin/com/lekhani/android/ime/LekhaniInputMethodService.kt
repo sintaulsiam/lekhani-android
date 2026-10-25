@@ -372,6 +372,13 @@ class LekhaniInputMethodService : InputMethodService() {
                     Log.i(TAG, "User autocorrect rules loaded ($ok): ${acFile.absolutePath}")
                 }
                 importSystemUserDictionaryIfNeeded()
+
+                keyboardPrefs.spatialCalibrationJson?.let { json ->
+                    if (json.isNotBlank() && json != "{}") {
+                        val ok = session.importSpatialCalibration(json)
+                        Log.i(TAG, "Spatial touch calibration restored ($ok)")
+                    }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading user learned dictionary or autocorrect: ${e.message}")
             }
@@ -454,6 +461,12 @@ class LekhaniInputMethodService : InputMethodService() {
         CoroutineScope(Dispatchers.IO).launch {
             persistUserLearnedInternal(file)
         }
+        try {
+            val spatialJson = session.exportSpatialCalibration()
+            if (spatialJson.isNotBlank() && spatialJson != "{}") {
+                keyboardPrefs.spatialCalibrationJson = spatialJson
+            }
+        } catch (_: Exception) {}
         imeLifecycleOwner.onDestroy()
         audioManager.release()
         feedbackManager.release()
@@ -1923,6 +1936,12 @@ class LekhaniInputMethodService : InputMethodService() {
         refreshContextJob?.cancel()
         refreshContextJob = null
         persistUserLearnedAsync()
+        try {
+            val spatialJson = session.exportSpatialCalibration()
+            if (spatialJson.isNotBlank() && spatialJson != "{}") {
+                keyboardPrefs.spatialCalibrationJson = spatialJson
+            }
+        } catch (_: Exception) {}
     }
 
 

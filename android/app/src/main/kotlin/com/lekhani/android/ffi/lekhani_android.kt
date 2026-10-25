@@ -858,6 +858,10 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -911,6 +915,8 @@ internal interface UniffiLib : Library {
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_export_dictionary_json(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_export_spatial_calibration(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_autocorrect_rules(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_get_candidate_items(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -939,6 +945,8 @@ internal interface UniffiLib : Library {
     ): Int
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_import_raw_words(`ptr`: Pointer,`words`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_import_spatial_calibration(`ptr`: Pointer,`jsonStr`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_auto_learn_enabled(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_is_bilingual_clitic_enabled(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -1175,6 +1183,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_export_spatial_calibration(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_autocorrect_rules(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_get_candidate_items(
@@ -1202,6 +1212,8 @@ internal interface UniffiLib : Library {
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_dictionary_json(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_raw_words(
+    ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_import_spatial_calibration(
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_is_auto_learn_enabled(
     ): Short
@@ -1352,6 +1364,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_export_dictionary_json() != 62876.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_export_spatial_calibration() != 17988.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_get_autocorrect_rules() != 32480.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1392,6 +1407,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_import_raw_words() != 4384.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_import_spatial_calibration() != 29905.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_is_auto_learn_enabled() != 12179.toShort()) {
@@ -1982,6 +2000,11 @@ public interface AndroidLekhaniSessionInterface {
     fun `exportDictionaryJson`(): kotlin.String
     
     /**
+     * Exports learned touch calibration offsets to a compact JSON string for DPS persistence.
+     */
+    fun `exportSpatialCalibration`(): kotlin.String
+    
+    /**
      * Retrieve all custom user autocorrect rules as a key-value map.
      */
     fun `getAutocorrectRules`(): Map<kotlin.String, kotlin.String>
@@ -2058,6 +2081,11 @@ public interface AndroidLekhaniSessionInterface {
      * Import a list of raw words (from Ridmik Keyboard backup, Avro .txt, or word list).
      */
     fun `importRawWords`(`words`: List<kotlin.String>): kotlin.UInt
+    
+    /**
+     * Imports personal touch calibration offsets from JSON and restores active key offsets.
+     */
+    fun `importSpatialCalibration`(`jsonStr`: kotlin.String): kotlin.Boolean
     
     /**
      * Returns whether autonomous dictionary learning is enabled.
@@ -2576,6 +2604,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 
     
     /**
+     * Exports learned touch calibration offsets to a compact JSON string for DPS persistence.
+     */override fun `exportSpatialCalibration`(): kotlin.String {
+            return FfiConverterString.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_export_spatial_calibration(
+        it, _status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
      * Retrieve all custom user autocorrect rules as a key-value map.
      */
     @Throws(LekhaniException::class)override fun `getAutocorrectRules`(): Map<kotlin.String, kotlin.String> {
@@ -2795,6 +2838,21 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     uniffiRustCallWithError(LekhaniException) { _status ->
     UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_import_raw_words(
         it, FfiConverterSequenceString.lower(`words`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    /**
+     * Imports personal touch calibration offsets from JSON and restores active key offsets.
+     */override fun `importSpatialCalibration`(`jsonStr`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_import_spatial_calibration(
+        it, FfiConverterString.lower(`jsonStr`),_status)
 }
     }
     )
