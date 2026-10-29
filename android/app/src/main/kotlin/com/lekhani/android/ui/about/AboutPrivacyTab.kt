@@ -175,7 +175,12 @@ fun AboutPrivacyTab(
             }
         }
 
-        // ── 2. Primary: 100% Offline & Privacy Assurance ────────────────────────
+        // ── 2. In-App Updates (GitHub Releases) ─────────────────────────────────
+        AppUpdateSection(
+            isEnglish = isEnglish
+        )
+
+        // ── 3. Primary: 100% Offline & Privacy Assurance ────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -221,9 +226,9 @@ fun AboutPrivacyTab(
 
                 PrivacyFeatureItem(
                     icon = Icons.Filled.Security,
-                    title = if (isEnglish) "No Internet Permission" else "ইন্টারনেট পারমিশনহীন",
-                    desc = if (isEnglish) "Lekhani declares zero network access. No keystrokes or data can ever leave your phone."
-                           else "অ্যাপটিতে কোনো ইন্টারনেট পারমিশন নেই। আপনার কোনো টাইপিং বা ক্লিপবোর্ড ডেটা বাইরে যাওয়া সম্ভব নয়।"
+                    title = if (isEnglish) "Zero Telemetry / On-Demand Only" else "জিরো টেলিমেট্রি ও সম্পূর্ণ গোপনীয়",
+                    desc = if (isEnglish) "Zero background tracking or keystroke logging. Internet access is strictly user-initiated when checking updates or downloading offline assets."
+                           else "কোনো ব্যাকগ্রাউন্ড ট্র্যাকিং বা কি-স্ট্রোক মনিটরিং নেই। ইন্টারনেট শুধুমাত্র আপনার অনুরোধে আপডেট চেক বা অফলাইন অ্যাসেট ডাউনলোডে ব্যবহৃত হয়।"
                 )
                 PrivacyFeatureItem(
                     icon = Icons.Filled.Memory,
@@ -276,7 +281,8 @@ fun AboutPrivacyTab(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (isEnglish) "What's New in v0.2.0" else "নতুন কী কী যোগ হয়েছে (v0.2.0)",
+                                text = if (isEnglish) "What's New in v${com.lekhani.android.BuildConfig.VERSION_NAME}"
+                                       else "নতুন কী কী যোগ হয়েছে (v${com.lekhani.android.BuildConfig.VERSION_NAME})",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(

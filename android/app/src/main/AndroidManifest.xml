@@ -11,7 +11,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- ── Permissions ─────────────────────────────────────────────────────────
-         ONLY declare what is strictly necessary. INTERNET is explicitly absent.
+         ONLY declare what is strictly necessary.
+         INTERNET is strictly limited to user-initiated on-demand update checks & asset downloads.
     ──────────────────────────────────────────────────────────────────────── -->
     <!-- Vibration for haptic key feedback -->
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -19,6 +20,10 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Import existing user dictionary words from previous keyboards (Gboard/Samsung) -->
     <uses-permission android:name="android.permission.READ_USER_DICTIONARY" />
+    <!-- On-demand updates & offline assets download (strictly zero background telemetry) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- In-app APK update installation for Android 8.0+ (API 26+) -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- ── Application ─────────────────────────────────────────────────────── -->
     <application
@@ -99,6 +104,20 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- ── FileProvider for In-App Updates ─────────────────────────────────
+             Securely exposes downloaded APK files to the Android system
+             PackageInstaller via content:// URI with read grant.
+        ─────────────────────────────────────────────────────────────────────── -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 </manifest>

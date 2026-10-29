@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    file_paths.xml — Lekhani Keyboard FileProvider Configuration
+    Allows secure sharing of downloaded update APKs from the cache directory
+    with the Android system PackageInstaller via content:// URIs.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="apk_cache" path="updates/" />
+</paths>

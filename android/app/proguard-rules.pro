@@ -47,6 +47,8 @@
 -keepclassmembers class com.lekhani.android.feedback.** { *; }
 -keep class com.lekhani.android.voice.** { *; }
 -keepclassmembers class com.lekhani.android.voice.** { *; }
+-keep class com.lekhani.android.update.** { *; }
+-keepclassmembers class com.lekhani.android.update.** { *; }
 
 # Kotlin Coroutines
 -dontwarn kotlinx.coroutines.**
