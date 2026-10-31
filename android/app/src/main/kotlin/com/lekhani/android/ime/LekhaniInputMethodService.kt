@@ -303,6 +303,14 @@ class LekhaniInputMethodService : InputMethodService() {
      */
     @Volatile private var cachedSurroundingContext: String = ""
 
+    /**
+     * Text immediately preceding the cursor captured at the moment a new composing
+     * sequence begins. Used by [ensureCursorInComposingRegion] to distinguish genuine
+     * user cursor repositioning from Chromium / WebView implementations that omit
+     * the active composing span from getTextBeforeCursor().
+     */
+    @Volatile private var contextBeforeComposing: String = ""
+
     // Pre-allocated KeyEvent instances for cursor movement — zero allocation in handleCursorMove
     private val curLeftDown  by lazy { android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT) }
     private val curLeftUp    by lazy { android.view.KeyEvent(android.view.KeyEvent.ACTION_UP,   android.view.KeyEvent.KEYCODE_DPAD_LEFT) }
@@ -498,6 +506,7 @@ class LekhaniInputMethodService : InputMethodService() {
         rawInputBuffer.clear()
         session.reset()
         preeditShadow = ""
+        contextBeforeComposing = ""
         cachedSurroundingContext = ""
         activeSwipeSnapshotText = ""
         isSwipeDeleteActive = false
@@ -523,6 +532,7 @@ class LekhaniInputMethodService : InputMethodService() {
         _wordInspectionSession?.reset()
         activeInspectedWord = null
         preeditShadow = ""
+        contextBeforeComposing = ""
         cachedSurroundingContext = ""
         activeSwipeSnapshotText = ""
         isSwipeDeleteActive = false
@@ -627,6 +637,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 currentInputConnection?.finishComposingText()
                 session.reset()
                 preeditShadow = ""
+                contextBeforeComposing = ""
                 rawInputBuffer.clear()
                 activeInspectedWord = null
                 clearUndo()
@@ -1387,6 +1398,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 ic.finishComposingText()
                 session.reset()
                 preeditShadow = ""
+                contextBeforeComposing = ""
                 rawInputBuffer.clear()
                 clearCandidates()
                 clearUndo()
@@ -2320,12 +2332,16 @@ class LekhaniInputMethodService : InputMethodService() {
      * Checks if the user manually repositioned the cursor away from the active
      * composing text before IPC delivered onUpdateSelection. If so, cleanly
      * finalizes the existing composition at its current location and resets state.
+     *
+     * Resilient against Chromium WebViews, Jetpack Compose, and Flutter where
+     * getTextBeforeCursor() may return only the text preceding the composing span,
+     * or where the cursor is placed at the start of the span.
      */
     private fun ensureCursorInComposingRegion(ic: InputConnection) {
         if (!session.isComposing() && preeditShadow.isEmpty()) return
 
         val textBefore = try {
-            ic.getTextBeforeCursor(preeditShadow.length + 16, 0)?.toString()
+            ic.getTextBeforeCursor(preeditShadow.length + 32, 0)?.toString()
         } catch (_: Exception) {
             null
         } ?: return
@@ -2334,15 +2350,42 @@ class LekhaniInputMethodService : InputMethodService() {
         // or return text preceding the composing span. Never wipe composing on empty text.
         if (textBefore.isEmpty()) return
 
-        if (!textBefore.endsWith(preeditShadow) && !textBefore.contains(preeditShadow)) {
-            if (textBefore.length >= preeditShadow.length) {
-                ic.finishComposingText()
-                session.reset()
-                preeditShadow = ""
-                rawInputBuffer.clear()
-                clearCandidates()
-                clearUndo()
-            }
+        // 1. Direct match: preeditShadow is present at or before the cursor
+        if (textBefore.endsWith(preeditShadow) || textBefore.contains(preeditShadow)) {
+            return
+        }
+
+        // 2. Chromium / WebView resilience:
+        // In Chromium WebViews and certain custom editors, getTextBeforeCursor returns ONLY the
+        // committed text before the active composing span. If textBefore matches or ends with
+        // the context captured right before this composition started (or cached surrounding context),
+        // the cursor is still at the composing span boundary. Do NOT destroy composition!
+        if (contextBeforeComposing.isNotEmpty() && (textBefore == contextBeforeComposing || textBefore.endsWith(contextBeforeComposing))) {
+            return
+        }
+        if (cachedSurroundingContext.isNotEmpty() && (textBefore == cachedSurroundingContext || textBefore.endsWith(cachedSurroundingContext))) {
+            return
+        }
+
+        // 3. Check if preedit is in textAfterCursor (cursor placed before or inside composing span)
+        val textAfter = try {
+            ic.getTextAfterCursor(preeditShadow.length + 8, 0)?.toString()
+        } catch (_: Exception) {
+            null
+        }
+        if (textAfter != null && (textAfter.startsWith(preeditShadow) || textAfter.contains(preeditShadow))) {
+            return
+        }
+
+        // 4. Cursor genuinely jumped away to a completely different location:
+        if (textBefore.length >= preeditShadow.length) {
+            ic.finishComposingText()
+            session.reset()
+            preeditShadow = ""
+            contextBeforeComposing = ""
+            rawInputBuffer.clear()
+            clearCandidates()
+            clearUndo()
         }
     }
 
@@ -2512,6 +2555,7 @@ class LekhaniInputMethodService : InputMethodService() {
             if (!immediateBefore.isNullOrEmpty()) {
                 session.setContext(immediateBefore)
             }
+            contextBeforeComposing = immediateBefore ?: ""
         }
 
         val touch = lastTouchCoordinates
@@ -2542,6 +2586,7 @@ class LekhaniInputMethodService : InputMethodService() {
                         ic.deleteSurroundingText(punctResult.deleteLength, 0)
                         ic.commitText(punctResult.textToCommit, 1)
                         preeditShadow = ""
+                        contextBeforeComposing = ""
                         rawInputBuffer.clear()
                         lastAutoDariCommitTime = 0L
                     } finally {
@@ -2562,6 +2607,7 @@ class LekhaniInputMethodService : InputMethodService() {
                         }
                         ic.commitText(punctResult.finalText, 1)
                         preeditShadow = ""
+                        contextBeforeComposing = ""
                         rawInputBuffer.clear()
                     } finally {
                         ic.endBatchEdit()
@@ -2577,6 +2623,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     try {
                         ic.commitText(punctResult.text, 1)
                         preeditShadow = ""
+                        contextBeforeComposing = ""
                         rawInputBuffer.clear()
                     } finally {
                         ic.endBatchEdit()
@@ -2648,6 +2695,7 @@ class LekhaniInputMethodService : InputMethodService() {
             if (session.isComposing()) {
                 session.reset()
                 preeditShadow = ""
+                contextBeforeComposing = ""
             }
             ic.finishComposingText()
             ic.commitText("", 1)
@@ -2885,6 +2933,7 @@ class LekhaniInputMethodService : InputMethodService() {
             try {
                 ic.commitText(text, 1)
                 preeditShadow = ""
+                contextBeforeComposing = ""
             } finally {
                 ic.endBatchEdit()
             }
