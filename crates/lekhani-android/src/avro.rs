@@ -1160,9 +1160,28 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
     // 1. Muscle-memory invariant: literal Avro conversion is ALWAYS retained
     let def_pure = get_avro_parser().convert(ctx.input);
     let def_norm = crate::probaho::nfc_normalize(&def_pure);
-    if !def_norm.is_empty() && !raw_candidates.contains(&def_norm) {
-        let insert_idx = 1.min(raw_candidates.len());
-        raw_candidates.insert(insert_idx, def_norm);
+    if !def_norm.is_empty() {
+        let db = crate::session::get_core_database();
+        let top_is_in_dict = raw_candidates.first().map(|w| {
+            db.is_exact_dictionary_word(w) || db.trie.contains_exact(w)
+        }).unwrap_or(false);
+        let top_len = raw_candidates.first().map(|w| w.chars().count()).unwrap_or(0);
+        let def_len = def_norm.chars().count();
+        let is_top_distant = !top_is_in_dict || (def_len >= 4 && top_len + 1 < def_len);
+
+        if let Some(pos) = raw_candidates.iter().position(|c| c == &def_norm) {
+            if is_top_distant && pos > 0 && ctx.remembered_choice.is_none() && !has_explicit_avro_intent(ctx.input) {
+                let cand = raw_candidates.remove(pos);
+                raw_candidates.insert(0, cand);
+            }
+        } else {
+            let insert_idx = if is_top_distant && ctx.remembered_choice.is_none() {
+                0
+            } else {
+                1.min(raw_candidates.len())
+            };
+            raw_candidates.insert(insert_idx, def_norm);
+        }
     }
 
     // 2. Verbatim Latin input escape hatch
@@ -1437,7 +1456,15 @@ pub(crate) fn resolve_avro_candidates(
             );
         }
 
-        if has_explicit_avro_intent(raw) {
+        let db = crate::session::get_core_database();
+        let top_is_in_dict = candidates.first().map(|w| {
+            db.is_exact_dictionary_word(w) || db.trie.contains_exact(w)
+        }).unwrap_or(false);
+        let top_len = candidates.first().map(|w| w.chars().count()).unwrap_or(0);
+        let preedit_len = preedit.chars().count();
+        let is_top_distant = !top_is_in_dict || (preedit_len >= 4 && top_len + 1 < preedit_len);
+
+        if has_explicit_avro_intent(raw) || (is_top_distant && !has_candidate_memory) {
             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                 if pos != 0 {
                     let cand = candidates.remove(pos);
@@ -2420,6 +2447,31 @@ mod tests {
         let (primary_caps, cands_caps) = transliterate_avro("CCA");
         assert_eq!(primary_caps, "CCA", "Primary preedit for all-caps 'CCA' must be 'CCA'");
         assert_eq!(cands_caps.first().map(|s| s.as_str()), Some("CCA"));
+    }
+
+    #[test]
+    fn test_oov_slang_primacy() {
+        // Non-dictionary slang and novel words must maintain literal Avro phonetic transliteration at Slot 0
+        let (jhalkhor, cands) = transliterate_avro("jhalkhor");
+        assert_eq!(jhalkhor, "ঝালখর", "jhalkhor must transliterate to 'ঝালখর' at Slot 0");
+        assert_eq!(cands.first().map(|s| s.as_str()), Some("ঝালখর"));
+
+        let (falkibazi, cands_falki) = transliterate_avro("falkibazi");
+        let def_falki = crate::probaho::nfc_normalize(&get_avro_parser().convert("falkibazi"));
+        assert_eq!(falkibazi, def_falki, "falkibazi must match pure Avro def at Slot 0");
+        assert_eq!(cands_falki.first().map(|s| s.as_str()), Some(def_falki.as_str()));
+
+        let (falkibaji, cands_baji) = transliterate_avro("falkibaji");
+        let def_baji = crate::probaho::nfc_normalize(&get_avro_parser().convert("falkibaji"));
+        assert_eq!(falkibaji, def_baji, "falkibaji must match pure Avro def at Slot 0");
+        assert_eq!(cands_baji.first().map(|s| s.as_str()), Some(def_baji.as_str()));
+
+        // Standard dictionary words must still preserve their correct dictionary forms
+        let (soccho, _) = transliterate_avro("soccho");
+        assert_eq!(soccho, "স্বচ্ছ", "soccho must still resolve to dictionary word 'স্বচ্ছ' at Slot 0");
+
+        let (kemon, _) = transliterate_avro("kemon");
+        assert_eq!(kemon, "কেমন", "kemon must resolve to 'কেমন' at Slot 0");
     }
 
     #[test]
