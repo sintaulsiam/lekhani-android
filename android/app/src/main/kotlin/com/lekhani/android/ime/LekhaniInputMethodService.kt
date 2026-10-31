@@ -2922,7 +2922,8 @@ class LekhaniInputMethodService : InputMethodService() {
             }
         } else false
 
-        val chosenForSpace = if (activePrimary != null && !activePrimary.startsWith("=") && isPhonetic && !isHonorificShift) {
+        val autoCommitAllowed = keyboardPrefs.spacebarAutocompleteEnabled
+        val chosenForSpace = if (autoCommitAllowed && activePrimary != null && !activePrimary.startsWith("=") && isPhonetic && !isHonorificShift) {
             activePrimary
         } else {
             null
