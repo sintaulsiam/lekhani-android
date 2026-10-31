@@ -111,4 +111,22 @@ class TouchGestureDispatcherTest {
         assertEquals(0f, dispatcher.glideCurX, 0.001f)
         assertEquals(0f, dispatcher.glideCurY, 0.001f)
     }
+
+    @Test
+    fun testCanSwipeSwitchLayoutDisarmsWhenFalse() {
+        var swipeDirection = 0
+        host.keyListener = object : KeyboardCanvasView.KeyListener {
+            override fun onKey(key: Key, action: KeyAction) {}
+            override fun onSpaceSwipe(direction: Int) { swipeDirection = direction }
+            override fun onSpaceLongPress() {}
+            override fun onGlideGesture(keys: List<String>) {}
+            override fun onCursorMove(deltaChars: Int) {}
+            override fun onSwipeDelete(wordCount: Int) {}
+            override fun onSwipeDeletePreview(wordCount: Int) {}
+            override fun canSwipeSwitchLayout(): Boolean = false
+            override fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor) {}
+        }
+        assertFalse(host.keyListener?.canSwipeSwitchLayout() == true)
+        assertEquals(0, swipeDirection)
+    }
 }

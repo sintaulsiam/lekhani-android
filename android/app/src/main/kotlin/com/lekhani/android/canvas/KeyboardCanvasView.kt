@@ -63,6 +63,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         fun onSwipeDelete(wordCount: Int)
         fun onSwipeDeletePreview(wordCount: Int)
         fun canSwipeDelete(): Boolean = true
+        fun canSwipeSwitchLayout(): Boolean = true
         fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor)
     }
 

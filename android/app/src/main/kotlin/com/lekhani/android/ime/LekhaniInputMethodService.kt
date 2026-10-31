@@ -554,8 +554,11 @@ class LekhaniInputMethodService : InputMethodService() {
         syncSystemClipboard()
         currentSelStart = -1
         currentSelEnd = -1
-        // Re-apply policy in case the editor info changed after the view appeared
-        applyInputTypePolicy(info)
+        // Re-apply policy in case the editor info changed after the view appeared,
+        // but avoid disruptive layout switches if this is an in-flight restart while typing.
+        if (!restarting || (!session.isComposing() && rawInputBuffer.isEmpty())) {
+            applyInputTypePolicy(info)
+        }
         updateEnterActionAndFieldType(info)
         val activeTheme = ThemeRegistry.resolveTheme(this, keyboardPrefs.themeId)
         _themeFlow.value = activeTheme
@@ -629,7 +632,9 @@ class LekhaniInputMethodService : InputMethodService() {
             val cursorOutsideSpan = hasComposingSpan && (newSelStart < candidatesStart || newSelEnd > candidatesEnd)
             val cursorMovedInsideSpan = hasComposingSpan && (newSelStart != candidatesEnd || newSelEnd != candidatesEnd)
             val hasSelectionRange = newSelStart != newSelEnd && newSelStart >= 0 && newSelEnd >= 0
-            val cursorMovedWithoutSpan = !hasComposingSpan && (newSelStart != oldSelStart)
+            // In web views or apps that report candidatesStart = -1, allow natural forward cursor progression;
+            // only treat as tap-away if the cursor jumped backwards or far beyond the preedit length.
+            val cursorMovedWithoutSpan = !hasComposingSpan && (newSelStart < oldSelStart || newSelStart > oldSelStart + preeditShadow.length + 1)
 
             if (cursorOutsideSpan || cursorMovedInsideSpan || hasSelectionRange || cursorMovedWithoutSpan) {
                 // User manually tapped away from the composing region or highlighted text.
@@ -1053,6 +1058,12 @@ class LekhaniInputMethodService : InputMethodService() {
                     } catch (_: Exception) {
                         false
                     }
+                }
+
+                override fun canSwipeSwitchLayout(): Boolean {
+                    // Prevent accidental spacebar layout switching when the user is actively typing or composing.
+                    // In-flight Bengali keystrokes must cleanly commit the word on space instead of switching to English.
+                    return !session.isComposing() && preeditShadow.isEmpty() && rawInputBuffer.isEmpty()
                 }
 
                 override fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor) {
@@ -4095,12 +4106,14 @@ class LekhaniInputMethodService : InputMethodService() {
                 switchLayout(LekhaniLayoutType.ENGLISH, persist = false)
             }
         } else {
-            // Restore previous layout if returning from a password field
-            previousLayoutBeforePassword?.let { restoreLayout ->
-                previousLayoutBeforePassword = null
-                restoreAlphaKeyboard()
-                if (session.getLayout() != restoreLayout) {
-                    switchLayout(restoreLayout, persist = false)
+            // Restore previous layout only when returning from a password field and not actively composing
+            if (!session.isComposing() && rawInputBuffer.isEmpty()) {
+                previousLayoutBeforePassword?.let { restoreLayout ->
+                    previousLayoutBeforePassword = null
+                    restoreAlphaKeyboard()
+                    if (session.getLayout() != restoreLayout) {
+                        switchLayout(restoreLayout, persist = false)
+                    }
                 }
             }
         }

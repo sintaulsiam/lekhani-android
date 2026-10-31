@@ -501,18 +501,22 @@ class TouchGestureDispatcher(
                             host.view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                             host.keyListener?.onSpaceSwipeUp()
                             return true
-                        } else if (absDx > swipeThresholdPx && absDx > absDy * 1.3f) {
-                            isSpaceSwiping = true
-                            pressedKeyIndex = -1
-                            pressedPointerId = -1
-                            host.view.removeCallbacks(longPressRunnable)
-                            host.view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                            if (dx > 0) {
-                                host.keyListener?.onSpaceSwipe(1)  // Next layout (forward)
-                            } else {
-                                host.keyListener?.onSpaceSwipe(-1) // Previous layout (backward)
+                        } else {
+                            val spaceWidth = host.resolvedKeys.getOrNull(pressedKeyIndex)?.bounds?.width() ?: (120f * host.density)
+                            val spaceSwipeThreshold = kotlin.math.max(54f * host.density, spaceWidth * 0.28f)
+                            if (absDx > spaceSwipeThreshold && absDx > absDy * 1.3f && host.keyListener?.canSwipeSwitchLayout() != false) {
+                                isSpaceSwiping = true
+                                pressedKeyIndex = -1
+                                pressedPointerId = -1
+                                host.view.removeCallbacks(longPressRunnable)
+                                host.view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                if (dx > 0) {
+                                    host.keyListener?.onSpaceSwipe(1)  // Next layout (forward)
+                                } else {
+                                    host.keyListener?.onSpaceSwipe(-1) // Previous layout (backward)
+                                }
+                                return true
                             }
-                            return true
                         }
                     }
                 }
