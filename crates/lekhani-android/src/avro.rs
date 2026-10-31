@@ -69,34 +69,25 @@ pub fn prioritize_common_or_override_candidate_with_context(
         && input
             .chars()
             .all(|c| c.is_ascii_uppercase() || !c.is_alphabetic());
-    let is_recognized_english = crate::english::is_recognized_english_word(input);
     let db = crate::session::get_core_database();
     let def_conv = get_avro_parser().convert(input);
     let def_lower_conv = get_avro_parser().convert(&lower);
     let is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
         || (!def_lower_conv.is_empty() && db.is_exact_dictionary_word(&def_lower_conv));
 
-    let has_established_loanword = is_bengali_dict_word
-        || has_override_word(input)
-        || has_override_word(&lower)
-        || db.lookup_override(input).is_some()
-        || db.lookup_override(&lower).is_some()
-        || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some();
-
-    let is_all_caps_acronym = is_common_tech_acronym(input)
-        || (is_all_caps && !has_override_word(&lower) && !is_bengali_dict_word);
-    let can_promote_english_slot0 = is_all_caps_acronym
-        || (is_recognized_english
-            && !has_established_loanword
-            && (input.len() >= 4
-                || (crate::english::STATIC_SHORT_ENGLISH_WORDS.contains(&lower.as_str())
-                    && !def_conv.contains('্'))));
-
-    if can_promote_english_slot0 {
+    let is_verified_tech_acronym = is_common_tech_acronym(input) && !is_bengali_dict_word;
+    if is_verified_tech_acronym {
         if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
             let cand = candidates.remove(pos);
             candidates.insert(0, cand);
             return;
+        }
+    } else if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
+        // Enforce Sacred Slot 0: In Avro Bengali layout, English candidate sits at Slot 1 (Rank 2),
+        // NEVER stealing Slot 0 from valid Bengali transliterations.
+        if pos == 0 && candidates.len() > 1 {
+            let cand = candidates.remove(0);
+            candidates.insert(1, cand);
         }
     }
 
@@ -213,14 +204,34 @@ pub fn prioritize_common_or_override_candidate_with_context(
         let eq_freq = db.get_frequency(&eq_word);
         let top_freq = candidates.first().map(|w| db.get_frequency(w)).unwrap_or(0);
 
-        // If top candidate is already significantly more frequent than eq_word (e.g. desh -> দেশ vs ডেশ),
-        // keep top candidate at Slot 0 and insert eq_word at index 1+.
-        // Conversely, if eq_word is a real high-frequency word and top is a low-frequency / non-word
-        // (e.g. bakkya -> বাক্য vs বাক্কা, dharmo -> ধর্ম vs ধারম), promote eq_word to Slot 0!
-        let target_idx = if inserted_idx == 0 && top_freq > eq_freq && top_freq >= 50 {
-            1.min(candidates.len())
+        let top_is_valid = candidates.first().map(|w| {
+            db.is_exact_dictionary_word(w)
+                || db.trie.contains_exact(w)
+                || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some()
+        }).unwrap_or(false);
+
+        let is_geminate_input = (lower.contains("cc")
+            || lower.contains("kk")
+            || lower.contains("tt")
+            || lower.contains("dd")
+            || lower.contains("bb")
+            || lower.contains("pp")
+            || lower.contains("mm")
+            || lower.contains("nn")
+            || lower.contains("ll")
+            || lower.contains("ss")
+            || lower.contains("jj")
+            || lower.contains("gg"))
+            && eq_word.contains('্');
+
+        let should_promote_to_slot0 = inserted_idx == 0
+            && (is_geminate_input
+                || (eq_freq >= 500 && (!top_is_valid || eq_freq >= top_freq.saturating_mul(10))));
+
+        let target_idx = if should_promote_to_slot0 {
+            0
         } else {
-            inserted_idx.min(candidates.len())
+            inserted_idx.max(1).min(candidates.len())
         };
 
         if let Some(pos) = candidates.iter().position(|c| c == &eq_word) {
@@ -652,10 +663,12 @@ pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec
                 | "bank" | "card" | "bill" | "offer"
             );
 
+            let clean_base_lower = base.to_lowercase();
+            let has_loanword = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&clean_base_lower).is_some();
             let is_valid_stem = if suf.len() == 1 {
-                is_all_upper_acronym || is_camel_or_title || is_known_brand_or_tech
+                is_all_upper_acronym || is_camel_or_title || is_known_brand_or_tech || has_loanword
             } else {
-                is_all_upper_acronym || is_camel_or_title || is_recognized_english || is_known_brand_or_tech
+                is_all_upper_acronym || is_camel_or_title || is_recognized_english || is_known_brand_or_tech || has_loanword
             };
 
             if is_valid_stem {
@@ -1452,14 +1465,17 @@ pub(crate) fn resolve_avro_candidates(
         let lower = raw.to_lowercase();
         let is_acronym_or_tech = is_common_tech_acronym(raw)
             || raw == "NaN"
-            || raw == "Infinity"
-            || (raw.len() >= 2
-                && raw.chars().all(|c| c.is_ascii_uppercase())
-                && !has_override_word(&lower));
+            || raw == "Infinity";
         if is_acronym_or_tech {
             if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(raw)) {
                 let cand = candidates.remove(pos);
                 candidates.insert(0, cand);
+            }
+        } else if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(raw)) {
+            // Keep English at Slot 1 (Rank 2) if it somehow landed at Slot 0
+            if pos == 0 && candidates.len() > 1 {
+                let cand = candidates.remove(0);
+                candidates.insert(1, cand);
             }
         }
 
@@ -1505,7 +1521,7 @@ pub(crate) fn resolve_avro_candidates(
                     || top.chars().count() > preedit.chars().count()
                     || ((is_geminate || !is_archaic_preedit)
                         && !has_strong_context_preference
-                        && (!db.is_exact_dictionary_word(top)
+                        && ((!is_geminate && !db.is_exact_dictionary_word(top))
                             || (is_geminate && !top.contains('্'))
                             || (is_geminate && top.contains('য') && !preedit.contains('য')))))
             {
@@ -1528,6 +1544,15 @@ pub(crate) fn resolve_avro_candidates(
                         let cand = candidates.remove(pos);
                         candidates.insert(0, cand);
                     }
+                }
+            }
+        }
+
+        if lower.contains("dd") && !lower.contains("dw") && !lower.contains("ddh") {
+            if let Some(pos) = candidates.iter().position(|c| c.contains("দ্দ")) {
+                if pos > 0 && candidates.first().map(|s| s.contains("দ্ব")).unwrap_or(false) {
+                    let cand = candidates.remove(pos);
+                    candidates.insert(0, cand);
                 }
             }
         }
