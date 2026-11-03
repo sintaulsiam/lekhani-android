@@ -155,6 +155,13 @@ object AvroReverseTransliterator {
                     continue
                 }
 
+                // 3c2. Reph (র + ্ + consonant) -> canonical Avro "r"
+                if (c == 'র' && next == '্' && nextNext != null && CONSONANT_MAP.containsKey(nextNext)) {
+                    sb.append("r")
+                    i += 2 // skip র and ্, following consonant processes normally
+                    continue
+                }
+
                 // 3d. Ya-phala (consonant + ্ + য) -> cons + "y"
                 if (next == '্' && nextNext == 'য') {
                     sb.append(cons).append("y")

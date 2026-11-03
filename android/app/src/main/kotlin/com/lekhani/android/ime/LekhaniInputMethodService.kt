@@ -4466,9 +4466,9 @@ class LekhaniInputMethodService : InputMethodService() {
             'ূ' to "U",
             'ৃ' to "rri",
             'ে' to "e",
-            'ৈ' to "OI",
+            'ৈ' to "oi",
             'ো' to "o",
-            'ৌ' to "OU"
+            'ৌ' to "ou"
         )
     }
 }
