@@ -4202,6 +4202,28 @@ mod tests {
             res_shikkha.preedit, "শিক্ষা",
             "Typist can seamlessly continue typing 'া' to produce 'শিক্ষা'"
         );
+
+        // ── 4. National Layout Initial Kar and Compound ─────────────────────
+        session.set_layout(LekhaniLayoutType::National);
+        session.set_smart_initial_kar_enabled(true);
+
+        // 4a. Initial Kar promotion: 'া' at word start -> 'আ'
+        session.reset();
+        let res_nat_a = session.process_key("া".into()).unwrap();
+        assert_eq!(res_nat_a.preedit, "আ", "National: initial 'া' at word start must promote to 'আ'");
+
+        // 4b. Compound: 'অ' + 'া' -> 'আ'
+        session.reset();
+        session.process_key("অ".into()).unwrap();
+        let res_nat_aa = session.process_key("া".into()).unwrap();
+        assert_eq!(res_nat_aa.preedit, "আ", "National: 'অ' + 'া' must compound into 'আ'");
+
+        // ── 5. Gboard Layout Initial Kar ───────────────────────────────────
+        session.set_layout(LekhaniLayoutType::Gboard);
+        session.set_smart_initial_kar_enabled(true);
+        session.reset();
+        let res_gb_a = session.process_key("া".into()).unwrap();
+        assert_eq!(res_gb_a.preedit, "আ", "Gboard: initial 'া' at word start must promote to 'আ'");
     }
 
     #[test]

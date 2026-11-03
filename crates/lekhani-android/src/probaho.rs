@@ -520,11 +520,7 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
             } else if is_bengali_vowel(ctx_ch) {
                 (false, true, false)
             } else {
-                (
-                    ctx_ch.is_whitespace() || is_bengali_punctuation_or_space(ctx_ch),
-                    false,
-                    false,
-                )
+                (true, false, false)
             }
         } else {
             (true, false, false)
@@ -821,6 +817,15 @@ impl crate::layout::LayoutStrategy for NationalStrategy {
         if let Some(vowel) = transformed_vowel {
             state.composing_buffer.pop();
             state.composing_buffer.push_str(vowel);
+        } else if state.composing_buffer.ends_with('অ') && key == "া" {
+            state.composing_buffer.pop();
+            state.composing_buffer.push('আ');
+        } else if state.composing_buffer.is_empty() && is_raw_kar && state.smart_initial_kar_enabled {
+            let is_start = state.surrounding_context.chars().last().map(|c| {
+                !is_bengali_consonant_or_modifier(c) && !is_bengali_vowel(c)
+            }).unwrap_or(true);
+            let promoted = promote_kar_if_needed(key, is_start);
+            state.composing_buffer.push_str(&promoted);
         } else if is_raw_kar && state.composing_buffer.ends_with('ঁ') {
             state.composing_buffer.pop();
             state.composing_buffer.push_str(key);
@@ -944,6 +949,15 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
             } else {
                 state.composing_buffer.push_str(key);
             }
+        } else if state.composing_buffer.ends_with('অ') && key == "া" {
+            state.composing_buffer.pop();
+            state.composing_buffer.push('আ');
+        } else if state.composing_buffer.is_empty() && is_raw_kar && state.smart_initial_kar_enabled {
+            let is_start = state.surrounding_context.chars().last().map(|c| {
+                !is_bengali_consonant_or_modifier(c) && !is_bengali_vowel(c)
+            }).unwrap_or(true);
+            let promoted = promote_kar_if_needed(key, is_start);
+            state.composing_buffer.push_str(&promoted);
         } else if is_raw_kar && state.composing_buffer.ends_with('ঁ') {
             state.composing_buffer.pop();
             state.composing_buffer.push_str(key);
