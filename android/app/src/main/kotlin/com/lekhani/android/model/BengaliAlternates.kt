@@ -21,7 +21,7 @@ object BengaliAlternates {
         put("ঔ", arrayOf("ৌ", "ও", "৬"))
 
         // ── Vowel Kars (Diacritics) ─────────────────────────────────────────────
-        put("া", arrayOf("আ", "্যা", "া"))
+        put("া", arrayOf("আ", "অ্যা", "া"))
         put("ি", arrayOf("ই", "ী", "ি"))
         put("ী", arrayOf("ঈ", "ি", "ী"))
         put("ু", arrayOf("উ", "ূ", "ু"))

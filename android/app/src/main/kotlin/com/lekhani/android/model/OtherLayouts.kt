@@ -128,11 +128,11 @@ object NationalLayout {
             // Row 2 (Home: a s d f g h j k l)
             listOf(
                 Key(
-                    label = "ৃ", shiftedLabel = "ৗ", hintLabel = "ঋ",
+                    label = "ৃ", shiftedLabel = "ৠ", hintLabel = "ঋ",
                     action = KeyAction.Character("ৃ"),
-                    shiftedAction = KeyAction.Character("ৗ"),
+                    shiftedAction = KeyAction.Character("ৠ"),
                     longPressAction = KeyAction.Character("ঋ"),
-                    isHomeRow = true, contentDesc = "Ri-kar, shifted Ou-kar, hint Ri",
+                    isHomeRow = true, contentDesc = "Ri-kar, shifted Vocalic RR, hint Ri",
                 ),
                 Key(
                     label = "ু", shiftedLabel = "ূ", hintLabel = "উ",
@@ -202,10 +202,11 @@ object NationalLayout {
                 label = ",", shiftedLabel = ";",
                 action = KeyAction.Character(","),
                 shiftedAction = KeyAction.Character(";"),
-                widthWeight = 1.0f, contentDesc = "Comma",
+                longPressAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.0f, contentDesc = "Comma, long press for emoji",
             ),
             Key(
-                label = "স্পেস • জাতীয়", shiftedLabel = "স্পেস • জাতীয়",
+                label = "স্পেস", shiftedLabel = "স্পেস",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
                 widthWeight = 4.2f, contentDesc = "Space",
             ),
@@ -260,7 +261,7 @@ object ProbhatLayout {
                 Ch("য়", "য"), Ch("শ", "ঢ়"), Ch("চ", "ছ"),
                 Ch("আ", "ঋ"), Ch("ব", "ভ"), Ch("ন", "ণ"),
                 Ch("ম", "ঙ"),
-                Ch("ৃ", "<", desc = "Ri-kar, shifted less-than"),
+                Ch("ৃ", "ৠ", desc = "Ri-kar, shifted Vocalic RR"),
                 Ch("্", "ঁ", desc = "Hasanta virama, shifted Chandra Bindu"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
@@ -285,10 +286,11 @@ object ProbhatLayout {
                 label = ",", shiftedLabel = ";",
                 action = KeyAction.Character(","),
                 shiftedAction = KeyAction.Character(";"),
-                widthWeight = 1.0f, contentDesc = "Comma",
+                longPressAction = KeyAction.SwitchEmoji,
+                widthWeight = 1.0f, contentDesc = "Comma, long press for emoji",
             ),
             Key(
-                label = "◀   প্রভাত   ▶", shiftedLabel = "◀   প্রভাত   ▶",
+                label = "স্পেস", shiftedLabel = "স্পেস",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
                 widthWeight = 4.2f, contentDesc = "Space",
             ),
@@ -319,22 +321,22 @@ object GboardBengaliLayout {
 
     // Default independent vowels for Row 1 (11 independent vowels)
     val vowelsRow: List<Key> = listOf(
-        Ch("অ", "অ"), Ch("আ", "আ"), Ch("ই", "ই"), Ch("ঈ", "ঈ"),
-        Ch("উ", "উ"), Ch("ঊ", "ঊ"), Ch("ঋ", "ঋ"), Ch("এ", "এ"),
-        Ch("ঐ", "ঐ"), Ch("ও", "ও"), Ch("ঔ", "ঔ"),
+        Ch("অ", "া"), Ch("আ", "া"), Ch("ই", "ি"), Ch("ঈ", "ী"),
+        Ch("উ", "ু"), Ch("ঊ", "ূ"), Ch("ঋ", "ৃ"), Ch("এ", "ে"),
+        Ch("ঐ", "ৈ"), Ch("ও", "ো"), Ch("ঔ", "ৌ"),
     )
 
     private val emptyDynamicVowelsRow: List<Key> = listOf(
-        Key(label = "া", action = KeyAction.Character("া")),
-        Key(label = "ি", action = KeyAction.Character("ি")),
-        Key(label = "ী", action = KeyAction.Character("ী")),
-        Key(label = "ু", action = KeyAction.Character("ু")),
-        Key(label = "ূ", action = KeyAction.Character("ূ")),
-        Key(label = "ৃ", action = KeyAction.Character("ৃ")),
-        Key(label = "ে", action = KeyAction.Character("ে")),
-        Key(label = "ৈ", action = KeyAction.Character("ৈ")),
-        Key(label = "ো", action = KeyAction.Character("ো")),
-        Key(label = "ৌ", action = KeyAction.Character("ৌ")),
+        Key(label = "া", action = KeyAction.Character("া"), contentDesc = "Aa-kar"),
+        Key(label = "ি", action = KeyAction.Character("ি"), contentDesc = "I-kar (short)"),
+        Key(label = "ী", action = KeyAction.Character("ী"), contentDesc = "II-kar (long)"),
+        Key(label = "ু", action = KeyAction.Character("ু"), contentDesc = "U-kar (short)"),
+        Key(label = "ূ", action = KeyAction.Character("ূ"), contentDesc = "UU-kar (long)"),
+        Key(label = "ৃ", action = KeyAction.Character("ৃ"), contentDesc = "Ri-kar"),
+        Key(label = "ে", action = KeyAction.Character("ে"), contentDesc = "E-kar"),
+        Key(label = "ৈ", action = KeyAction.Character("ৈ"), contentDesc = "OI-kar"),
+        Key(label = "ো", action = KeyAction.Character("ো"), contentDesc = "O-kar"),
+        Key(label = "ৌ", action = KeyAction.Character("ৌ"), contentDesc = "OU-kar"),
         Key(
             label = "অ",
             action = KeyAction.ToggleGboardVowels,
@@ -467,7 +469,7 @@ object GboardBengaliLayout {
                 widthWeight = 1.0f, contentDesc = "Comma, long press for emoji",
             ),
             Key(
-                label = "বাংলা", shiftedLabel = "বাংলা",
+                label = "স্পেস", shiftedLabel = "স্পেস",
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
                 widthWeight = 4.2f, contentDesc = "Space",
             ),
