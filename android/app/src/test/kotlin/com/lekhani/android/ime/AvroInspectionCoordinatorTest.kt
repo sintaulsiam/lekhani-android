@@ -51,6 +51,25 @@ class AvroInspectionCoordinatorTest {
     }
 
     @Test
+    fun testIsAvroRecompositionKey() {
+        // Phonetic letters and joining apostrophe trigger recomposition
+        assertTrue(AvroInspectionCoordinator.isAvroRecompositionKey("a"))
+        assertTrue(AvroInspectionCoordinator.isAvroRecompositionKey("k"))
+        assertTrue(AvroInspectionCoordinator.isAvroRecompositionKey("T"))
+        assertTrue(AvroInspectionCoordinator.isAvroRecompositionKey("`"))
+        assertTrue(AvroInspectionCoordinator.isAvroRecompositionKey("'"))
+
+        // Digits and symbols must NEVER trigger recomposition into an already committed word
+        assertFalse(AvroInspectionCoordinator.isAvroRecompositionKey("1"))
+        assertFalse(AvroInspectionCoordinator.isAvroRecompositionKey("9"))
+        assertFalse(AvroInspectionCoordinator.isAvroRecompositionKey(":"))
+        assertFalse(AvroInspectionCoordinator.isAvroRecompositionKey("^"))
+        assertFalse(AvroInspectionCoordinator.isAvroRecompositionKey(" "))
+        assertFalse(AvroInspectionCoordinator.isAvroRecompositionKey("."))
+        assertFalse(AvroInspectionCoordinator.isAvroRecompositionKey(","))
+    }
+
+    @Test
     fun testInspectedWordProperties() {
         val inspected = InspectedWord(
             word = "আমার",

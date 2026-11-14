@@ -288,6 +288,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var lastSpaceTapTime: Long = 0L
     private var lastPredictedContext: String = ""
     private var lastCommitWithTrailingSpaceTime: Long = 0L
+    private var lastCommittedWordTime: Long = 0L
 
     /**
      * Set to `true` immediately after a word is committed (space, candidate tap, backspace-undo).
@@ -2748,10 +2749,17 @@ class LekhaniInputMethodService : InputMethodService() {
             }
         } else {
             rawInputBuffer.clear()
+            val now = android.os.SystemClock.uptimeMillis()
+            val inspected = avroInspectionCoordinator.activeInspectedWord
+            val isRecentlyCommitted = (now - lastCommittedWordTime <= 3500L) &&
+                (inspected != null && avroHistory.lastCommittedWord != null && avroHistory.lastCommittedWord == inspected.word)
+
             val reopenPlan = if (session.getLayout() == LekhaniLayoutType.AVRO && !isCurrentFieldPrivate) {
-                avroInspectionCoordinator.prepareBackspaceReopening(ic)
+                avroInspectionCoordinator.prepareBackspaceReopening(ic, isRecentlyCommitted = isRecentlyCommitted)
             } else null
             if (reopenPlan != null) {
+                lastCommittedWordTime = 0L
+                avroHistory.clearLast()
                 rawInputBuffer.clear()
                 session.reset()
                 val rawToReopen = reopenPlan.rawToReopen
@@ -2954,6 +2962,7 @@ class LekhaniInputMethodService : InputMethodService() {
             val isAvro = session.getLayout() == LekhaniLayoutType.AVRO
             if (isAvro && originalRaw.isNotBlank()) {
                 avroHistory.record(trimmedCommitted, originalRaw, withSpace = text.endsWith(" "))
+                lastCommittedWordTime = android.os.SystemClock.uptimeMillis()
             }
             val isEnglish = session.getLayout() == LekhaniLayoutType.ENGLISH
             val candidateOriginal = when {
@@ -3097,6 +3106,7 @@ class LekhaniInputMethodService : InputMethodService() {
         val actualCandidate = if (candidate.startsWith("= ")) candidate.substring(2) else candidate
         if (session.getLayout() == LekhaniLayoutType.AVRO && originalRaw.isNotBlank()) {
             avroHistory.record(actualCandidate, originalRaw, withSpace = false)
+            lastCommittedWordTime = android.os.SystemClock.uptimeMillis()
         }
 
         // 3a. Inspected word replacement (when user tapped candidate strip for a word at cursor)
@@ -3109,6 +3119,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
                 if (session.getLayout() == LekhaniLayoutType.AVRO && commitRes.rawPhonetic.isNotBlank()) {
                     avroHistory.record(actualCandidate, commitRes.rawPhonetic, withSpace = commitRes.textCommitted.endsWith(" "))
+                    lastCommittedWordTime = android.os.SystemClock.uptimeMillis()
                 }
                 refreshSurroundingContext()
                 updateAutoCaps()
@@ -3574,6 +3585,8 @@ class LekhaniInputMethodService : InputMethodService() {
 
     private fun handleCursorMove(deltaChars: Int) {
         val ic = currentInputConnection ?: return
+        avroHistory.clearLast()
+        lastCommittedWordTime = 0L
         if (session.isComposing() || preeditShadow.isNotEmpty()) {
             ic.finishComposingText()
             session.reset()

@@ -1387,8 +1387,7 @@ fn append_prefix_matches(input: &str, primary: &str, candidates: &mut Vec<String
                 break;
             }
             if k.starts_with(&lower) && !candidates.contains(v) {
-                let insert_idx = 1.min(candidates.len());
-                candidates.insert(insert_idx, v.clone());
+                candidates.push(v.clone());
             }
         }
     }
@@ -1543,7 +1542,7 @@ pub(crate) fn resolve_avro_candidates(
             if !has_candidate_memory
                 && !is_explicit_common
                 && !has_override
-                && (db.is_exact_dictionary_word(&preedit) || is_geminate)
+                && (db.is_exact_dictionary_word(&preedit) || db.trie.contains_exact(&preedit) || is_geminate)
                 && (!are_phonetically_compatible(&preedit, top)
                     || top.chars().count() > preedit.chars().count()
                     || ((is_geminate || !is_archaic_preedit)

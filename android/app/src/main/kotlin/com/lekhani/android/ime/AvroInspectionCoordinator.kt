@@ -92,6 +92,20 @@ class AvroInspectionCoordinator(
             val c = keyToken[0]
             return (c in 'a'..'z') || (c in 'A'..'Z') || (c in '0'..'9') || c == ':' || c == '^' || c == '`'
         }
+
+        /**
+         * Checks if a key token is a valid alphabetic / phonetic key that should trigger
+         * dynamic recomposition into an already committed word.
+         *
+         * Digits (0-9), colons (:), circumflex (^), and punctuation marks must NEVER
+         * trigger dynamic recomposition, preventing existing words from being unexpectedly
+         * swallowed when typing numbers, lists, or symbols right after words.
+         */
+        fun isAvroRecompositionKey(keyToken: String): Boolean {
+            if (keyToken.length != 1) return false
+            val c = keyToken[0]
+            return (c in 'a'..'z') || (c in 'A'..'Z') || c == '`' || c == '\''
+        }
     }
 
     var activeInspectedWord: InspectedWord? = null
@@ -311,7 +325,7 @@ class AvroInspectionCoordinator(
         ic: InputConnection,
     ): RecompositionPlan? {
         val inspected = activeInspectedWord ?: return null
-        if (!keyboardPrefs.avroDynamicRecomposition || !isAvroPhoneticKey(keyToken)) return null
+        if (!keyboardPrefs.avroDynamicRecomposition || !isAvroRecompositionKey(keyToken)) return null
 
         val rawPrefix = if (inspected.charsAfterCursor == 0) {
             inspected.rawPhonetic
@@ -337,12 +351,18 @@ class AvroInspectionCoordinator(
 
     /**
      * Prepares backspace reopening for an inspected word where the cursor is at the end.
+     *
+     * Only engages when [isRecentlyCommitted] is true (i.e. the word was just committed
+     * in the active typing flow within the recent commit window). If the user navigated
+     * to an old or arbitrary word, this returns null so Backspace behaves deterministically
+     * as a standard single-character eraser.
      */
     fun prepareBackspaceReopening(
         ic: InputConnection,
+        isRecentlyCommitted: Boolean = true,
     ): BackspaceReopeningPlan? {
         val inspected = activeInspectedWord ?: return null
-        if (inspected.charsAfterCursor != 0 || !keyboardPrefs.avroPhoneticBackspaceReopening || inspected.rawPhonetic.isBlank()) {
+        if (!isRecentlyCommitted || inspected.charsAfterCursor != 0 || !keyboardPrefs.avroPhoneticBackspaceReopening || inspected.rawPhonetic.isBlank()) {
             return null
         }
 
