@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lekhani Avro Live Engine Testbench</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+</head>
+<body class="bg-transparent text-[var(--foreground)] antialiased p-0 m-0 font-sans">
+  <div class="py-4 px-4 max-w-5xl mx-auto space-y-4">
+    
+    <!-- Top Header & Live Engine Status Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[var(--card-border)] gap-2">
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-lg font-bold text-[var(--foreground)] tracking-tight">লেখনী Live Engine Testbench</h1>
+          <span id="connectionBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="connectionText">Checking Native Engine...</span>
+          </span>
+        </div>
+        <p class="text-xs text-[var(--muted-foreground)] mt-0.5">
+          Directly bound to native <code class="font-mono text-[var(--primary)]">lekhani-android</code> &amp; <code class="font-mono text-[var(--primary)]">lekhani-core</code> — No mocks, tests actual Rust code
+        </p>
+      </div>
+
+      <!-- Action Buttons: Reload Dictionaries & Clean State -->
+      <div class="flex items-center gap-2">
+        <button id="reloadDictBtn" class="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md bg-[var(--card)] hover:bg-[var(--card-border)] border border-[var(--border)] text-[var(--foreground)] transition-colors shadow-sm" title="Hot-reload dictionary.json & phonetic_overrides.json without server restart">
+          <svg class="w-3.5 h-3.5 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span>Reload Dict</span>
+        </button>
+        <button id="resetSessionBtn" class="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md bg-[var(--card)] hover:bg-[var(--card-border)] border border-[var(--border)] text-[var(--foreground)] transition-colors shadow-sm" title="Reset AndroidLekhaniSession state">
+          <svg class="w-3.5 h-3.5 text-[var(--muted-foreground)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span>Clean State</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Workspace Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      
+      <!-- Left 2 Cols: Live Typing & Intermediate Inspector -->
+      <div class="lg:col-span-2 space-y-4">
+        
+        <!-- Live Romanized Input Card -->
+        <div class="p-4 rounded-xl bg-[var(--card)] border border-[var(--card-border)] shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <label for="romanInput" class="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span>Active Roman Input (Evaluates live on every keypress)</span>
+            </label>
+            <span id="latencyBadge" class="text-[11px] font-mono text-[var(--muted-foreground)]">0 µs</span>
+          </div>
+
+          <div class="relative flex items-center">
+            <input
+              id="romanInput"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              value="shukhyo"
+              placeholder="Type any word or phrase..."
+              class="w-full text-base px-3.5 py-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] font-mono"
+            />
+            <button id="clearInputBtn" class="absolute right-2.5 px-2 py-1 text-xs rounded bg-[var(--card)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] border border-[var(--border)]">
+              Clear
+            </button>
+          </div>
+
+          <!-- Live Candidate Strip (Slot 0 auto-commits) -->
+          <div class="space-y-1.5 pt-1">
+            <div class="flex items-center justify-between text-[11px] font-medium text-[var(--muted-foreground)]">
+              <span class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                <span class="uppercase tracking-wider">Live Android Candidate Strip</span>
+              </span>
+              <span id="dictMatchBadge" class="text-[10px] px-2 py-0.5 rounded font-mono font-medium bg-[var(--accent)] text-[var(--foreground)]">
+                --
+              </span>
+            </div>
+            
+            <div id="liveCandidateStrip" class="flex items-center gap-2 overflow-x-auto py-2 px-2.5 rounded-lg bg-[var(--background)] border border-[var(--border)] min-h-[48px]">
+              <!-- Dynamic Candidate Pills populated from Rust engine -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Intermediate Keystroke Stepper & Scrubber (Real In-Flight Progression) -->
+        <div class="p-4 rounded-xl bg-[var(--card)] border border-[var(--card-border)] shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span class="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wider">
+                Keystroke-by-Keystroke Intermediate Progression
+              </span>
+            </div>
+            <div class="flex items-center gap-1 text-xs">
+              <button id="prevStepBtn" class="px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] hover:bg-[var(--card-border)] text-xs">‹ Prev</button>
+              <button id="nextStepBtn" class="px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] hover:bg-[var(--card-border)] text-xs">Next ›</button>
+              <button id="autoPlayBtn" class="ml-1 px-2.5 py-0.5 rounded bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-medium hover:opacity-90">▶ Step Through</button>
+            </div>
+          </div>
+
+          <!-- Step Scrubber Timeline Buttons -->
+          <div id="stepScrubberTimeline" class="flex items-center gap-1.5 overflow-x-auto py-1">
+            <!-- Populated dynamically: [1: s] -> [2: sh] -> [3: shu]... -->
+          </div>
+
+          <!-- Active Step Detail Card -->
+          <div id="activeStepCard" class="p-3.5 rounded-lg bg-[var(--background)] border border-[var(--border)] space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-mono text-[var(--muted-foreground)]" id="activeStepLabel">Step 1 of 1</span>
+              <span class="font-mono text-xs text-[var(--primary)]" id="activeStepPrefix">Prefix: 's'</span>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+              <div class="flex items-baseline gap-2">
+                <span class="text-xs text-[var(--muted-foreground)]">In-Flight Pre-edit:</span>
+                <span id="activeStepPreedit" class="text-2xl font-bold text-[var(--foreground)]">--</span>
+              </div>
+              <div class="text-[11px] font-mono text-[var(--muted-foreground)]" id="activeStepCodepoints">
+                --
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-[var(--muted-foreground)] uppercase mb-1">
+                Candidate Strip at this keystroke:
+              </div>
+              <div id="activeStepCandidates" class="flex items-center gap-1.5 flex-wrap">
+                <!-- Pills populated from step candidates -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Expandable Complete Intermediate Steps Table -->
+          <details class="text-xs group">
+            <summary class="cursor-pointer font-medium text-[var(--primary)] hover:underline flex items-center gap-1 select-none py-1">
+              <svg class="w-3.5 h-3.5 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+              <span>View Full Keystroke History Table</span>
+            </summary>
+            <div class="mt-2 overflow-x-auto rounded border border-[var(--border)]">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-[var(--card-border)]/40 text-[var(--muted-foreground)] font-mono">
+                  <tr>
+                    <th class="p-2 w-12 text-center">Step</th>
+                    <th class="p-2 w-16">Key</th>
+                    <th class="p-2 w-24">Prefix</th>
+                    <th class="p-2 w-28">Pre-edit Output</th>
+                    <th class="p-2">Live Candidate Strip (Slot 0 $\to$ Slot N)</th>
+                  </tr>
+                </thead>
+                <tbody id="intermediateTableBody" class="divide-y divide-[var(--border)] font-mono">
+                  <!-- Rows populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+
+        <!-- Interactive Virtual IME Session Simulator -->
+        <div class="p-4 rounded-xl bg-[var(--card)] border border-[var(--card-border)] shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wider">
+                Full Android IME Session Simulator
+              </span>
+            </div>
+            <button id="clearNotepadBtn" class="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]">Clear Text</button>
+          </div>
+
+          <!-- Committed Text Display (Notepad) -->
+          <div class="p-3 rounded-lg bg-[var(--background)] border border-[var(--border)] min-h-[64px] font-sans text-base">
+            <span id="committedTextOutput" class="text-[var(--foreground)]"></span><span id="composingTextHighlight" class="bg-[var(--primary)]/20 text-[var(--primary)] font-semibold px-1 rounded underline decoration-[var(--primary)] decoration-2"></span><span class="w-0.5 h-4 bg-[var(--primary)] inline-block align-middle animate-pulse ml-0.5"></span>
+          </div>
+
+          <!-- Session Controls (Type, Backspace, Space, Select) -->
+          <div class="flex items-center gap-2 flex-wrap text-xs">
+            <button id="sessionBackspaceBtn" class="px-3 py-1.5 rounded bg-[var(--background)] border border-[var(--border)] hover:bg-[var(--card-border)] font-mono flex items-center gap-1">
+              <span>⌫</span> Backspace
+            </button>
+            <button id="sessionSpaceBtn" class="px-4 py-1.5 rounded bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 font-medium flex items-center gap-1">
+              <span>␣</span> Spacebar (Commit Slot 0)
+            </button>
+            <span class="text-xs text-[var(--muted-foreground)] ml-auto">
+              Simulates exact <code class="font-mono">AndroidLekhaniSession</code> lifecycle
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right 1 Col: Test Batteries & Engine Diagnostics -->
+      <div class="space-y-4">
+        
+        <!-- Engine Diagnostics Card -->
+        <div class="p-4 rounded-xl bg-[var(--card)] border border-[var(--card-border)] shadow-sm space-y-2.5">
+          <div class="flex items-center gap-1.5 text-xs font-semibold text-[var(--foreground)] uppercase tracking-wider">
+            <svg class="w-4 h-4 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+            </svg>
+            <span>Live Engine Diagnostics</span>
+          </div>
+
+          <div class="space-y-1.5 text-xs">
+            <div class="flex items-center justify-between p-2 rounded bg-[var(--background)] border border-[var(--border)]">
+              <span class="text-[var(--muted-foreground)]">Core Trie Lexicon</span>
+              <span id="diagTrieCount" class="font-mono font-semibold text-[var(--foreground)]">-- entries</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-[var(--background)] border border-[var(--border)]">
+              <span class="text-[var(--muted-foreground)]">Supervised Overrides</span>
+              <span id="diagOverrides" class="font-mono font-semibold text-emerald-500">Active</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-[var(--background)] border border-[var(--border)]">
+              <span class="text-[var(--muted-foreground)]">Server Uptime</span>
+              <span id="diagUptime" class="font-mono text-[var(--foreground)]">--</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-[var(--background)] border border-[var(--border)]">
+              <span class="text-[var(--muted-foreground)]">Engine Architecture</span>
+              <span class="font-mono text-[var(--primary)] font-semibold">Tier 1 &amp; Tier 2 Native</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Test Battery Chips (Populates live input) -->
+        <div class="p-4 rounded-xl bg-[var(--card)] border border-[var(--card-border)] shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wider">
+              Quick Test Triggers
+            </span>
+            <span class="text-[10px] text-[var(--muted-foreground)] font-mono">Live evaluation</span>
+          </div>
+
+          <!-- Section 1: Complex Conjuncts -->
+          <div class="space-y-1.5">
+            <div class="text-[11px] font-semibold text-[var(--muted-foreground)]">1. Complex Conjuncts (যুক্তবর্ণ)</div>
+            <div class="flex flex-wrap gap-1" id="chipsComplex">
+              <!-- populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Section 2: Prefix Lockout -->
+          <div class="space-y-1.5 pt-1">
+            <div class="text-[11px] font-semibold text-[var(--muted-foreground)]">2. Prefix Lockout (No Longest-Word Hijack)</div>
+            <div class="flex flex-wrap gap-1" id="chipsPrefix">
+              <!-- populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Section 3: Morphology & Clitics -->
+          <div class="space-y-1.5 pt-1">
+            <div class="text-[11px] font-semibold text-[var(--muted-foreground)]">3. Morphology &amp; Clitics</div>
+            <div class="flex flex-wrap gap-1" id="chipsMorph">
+              <!-- populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Section 4: Sentences -->
+          <div class="space-y-1.5 pt-1">
+            <div class="text-[11px] font-semibold text-[var(--muted-foreground)]">4. Context Collocations</div>
+            <div class="flex flex-wrap gap-1" id="chipsSentence">
+              <!-- populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8765";
+
+    // DOM Elements
+    const connectionBadge = document.getElementById("connectionBadge");
+    const connectionText = document.getElementById("connectionText");
+    const reloadDictBtn = document.getElementById("reloadDictBtn");
+    const resetSessionBtn = document.getElementById("resetSessionBtn");
+    const romanInput = document.getElementById("romanInput");
+    const clearInputBtn = document.getElementById("clearInputBtn");
+    const latencyBadge = document.getElementById("latencyBadge");
+    const dictMatchBadge = document.getElementById("dictMatchBadge");
+    const liveCandidateStrip = document.getElementById("liveCandidateStrip");
+    
+    // Intermediate Stepper elements
+    const stepScrubberTimeline = document.getElementById("stepScrubberTimeline");
+    const activeStepLabel = document.getElementById("activeStepLabel");
+    const activeStepPrefix = document.getElementById("activeStepPrefix");
+    const activeStepPreedit = document.getElementById("activeStepPreedit");
+    const activeStepCodepoints = document.getElementById("activeStepCodepoints");
+    const activeStepCandidates = document.getElementById("activeStepCandidates");
+    const intermediateTableBody = document.getElementById("intermediateTableBody");
+    const prevStepBtn = document.getElementById("prevStepBtn");
+    const nextStepBtn = document.getElementById("nextStepBtn");
+    const autoPlayBtn = document.getElementById("autoPlayBtn");
+
+    // Session simulator elements
+    const committedTextOutput = document.getElementById("committedTextOutput");
+    const composingTextHighlight = document.getElementById("composingTextHighlight");
+    const sessionBackspaceBtn = document.getElementById("sessionBackspaceBtn");
+    const sessionSpaceBtn = document.getElementById("sessionSpaceBtn");
+    const clearNotepadBtn = document.getElementById("clearNotepadBtn");
+
+    // Diagnostics elements
+    const diagTrieCount = document.getElementById("diagTrieCount");
+    const diagOverrides = document.getElementById("diagOverrides");
+    const diagUptime = document.getElementById("diagUptime");
+
+    // Test battery word lists
+    const TEST_WORDS_COMPLEX = [
+      "shukhyo", "ushno", "bramhoputro", "attiyo", "atmiyo", "attotayee",
+      "totwo", "ridoy", "akangkha", "prosno", "ditio", "tritio",
+      "srestho", "khomota", "totkalin", "durghotona", "aschorjo", "sushrusa"
+    ];
+
+    const TEST_WORDS_PREFIX = [
+      "desh", "din", "rat", "kaj", "bari", "bhalo", "shob", "pani", "onno", "protidin", "shadharon", "bastob"
+    ];
+
+    const TEST_WORDS_MORPH = [
+      "boita", "deshe", "desher", "korcho", "korbo", "amio", "manusher"
+    ];
+
+    const TEST_WORDS_SENTENCE = [
+      "ami banglay gan gai", "apni kemon achen", "tumi kemon acho", "ami boi pori", "ami jama pori"
+    ];
+
+    let currentTestData = null;
+    let currentStepIdx = 0;
+    let autoPlayTimer = null;
+
+    // Render test chips
+    function renderChips(containerId, list) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+      list.forEach(w => {
+        const btn = document.createElement("button");
+        btn.className = "px-2 py-0.5 text-xs rounded bg-[var(--background)] hover:bg-[var(--card-border)] border border-[var(--border)] text-[var(--foreground)] font-mono transition-colors";
+        btn.textContent = w;
+        btn.onclick = () => {
+          romanInput.value = w;
+          evaluateInput(w);
+          romanInput.focus();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    renderChips("chipsComplex", TEST_WORDS_COMPLEX);
+    renderChips("chipsPrefix", TEST_WORDS_PREFIX);
+    renderChips("chipsMorph", TEST_WORDS_MORPH);
+    renderChips("chipsSentence", TEST_WORDS_SENTENCE);
+
+    // Heartbeat and Status Check
+    async function checkServerStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/api/status`);
+        if (res.ok) {
+          const data = await res.json();
+          connectionBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20";
+          connectionText.textContent = `Live Native Engine (${data.trie_entries.toLocaleString()} entries)`;
+          diagTrieCount.textContent = `${data.trie_entries.toLocaleString()} words`;
+          diagOverrides.textContent = data.has_overrides ? "Active (Supervised)" : "Inactive";
+          diagUptime.textContent = `${data.uptime_secs}s`;
+          return true;
+        }
+      } catch (e) {
+        connectionBadge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20";
+        connectionText.textContent = "Connecting to Engine (127.0.0.1:8765)...";
+        return false;
+      }
+    }
+
+    // Evaluate input directly against real Rust engine
+    async function evaluateInput(text) {
+      const trimmed = text.trim();
+      if (!trimmed) {
+        liveCandidateStrip.innerHTML = '<span class="text-xs text-[var(--muted-foreground)] italic">Type above to test live Rust engine...</span>';
+        stepScrubberTimeline.innerHTML = "";
+        activeStepPreedit.textContent = "--";
+        activeStepCodepoints.textContent = "--";
+        activeStepCandidates.innerHTML = "";
+        intermediateTableBody.innerHTML = "";
+        dictMatchBadge.textContent = "--";
+        latencyBadge.textContent = "0 µs";
+        return;
+      }
+
+      try {
+        const t0 = performance.now();
+        const res = await fetch(`${API_BASE}/api/test?q=${encodeURIComponent(trimmed)}`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const clientLatency = Math.round((performance.now() - t0) * 1000);
+        
+        latencyBadge.textContent = `${data.latency_micros || clientLatency} µs`;
+        currentTestData = data;
+
+        // Render Candidate Strip
+        renderCandidateStrip(data.candidates, data.primary);
+
+        // Update Dict Match Badge
+        if (data.has_override) {
+          dictMatchBadge.textContent = "Supervised Override";
+          dictMatchBadge.className = "text-[10px] px-2 py-0.5 rounded font-mono font-medium bg-[var(--primary)] text-[var(--primary-foreground)]";
+        } else if (data.is_exact_dict) {
+          dictMatchBadge.textContent = "Exact Trie Lexicon Match";
+          dictMatchBadge.className = "text-[10px] px-2 py-0.5 rounded font-mono font-medium bg-emerald-500/15 text-emerald-500";
+        } else {
+          dictMatchBadge.textContent = "Phonetic Avro Grammar";
+          dictMatchBadge.className = "text-[10px] px-2 py-0.5 rounded font-mono font-medium bg-[var(--card-border)] text-[var(--muted-foreground)]";
+        }
+
+        // Render Stepper and Timeline
+        renderIntermediateStepper(data.intermediate);
+
+      } catch (err) {
+        console.error("Evaluation error:", err);
+        latencyBadge.textContent = "Err: Offline";
+      }
+    }
+
+    // Render candidate pills in main strip
+    function renderCandidateStrip(candidates, primary) {
+      liveCandidateStrip.innerHTML = "";
+      if (!candidates || candidates.length === 0) {
+        liveCandidateStrip.innerHTML = '<span class="text-xs text-[var(--muted-foreground)]">No candidates</span>';
+        return;
+      }
+
+      candidates.forEach((cand, idx) => {
+        const pill = document.createElement("button");
+        if (idx === 0) {
+          pill.className = "px-3.5 py-1.5 rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] text-sm font-semibold flex items-center gap-1.5 shrink-0 shadow-sm border border-transparent select-none";
+          pill.innerHTML = `<span>★</span> <span>${cand}</span>`;
+        } else {
+          pill.className = "px-3 py-1.5 rounded-full bg-[var(--card)] hover:bg-[var(--card-border)] text-[var(--foreground)] text-sm shrink-0 border border-[var(--border)] select-none transition-colors";
+          pill.textContent = cand;
+        }
+        pill.title = `Slot ${idx}: Click to commit to notepad`;
+        pill.onclick = () => selectCandidateInSession(cand);
+        liveCandidateStrip.appendChild(pill);
+      });
+    }
+
+    // Render Intermediate Progression (Steps 1..N)
+    function renderIntermediateStepper(steps) {
+      stepScrubberTimeline.innerHTML = "";
+      intermediateTableBody.innerHTML = "";
+
+      if (!steps || steps.length === 0) return;
+
+      steps.forEach((step, idx) => {
+        // Scrubber button
+        const btn = document.createElement("button");
+        btn.id = `stepBtn_${idx}`;
+        btn.className = `px-2.5 py-1 rounded text-xs font-mono shrink-0 transition-colors border ${
+          idx === steps.length - 1
+            ? "bg-[var(--primary)] text-[var(--primary-foreground)] border-transparent font-semibold"
+            : "bg-[var(--background)] hover:bg-[var(--card-border)] text-[var(--foreground)] border-[var(--border)]"
+        }`;
+        btn.textContent = `${step.step}: ${step.key} → ${step.primary}`;
+        btn.onclick = () => showStepDetail(idx);
+        stepScrubberTimeline.appendChild(btn);
+
+        // Table row
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-[var(--card-border)]/30 transition-colors";
+        tr.innerHTML = `
+          <td class="p-2 text-center text-[var(--muted-foreground)]">${step.step}</td>
+          <td class="p-2 font-bold text-[var(--primary)]">${step.key}</td>
+          <td class="p-2 text-[var(--muted-foreground)]">${step.prefix}</td>
+          <td class="p-2 font-bold text-base text-[var(--foreground)]">${step.primary}</td>
+          <td class="p-2">
+            <div class="flex items-center gap-1 overflow-x-auto py-0.5">
+              ${step.candidates.map((c, cIdx) => `
+                <span class="px-2 py-0.5 rounded text-[11px] ${cIdx === 0 ? 'bg-[var(--primary)]/15 text-[var(--primary)] font-bold' : 'bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)]'}">
+                  ${c}
+                </span>
+              `).join("")}
+            </div>
+          </td>
+        `;
+        intermediateTableBody.appendChild(tr);
+      });
+
+      // Default to final step (or preserved step)
+      showStepDetail(steps.length - 1);
+    }
+
+    // Show details for a specific intermediate step
+    function showStepDetail(idx) {
+      if (!currentTestData || !currentTestData.intermediate || !currentTestData.intermediate[idx]) return;
+      currentStepIdx = idx;
+      const step = currentTestData.intermediate[idx];
+      const total = currentTestData.intermediate.length;
+
+      // Update scrubber buttons state
+      for (let i = 0; i < total; i++) {
+        const btn = document.getElementById(`stepBtn_${i}`);
+        if (btn) {
+          if (i === idx) {
+            btn.className = "px-2.5 py-1 rounded text-xs font-mono shrink-0 bg-[var(--primary)] text-[var(--primary-foreground)] border border-transparent font-semibold shadow-sm";
+          } else {
+            btn.className = "px-2.5 py-1 rounded text-xs font-mono shrink-0 bg-[var(--background)] hover:bg-[var(--card-border)] text-[var(--foreground)] border border-[var(--border)]";
+          }
+        }
+      }
+
+      activeStepLabel.textContent = `Keystroke ${step.step} of ${total} ('${step.key}')`;
+      activeStepPrefix.textContent = `Prefix Buffer: "${step.prefix}"`;
+      activeStepPreedit.textContent = step.primary;
+
+      // Codepoints
+      const hexList = Array.from(step.primary).map(c => "U+" + c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0"));
+      activeStepCodepoints.textContent = hexList.join(" ");
+
+      // Candidates at this step
+      activeStepCandidates.innerHTML = "";
+      step.candidates.forEach((cand, cIdx) => {
+        const pill = document.createElement("span");
+        if (cIdx === 0) {
+          pill.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30 flex items-center gap-1";
+          pill.innerHTML = `<span>★</span> <span>${cand}</span>`;
+        } else {
+          pill.className = "px-2.5 py-1 rounded-md text-xs bg-[var(--background)] border border-[var(--border)] text-[var(--foreground)]";
+          pill.textContent = cand;
+        }
+        activeStepCandidates.appendChild(pill);
+      });
+    }
+
+    // Step Navigation buttons
+    prevStepBtn.addEventListener("click", () => {
+      if (currentStepIdx > 0) showStepDetail(currentStepIdx - 1);
+    });
+
+    nextStepBtn.addEventListener("click", () => {
+      if (currentTestData && currentStepIdx < currentTestData.intermediate.length - 1) {
+        showStepDetail(currentStepIdx + 1);
+      }
+    });
+
+    // Auto-play / Stepper animation
+    autoPlayBtn.addEventListener("click", () => {
+      if (autoPlayTimer) {
+        clearInterval(autoPlayTimer);
+        autoPlayTimer = null;
+        autoPlayBtn.textContent = "▶ Step Through";
+        return;
+      }
+      if (!currentTestData || !currentTestData.intermediate.length) return;
+
+      autoPlayBtn.textContent = "❚❚ Pause";
+      let step = 0;
+      showStepDetail(0);
+      autoPlayTimer = setInterval(() => {
+        step++;
+        if (step >= currentTestData.intermediate.length) {
+          clearInterval(autoPlayTimer);
+          autoPlayTimer = null;
+          autoPlayBtn.textContent = "▶ Step Through";
+        } else {
+          showStepDetail(step);
+        }
+      }, 500);
+    });
+
+    // Session Simulator APIs (Type key, Backspace, Space, Select)
+    async function sendSessionKey(key) {
+      try {
+        const res = await fetch(`${API_BASE}/api/session/key`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          updateSessionUI(data);
+        }
+      } catch (e) {
+        console.error("Session key error:", e);
+      }
+    }
+
+    async function sendSessionBackspace() {
+      try {
+        const res = await fetch(`${API_BASE}/api/session/backspace`, { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          updateSessionUI(data);
+        }
+      } catch (e) {
+        console.error("Session backspace error:", e);
+      }
+    }
+
+    async function sendSessionSpace() {
+      try {
+        const res = await fetch(`${API_BASE}/api/session/space`, { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          updateSessionUI(data);
+        }
+      } catch (e) {
+        console.error("Session space error:", e);
+      }
+    }
+
+    async function selectCandidateInSession(cand) {
+      try {
+        const res = await fetch(`${API_BASE}/api/session/select`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ candidate: cand })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          updateSessionUI(data);
+        }
+      } catch (e) {
+        console.error("Session select error:", e);
+      }
+    }
+
+    function updateSessionUI(data) {
+      if (data.committed_text) {
+        committedTextOutput.textContent += data.committed_text;
+      }
+      composingTextHighlight.textContent = data.composing_text || "";
+    }
+
+    // Input handlers
+    romanInput.addEventListener("input", (e) => evaluateInput(e.target.value));
+
+    clearInputBtn.addEventListener("click", () => {
+      romanInput.value = "";
+      evaluateInput("");
+      romanInput.focus();
+    });
+
+    sessionBackspaceBtn.addEventListener("click", sendSessionBackspace);
+    sessionSpaceBtn.addEventListener("click", sendSessionSpace);
+
+    clearNotepadBtn.addEventListener("click", () => {
+      committedTextOutput.textContent = "";
+      composingTextHighlight.textContent = "";
+    });
+
+    reloadDictBtn.addEventListener("click", async () => {
+      try {
+        reloadDictBtn.classList.add("opacity-50");
+        const res = await fetch(`${API_BASE}/api/reload_dict`, { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          checkServerStatus();
+          evaluateInput(romanInput.value);
+        }
+      } finally {
+        reloadDictBtn.classList.remove("opacity-50");
+      }
+    });
+
+    resetSessionBtn.addEventListener("click", async () => {
+      try {
+        await fetch(`${API_BASE}/api/session/reset`, { method: "POST" });
+        committedTextOutput.textContent = "";
+        composingTextHighlight.textContent = "";
+        evaluateInput(romanInput.value);
+      } catch (e) {
+        console.error("Reset error:", e);
+      }
+    });
+
+    // Initial load
+    (async () => {
+      await checkServerStatus();
+      await evaluateInput(romanInput.value);
+      setInterval(checkServerStatus, 5000);
+    })();
+  </script>
+</body>
+</html>
