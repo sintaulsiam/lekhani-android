@@ -25,10 +25,11 @@ Every line of code across Lekhani must adhere to these inviolable architectural 
    - Text committed to Android `InputConnection` must always be canonical Unicode (NFC).
    - Never corrupt Bengali grapheme clusters, conjuncts (`ক্ষ`, `জ্ঞ`, etc.), or modifier diacritics.
 
-4. **Slot 0 WYSIWYG Invariant (Never Override User Intent on Space)**:
-   - **Spacebar always commits exactly what is highlighted in Slot 0.**
-   - Suggestion engines (such as Anvaya honorific agreement) **must never hijack Slot 0** or force-substitute words on Spacebar tap.
-   - Verbatim typed transliteration sits in Slot 0; concordant suggestions sit in Slot 1.
+4. **AI-First Velocity with Frictionless Pure-Avro Fallback (Reversible Space)**:
+   - **Spacebar commits the primary candidate** (including high-confidence AI contextual agreement and autocorrect) so users write at maximum speed without manually tapping candidate pills.
+   - **Unconditional 3.0-Second Soft-Commit Revert**: If the AI makes a mistake, a single tap on **Backspace instantly swaps the committed text back to pure, deterministic Avro transliteration (`transliteratePureAvro`)** and penalizes the AI model.
+   - **OOV / Gibberish Passthrough**: Out-Of-Vocabulary inputs, slang, and non-meaningful tokens are strictly anchored to the 11 ns Trie grammar, preventing dictionary hijacking.
+   - **Hardware Keyboard Parity**: Physical/Bluetooth keyboards (DeX, USB) automatically engage pure desktop Avro mode with strict Shift sensitivity and no mobile auto-commit interference.
 
 5. **Professional Material 3 Expressive UI & Strict Vector Iconography**:
    - **Never use unicode emojis as icons, pseudo-icons, category chips, or decorative decorations** in buttons, chips, tabs, headers, banners, dialogs, notices, or settings UI.

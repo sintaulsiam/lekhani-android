@@ -385,6 +385,11 @@
   - Re-anchored fixed Bengali layout (Probaho, Probhat, National, Gboard) glide decoding to codepoint-decomposed grapheme paths matching raw touched letter keys.
   - Multi-tier trie prefix queries with 2-key compound prefix matching and 1,500-entry fallback preventing alphabetical search cutoff.
   - Added multi-layout unit test suite (`test_glide_decoding`) verifying Avro (`["a", "m", "i"]` $\to$ `আমি`), English (`["t", "h", "e"]` $\to$ `the`), and Probaho (`["আ", "ম", "া", "র"]` $\to$ `আমার`).
+- [x] **Phase 7: AI-First Velocity with Frictionless Pure-Avro Fallback (Reversible Space)**:
+  - Enabled Spacebar auto-commit for high-confidence AI contextual agreement, honorific shifts (`[আপনি, কেমন] + aso` $\to$ `আছেন`), and typo corrections on touchscreens.
+  - Implemented 1-tap Backspace soft-commit undo via `transliterate_pure_avro`: tapping Backspace within 3.0s of Space atomically reverts the AI commit to deterministic rule-based Avro (`আছেন` $\to$ `আছো`, `ডাক্তার` $\to$ `দাক্তার`) and penalizes the AI model.
+  - Implemented Out-Of-Vocabulary (OOV) / Gibberish Gate in `avro.rs`: non-dictionary tokens, slang, and unconstrained syllables (`asdfgh` $\to$ `আসদ্ফঘ`) strictly anchor Slot 0 to pure Trie transliteration without dictionary hijacking.
+  - Added physical keyboard detection (`Configuration.KEYBOARD_QWERTY`): automatically switches to strict desktop Avro mode with physical Shift sensitivity and zero spacebar auto-substitution when typing on USB, Bluetooth, or Samsung DeX hardware.
 
 
 
