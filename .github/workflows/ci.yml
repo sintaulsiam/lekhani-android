@@ -112,6 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: rust-test
     strategy:
+      fail-fast: false
       matrix:
         target:
           - aarch64-linux-android     # arm64-v8a  (primary target)
@@ -157,7 +158,7 @@ jobs:
             "$STRIP" --strip-unneeded "$SO"
           fi
 
-      - name: Check .so size is under 4 MB budget
+      - name: Check .so size is under 8 MB budget
         run: |
           SO="target/${{ matrix.target }}/release/liblekhani_android.so"
           if [ ! -f "$SO" ]; then
@@ -165,12 +166,12 @@ jobs:
             exit 1
           fi
           SIZE_BYTES=$(stat -c%s "$SO")
-          MAX_BYTES=$((4 * 1024 * 1024))   # 4 MB
+          MAX_BYTES=$((8 * 1024 * 1024))   # 8 MB (rich bilingual engine + 103K trie + overrides table)
           echo "liblekhani_android.so (${{ matrix.target }}): ${SIZE_BYTES} bytes"
           if [ "$SIZE_BYTES" -gt "$MAX_BYTES" ]; then
-            echo "❌ FAIL: .so size ${SIZE_BYTES} exceeds 4 MB budget (${MAX_BYTES} bytes)"
+            echo "❌ FAIL: .so size ${SIZE_BYTES} exceeds 8 MB budget (${MAX_BYTES} bytes)"
             echo "Investigate with: cargo bloat --release -p lekhani-android"
             exit 1
           else
-            echo "✅ PASS: ${SIZE_BYTES} bytes < 4 MB budget"
+            echo "✅ PASS: ${SIZE_BYTES} bytes < 8 MB budget"
           fi
