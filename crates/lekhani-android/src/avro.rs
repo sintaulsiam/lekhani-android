@@ -1605,11 +1605,13 @@ pub(crate) fn resolve_avro_candidates(
             .first()
             .map(|w| db.is_exact_dictionary_word(w) || db.trie.contains_exact(w))
             .unwrap_or(false);
+        let preedit_is_in_dict = db.is_exact_dictionary_word(&preedit) || db.trie.contains_exact(&preedit);
         let top_len = candidates.first().map(|w| w.chars().count()).unwrap_or(0);
         let preedit_len = preedit.chars().count();
         let is_top_distant = !top_is_in_dict || (preedit_len >= 4 && top_len + 1 < preedit_len);
+        let is_oov_gibberish = !preedit_is_in_dict && !top_is_in_dict && !has_override_word(raw);
 
-        if has_explicit_avro_intent(raw) || (is_top_distant && !has_candidate_memory) {
+        if has_explicit_avro_intent(raw) || is_oov_gibberish || (is_top_distant && !has_candidate_memory) {
             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                 if pos != 0 {
                     let cand = candidates.remove(pos);
@@ -1826,12 +1828,7 @@ impl crate::layout::LayoutStrategy for AvroStrategy {
         let context_words = &words_buf[..count];
 
         if let Some(cand) = chosen_candidate {
-            let (preedit, _) = transliterate_avro_with_context(raw, context_words);
-            if lekhani_ai::AnvayaAgreementEngine::is_honorific_shift(&preedit, cand) {
-                crate::probaho::nfc_normalize(&preedit)
-            } else {
-                crate::probaho::nfc_normalize(cand)
-            }
+            crate::probaho::nfc_normalize(cand)
         } else if state.pure_avro_mode {
             let parser = get_avro_parser();
             let def = parser.convert(raw);
@@ -2815,5 +2812,17 @@ mod tests {
             crate::probaho::nfc_normalize("শিক্ষকদেরকে"),
             "shikkhokderke must snap to 'শিক্ষকদেরকে'"
         );
+    }
+
+    #[test]
+    fn test_gibberish_and_pure_avro_passthrough() {
+        let (res, cands) = transliterate_avro("asdfgh");
+        let def = get_avro_parser().convert("asdfgh");
+        assert_eq!(res, def, "Gibberish 'asdfgh' must resolve to pure Avro transliteration");
+        assert_eq!(cands[0], def, "Slot 0 candidate for gibberish must be pure Avro transliteration");
+
+        let session = crate::session::AndroidLekhaniSession::new();
+        let pure = session.transliterate_pure_avro("aso".to_string());
+        assert_eq!(pure, "আছো", "Pure Avro must return 'আছো' without Anvaya shift to 'আছেন'");
     }
 }

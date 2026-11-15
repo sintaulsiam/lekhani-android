@@ -1027,6 +1027,13 @@ impl AndroidLekhaniSession {
         lekhani_parser::lps::exact(&text)
     }
 
+    /// Transliterates the given raw Latin string into pure, rule-based deterministic Avro (NFC),
+    /// completely bypassing any surrounding context, N-gram scorer, or AI contextual adaptation.
+    pub fn transliterate_pure_avro(&self, raw: String) -> String {
+        let (primary, _) = crate::avro::transliterate_avro(&raw);
+        crate::probaho::nfc_normalize(&primary)
+    }
+
     /// Enable or disable auto-promotion of word-initial vowel signs (e.g. া -> আ)
     /// and post-consonant demotion (e.g. ক + আ -> কা).
     pub fn set_smart_initial_kar_enabled(&self, enabled: bool) {

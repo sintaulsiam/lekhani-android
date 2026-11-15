@@ -567,6 +567,12 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.setGboardKarsActive(false)
         keyboardView?.enabledLayoutsCount = getEnabledLayouts().size
         // Self-healing synchronization: Ensure keyboardView's layout matches session layout
+        val isHardware = resources.configuration.keyboard == Configuration.KEYBOARD_QWERTY
+        if (isHardware) {
+            session.setPureAvroMode(true)
+        } else {
+            session.setPureAvroMode(keyboardPrefs.pureAvroMode)
+        }
         val curLayout = session.getLayout()
         if (!isNumericMode && !isNumericFieldMode && !isPhoneDialpadMode) {
             if (keyboardView?.currentLayoutType != curLayout) {
@@ -754,6 +760,12 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        val isHardware = newConfig.keyboard == Configuration.KEYBOARD_QWERTY
+        if (isHardware) {
+            session.setPureAvroMode(true)
+        } else {
+            session.setPureAvroMode(keyboardPrefs.pureAvroMode)
+        }
         if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
             applyFloatingCardLayout(keyboardPrefs.formFactor)
         } else {
@@ -2686,12 +2698,7 @@ class LekhaniInputMethodService : InputMethodService() {
         if (activeUndo != null && !session.isComposing()) {
             val textBefore = try { icDispatcher.getTextBeforeCursor(activeUndo.committedText.length + 2, 0)?.toString() } catch (_: Exception) { null }
             if (textBefore != null && textBefore.endsWith(activeUndo.committedText)) {
-                icDispatcher.withBatchEdit {
-                    it.deleteSurroundingText(activeUndo.committedText.length, 0)
-                    it.commitText(activeUndo.originalText, 1)
-                }
-                clearUndo()
-                refreshSurroundingContext()
+                onUndoCommit(activeUndo)
                 return
             }
         }
@@ -2922,16 +2929,9 @@ class LekhaniInputMethodService : InputMethodService() {
         rawInputBuffer.clear()
 
         val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
-        val isHonorificShift = if (activePrimary != null && preeditBeforeSpace.isNotEmpty()) {
-            try {
-                session.isHonorificShift(preeditBeforeSpace, activePrimary)
-            } catch (_: Exception) {
-                false
-            }
-        } else false
-
-        val autoCommitAllowed = keyboardPrefs.spacebarAutocompleteEnabled
-        val chosenForSpace = if (autoCommitAllowed && activePrimary != null && !activePrimary.startsWith("=") && isPhonetic && !isHonorificShift) {
+        val isHardwareKeyboard = resources.configuration.keyboard == android.content.res.Configuration.KEYBOARD_QWERTY
+        val autoCommitAllowed = keyboardPrefs.spacebarAutocompleteEnabled && !isHardwareKeyboard
+        val chosenForSpace = if (autoCommitAllowed && activePrimary != null && !activePrimary.startsWith("=") && isPhonetic) {
             activePrimary
         } else {
             null
@@ -2965,7 +2965,16 @@ class LekhaniInputMethodService : InputMethodService() {
                 lastCommittedWordTime = android.os.SystemClock.uptimeMillis()
             }
             val isEnglish = session.getLayout() == LekhaniLayoutType.ENGLISH
+            val pureAvro = if (isAvro && originalRaw.isNotBlank()) {
+                try {
+                    session.transliteratePureAvro(originalRaw)
+                } catch (_: Exception) {
+                    null
+                }
+            } else null
+
             val candidateOriginal = when {
+                isAvro && pureAvro != null && pureAvro != trimmedCommitted -> pureAvro
                 preeditBeforeSpace.isNotEmpty() && preeditBeforeSpace != trimmedCommitted -> preeditBeforeSpace
                 isEnglish && originalRaw.isNotEmpty() && originalRaw != trimmedCommitted -> originalRaw
                 else -> null

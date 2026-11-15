@@ -862,6 +862,8 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 
 
 
+
+
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
 
@@ -1011,6 +1013,8 @@ internal interface UniffiLib : Library {
     ): Unit
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_set_smart_initial_kar_enabled(`ptr`: Pointer,`enabled`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    fun uniffi_lekhani_android_fn_method_androidlekhanisession_transliterate_pure_avro(`ptr`: Pointer,`raw`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
     fun uniffi_lekhani_android_fn_method_androidlekhanisession_update_keyboard_geometry(`ptr`: Pointer,`configs`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
     fun uniffi_lekhani_android_fn_clone_asraudioprocessor(`ptr`: Pointer,uniffi_out_err: UniffiRustCallStatus, 
@@ -1279,6 +1283,8 @@ internal interface UniffiLib : Library {
     ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_set_smart_initial_kar_enabled(
     ): Short
+    fun uniffi_lekhani_android_checksum_method_androidlekhanisession_transliterate_pure_avro(
+    ): Short
     fun uniffi_lekhani_android_checksum_method_androidlekhanisession_update_keyboard_geometry(
     ): Short
     fun uniffi_lekhani_android_checksum_method_asraudioprocessor_has_detected_speech(
@@ -1506,6 +1512,9 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_set_smart_initial_kar_enabled() != 28226.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_transliterate_pure_avro() != 33160.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_update_keyboard_geometry() != 40694.toShort()) {
@@ -2267,6 +2276,12 @@ public interface AndroidLekhaniSessionInterface {
      * and post-consonant demotion (e.g. ক + আ -> কা).
      */
     fun `setSmartInitialKarEnabled`(`enabled`: kotlin.Boolean)
+    
+    /**
+     * Transliterates the given raw Latin string into pure, rule-based deterministic Avro (NFC),
+     * completely bypassing any surrounding context, N-gram scorer, or AI contextual adaptation.
+     */
+    fun `transliteratePureAvro`(`raw`: kotlin.String): kotlin.String
     
     /**
      * Update keyboard geometry for spatial touch error correction.
@@ -3351,6 +3366,22 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
 }
     }
     
+    
+
+    
+    /**
+     * Transliterates the given raw Latin string into pure, rule-based deterministic Avro (NFC),
+     * completely bypassing any surrounding context, N-gram scorer, or AI contextual adaptation.
+     */override fun `transliteratePureAvro`(`raw`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithPointer {
+    uniffiRustCall() { _status ->
+    UniffiLib.INSTANCE.uniffi_lekhani_android_fn_method_androidlekhanisession_transliterate_pure_avro(
+        it, FfiConverterString.lower(`raw`),_status)
+}
+    }
+    )
+    }
     
 
     
