@@ -1018,6 +1018,7 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
 
                 override fun onSpaceSwipe(direction: Int) {
+                    commitActiveComposingText()
                     cycleLayout(direction)
                 }
 
@@ -1062,9 +1063,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
 
                 override fun canSwipeSwitchLayout(): Boolean {
-                    // Prevent accidental spacebar layout switching when the user is actively typing or composing.
-                    // In-flight Bengali keystrokes must cleanly commit the word on space instead of switching to English.
-                    return !session.isComposing() && preeditShadow.isEmpty() && rawInputBuffer.isEmpty()
+                    // Always allow layout switching gestures; any in-flight composing word is cleanly committed.
+                    return true
                 }
 
                 override fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor) {
@@ -3189,11 +3189,57 @@ class LekhaniInputMethodService : InputMethodService() {
     }
 
     /**
+     * Commits any active composing word before switching layouts or modes.
+     * Selects the active primary candidate (or current preedit) so that in-flight
+     * words are cleanly finalized into the document instead of discarded.
+     */
+    private fun commitActiveComposingText() {
+        if (!session.isComposing() && preeditShadow.isEmpty() && rawInputBuffer.isEmpty()) {
+            return
+        }
+        val ic = currentInputConnection ?: return
+        val candState = _candidateState.value as? CandidateStripState.Candidates
+        val activePrimary = candState?.items?.firstOrNull { it.isPrimary }?.text
+        val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
+        val autoCommitAllowed = keyboardPrefs.spacebarAutocompleteEnabled
+
+        val chosenWord = if (autoCommitAllowed && activePrimary != null && !activePrimary.startsWith("=") && isPhonetic) {
+            activePrimary
+        } else if (preeditShadow.isNotEmpty()) {
+            preeditShadow
+        } else {
+            null
+        }
+
+        val originalRaw = rawInputBuffer.toString()
+        if (chosenWord != null) {
+            ic.beginBatchEdit()
+            try {
+                ic.commitText(chosenWord, 1)
+            } finally {
+                ic.endBatchEdit()
+            }
+            if (isPhonetic && originalRaw.isNotBlank()) {
+                avroHistory.record(chosenWord.trim(), originalRaw, withSpace = false)
+                lastCommittedWordTime = android.os.SystemClock.uptimeMillis()
+            }
+        } else {
+            ic.finishComposingText()
+        }
+        session.reset()
+        preeditShadow = ""
+        rawInputBuffer.clear()
+        clearCandidates()
+        clearUndo()
+    }
+
+    /**
      * Switches the active layout. Persists the choice to Device Protected Storage.
      */
     fun switchLayout(layout: LekhaniLayoutType, persist: Boolean = true) {
-        // Finalize and seal any active composing text in the target editor before switching layouts
+        // Finalize and commit any active composing text in the target editor before switching layouts
         // to prevent setComposingText in the new layout from wiping out the previously typed word!
+        commitActiveComposingText()
         currentInputConnection?.finishComposingText()
         refreshContextJob?.cancel()
         session.reset()

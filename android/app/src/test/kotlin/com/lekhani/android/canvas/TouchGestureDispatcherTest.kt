@@ -113,6 +113,21 @@ class TouchGestureDispatcherTest {
     }
 
     @Test
+    fun testCanSwipeSwitchLayoutDefaultIsTrue() {
+        val defaultListener = object : KeyboardCanvasView.KeyListener {
+            override fun onKey(key: Key, action: KeyAction) {}
+            override fun onSpaceSwipe(direction: Int) {}
+            override fun onSpaceLongPress() {}
+            override fun onGlideGesture(keys: List<String>) {}
+            override fun onCursorMove(deltaChars: Int) {}
+            override fun onSwipeDelete(wordCount: Int) {}
+            override fun onSwipeDeletePreview(wordCount: Int) {}
+            override fun onFormFactorChange(newFormFactor: KeyboardPreferences.FormFactor) {}
+        }
+        assertTrue("Default canSwipeSwitchLayout must be true so in-flight composing words commit and switch layout", defaultListener.canSwipeSwitchLayout())
+    }
+
+    @Test
     fun testCanSwipeSwitchLayoutDisarmsWhenFalse() {
         var swipeDirection = 0
         host.keyListener = object : KeyboardCanvasView.KeyListener {
