@@ -107,12 +107,7 @@ fn parse_query(query_str: &str) -> HashMap<String, String> {
     map
 }
 
-fn send_response(
-    mut stream: &TcpStream,
-    status_code: &str,
-    content_type: &str,
-    body: &[u8],
-) {
+fn send_response(mut stream: &TcpStream, status_code: &str, content_type: &str, body: &[u8]) {
     let headers = format!(
         "HTTP/1.1 {}\r\n\
          Content-Type: {}\r\n\
@@ -257,19 +252,34 @@ fn handle_connection(
                                 latency_micros: t0.elapsed().as_micros(),
                             };
                             if let Ok(json) = serde_json::to_vec(&resp) {
-                                send_response(&stream, "200 OK", "application/json; charset=utf-8", &json);
+                                send_response(
+                                    &stream,
+                                    "200 OK",
+                                    "application/json; charset=utf-8",
+                                    &json,
+                                );
                                 return;
                             }
                         }
                         Err(e) => {
                             let err_msg = format!("Key error: {}", e);
-                            send_response(&stream, "500 Internal Error", "text/plain", err_msg.as_bytes());
+                            send_response(
+                                &stream,
+                                "500 Internal Error",
+                                "text/plain",
+                                err_msg.as_bytes(),
+                            );
                             return;
                         }
                     }
                 }
             }
-            send_response(&stream, "400 Bad Request", "text/plain", b"Invalid key request");
+            send_response(
+                &stream,
+                "400 Bad Request",
+                "text/plain",
+                b"Invalid key request",
+            );
         }
 
         ("POST", "/api/session/backspace") => {
@@ -284,18 +294,33 @@ fn handle_connection(
                             latency_micros: t0.elapsed().as_micros(),
                         };
                         if let Ok(json) = serde_json::to_vec(&resp) {
-                            send_response(&stream, "200 OK", "application/json; charset=utf-8", &json);
+                            send_response(
+                                &stream,
+                                "200 OK",
+                                "application/json; charset=utf-8",
+                                &json,
+                            );
                             return;
                         }
                     }
                     Err(e) => {
                         let err_msg = format!("Backspace error: {}", e);
-                        send_response(&stream, "500 Internal Error", "text/plain", err_msg.as_bytes());
+                        send_response(
+                            &stream,
+                            "500 Internal Error",
+                            "text/plain",
+                            err_msg.as_bytes(),
+                        );
                         return;
                     }
                 }
             }
-            send_response(&stream, "500 Internal Error", "text/plain", b"Session lock failed");
+            send_response(
+                &stream,
+                "500 Internal Error",
+                "text/plain",
+                b"Session lock failed",
+            );
         }
 
         ("POST", "/api/session/space") => {
@@ -310,18 +335,33 @@ fn handle_connection(
                             latency_micros: t0.elapsed().as_micros(),
                         };
                         if let Ok(json) = serde_json::to_vec(&resp) {
-                            send_response(&stream, "200 OK", "application/json; charset=utf-8", &json);
+                            send_response(
+                                &stream,
+                                "200 OK",
+                                "application/json; charset=utf-8",
+                                &json,
+                            );
                             return;
                         }
                     }
                     Err(e) => {
                         let err_msg = format!("Space error: {}", e);
-                        send_response(&stream, "500 Internal Error", "text/plain", err_msg.as_bytes());
+                        send_response(
+                            &stream,
+                            "500 Internal Error",
+                            "text/plain",
+                            err_msg.as_bytes(),
+                        );
                         return;
                     }
                 }
             }
-            send_response(&stream, "500 Internal Error", "text/plain", b"Session lock failed");
+            send_response(
+                &stream,
+                "500 Internal Error",
+                "text/plain",
+                b"Session lock failed",
+            );
         }
 
         ("POST", "/api/session/select") => {
@@ -338,19 +378,34 @@ fn handle_connection(
                                 latency_micros: t0.elapsed().as_micros(),
                             };
                             if let Ok(json) = serde_json::to_vec(&resp) {
-                                send_response(&stream, "200 OK", "application/json; charset=utf-8", &json);
+                                send_response(
+                                    &stream,
+                                    "200 OK",
+                                    "application/json; charset=utf-8",
+                                    &json,
+                                );
                                 return;
                             }
                         }
                         Err(e) => {
                             let err_msg = format!("Select error: {}", e);
-                            send_response(&stream, "500 Internal Error", "text/plain", err_msg.as_bytes());
+                            send_response(
+                                &stream,
+                                "500 Internal Error",
+                                "text/plain",
+                                err_msg.as_bytes(),
+                            );
                             return;
                         }
                     }
                 }
             }
-            send_response(&stream, "400 Bad Request", "text/plain", b"Invalid select request");
+            send_response(
+                &stream,
+                "400 Bad Request",
+                "text/plain",
+                b"Invalid select request",
+            );
         }
 
         ("POST", "/api/session/reset") => {
@@ -380,7 +435,12 @@ fn handle_connection(
                 send_response(&stream, "200 OK", "application/json; charset=utf-8", &json);
                 return;
             }
-            send_response(&stream, "500 Internal Error", "text/plain", b"Reload failed");
+            send_response(
+                &stream,
+                "500 Internal Error",
+                "text/plain",
+                b"Reload failed",
+            );
         }
 
         ("POST", "/api/rebuild") => {
@@ -392,7 +452,8 @@ fn handle_connection(
             match output {
                 Ok(out) => {
                     let success = out.status.success();
-                    let msg = String::from_utf8_lossy(if success { &out.stdout } else { &out.stderr });
+                    let msg =
+                        String::from_utf8_lossy(if success { &out.stdout } else { &out.stderr });
                     let resp = serde_json::json!({
                         "success": success,
                         "output": msg
@@ -408,7 +469,12 @@ fn handle_connection(
                     return;
                 }
             }
-            send_response(&stream, "500 Internal Error", "text/plain", b"Rebuild failed");
+            send_response(
+                &stream,
+                "500 Internal Error",
+                "text/plain",
+                b"Rebuild failed",
+            );
         }
 
         ("GET" | "HEAD", "/" | "/index.html") => {
@@ -423,7 +489,12 @@ fn handle_connection(
                     return;
                 }
             }
-            send_response(&stream, "404 Not Found", "text/plain", b"HTML file not found");
+            send_response(
+                &stream,
+                "404 Not Found",
+                "text/plain",
+                b"HTML file not found",
+            );
         }
 
         _ => {

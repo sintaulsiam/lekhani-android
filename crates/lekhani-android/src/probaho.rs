@@ -150,26 +150,26 @@ pub fn get_conjunct_suggestions(last_consonant: char) -> Vec<String> {
     if last_consonant == 'র' {
         return vec![
             "র\u{200D}্য".to_string(), // র-এ য-ফলা with ZWJ (র্যাব, র‍্যালি, র‍্যান্ডম)
-            "র্য".to_string(),        // রেফ-য (সূর্য, ধৈর্য, কার্য)
-            "র্ম".to_string(),        // ধর্ম, কর্ম
-            "র্ক".to_string(),        // তর্ক, সার্ক
-            "র্ষ".to_string(),        // বর্ষা, আকর্ষণ
-            "র্ত".to_string(),        // বার্তা, মূর্তি
-            "র্দ".to_string(),        // পর্দা, সর্দি
-            "র্ব".to_string(),        // সর্ব, গর্ব
-            "র্থ".to_string(),        // অর্থ, ব্যর্থ
-            "র্জ".to_string(),        // অর্জন, বর্জন
-            "র্ণ".to_string(),        // বর্ণ, স্বর্ণ
-            "র্শ".to_string(),        // আদর্শ, দর্শন
-            "র্গ".to_string(),        // বর্গ, স্বৰ্গ
-            "র্ধ".to_string(),        // অর্ধ, সার্থ
-            "র্প".to_string(),        // সর্প, দর্পণ
-            "র্ভ".to_string(),        // গর্ভ
-            "র্স".to_string(),        // পার্সেল
-            "র্ঘ".to_string(),        // দীর্ঘ
-            "র্চ".to_string(),        // চর্চা
-            "র্ন".to_string(),        // ঝরনা
-            "র্হ".to_string(),        // গার্হস্থ্য
+            "র্য".to_string(),         // রেফ-য (সূর্য, ধৈর্য, কার্য)
+            "র্ম".to_string(),         // ধর্ম, কর্ম
+            "র্ক".to_string(),         // তর্ক, সার্ক
+            "র্ষ".to_string(),         // বর্ষা, আকর্ষণ
+            "র্ত".to_string(),         // বার্তা, মূর্তি
+            "র্দ".to_string(),         // পর্দা, সর্দি
+            "র্ব".to_string(),         // সর্ব, গর্ব
+            "র্থ".to_string(),         // অর্থ, ব্যর্থ
+            "র্জ".to_string(),         // অর্জন, বর্জন
+            "র্ণ".to_string(),         // বর্ণ, স্বর্ণ
+            "র্শ".to_string(),         // আদর্শ, দর্শন
+            "র্গ".to_string(),         // বর্গ, স্বৰ্গ
+            "র্ধ".to_string(),         // অর্ধ, সার্থ
+            "র্প".to_string(),         // সর্প, দর্পণ
+            "র্ভ".to_string(),         // গর্ভ
+            "র্স".to_string(),         // পার্সেল
+            "র্ঘ".to_string(),         // দীর্ঘ
+            "র্চ".to_string(),         // চর্চা
+            "র্ন".to_string(),         // ঝরনা
+            "র্হ".to_string(),         // গার্হস্থ্য
         ];
     }
     let prefix = format!("{} + ্", last_consonant);
@@ -498,7 +498,11 @@ fn regenerate_fixed_candidates(input: &str) -> Vec<String> {
 pub(crate) struct ProbahoStrategy;
 
 impl crate::layout::LayoutStrategy for ProbahoStrategy {
-    fn process_key(&self, key: &str, state: &mut crate::session::SessionState) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
+    fn process_key(
+        &self,
+        key: &str,
+        state: &mut crate::session::SessionState,
+    ) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
         let now = std::time::Instant::now();
         let is_rapid_consonant_double_tap = state
             .last_consonant_tap
@@ -532,10 +536,8 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
         let prev_is_consonant = chars.len() >= 2
             && is_bengali_consonant_or_modifier(chars[chars.len() - 2])
             && chars[chars.len() - 2] != '্';
-        let is_same_kar_double_tap = is_raw_kar
-            && last_is_kar
-            && prev_is_consonant
-            && last_ch == key_first_char;
+        let is_same_kar_double_tap =
+            is_raw_kar && last_is_kar && prev_is_consonant && last_ch == key_first_char;
 
         let promoted = if state.smart_initial_kar_enabled {
             promote_kar_if_needed(key, is_start || last_is_vowel)
@@ -624,9 +626,8 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
                     && c != 'য়'
             })
             && (chars.len() < 2
-                || key_first_char.is_some_and(|kc| {
-                    chars[chars.len() - 2] != '্' && chars[chars.len() - 2] != kc
-                }))
+                || key_first_char
+                    .is_some_and(|kc| chars[chars.len() - 2] != '্' && chars[chars.len() - 2] != kc))
         {
             state.composing_buffer.push('্');
             state.composing_buffer.push_str(key);
@@ -677,7 +678,8 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
         }
 
         let cb_chars: Vec<char> = state.composing_buffer.chars().collect();
-        if cb_chars.len() == 2 && is_bengali_consonant_or_modifier(cb_chars[0]) && cb_chars[0] != '্' {
+        if cb_chars.len() == 2 && is_bengali_consonant_or_modifier(cb_chars[0]) && cb_chars[0] != '্'
+        {
             let iv_partner = match cb_chars[1] {
                 'ি' => Some('ই'),
                 'ো' => Some('ও'),
@@ -698,9 +700,7 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
             }
         }
 
-        if !state.composing_buffer.ends_with('্')
-            && state.composing_buffer.chars().count() >= 2
-        {
+        if !state.composing_buffer.ends_with('্') && state.composing_buffer.chars().count() >= 2 {
             let db = crate::session::get_core_database();
             let is_exact_word = db.trie.contains_exact(&state.composing_buffer);
             if is_exact_word || candidates.len() < 5 {
@@ -720,8 +720,7 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
 
         if candidates.len() < 5 {
             let db = crate::session::get_core_database();
-            let stems =
-                lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
+            let stems = lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
             for stem in stems {
                 if stem.len() >= 2 {
                     let stem_matches = db.trie.find_prefix_matches(&stem, 3);
@@ -739,15 +738,12 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
 
         if !state.surrounding_context.is_empty() && candidates.len() > 1 {
             let mut words_buf = [""; 16];
-            let count = crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
+            let count =
+                crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
             let words = &words_buf[..count];
             let scorer = crate::session::get_context_scorer();
             let right_word = state.right_context.split_whitespace().next();
-            scorer.rank_candidates_in_place_bidirectional(
-                words,
-                right_word,
-                &mut candidates,
-            );
+            scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
         }
 
         if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
@@ -755,7 +751,11 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
             candidates.insert(0, exact);
         }
 
-        let len = unicode_segmentation::UnicodeSegmentation::graphemes(state.composing_buffer.as_str(), true).count() as u32;
+        let len = unicode_segmentation::UnicodeSegmentation::graphemes(
+            state.composing_buffer.as_str(),
+            true,
+        )
+        .count() as u32;
         Ok(crate::session::TypingResult {
             preedit: state.composing_buffer.clone(),
             commit_text: None,
@@ -764,11 +764,20 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
         })
     }
 
-    fn resolve_space_commit(&self, raw: &str, _state: &mut crate::session::SessionState, chosen_candidate: Option<&str>) -> String {
+    fn resolve_space_commit(
+        &self,
+        raw: &str,
+        _state: &mut crate::session::SessionState,
+        chosen_candidate: Option<&str>,
+    ) -> String {
         resolve_fixed_space_commit(raw, chosen_candidate)
     }
 
-    fn regenerate_candidates(&self, _state: &crate::session::SessionState, input: &str) -> Vec<String> {
+    fn regenerate_candidates(
+        &self,
+        _state: &crate::session::SessionState,
+        input: &str,
+    ) -> Vec<String> {
         regenerate_fixed_candidates(input)
     }
 }
@@ -776,15 +785,28 @@ impl crate::layout::LayoutStrategy for ProbahoStrategy {
 pub(crate) struct ProbhatStrategy;
 
 impl crate::layout::LayoutStrategy for ProbhatStrategy {
-    fn process_key(&self, key: &str, state: &mut crate::session::SessionState) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
+    fn process_key(
+        &self,
+        key: &str,
+        state: &mut crate::session::SessionState,
+    ) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
         ProbahoStrategy.process_key(key, state)
     }
 
-    fn resolve_space_commit(&self, raw: &str, state: &mut crate::session::SessionState, chosen_candidate: Option<&str>) -> String {
+    fn resolve_space_commit(
+        &self,
+        raw: &str,
+        state: &mut crate::session::SessionState,
+        chosen_candidate: Option<&str>,
+    ) -> String {
         ProbahoStrategy.resolve_space_commit(raw, state, chosen_candidate)
     }
 
-    fn regenerate_candidates(&self, state: &crate::session::SessionState, input: &str) -> Vec<String> {
+    fn regenerate_candidates(
+        &self,
+        state: &crate::session::SessionState,
+        input: &str,
+    ) -> Vec<String> {
         ProbahoStrategy.regenerate_candidates(state, input)
     }
 }
@@ -792,7 +814,11 @@ impl crate::layout::LayoutStrategy for ProbhatStrategy {
 pub(crate) struct NationalStrategy;
 
 impl crate::layout::LayoutStrategy for NationalStrategy {
-    fn process_key(&self, key: &str, state: &mut crate::session::SessionState) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
+    fn process_key(
+        &self,
+        key: &str,
+        state: &mut crate::session::SessionState,
+    ) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
         let key_first_char_nat = key.chars().next();
         let is_raw_kar = key.chars().count() == 1
             && key_first_char_nat.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
@@ -820,10 +846,14 @@ impl crate::layout::LayoutStrategy for NationalStrategy {
         } else if state.composing_buffer.ends_with('অ') && key == "া" {
             state.composing_buffer.pop();
             state.composing_buffer.push('আ');
-        } else if state.composing_buffer.is_empty() && is_raw_kar && state.smart_initial_kar_enabled {
-            let is_start = state.surrounding_context.chars().last().map(|c| {
-                !is_bengali_consonant_or_modifier(c) && !is_bengali_vowel(c)
-            }).unwrap_or(true);
+        } else if state.composing_buffer.is_empty() && is_raw_kar && state.smart_initial_kar_enabled
+        {
+            let is_start = state
+                .surrounding_context
+                .chars()
+                .last()
+                .map(|c| !is_bengali_consonant_or_modifier(c) && !is_bengali_vowel(c))
+                .unwrap_or(true);
             let promoted = promote_kar_if_needed(key, is_start);
             state.composing_buffer.push_str(&promoted);
         } else if is_raw_kar && state.composing_buffer.ends_with('ঁ') {
@@ -858,7 +888,10 @@ impl crate::layout::LayoutStrategy for NationalStrategy {
         }
 
         let nat_chars: Vec<char> = state.composing_buffer.chars().collect();
-        if nat_chars.len() == 2 && is_bengali_consonant_or_modifier(nat_chars[0]) && nat_chars[0] != '্' {
+        if nat_chars.len() == 2
+            && is_bengali_consonant_or_modifier(nat_chars[0])
+            && nat_chars[0] != '্'
+        {
             let iv_partner = match nat_chars[1] {
                 'ি' => Some('ই'),
                 'ো' => Some('ও'),
@@ -881,22 +914,23 @@ impl crate::layout::LayoutStrategy for NationalStrategy {
 
         if !state.surrounding_context.is_empty() && candidates.len() > 1 {
             let mut words_buf = [""; 16];
-            let count = crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
+            let count =
+                crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
             let words = &words_buf[..count];
             let scorer = crate::session::get_context_scorer();
             let right_word = state.right_context.split_whitespace().next();
-            scorer.rank_candidates_in_place_bidirectional(
-                words,
-                right_word,
-                &mut candidates,
-            );
+            scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
         }
         if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
             let exact = candidates.remove(pos);
             candidates.insert(0, exact);
         }
 
-        let len = unicode_segmentation::UnicodeSegmentation::graphemes(state.composing_buffer.as_str(), true).count() as u32;
+        let len = unicode_segmentation::UnicodeSegmentation::graphemes(
+            state.composing_buffer.as_str(),
+            true,
+        )
+        .count() as u32;
         Ok(crate::session::TypingResult {
             preedit: state.composing_buffer.clone(),
             commit_text: None,
@@ -905,11 +939,20 @@ impl crate::layout::LayoutStrategy for NationalStrategy {
         })
     }
 
-    fn resolve_space_commit(&self, raw: &str, _state: &mut crate::session::SessionState, chosen_candidate: Option<&str>) -> String {
+    fn resolve_space_commit(
+        &self,
+        raw: &str,
+        _state: &mut crate::session::SessionState,
+        chosen_candidate: Option<&str>,
+    ) -> String {
         resolve_fixed_space_commit(raw, chosen_candidate)
     }
 
-    fn regenerate_candidates(&self, _state: &crate::session::SessionState, input: &str) -> Vec<String> {
+    fn regenerate_candidates(
+        &self,
+        _state: &crate::session::SessionState,
+        input: &str,
+    ) -> Vec<String> {
         regenerate_fixed_candidates(input)
     }
 }
@@ -917,7 +960,11 @@ impl crate::layout::LayoutStrategy for NationalStrategy {
 pub(crate) struct GboardStrategy;
 
 impl crate::layout::LayoutStrategy for GboardStrategy {
-    fn process_key(&self, key: &str, state: &mut crate::session::SessionState) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
+    fn process_key(
+        &self,
+        key: &str,
+        state: &mut crate::session::SessionState,
+    ) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
         let key_first_char_fix = key.chars().next();
         let is_raw_kar = key.chars().count() == 1
             && key_first_char_fix.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
@@ -927,10 +974,8 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
         let prev_is_consonant = chars.len() >= 2
             && is_bengali_consonant_or_modifier(chars[chars.len() - 2])
             && chars[chars.len() - 2] != '্';
-        let is_same_kar_double_tap = is_raw_kar
-            && last_is_kar
-            && prev_is_consonant
-            && last_ch == key_first_char_fix;
+        let is_same_kar_double_tap =
+            is_raw_kar && last_is_kar && prev_is_consonant && last_ch == key_first_char_fix;
 
         if is_same_kar_double_tap && state.smart_initial_kar_enabled {
             let iv = match last_ch {
@@ -952,10 +997,14 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
         } else if state.composing_buffer.ends_with('অ') && key == "া" {
             state.composing_buffer.pop();
             state.composing_buffer.push('আ');
-        } else if state.composing_buffer.is_empty() && is_raw_kar && state.smart_initial_kar_enabled {
-            let is_start = state.surrounding_context.chars().last().map(|c| {
-                !is_bengali_consonant_or_modifier(c) && !is_bengali_vowel(c)
-            }).unwrap_or(true);
+        } else if state.composing_buffer.is_empty() && is_raw_kar && state.smart_initial_kar_enabled
+        {
+            let is_start = state
+                .surrounding_context
+                .chars()
+                .last()
+                .map(|c| !is_bengali_consonant_or_modifier(c) && !is_bengali_vowel(c))
+                .unwrap_or(true);
             let promoted = promote_kar_if_needed(key, is_start);
             state.composing_buffer.push_str(&promoted);
         } else if is_raw_kar && state.composing_buffer.ends_with('ঁ') {
@@ -1003,7 +1052,10 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
         }
 
         let fix_chars: Vec<char> = state.composing_buffer.chars().collect();
-        if fix_chars.len() == 2 && is_bengali_consonant_or_modifier(fix_chars[0]) && fix_chars[0] != '্' {
+        if fix_chars.len() == 2
+            && is_bengali_consonant_or_modifier(fix_chars[0])
+            && fix_chars[0] != '্'
+        {
             let iv_partner = match fix_chars[1] {
                 'ি' => Some('ই'),
                 'ো' => Some('ও'),
@@ -1024,9 +1076,7 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
             }
         }
 
-        if !state.composing_buffer.ends_with('্')
-            && state.composing_buffer.chars().count() >= 2
-        {
+        if !state.composing_buffer.ends_with('্') && state.composing_buffer.chars().count() >= 2 {
             let is_exact_word = db.trie.contains_exact(&state.composing_buffer);
             if is_exact_word || candidates.len() < 5 {
                 let inflections = generate_inflectional_suffixes(&state.composing_buffer);
@@ -1044,8 +1094,7 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
         }
 
         if candidates.len() < 5 {
-            let stems =
-                lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
+            let stems = lekhani_core::phonetic::morphology::peel_all_stems(&state.composing_buffer);
             for stem in stems {
                 if stem.len() >= 2 {
                     let stem_matches = db.trie.find_prefix_matches(&stem, 3);
@@ -1063,15 +1112,12 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
 
         if candidates.len() > 1 {
             let mut words_buf = [""; 16];
-            let count = crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
+            let count =
+                crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
             let words = &words_buf[..count];
             let scorer = crate::session::get_context_scorer();
             let right_word = state.right_context.split_whitespace().next();
-            scorer.rank_candidates_in_place_bidirectional(
-                words,
-                right_word,
-                &mut candidates,
-            );
+            scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
         }
 
         if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
@@ -1079,7 +1125,11 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
             candidates.insert(0, exact);
         }
 
-        let len = unicode_segmentation::UnicodeSegmentation::graphemes(state.composing_buffer.as_str(), true).count() as u32;
+        let len = unicode_segmentation::UnicodeSegmentation::graphemes(
+            state.composing_buffer.as_str(),
+            true,
+        )
+        .count() as u32;
         Ok(crate::session::TypingResult {
             preedit: state.composing_buffer.clone(),
             commit_text: None,
@@ -1088,11 +1138,20 @@ impl crate::layout::LayoutStrategy for GboardStrategy {
         })
     }
 
-    fn resolve_space_commit(&self, raw: &str, _state: &mut crate::session::SessionState, chosen_candidate: Option<&str>) -> String {
+    fn resolve_space_commit(
+        &self,
+        raw: &str,
+        _state: &mut crate::session::SessionState,
+        chosen_candidate: Option<&str>,
+    ) -> String {
         resolve_fixed_space_commit(raw, chosen_candidate)
     }
 
-    fn regenerate_candidates(&self, _state: &crate::session::SessionState, input: &str) -> Vec<String> {
+    fn regenerate_candidates(
+        &self,
+        _state: &crate::session::SessionState,
+        input: &str,
+    ) -> Vec<String> {
         regenerate_fixed_candidates(input)
     }
 }

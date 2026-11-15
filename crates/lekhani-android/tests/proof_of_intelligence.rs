@@ -12,7 +12,7 @@ fn test_live_proof_of_intelligence() {
 
     // ── TEST 1: Context-Aware Homophone Disambiguation ───────────────────────────
     println!("▶ TEST 1: Context-Aware Homophone Disambiguation (\"pora\" -> পড়া vs পরা)");
-    
+
     // 1a. Reading context
     session.reset();
     session.set_context("আমি বই".to_string());
@@ -23,9 +23,16 @@ fn test_live_proof_of_intelligence() {
     let cands_book = res.as_ref().unwrap().candidates.clone();
     let committed_book = session.handle_space().unwrap().commit_text.unwrap();
     println!("  Context: [আমি বই] + typed 'pora'");
-    println!("  -> Top 3 Candidates: {:?}", &cands_book[..3.min(cands_book.len())]);
+    println!(
+        "  -> Top 3 Candidates: {:?}",
+        &cands_book[..3.min(cands_book.len())]
+    );
     println!("  -> Spacebar Committed: '{}'", committed_book.trim());
-    assert_eq!(committed_book.trim(), "পড়া", "After 'আমি বই', 'pora' MUST commit 'পড়া'");
+    assert_eq!(
+        committed_book.trim(),
+        "পড়া",
+        "After 'আমি বই', 'pora' MUST commit 'পড়া'"
+    );
 
     // 1b. Wearing context
     session.reset();
@@ -36,9 +43,16 @@ fn test_live_proof_of_intelligence() {
     let cands_shirt = res.as_ref().unwrap().candidates.clone();
     let committed_shirt = session.handle_space().unwrap().commit_text.unwrap();
     println!("  Context: [নতুন শার্ট] + typed 'pora'");
-    println!("  -> Top 3 Candidates: {:?}", &cands_shirt[..3.min(cands_shirt.len())]);
+    println!(
+        "  -> Top 3 Candidates: {:?}",
+        &cands_shirt[..3.min(cands_shirt.len())]
+    );
     println!("  -> Spacebar Committed: '{}'", committed_shirt.trim());
-    assert_eq!(committed_shirt.trim(), "পরা", "After 'নতুন শার্ট', 'pora' MUST commit 'পরা'");
+    assert_eq!(
+        committed_shirt.trim(),
+        "পরা",
+        "After 'নতুন শার্ট', 'pora' MUST commit 'পরা'"
+    );
     println!("  [PASS] Flawlessly disambiguated homophones based on real context!\n");
 
     // ── TEST 2: Complex Long-Word Compound & Sandhi Expansion ────────────────────
@@ -57,8 +71,15 @@ fn test_live_proof_of_intelligence() {
         let elapsed = t0.elapsed();
         let cands = res.as_ref().unwrap().candidates.clone();
         let top = cands.first().map(|s| s.as_str()).unwrap_or("");
-        println!("  Typed: '{:<18}' -> Top Candidate: '{}' (took {:?})", input, top, elapsed);
-        assert_eq!(top, expected, "Long word '{}' must resolve to '{}'", input, expected);
+        println!(
+            "  Typed: '{:<18}' -> Top Candidate: '{}' (took {:?})",
+            input, top, elapsed
+        );
+        assert_eq!(
+            top, expected,
+            "Long word '{}' must resolve to '{}'",
+            input, expected
+        );
     }
     println!("  [PASS] Complex compound formal words resolve accurately without failure!\n");
 
@@ -74,7 +95,10 @@ fn test_live_proof_of_intelligence() {
         session.reset();
         session.set_context(trigger.to_string());
         let predictions = session.predict_next_words(5);
-        println!("  Trigger: '{:<16}' -> Next-Word Predictions: {:?}", trigger, predictions);
+        println!(
+            "  Trigger: '{:<16}' -> Next-Word Predictions: {:?}",
+            trigger, predictions
+        );
         let exp_nfc = lekhani_android::probaho::nfc_normalize(expected_next);
         assert!(
             predictions.iter().any(|p| {
@@ -97,20 +121,47 @@ fn test_live_proof_of_intelligence() {
     for ch in "ban".chars() {
         res = Some(session.process_key(ch.to_string()).unwrap());
     }
-    let top_ban = res.as_ref().unwrap().candidates.first().map(|s| s.as_str()).unwrap();
-    println!("  Context: [আমার সোনার] + typed 'ban' -> Top Candidate: '{}' (NOT 'ভান')", top_ban);
-    assert_eq!(top_ban, "বান", "'ban' must NOT be hijacked by typo neighbor 'ভান'");
+    let top_ban = res
+        .as_ref()
+        .unwrap()
+        .candidates
+        .first()
+        .map(|s| s.as_str())
+        .unwrap();
+    println!(
+        "  Context: [আমার সোনার] + typed 'ban' -> Top Candidate: '{}' (NOT 'ভান')",
+        top_ban
+    );
+    assert_eq!(
+        top_ban, "বান",
+        "'ban' must NOT be hijacked by typo neighbor 'ভান'"
+    );
 
     // 4b. Slang preservation
-    let slang_words = [("pera", "প্যারা"), ("bro", "ব্রো"), ("dost", "দোস্ত"), ("shala", "শালা")];
+    let slang_words = [
+        ("pera", "প্যারা"),
+        ("bro", "ব্রো"),
+        ("dost", "দোস্ত"),
+        ("shala", "শালা"),
+    ];
     for (input, expected) in slang_words {
         session.reset();
         for ch in input.chars() {
             res = Some(session.process_key(ch.to_string()).unwrap());
         }
-        let top = res.as_ref().unwrap().candidates.first().map(|s| s.as_str()).unwrap();
+        let top = res
+            .as_ref()
+            .unwrap()
+            .candidates
+            .first()
+            .map(|s| s.as_str())
+            .unwrap();
         println!("  Slang typed: '{:<6}' -> Top Candidate: '{}'", input, top);
-        assert_eq!(top, expected, "Slang '{}' must be preserved as '{}'", input, expected);
+        assert_eq!(
+            top, expected,
+            "Slang '{}' must be preserved as '{}'",
+            input, expected
+        );
     }
     println!("  [PASS] Zero hijacking: exact matches and slang stay 100% faithful!\n");
 
@@ -122,13 +173,19 @@ fn test_live_proof_of_intelligence() {
         res = Some(session.process_key(ch.to_string()).unwrap());
     }
     let initial_cands = res.as_ref().unwrap().candidates.clone();
-    println!("  Typed 'pora' with no context -> Candidates: {:?}", &initial_cands[..2]);
+    println!(
+        "  Typed 'pora' with no context -> Candidates: {:?}",
+        &initial_cands[..2]
+    );
     let alt_choice = initial_cands[1].clone();
     println!("  User manually taps candidate [1]: '{}'", alt_choice);
-    
+
     // Explicitly selecting candidate [1] executes online perceptron weight update
     let select_res = session.select_candidate(alt_choice.clone()).unwrap();
-    println!("  Committed on tap: '{}'", select_res.commit_text.unwrap().trim());
+    println!(
+        "  Committed on tap: '{}'",
+        select_res.commit_text.unwrap().trim()
+    );
     println!("  Perceptron weight vector updated dynamically with η = 20.0!");
     println!("  [PASS] Personalization feedback loop is active, live, and verified!\n");
 
@@ -147,10 +204,21 @@ fn test_live_proof_of_intelligence() {
     let avg_latency = latencies_us.iter().sum::<u128>() / latencies_us.len() as u128;
     let max_latency = *latencies_us.iter().max().unwrap();
     println!("  Typed 30 chars ('{}')", sample);
-    println!("  -> Average Latency per Keystroke: {} µs ({:.3} ms)", avg_latency, avg_latency as f64 / 1000.0);
-    println!("  -> Maximum Latency per Keystroke: {} µs ({:.3} ms)", max_latency, max_latency as f64 / 1000.0);
+    println!(
+        "  -> Average Latency per Keystroke: {} µs ({:.3} ms)",
+        avg_latency,
+        avg_latency as f64 / 1000.0
+    );
+    println!(
+        "  -> Maximum Latency per Keystroke: {} µs ({:.3} ms)",
+        max_latency,
+        max_latency as f64 / 1000.0
+    );
     let latency_budget = if cfg!(debug_assertions) { 15000 } else { 3000 };
-    assert!(avg_latency < latency_budget, "Average latency must be well under budget");
+    assert!(
+        avg_latency < latency_budget,
+        "Average latency must be well under budget"
+    );
     println!("  [PASS] Sub-millisecond performance budget strictly upheld!\n");
 
     // ── TEST 7: Phonological Fault-Tolerant Transducer (Lazy Avro) ───────────────
@@ -172,12 +240,17 @@ fn test_live_proof_of_intelligence() {
         }
         let cands = res.as_ref().unwrap().candidates.clone();
         let top = cands.first().map(|s| s.as_str()).unwrap_or("");
-        println!("  Context: [{}] + typed '{:<10}' -> Top Candidate: '{}' (expected '{}')", ctx, input, top, expected);
+        println!(
+            "  Context: [{}] + typed '{:<10}' -> Top Candidate: '{}' (expected '{}')",
+            ctx, input, top, expected
+        );
         println!("    Candidates: {:?}", &cands[..5.min(cands.len())]);
         assert!(
             top == expected || (input == "takbo" && (top == "থাকবো" || top == "থাকব")),
             "Expected top candidate '{}' for input '{}', but got '{}'",
-            expected, input, top
+            expected,
+            input,
+            top
         );
     }
     println!("  [PASS] Phonological fault tolerance accurately resolves lazy Avro inputs!\n");
@@ -204,22 +277,28 @@ fn test_live_proof_of_intelligence() {
         }
         let cands = res.as_ref().unwrap().candidates.clone();
         let top = cands.first().map(|s| s.as_str()).unwrap_or("");
-        println!("  Context: [{}] + typed '{:<10}' -> Top Candidate: '{}' (expected '{}')", ctx, input, top, expected);
+        println!(
+            "  Context: [{}] + typed '{:<10}' -> Top Candidate: '{}' (expected '{}')",
+            ctx, input, top, expected
+        );
         println!("    Candidates: {:?}", &cands[..5.min(cands.len())]);
-        assert_eq!(top, expected, "Expected top candidate '{}' for input '{}', but got '{}'", expected, input, top);
+        assert_eq!(
+            top, expected,
+            "Expected top candidate '{}' for input '{}', but got '{}'",
+            expected, input, top
+        );
     }
 
     // Conversational Next-Word Prediction
-    let conversational_triggers = [
-        ("প্যারা", "নাই"),
-        ("কি", "অবস্থা"),
-        ("চিল", "ব্রো"),
-    ];
+    let conversational_triggers = [("প্যারা", "নাই"), ("কি", "অবস্থা"), ("চিল", "ব্রো")];
     for (trigger, expected_next) in conversational_triggers {
         session.reset();
         session.set_context(trigger.to_string());
         let predictions = session.predict_next_words(5);
-        println!("  Trigger: '{:<16}' -> Next-Word Predictions: {:?}", trigger, predictions);
+        println!(
+            "  Trigger: '{:<16}' -> Next-Word Predictions: {:?}",
+            trigger, predictions
+        );
         let exp_nfc = lekhani_android::probaho::nfc_normalize(expected_next);
         assert!(
             predictions.iter().any(|p| {

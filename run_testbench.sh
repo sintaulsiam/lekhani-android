@@ -177,3 +177,4 @@ if [ "$WATCH_MODE" = true ]; then
 else
   wait "$SERVER_PID"
 fi
+

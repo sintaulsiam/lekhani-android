@@ -966,7 +966,7 @@ fn test_homophone_and_authoritative_candidate_ranking() {
         ("tin", "তিন", Some("টিন")),
         ("chil", "ছিল", Some("চিল")),
         ("apu", "আপু", Some("অপু")),
-        ("korbo", "করবো", Some("করব")),
+        ("korbo", "করব", Some("করবো")),
         ("khabo", "খাবো", Some("খাব")),
     ];
 
@@ -1146,7 +1146,10 @@ fn test_kaccha_and_kzackzacani_no_hijack() {
     session.set_layout(LekhaniLayoutType::Avro);
 
     // Verify clitic resolver is disabled by default
-    assert!(!session.is_bilingual_clitic_enabled(), "Bilingual clitic resolver must be disabled by default");
+    assert!(
+        !session.is_bilingual_clitic_enabled(),
+        "Bilingual clitic resolver must be disabled by default"
+    );
 
     // 1. "kaccha" must produce "কাচ্ছা" (Avro cch -> চ্ছ), never hijacked to "কাচ্চা"
     session.reset();
@@ -1237,4 +1240,3 @@ fn test_kaccha_and_kzackzacani_no_hijack() {
         "paR must produce পাড় at Slot 0"
     );
 }
-

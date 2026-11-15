@@ -53,7 +53,9 @@ pub fn prioritize_common_or_override_candidate_with_context(
         .iter()
         .any(|&r| {
             lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(input, r)
-                .or_else(|| lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(&lower, r))
+                .or_else(|| {
+                    lekhani_ai::AnvayaAgreementEngine::synthesize_concordant_verb(&lower, r)
+                })
                 .map(|v| crate::probaho::nfc_normalize(v) == first_nfc)
                 .unwrap_or(false)
         });
@@ -72,17 +74,23 @@ pub fn prioritize_common_or_override_candidate_with_context(
     let db = crate::session::get_core_database();
     let def_conv = get_avro_parser().convert(input);
     let def_lower_conv = get_avro_parser().convert(&lower);
-    let is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
+    let _is_bengali_dict_word = (!def_conv.is_empty() && db.is_exact_dictionary_word(&def_conv))
         || (!def_lower_conv.is_empty() && db.is_exact_dictionary_word(&def_lower_conv));
 
-    let is_verified_tech_acronym = is_common_tech_acronym(input) && !is_bengali_dict_word;
+    let is_verified_tech_acronym = is_common_tech_acronym(input);
     if is_verified_tech_acronym {
-        if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
+        if let Some(pos) = candidates
+            .iter()
+            .position(|c| c.eq_ignore_ascii_case(input))
+        {
             let cand = candidates.remove(pos);
             candidates.insert(0, cand);
             return;
         }
-    } else if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(input)) {
+    } else if let Some(pos) = candidates
+        .iter()
+        .position(|c| c.eq_ignore_ascii_case(input))
+    {
         // Enforce Sacred Slot 0: In Avro Bengali layout, English candidate sits at Slot 1 (Rank 2),
         // NEVER stealing Slot 0 from valid Bengali transliterations.
         if pos == 0 && candidates.len() > 1 {
@@ -112,7 +120,8 @@ pub fn prioritize_common_or_override_candidate_with_context(
             .skip(1)
             .all(|c| c.is_lowercase() || !c.is_alphabetic());
     let collapsed_opt = collapse_elongation(&lower);
-    let override_opt = db.lookup_override_inflected(input)
+    let override_opt = db
+        .lookup_override_inflected(input)
         .or_else(|| {
             if is_title_case {
                 db.lookup_override_inflected(&lower)
@@ -121,7 +130,9 @@ pub fn prioritize_common_or_override_candidate_with_context(
             }
         })
         .or_else(|| {
-            collapsed_opt.as_deref().and_then(|c| db.lookup_override_inflected(c))
+            collapsed_opt
+                .as_deref()
+                .and_then(|c| db.lookup_override_inflected(c))
         });
     let mut inserted_idx = 0;
     if let Some(overrides) = override_opt {
@@ -133,9 +144,13 @@ pub fn prioritize_common_or_override_candidate_with_context(
             if let Some(first_cand) = candidates.first() {
                 let first_nfc = crate::probaho::nfc_normalize(first_cand);
                 if has_context {
-                    overrides.iter().any(|(w, _)| crate::probaho::nfc_normalize(w) == first_nfc)
+                    overrides
+                        .iter()
+                        .any(|(w, _)| crate::probaho::nfc_normalize(w) == first_nfc)
                 } else {
-                    overrides.iter().any(|(w, s)| crate::probaho::nfc_normalize(w) == first_nfc && *s >= top_override_score)
+                    overrides.iter().any(|(w, s)| {
+                        crate::probaho::nfc_normalize(w) == first_nfc && *s >= top_override_score
+                    })
                 }
             } else {
                 false
@@ -150,18 +165,27 @@ pub fn prioritize_common_or_override_candidate_with_context(
         for (override_word, score) in overrides {
             let target_nfc = crate::probaho::nfc_normalize(&override_word);
             if has_top_in_overrides
-                && candidates.first().map(|s| crate::probaho::nfc_normalize(s) == target_nfc).unwrap_or(false)
+                && candidates
+                    .first()
+                    .map(|s| crate::probaho::nfc_normalize(s) == target_nfc)
+                    .unwrap_or(false)
             {
                 continue;
             }
-            if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+            if let Some(pos) = candidates
+                .iter()
+                .position(|c| crate::probaho::nfc_normalize(c) == target_nfc)
+            {
                 let cand = candidates.remove(pos);
                 candidates.insert(inserted_idx.min(candidates.len()), cand);
                 inserted_idx += 1;
             } else if score >= 0.70 {
                 candidates.insert(inserted_idx.min(candidates.len()), target_nfc.clone());
                 inserted_idx += 1;
-            } else if !candidates.iter().any(|c| crate::probaho::nfc_normalize(c) == target_nfc) {
+            } else if !candidates
+                .iter()
+                .any(|c| crate::probaho::nfc_normalize(c) == target_nfc)
+            {
                 if candidates.len() >= 12 {
                     candidates.pop();
                 }
@@ -181,13 +205,19 @@ pub fn prioritize_common_or_override_candidate_with_context(
             let freq_lower = db.get_frequency(&def_lower_norm);
             let freq_def = db.get_frequency(&def_norm);
             if lower_in_dict || freq_lower >= freq_def {
-                if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == def_lower_norm) {
+                if let Some(pos) = candidates
+                    .iter()
+                    .position(|c| crate::probaho::nfc_normalize(c) == def_lower_norm)
+                {
                     let cand = candidates.remove(pos);
                     candidates.insert(0, cand);
                 } else {
                     candidates.insert(0, def_lower_norm);
                 }
-                if !candidates.iter().any(|c| crate::probaho::nfc_normalize(c) == def_norm) {
+                if !candidates
+                    .iter()
+                    .any(|c| crate::probaho::nfc_normalize(c) == def_norm)
+                {
                     let insert_idx = 1.min(candidates.len());
                     candidates.insert(insert_idx, def_norm);
                 }
@@ -204,11 +234,15 @@ pub fn prioritize_common_or_override_candidate_with_context(
         let eq_freq = db.get_frequency(&eq_word);
         let top_freq = candidates.first().map(|w| db.get_frequency(w)).unwrap_or(0);
 
-        let top_is_valid = candidates.first().map(|w| {
-            db.is_exact_dictionary_word(w)
-                || db.trie.contains_exact(w)
-                || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_some()
-        }).unwrap_or(false);
+        let top_is_valid = candidates
+            .first()
+            .map(|w| {
+                db.is_exact_dictionary_word(w)
+                    || db.trie.contains_exact(w)
+                    || lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower)
+                        .is_some()
+            })
+            .unwrap_or(false);
 
         let is_geminate_input = (lower.contains("cc")
             || lower.contains("kk")
@@ -344,9 +378,8 @@ pub fn are_phonetically_compatible(w1: &str, w2: &str) -> bool {
 /// Looks up offline supervised phonetic override candidates for a key (including inflected suffix peeling).
 pub fn get_override_words(key: &str) -> Option<Vec<String>> {
     let db = crate::session::get_core_database();
-    db.lookup_override_inflected(key).map(|ov| {
-        ov.into_iter().map(|(w, _)| w).collect()
-    })
+    db.lookup_override_inflected(key)
+        .map(|ov| ov.into_iter().map(|(w, _)| w).collect())
 }
 
 pub fn has_override_word(key: &str) -> bool {
@@ -443,7 +476,9 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
 
     if base.is_empty()
         || suffix.is_empty()
-        || !base.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        || !base
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
         return None;
     }
@@ -599,8 +634,11 @@ pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec
     let def_lower_conv = parser.convert(&lower);
 
     // If the entire token already resolves to an exact valid Bengali dictionary word, do not decouple!
-    if (!def_conv.is_empty() && (db.is_exact_dictionary_word(&def_conv) || db.trie.contains_exact(&def_conv)))
-        || (!def_lower_conv.is_empty() && (db.is_exact_dictionary_word(&def_lower_conv) || db.trie.contains_exact(&def_lower_conv)))
+    if (!def_conv.is_empty()
+        && (db.is_exact_dictionary_word(&def_conv) || db.trie.contains_exact(&def_conv)))
+        || (!def_lower_conv.is_empty()
+            && (db.is_exact_dictionary_word(&def_lower_conv)
+                || db.trie.contains_exact(&def_lower_conv)))
     {
         return None;
     }
@@ -644,31 +682,101 @@ pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec
                 continue;
             }
 
-            let is_all_upper_acronym = base.len() >= 2 && base.chars().all(|c| c.is_ascii_uppercase());
+            let is_all_upper_acronym =
+                base.len() >= 2 && base.chars().all(|c| c.is_ascii_uppercase());
             let is_camel_or_title = base.len() >= 3
                 && base.chars().next().is_some_and(|c| c.is_ascii_uppercase())
                 && base.chars().skip(1).all(|c| c.is_ascii_lowercase());
-            let is_recognized_english = base.len() >= 3 && crate::english::is_recognized_english_word(base);
+            let is_recognized_english =
+                base.len() >= 3 && crate::english::is_recognized_english_word(base);
             let is_known_brand_or_tech = matches!(
                 base.to_lowercase().as_str(),
-                "whatsapp" | "facebook" | "google" | "youtube" | "instagram" | "twitter" | "tiktok"
-                | "zoom" | "skype" | "android" | "windows" | "linux" | "apple" | "microsoft"
-                | "bkash" | "nagad" | "rocket" | "upay" | "uber" | "pathao" | "daraz" | "foodpanda"
-                | "netflix" | "spotify" | "telegram" | "signal" | "gmail" | "yahoo" | "wifi"
-                | "bluetooth" | "laptop" | "desktop" | "monitor" | "server" | "cloud" | "bug"
-                | "meeting" | "post" | "link" | "call" | "group" | "chat" | "message" | "status"
-                | "story" | "video" | "audio" | "photo" | "camera" | "file" | "app" | "code"
-                | "commit" | "branch" | "repo" | "issue" | "pr" | "merge" | "test" | "fail"
-                | "pass" | "click" | "share" | "like" | "comment" | "feed" | "stream" | "cash"
-                | "bank" | "card" | "bill" | "offer"
+                "whatsapp"
+                    | "facebook"
+                    | "google"
+                    | "youtube"
+                    | "instagram"
+                    | "twitter"
+                    | "tiktok"
+                    | "zoom"
+                    | "skype"
+                    | "android"
+                    | "windows"
+                    | "linux"
+                    | "apple"
+                    | "microsoft"
+                    | "bkash"
+                    | "nagad"
+                    | "rocket"
+                    | "upay"
+                    | "uber"
+                    | "pathao"
+                    | "daraz"
+                    | "foodpanda"
+                    | "netflix"
+                    | "spotify"
+                    | "telegram"
+                    | "signal"
+                    | "gmail"
+                    | "yahoo"
+                    | "wifi"
+                    | "bluetooth"
+                    | "laptop"
+                    | "desktop"
+                    | "monitor"
+                    | "server"
+                    | "cloud"
+                    | "bug"
+                    | "meeting"
+                    | "post"
+                    | "link"
+                    | "call"
+                    | "group"
+                    | "chat"
+                    | "message"
+                    | "status"
+                    | "story"
+                    | "video"
+                    | "audio"
+                    | "photo"
+                    | "camera"
+                    | "file"
+                    | "app"
+                    | "code"
+                    | "commit"
+                    | "branch"
+                    | "repo"
+                    | "issue"
+                    | "pr"
+                    | "merge"
+                    | "test"
+                    | "fail"
+                    | "pass"
+                    | "click"
+                    | "share"
+                    | "like"
+                    | "comment"
+                    | "feed"
+                    | "stream"
+                    | "cash"
+                    | "bank"
+                    | "card"
+                    | "bill"
+                    | "offer"
             );
 
             let clean_base_lower = base.to_lowercase();
-            let has_loanword = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&clean_base_lower).is_some();
+            let has_loanword =
+                lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&clean_base_lower)
+                    .is_some();
             let is_valid_stem = if suf.len() == 1 {
                 is_all_upper_acronym || is_camel_or_title || is_known_brand_or_tech || has_loanword
             } else {
-                is_all_upper_acronym || is_camel_or_title || is_recognized_english || is_known_brand_or_tech || has_loanword
+                is_all_upper_acronym
+                    || is_camel_or_title
+                    || is_recognized_english
+                    || is_known_brand_or_tech
+                    || has_loanword
             };
 
             if is_valid_stem {
@@ -678,11 +786,20 @@ pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec
 
                 // Slot 1: Try phonetic Bengali loanword if available
                 let clean_base_lower = base.to_lowercase();
-                if let Some((bn_loan, _)) = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&clean_base_lower) {
+                if let Some((bn_loan, _)) =
+                    lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(
+                        &clean_base_lower,
+                    )
+                {
                     let unified_clitic = match suf {
                         "e" => {
-                            if bn_loan.ends_with('া') || bn_loan.ends_with('ি') || bn_loan.ends_with('ী')
-                                || bn_loan.ends_with('ু') || bn_loan.ends_with('ূ') || bn_loan.ends_with('ে') || bn_loan.ends_with('ো')
+                            if bn_loan.ends_with('া')
+                                || bn_loan.ends_with('ি')
+                                || bn_loan.ends_with('ী')
+                                || bn_loan.ends_with('ু')
+                                || bn_loan.ends_with('ূ')
+                                || bn_loan.ends_with('ে')
+                                || bn_loan.ends_with('ো')
                             {
                                 "য়ে"
                             } else {
@@ -690,8 +807,13 @@ pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec
                             }
                         }
                         "er" => {
-                            if bn_loan.ends_with('া') || bn_loan.ends_with('ি') || bn_loan.ends_with('ী')
-                                || bn_loan.ends_with('ু') || bn_loan.ends_with('ূ') || bn_loan.ends_with('ে') || bn_loan.ends_with('ো')
+                            if bn_loan.ends_with('া')
+                                || bn_loan.ends_with('ি')
+                                || bn_loan.ends_with('ী')
+                                || bn_loan.ends_with('ু')
+                                || bn_loan.ends_with('ূ')
+                                || bn_loan.ends_with('ে')
+                                || bn_loan.ends_with('ো')
                                 || bn_loan.ends_with('ং')
                             {
                                 "য়ের"
@@ -722,7 +844,8 @@ pub fn resolve_unhyphenated_bilingual_clitic(input: &str) -> Option<(String, Vec
                             candidates.push(bn_cand);
                         }
                     }
-                    let bn_hyphen_cand = format!("{}-{}", bn_loan, b_clitic.trim_start_matches('-').trim());
+                    let bn_hyphen_cand =
+                        format!("{}-{}", bn_loan, b_clitic.trim_start_matches('-').trim());
                     if !candidates.contains(&bn_hyphen_cand) {
                         candidates.push(bn_hyphen_cand);
                     }
@@ -820,8 +943,10 @@ pub fn resolve_generative_morphology(input: &str) -> Option<(String, Vec<String>
     if lower.starts_with("co") || lower.starts_with("ca") {
         let mut k_form = lower.clone();
         k_form.replace_range(..1, "k");
-        if let Some((bn_loan, _)) = lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower)
-            .or_else(|| lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&k_form))
+        if let Some((bn_loan, _)) =
+            lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).or_else(|| {
+                lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&k_form)
+            })
         {
             return Some((bn_loan.to_string(), vec![bn_loan.to_string()]));
         }
@@ -883,8 +1008,12 @@ pub fn is_avro_special_fastpath(input: &str) -> bool {
     input.starts_with('@')
         || input.starts_with('#')
         || (!input.is_empty()
-            && input.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ',')
-            && input.chars().any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c)))
+            && input.chars().all(|c| {
+                c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ','
+            })
+            && input
+                .chars()
+                .any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c)))
         || resolve_digit_unit_candidates(input).is_some()
         || (is_bilingual_clitic_enabled()
             && (resolve_bilingual_hyphen_clitic(input).is_some()
@@ -939,8 +1068,12 @@ fn stage_digit_units_and_numbers(input: &str) -> Option<(String, Vec<String>)> {
 
     // Fast-path 2b: Pure numeric literals and decimal/comma numbers (e.g. "12486" -> "১২৪৮৬", "8.4" -> "৮.৪")
     if !input.is_empty()
-        && input.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ',')
-        && input.chars().any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c))
+        && input.chars().all(|c| {
+            c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c) || c == '.' || c == ','
+        })
+        && input
+            .chars()
+            .any(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c))
     {
         let b_num = ascii_digits_to_bengali(input);
         let a_num = bengali_digits_to_ascii(input);
@@ -1137,7 +1270,6 @@ pub struct AvroRequestContext<'a> {
     pub is_explicit_common: bool,
 }
 
-
 fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) {
     let mut candidate_memory = HashMap::new();
     if let Some(ref choice) = ctx.remembered_choice {
@@ -1162,30 +1294,47 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
     let def_norm = crate::probaho::nfc_normalize(&def_pure);
     if !def_norm.is_empty() {
         let db = crate::session::get_core_database();
-        let top_is_in_dict = raw_candidates.first().map(|w| {
-            db.is_exact_dictionary_word(w) || db.trie.contains_exact(w)
-        }).unwrap_or(false);
-        let top_len = raw_candidates.first().map(|w| w.chars().count()).unwrap_or(0);
+        let top_is_in_dict = raw_candidates
+            .first()
+            .map(|w| db.is_exact_dictionary_word(w) || db.trie.contains_exact(w))
+            .unwrap_or(false);
+        let top_is_override = ctx.is_explicit_common;
+        let top_is_valid = top_is_in_dict || top_is_override;
+        let top_len = raw_candidates
+            .first()
+            .map(|w| w.chars().count())
+            .unwrap_or(0);
         let def_len = def_norm.chars().count();
-        let is_top_distant = !top_is_in_dict || (def_len >= 4 && top_len + 1 < def_len);
+        let is_top_distant = !top_is_valid || (def_len >= 4 && top_len + 1 < def_len);
 
         if let Some(pos) = raw_candidates.iter().position(|c| c == &def_norm) {
-            if is_top_distant && pos > 0 && ctx.remembered_choice.is_none() && !has_explicit_avro_intent(ctx.input) {
+            if is_top_distant
+                && pos > 0
+                && ctx.remembered_choice.is_none()
+                && !has_explicit_avro_intent(ctx.input)
+                && !ctx.is_explicit_common
+            {
                 let cand = raw_candidates.remove(pos);
                 raw_candidates.insert(0, cand);
             }
         } else {
-            let insert_idx = if is_top_distant && ctx.remembered_choice.is_none() {
-                0
-            } else {
-                1.min(raw_candidates.len())
-            };
+            let insert_idx =
+                if is_top_distant && ctx.remembered_choice.is_none() && !ctx.is_explicit_common {
+                    0
+                } else {
+                    1.min(raw_candidates.len())
+                };
             raw_candidates.insert(insert_idx, def_norm);
         }
     }
 
     // 2. Verbatim Latin input escape hatch
-    if ctx.input.is_ascii() && ctx.input.len() >= 2 && !raw_candidates.iter().any(|c| c.eq_ignore_ascii_case(ctx.input)) {
+    if ctx.input.is_ascii()
+        && ctx.input.len() >= 2
+        && !raw_candidates
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(ctx.input))
+    {
         raw_candidates.push(ctx.input.to_string());
     }
 
@@ -1200,7 +1349,11 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
     }
 
     if !has_explicit_avro_intent(ctx.input) && ctx.remembered_choice.is_none() {
-        prioritize_common_or_override_candidate_with_context(ctx.input, &mut raw_candidates, !ctx.context.is_empty());
+        prioritize_common_or_override_candidate_with_context(
+            ctx.input,
+            &mut raw_candidates,
+            !ctx.context.is_empty(),
+        );
     }
 
     let primary = raw_candidates.first().cloned().unwrap_or_default();
@@ -1456,9 +1609,10 @@ pub(crate) fn resolve_avro_candidates(
         }
 
         let db = crate::session::get_core_database();
-        let top_is_in_dict = candidates.first().map(|w| {
-            db.is_exact_dictionary_word(w) || db.trie.contains_exact(w)
-        }).unwrap_or(false);
+        let top_is_in_dict = candidates
+            .first()
+            .map(|w| db.is_exact_dictionary_word(w) || db.trie.contains_exact(w))
+            .unwrap_or(false);
         let top_len = candidates.first().map(|w| w.chars().count()).unwrap_or(0);
         let preedit_len = preedit.chars().count();
         let is_top_distant = !top_is_in_dict || (preedit_len >= 4 && top_len + 1 < preedit_len);
@@ -1476,7 +1630,12 @@ pub(crate) fn resolve_avro_candidates(
                 let preferred = learner
                     .lookup_input_error(raw)
                     .or_else(|| learner.candidate_memory.get(raw).map(|s| s.as_str()))
-                    .or_else(|| learner.candidate_memory.get(&raw.to_lowercase()).map(|s| s.as_str()));
+                    .or_else(|| {
+                        learner
+                            .candidate_memory
+                            .get(&raw.to_lowercase())
+                            .map(|s| s.as_str())
+                    });
                 if let Some(pref) = preferred {
                     if let Some(pos) = candidates.iter().position(|c| c == pref) {
                         let cand = candidates.remove(pos);
@@ -1485,13 +1644,15 @@ pub(crate) fn resolve_avro_candidates(
                 }
             }
         } else {
-            prioritize_common_or_override_candidate_with_context(raw, &mut candidates, !context_words.is_empty());
+            prioritize_common_or_override_candidate_with_context(
+                raw,
+                &mut candidates,
+                !context_words.is_empty(),
+            );
         }
 
         let lower = raw.to_lowercase();
-        let is_acronym_or_tech = is_common_tech_acronym(raw)
-            || raw == "NaN"
-            || raw == "Infinity";
+        let is_acronym_or_tech = is_common_tech_acronym(raw) || raw == "NaN" || raw == "Infinity";
         if is_acronym_or_tech {
             if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(raw)) {
                 let cand = candidates.remove(pos);
@@ -1533,7 +1694,11 @@ pub(crate) fn resolve_avro_candidates(
             let has_strong_context_preference = {
                 let scorer = crate::session::get_context_scorer();
                 let prev1 = context_words.last().copied();
-                let prev2 = if context_words.len() >= 2 { Some(context_words[context_words.len() - 2]) } else { None };
+                let prev2 = if context_words.len() >= 2 {
+                    Some(context_words[context_words.len() - 2])
+                } else {
+                    None
+                };
                 let lm_top = scorer.lm().score_candidate(prev2, prev1, top);
                 let lm_pre = scorer.lm().score_candidate(prev2, prev1, &preedit);
                 (lm_top - lm_pre) >= 2.0
@@ -1542,7 +1707,9 @@ pub(crate) fn resolve_avro_candidates(
             if !has_candidate_memory
                 && !is_explicit_common
                 && !has_override
-                && (db.is_exact_dictionary_word(&preedit) || db.trie.contains_exact(&preedit) || is_geminate)
+                && (db.is_exact_dictionary_word(&preedit)
+                    || db.trie.contains_exact(&preedit)
+                    || is_geminate)
                 && (!are_phonetically_compatible(&preedit, top)
                     || top.chars().count() > preedit.chars().count()
                     || ((is_geminate || !is_archaic_preedit)
@@ -1560,10 +1727,15 @@ pub(crate) fn resolve_avro_candidates(
             if !has_override {
                 let def_pure = get_avro_parser().convert(raw);
                 let def_nfc = crate::probaho::nfc_normalize(&def_pure);
-                if let Some(pos) = candidates.iter().position(|c| crate::probaho::nfc_normalize(c) == def_nfc) {
+                if let Some(pos) = candidates
+                    .iter()
+                    .position(|c| crate::probaho::nfc_normalize(c) == def_nfc)
+                {
                     let is_cch = raw.contains("cch") && def_nfc.contains("চ্ছ");
-                    let is_geminate_hijacked = is_geminate && top.contains('য') && !def_nfc.contains('য');
-                    if (!are_phonetically_compatible(&def_nfc, top) && db.is_exact_dictionary_word(&def_nfc))
+                    let is_geminate_hijacked =
+                        is_geminate && top.contains('য') && !def_nfc.contains('য');
+                    if (!are_phonetically_compatible(&def_nfc, top)
+                        && db.is_exact_dictionary_word(&def_nfc))
                         || is_cch
                         || is_geminate_hijacked
                     {
@@ -1576,7 +1748,12 @@ pub(crate) fn resolve_avro_candidates(
 
         if lower.contains("dd") && !lower.contains("dw") && !lower.contains("ddh") {
             if let Some(pos) = candidates.iter().position(|c| c.contains("দ্দ")) {
-                if pos > 0 && candidates.first().map(|s| s.contains("দ্ব")).unwrap_or(false) {
+                if pos > 0
+                    && candidates
+                        .first()
+                        .map(|s| s.contains("দ্ব"))
+                        .unwrap_or(false)
+                {
                     let cand = candidates.remove(pos);
                     candidates.insert(0, cand);
                 }
@@ -1592,19 +1769,27 @@ pub(crate) fn resolve_avro_candidates(
         }
     }
 
-    let final_preedit = norm_candidates.first().cloned().unwrap_or_else(|| crate::probaho::nfc_normalize(&preedit));
+    let final_preedit = norm_candidates
+        .first()
+        .cloned()
+        .unwrap_or_else(|| crate::probaho::nfc_normalize(&preedit));
     (final_preedit, norm_candidates)
 }
 
 pub(crate) struct AvroStrategy;
 
 impl crate::layout::LayoutStrategy for AvroStrategy {
-    fn process_key(&self, key: &str, state: &mut crate::session::SessionState) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
+    fn process_key(
+        &self,
+        key: &str,
+        state: &mut crate::session::SessionState,
+    ) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
         state.composing_buffer.push_str(key);
         if state.pure_avro_mode {
             let parser = get_avro_parser();
             let preedit = parser.convert(&state.composing_buffer);
-            let len = unicode_segmentation::UnicodeSegmentation::graphemes(preedit.as_str(), true).count() as u32;
+            let len = unicode_segmentation::UnicodeSegmentation::graphemes(preedit.as_str(), true)
+                .count() as u32;
             let candidates = vec![preedit.clone()];
             return Ok(crate::session::TypingResult {
                 preedit,
@@ -1622,8 +1807,10 @@ impl crate::layout::LayoutStrategy for AvroStrategy {
         let words = &words_buf[..count];
         let right_word = state.right_context.split_whitespace().next();
 
-        let (preedit, candidates) = resolve_avro_candidates(&state.composing_buffer, words, right_word);
-        let len = unicode_segmentation::UnicodeSegmentation::graphemes(preedit.as_str(), true).count() as u32;
+        let (preedit, candidates) =
+            resolve_avro_candidates(&state.composing_buffer, words, right_word);
+        let len = unicode_segmentation::UnicodeSegmentation::graphemes(preedit.as_str(), true)
+            .count() as u32;
         Ok(crate::session::TypingResult {
             preedit,
             commit_text: None,
@@ -1632,7 +1819,12 @@ impl crate::layout::LayoutStrategy for AvroStrategy {
         })
     }
 
-    fn resolve_space_commit(&self, raw: &str, state: &mut crate::session::SessionState, chosen_candidate: Option<&str>) -> String {
+    fn resolve_space_commit(
+        &self,
+        raw: &str,
+        state: &mut crate::session::SessionState,
+        chosen_candidate: Option<&str>,
+    ) -> String {
         let mut words_buf = [""; 16];
         let count = if !state.surrounding_context.is_empty() {
             crate::session::get_context_words(&state.surrounding_context, &mut words_buf)
@@ -1659,7 +1851,11 @@ impl crate::layout::LayoutStrategy for AvroStrategy {
         }
     }
 
-    fn regenerate_candidates(&self, state: &crate::session::SessionState, input: &str) -> Vec<String> {
+    fn regenerate_candidates(
+        &self,
+        state: &crate::session::SessionState,
+        input: &str,
+    ) -> Vec<String> {
         let mut words_buf = [""; 16];
         let count = if !state.surrounding_context.is_empty() {
             crate::session::get_context_words(&state.surrounding_context, &mut words_buf)
@@ -1744,12 +1940,21 @@ mod tests {
         // index 2: typo auto-correction "আমি"
         let (pre_smi, cands_smi) = transliterate_avro("smi");
         assert_eq!(pre_smi, cands_smi[0]);
-        assert!(cands_smi.contains(&"আমি".to_string()), "Expected 'আমি' in candidates for 'smi'");
-        assert!(cands_smi.contains(&"স্মি".to_string()), "Expected 'স্মি' in candidates for 'smi'");
+        assert!(
+            cands_smi.contains(&"আমি".to_string()),
+            "Expected 'আমি' in candidates for 'smi'"
+        );
+        assert!(
+            cands_smi.contains(&"স্মি".to_string()),
+            "Expected 'স্মি' in candidates for 'smi'"
+        );
 
         // Adjacent transposition typo: "bhlao" -> "ভালো"
         let (_pre_bhlao, cands_bhlao) = transliterate_avro("bhlao");
-        assert!(cands_bhlao.contains(&"ভালো".to_string()), "Expected 'ভালো' in candidates for 'bhlao'");
+        assert!(
+            cands_bhlao.contains(&"ভালো".to_string()),
+            "Expected 'ভালো' in candidates for 'bhlao'"
+        );
     }
 
     #[test]
@@ -2371,8 +2576,7 @@ mod tests {
         // Under formal subject ("আপনি কেমন"), typing "aso":
         // Slot 0 MUST be the familiar verb "আছো" (WYSIWYG: Space commits what is highlighted)
         // Slot 1 MUST be the Anvaya formal suggestion "আছেন" (commits on tap, not on Space)
-        let (primary, candidates) =
-            transliterate_avro_with_context("aso", &["আপনি", "কেমন"]);
+        let (primary, candidates) = transliterate_avro_with_context("aso", &["আপনি", "কেমন"]);
         assert_eq!(primary, "আছো", "Slot 0 must be familiar 'আছো'");
         assert!(candidates.len() >= 2, "Must have at least 2 candidates");
         assert_eq!(candidates[0], "আছো", "Candidate[0] must be 'আছো'");
@@ -2380,19 +2584,21 @@ mod tests {
 
         // Intimate subject ("তুই"), typing "koro":
         // Slot 0 is "করো", Slot 1 is "করছিস"
-        let (primary_tui, candidates_tui) =
-            transliterate_avro_with_context("koro", &["তুই"]);
+        let (primary_tui, candidates_tui) = transliterate_avro_with_context("koro", &["তুই"]);
         assert_eq!(primary_tui, "করো", "Slot 0 must be familiar 'করো'");
-        assert!(candidates_tui.contains(&"করছিস".to_string()), "Candidate pool must contain 'করছিস'");
+        assert!(
+            candidates_tui.contains(&"করছিস".to_string()),
+            "Candidate pool must contain 'করছিস'"
+        );
     }
 
     #[test]
     fn test_grammar_biased_muscle_memory_invariant() {
         let parser = get_avro_parser();
         let roots = [
-            "k", "kh", "g", "gh", "c", "ch", "j", "jh", "T", "Th", "D", "Dh", "N",
-            "t", "th", "d", "dh", "n", "p", "ph", "b", "bh", "m", "r", "l", "sh",
-            "Sh", "s", "h", "R", "Rh", "y", "kSh", "gyan", "rri",
+            "k", "kh", "g", "gh", "c", "ch", "j", "jh", "T", "Th", "D", "Dh", "N", "t", "th", "d",
+            "dh", "n", "p", "ph", "b", "bh", "m", "r", "l", "sh", "Sh", "s", "h", "R", "Rh", "y",
+            "kSh", "gyan", "rri",
         ];
         let vowels = ["", "a", "i", "I", "u", "U", "e", "o", "O", "OI", "OU"];
         let codas = ["", "r", "l", "n", "m", "t", "k", "sh", "^", ":"];
@@ -2431,20 +2637,34 @@ mod tests {
                 }
             }
         }
-        assert!(checked > 5000, "Should have fuzzed > 5000 grammar-biased inputs, fuzzed {}", checked);
+        assert!(
+            checked > 5000,
+            "Should have fuzzed > 5000 grammar-biased inputs, fuzzed {}",
+            checked
+        );
     }
 
     #[test]
     fn test_cca_and_short_acronym_promotion() {
         // Lowercase "cca" must transliterate to Bengali "চ্চা" in Slot 0, NOT Latin "cca"
         let (primary, cands) = transliterate_avro("cca");
-        assert_eq!(primary, "চ্চা", "Primary preedit for 'cca' must be 'চ্চা', got '{}'", primary);
+        assert_eq!(
+            primary, "চ্চা",
+            "Primary preedit for 'cca' must be 'চ্চা', got '{}'",
+            primary
+        );
         assert_eq!(cands.first().map(|s| s.as_str()), Some("চ্চা"));
-        assert!(cands.contains(&"cca".to_string()), "Candidate strip should still offer Latin 'cca'");
+        assert!(
+            cands.contains(&"cca".to_string()),
+            "Candidate strip should still offer Latin 'cca'"
+        );
 
         // Uppercase "CCA" should promote to Slot 0 Latin "CCA" as a technical acronym
         let (primary_caps, cands_caps) = transliterate_avro("CCA");
-        assert_eq!(primary_caps, "CCA", "Primary preedit for all-caps 'CCA' must be 'CCA'");
+        assert_eq!(
+            primary_caps, "CCA",
+            "Primary preedit for all-caps 'CCA' must be 'CCA'"
+        );
         assert_eq!(cands_caps.first().map(|s| s.as_str()), Some("CCA"));
     }
 
@@ -2452,22 +2672,40 @@ mod tests {
     fn test_oov_slang_primacy() {
         // Non-dictionary slang and novel words must maintain literal Avro phonetic transliteration at Slot 0
         let (jhalkhor, cands) = transliterate_avro("jhalkhor");
-        assert_eq!(jhalkhor, "ঝালখর", "jhalkhor must transliterate to 'ঝালখর' at Slot 0");
+        assert_eq!(
+            jhalkhor, "ঝালখর",
+            "jhalkhor must transliterate to 'ঝালখর' at Slot 0"
+        );
         assert_eq!(cands.first().map(|s| s.as_str()), Some("ঝালখর"));
 
         let (falkibazi, cands_falki) = transliterate_avro("falkibazi");
         let def_falki = crate::probaho::nfc_normalize(&get_avro_parser().convert("falkibazi"));
-        assert_eq!(falkibazi, def_falki, "falkibazi must match pure Avro def at Slot 0");
-        assert_eq!(cands_falki.first().map(|s| s.as_str()), Some(def_falki.as_str()));
+        assert_eq!(
+            falkibazi, def_falki,
+            "falkibazi must match pure Avro def at Slot 0"
+        );
+        assert_eq!(
+            cands_falki.first().map(|s| s.as_str()),
+            Some(def_falki.as_str())
+        );
 
         let (falkibaji, cands_baji) = transliterate_avro("falkibaji");
         let def_baji = crate::probaho::nfc_normalize(&get_avro_parser().convert("falkibaji"));
-        assert_eq!(falkibaji, def_baji, "falkibaji must match pure Avro def at Slot 0");
-        assert_eq!(cands_baji.first().map(|s| s.as_str()), Some(def_baji.as_str()));
+        assert_eq!(
+            falkibaji, def_baji,
+            "falkibaji must match pure Avro def at Slot 0"
+        );
+        assert_eq!(
+            cands_baji.first().map(|s| s.as_str()),
+            Some(def_baji.as_str())
+        );
 
         // Standard dictionary words must still preserve their correct dictionary forms
         let (soccho, _) = transliterate_avro("soccho");
-        assert_eq!(soccho, "স্বচ্ছ", "soccho must still resolve to dictionary word 'স্বচ্ছ' at Slot 0");
+        assert_eq!(
+            soccho, "স্বচ্ছ",
+            "soccho must still resolve to dictionary word 'স্বচ্ছ' at Slot 0"
+        );
 
         let (kemon, _) = transliterate_avro("kemon");
         assert_eq!(kemon, "কেমন", "kemon must resolve to 'কেমন' at Slot 0");
@@ -2530,32 +2768,59 @@ mod tests {
         // 5. Explicit Avro intent must NOT starve vocabulary prefix completions
         let (bari, bari_cands) = transliterate_avro("baRi");
         assert_eq!(bari, "বাড়ি", "baRi must lock Slot 0 to 'বাড়ি'");
-        assert!(bari_cands.len() > 2, "baRi must include Trie prefix completions, not just raw def");
-        assert!(bari_cands.iter().any(|c| c.starts_with("বাড়ি") && c != "বাড়ি"), "baRi candidates must include prefix expansions like বাড়িতে/বাড়ির");
+        assert!(
+            bari_cands.len() > 2,
+            "baRi must include Trie prefix completions, not just raw def"
+        );
+        assert!(
+            bari_cands
+                .iter()
+                .any(|c| c.starts_with("বাড়ি") && c != "বাড়ি"),
+            "baRi candidates must include prefix expansions like বাড়িতে/বাড়ির"
+        );
     }
 
     #[test]
     fn test_universal_morpheme_snapping_and_soft_hyphen_compounding() {
         // 1. Soft-hyphen compounding joins segments into canonical compound Bengali words
         let (res_hyphen, cands_hyphen) = transliterate_avro("antorjatik-bhabe");
-        assert_eq!(res_hyphen, "আন্তর্জাতিকভাবে", "antorjatik-bhabe must compound to 'আন্তর্জাতিকভাবে'");
+        assert_eq!(
+            res_hyphen, "আন্তর্জাতিকভাবে",
+            "antorjatik-bhabe must compound to 'আন্তর্জাতিকভাবে'"
+        );
         assert!(cands_hyphen.contains(&"আন্তর্জাতিক-ভাবে".to_string()));
 
         let (res_univ_hyphen, _) = transliterate_avro("bishwobiddaloy-gulote");
-        assert_eq!(res_univ_hyphen, "বিশ্ববিদ্যালয়গুলোতে", "bishwobiddaloy-gulote must compound to 'বিশ্ববিদ্যালয়গুলোতে'");
+        assert_eq!(
+            res_univ_hyphen, "বিশ্ববিদ্যালয়গুলোতে",
+            "bishwobiddaloy-gulote must compound to 'বিশ্ববিদ্যালয়গুলোতে'"
+        );
 
         // 2. Continuous unhyphenated compound snapping for complex long words
         let (res_snap1, _) = transliterate_avro("antorjatikbhabe");
-        assert_eq!(res_snap1, "আন্তর্জাতিকভাবে", "antorjatikbhabe must snap to 'আন্তর্জাতিকভাবে'");
+        assert_eq!(
+            res_snap1, "আন্তর্জাতিকভাবে",
+            "antorjatikbhabe must snap to 'আন্তর্জাতিকভাবে'"
+        );
 
         let (res_snap2, _) = transliterate_avro("shadhinotahinbhabe");
-        assert_eq!(res_snap2, "স্বাধীনতাহীনভাবে", "shadhinotahinbhabe must snap to 'স্বাধীনতাহীনভাবে'");
+        assert_eq!(
+            res_snap2, "স্বাধীনতাহীনভাবে",
+            "shadhinotahinbhabe must snap to 'স্বাধীনতাহীনভাবে'"
+        );
 
         let (res_snap3, _) = transliterate_avro("dayittoshilota");
-        assert_eq!(crate::probaho::nfc_normalize(&res_snap3), crate::probaho::nfc_normalize("দায়িত্বশীলতা"), "dayittoshilota must snap to 'দায়িত্বশীলতা'");
+        assert_eq!(
+            crate::probaho::nfc_normalize(&res_snap3),
+            crate::probaho::nfc_normalize("দায়িত্বশীলতা"),
+            "dayittoshilota must snap to 'দায়িত্বশীলতা'"
+        );
 
         let (res_snap4, _) = transliterate_avro("shikkhokderke");
-        assert_eq!(crate::probaho::nfc_normalize(&res_snap4), crate::probaho::nfc_normalize("শিক্ষকদেরকে"), "shikkhokderke must snap to 'শিক্ষকদেরকে'");
+        assert_eq!(
+            crate::probaho::nfc_normalize(&res_snap4),
+            crate::probaho::nfc_normalize("শিক্ষকদেরকে"),
+            "shikkhokderke must snap to 'শিক্ষকদেরকে'"
+        );
     }
 }
-

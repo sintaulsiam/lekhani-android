@@ -826,7 +826,11 @@ fn matches_glide_subsequence(word: &str, path_chars: &[char]) -> bool {
 pub(crate) struct EnglishStrategy;
 
 impl crate::layout::LayoutStrategy for EnglishStrategy {
-    fn process_key(&self, key: &str, state: &mut crate::session::SessionState) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
+    fn process_key(
+        &self,
+        key: &str,
+        state: &mut crate::session::SessionState,
+    ) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
         if state.is_private_field {
             return Ok(crate::session::TypingResult {
                 preedit: String::new(),
@@ -859,7 +863,8 @@ impl crate::layout::LayoutStrategy for EnglishStrategy {
                 state.append_to_context(&committed);
 
                 let mut words_buf = [""; 16];
-                let count = crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
+                let count =
+                    crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
                 let words = &words_buf[..count];
                 let next_words = get_english_next_words(words, 5);
 
@@ -880,7 +885,12 @@ impl crate::layout::LayoutStrategy for EnglishStrategy {
         }
     }
 
-    fn resolve_space_commit(&self, raw: &str, _state: &mut crate::session::SessionState, chosen_candidate: Option<&str>) -> String {
+    fn resolve_space_commit(
+        &self,
+        raw: &str,
+        _state: &mut crate::session::SessionState,
+        chosen_candidate: Option<&str>,
+    ) -> String {
         if let Some(cand) = chosen_candidate {
             crate::probaho::nfc_normalize(cand)
         } else {
@@ -888,7 +898,11 @@ impl crate::layout::LayoutStrategy for EnglishStrategy {
         }
     }
 
-    fn regenerate_candidates(&self, _state: &crate::session::SessionState, input: &str) -> Vec<String> {
+    fn regenerate_candidates(
+        &self,
+        _state: &crate::session::SessionState,
+        input: &str,
+    ) -> Vec<String> {
         get_english_candidates(input, 5)
     }
 }

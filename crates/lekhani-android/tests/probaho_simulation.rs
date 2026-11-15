@@ -49,14 +49,23 @@ fn test_probaho_simulation() {
     session3.process_key("আ".into()).unwrap();
     session3.process_key("চ".into()).unwrap();
     let r_hasanta = session3.process_key("্".into()).unwrap();
-    assert!(r_hasanta.candidates.contains(&"চ্ছ".to_string()), "Must suggest 'চ্ছ' after 'আচ্'");
+    assert!(
+        r_hasanta.candidates.contains(&"চ্ছ".to_string()),
+        "Must suggest 'চ্ছ' after 'আচ্'"
+    );
     let r_sel = session3.select_candidate("চ্ছ".into()).unwrap();
     assert_eq!(r_sel.preedit, "আচ্ছ", "Selecting 'চ্ছ' must form 'আচ্ছ'");
-    assert_eq!(r_sel.commit_text, None, "In-flight conjunct selection must keep composing open");
+    assert_eq!(
+        r_sel.commit_text, None,
+        "In-flight conjunct selection must keep composing open"
+    );
     let r_akar = session3.process_key("া".into()).unwrap();
     assert_eq!(r_akar.preedit, "আচ্ছা");
     let r_commit = session3.handle_space().unwrap();
-    assert_eq!(r_commit.commit_text.as_deref().map(|s| s.trim()), Some("আচ্ছা"));
+    assert_eq!(
+        r_commit.commit_text.as_deref().map(|s| s.trim()),
+        Some("আচ্ছা")
+    );
 
     // Test: In-flight conjunct candidate substitution for 'আচ্ছা' on National layout:
     let session_nat = AndroidLekhaniSession::new();
@@ -71,7 +80,10 @@ fn test_probaho_simulation() {
     let r_akar_nat = session_nat.process_key("া".into()).unwrap();
     assert_eq!(r_akar_nat.preedit, "আচ্ছা");
     let r_commit_nat = session_nat.handle_space().unwrap();
-    assert_eq!(r_commit_nat.commit_text.as_deref().map(|s| s.trim()), Some("আচ্ছা"));
+    assert_eq!(
+        r_commit_nat.commit_text.as_deref().map(|s| s.trim()),
+        Some("আচ্ছা")
+    );
 
     // Test: In-flight conjunct candidate substitution for 'আচ্ছা' on Gboard layout:
     let session_gb = AndroidLekhaniSession::new();
@@ -86,6 +98,9 @@ fn test_probaho_simulation() {
     let r_akar_gb = session_gb.process_key("া".into()).unwrap();
     assert_eq!(r_akar_gb.preedit, "আচ্ছা");
     let r_commit_gb = session_gb.handle_space().unwrap();
-    assert_eq!(r_commit_gb.commit_text.as_deref().map(|s| s.trim()), Some("আচ্ছা"));
+    assert_eq!(
+        r_commit_gb.commit_text.as_deref().map(|s| s.trim()),
+        Some("আচ্ছা")
+    );
     println!("\n========================================================\n");
 }

@@ -453,7 +453,7 @@ pub struct TypingResult {
     pub preedit: String,
     /// Finalized, NFC-normalized text to commit via `InputConnection.commitText()`
     pub commit_text: Option<String>,
-/// Candidates to display in the horizontal candidate strip
+    /// Candidates to display in the horizontal candidate strip
     pub candidates: Vec<String>,
     /// Active grapheme cluster cursor index inside the composing buffer
     pub cursor_position: u32,
@@ -871,9 +871,13 @@ pub fn classify_candidate(
             || cand.contains("টা")
             || cand.starts_with('৳')
             || cand.starts_with('$')
-            || cand
-                .chars()
-                .all(|c| ('\u{09E6}'..='\u{09EF}').contains(&c) || c.is_ascii_digit() || c == '.' || c == ',' || c == ' '))
+            || cand.chars().all(|c| {
+                ('\u{09E6}'..='\u{09EF}').contains(&c)
+                    || c.is_ascii_digit()
+                    || c == '.'
+                    || c == ','
+                    || c == ' '
+            }))
     {
         return CandidateKind::NumericLiteral;
     }
@@ -996,7 +1000,8 @@ impl AndroidLekhaniSession {
     /// Returns the letter-level disambiguation chips for the active LPS composing buffer.
     pub fn get_lps_letter_chips(&self) -> Vec<LpsLetterChipItem> {
         if let Ok(state) = self.state.lock() {
-            if state.layout == LekhaniLayoutType::LpsPhonetic && !state.composing_buffer.is_empty() {
+            if state.layout == LekhaniLayoutType::LpsPhonetic && !state.composing_buffer.is_empty()
+            {
                 let engine = crate::layout::get_lps_engine();
                 let (cands, _) = engine.parse(&state.composing_buffer);
                 for cand in cands {
@@ -1095,10 +1100,7 @@ impl AndroidLekhaniSession {
 
     /// Returns whether Pure Classic Avro Mode is currently enabled.
     pub fn is_pure_avro_mode(&self) -> bool {
-        self.state
-            .lock()
-            .map(|s| s.pure_avro_mode)
-            .unwrap_or(false)
+        self.state.lock().map(|s| s.pure_avro_mode).unwrap_or(false)
     }
 
     /// Enable or disable bilingual hyphen/unhyphenated clitic resolution (default: false).
@@ -1190,7 +1192,9 @@ impl AndroidLekhaniSession {
     /// Calibrates the personal spatial touch model with a verified key tap coordinate (x, y).
     pub fn record_touch_sample(&self, key: String, touch_x: f32, touch_y: f32) {
         if let Ok(mut state) = self.state.lock() {
-            state.spatial_model.record_touch_sample(&key, touch_x, touch_y);
+            state
+                .spatial_model
+                .record_touch_sample(&key, touch_x, touch_y);
         }
     }
 
@@ -1229,7 +1233,9 @@ impl AndroidLekhaniSession {
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
         if !state.spatial_model.is_empty() {
-            state.spatial_model.record_touch_sample(&key, touch_x, touch_y);
+            state
+                .spatial_model
+                .record_touch_sample(&key, touch_x, touch_y);
             let spatial_candidates = state.spatial_model.rank_keys_at(touch_x, touch_y, 2);
             if spatial_candidates.len() >= 2 {
                 let neighbor = if spatial_candidates[0].key == key {
@@ -1241,7 +1247,8 @@ impl AndroidLekhaniSession {
                 let key_prob = state.spatial_model.log_prob_for_key(&key, touch_x, touch_y);
                 if (neighbor.log_prob - key_prob).abs() <= 2.8 && !state.composing_buffer.is_empty()
                 {
-                    let alt_buf = if let Some(stripped) = state.composing_buffer.strip_suffix(&key) {
+                    let alt_buf = if let Some(stripped) = state.composing_buffer.strip_suffix(&key)
+                    {
                         let mut s = stripped.to_string();
                         s.push_str(&neighbor.key);
                         s
@@ -1275,7 +1282,9 @@ impl AndroidLekhaniSession {
                             let engine = lekhani_parser::lps::LpsEngine::new();
                             let (alt_cands, _) = engine.parse(&alt_buf);
                             for cand in alt_cands {
-                                if !result.candidates.contains(&cand.text) && result.candidates.len() < 7 {
+                                if !result.candidates.contains(&cand.text)
+                                    && result.candidates.len() < 7
+                                {
                                     result.candidates.push(cand.text);
                                 }
                             }
@@ -1322,14 +1331,20 @@ impl AndroidLekhaniSession {
         // Punctuation and newlines immediately flush the composing buffer as committed text.
         // Exception: In Avro layout, a dot preceded by purely numeric digits is a decimal fraction separator (e.g. 8.4, 21.7).
         let is_decimal_dot_in_flight = key == "."
-            && (state.layout == LekhaniLayoutType::Avro || state.layout == LekhaniLayoutType::LpsPhonetic)
+            && (state.layout == LekhaniLayoutType::Avro
+                || state.layout == LekhaniLayoutType::LpsPhonetic)
             && !state.composing_buffer.is_empty()
-            && state.composing_buffer.chars().all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c));
+            && state
+                .composing_buffer
+                .chars()
+                .all(|c| c.is_ascii_digit() || ('\u{09E6}'..='\u{09EF}').contains(&c));
         let is_punct = (key == "।"
             || key == "॥"
             || key == ","
             || key == ";"
-            || (key == ":" && state.layout != LekhaniLayoutType::Avro && state.layout != LekhaniLayoutType::LpsPhonetic)
+            || (key == ":"
+                && state.layout != LekhaniLayoutType::Avro
+                && state.layout != LekhaniLayoutType::LpsPhonetic)
             || key == "?"
             || key == "!"
             || key == "."
@@ -1356,7 +1371,9 @@ impl AndroidLekhaniSession {
                             crate::avro::resolve_avro_candidates(&raw, words, right_word);
                         candidates.first().cloned().unwrap_or(preedit)
                     }
-                } else if state.layout == LekhaniLayoutType::LpsPhonetic && !state.composing_buffer.is_empty() {
+                } else if state.layout == LekhaniLayoutType::LpsPhonetic
+                    && !state.composing_buffer.is_empty()
+                {
                     let raw = std::mem::take(&mut state.composing_buffer);
                     let engine = lekhani_parser::lps::LpsEngine::new();
                     let (cands, _) = engine.parse(&raw);
@@ -1542,10 +1559,7 @@ impl AndroidLekhaniSession {
                 if entries.is_empty() {
                     entries = db.trie.find_prefix_entries(start_key, 1500);
                 }
-                let path_chars: Vec<char> = keys
-                    .iter()
-                    .filter_map(|k| k.chars().next())
-                    .collect();
+                let path_chars: Vec<char> = keys.iter().filter_map(|k| k.chars().next()).collect();
 
                 let mut scored: Vec<(String, i64)> = Vec::new();
                 for (word, freq) in entries {
@@ -1576,7 +1590,8 @@ impl AndroidLekhaniSession {
                         }
                     }
                     if matched {
-                        let len_diff = (word.chars().count() as isize - path_chars.len() as isize).abs();
+                        let len_diff =
+                            (word.chars().count() as isize - path_chars.len() as isize).abs();
                         scored.push((word.to_string(), freq as i64 - len_diff as i64 * 30));
                     }
                 }
@@ -1732,7 +1747,9 @@ impl AndroidLekhaniSession {
                     None => (None, None),
                 };
 
-                let is_topic_winner = if let (Some(ref topic), Some(ref partner)) = (&topic_vec, &homophone_partner) {
+                let is_topic_winner = if let (Some(ref topic), Some(ref partner)) =
+                    (&topic_vec, &homophone_partner)
+                {
                     topic
                         .disambiguate(&cand, partner, scorer.embeddings())
                         .map(|(winner, _)| winner == cand)
@@ -2049,12 +2066,20 @@ impl AndroidLekhaniSession {
                 } else {
                     let engine = lekhani_parser::lps::LpsEngine::new();
                     let (lps_cands, _) = engine.parse(&state.composing_buffer);
-                    let mut candidates: Vec<String> = lps_cands.iter().map(|c| c.text.clone()).collect();
-                    let preedit = candidates.first().cloned().unwrap_or_else(|| state.composing_buffer.clone());
+                    let mut candidates: Vec<String> =
+                        lps_cands.iter().map(|c| c.text.clone()).collect();
+                    let preedit = candidates
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| state.composing_buffer.clone());
                     if !state.is_private_field && !candidates.contains(&state.composing_buffer) {
                         candidates.push(state.composing_buffer.clone());
                     }
-                    let len = unicode_segmentation::UnicodeSegmentation::graphemes(preedit.as_str(), true).count() as u32;
+                    let len = unicode_segmentation::UnicodeSegmentation::graphemes(
+                        preedit.as_str(),
+                        true,
+                    )
+                    .count() as u32;
                     Ok(TypingResult {
                         preedit,
                         commit_text: None,
@@ -2101,7 +2126,10 @@ impl AndroidLekhaniSession {
                 if action.is_rapid_backspace(1500) && !state.is_private_field {
                     let db = get_core_database();
                     if let Ok(mut learner) = db.learner.write() {
-                        learner.penalize_mistake(action.previous_word.as_deref(), &action.committed_text);
+                        learner.penalize_mistake(
+                            action.previous_word.as_deref(),
+                            &action.committed_text,
+                        );
                     }
                 }
                 action.undo_context(&mut state.surrounding_context);
@@ -2322,8 +2350,7 @@ impl AndroidLekhaniSession {
                     }
                 }
             }
-            state.last_commit_action =
-                Some(CommitAction::new(prev_word, normalized.clone()));
+            state.last_commit_action = Some(CommitAction::new(prev_word, normalized.clone()));
         } else {
             state.last_commit_action = None;
         }
@@ -2400,7 +2427,10 @@ impl AndroidLekhaniSession {
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
         if !state.is_private_field {
-            let prev = state.last_commit_action.take().and_then(|a| a.previous_word);
+            let prev = state
+                .last_commit_action
+                .take()
+                .and_then(|a| a.previous_word);
             let db = get_core_database();
             if let Ok(mut learner) = db.learner.write() {
                 learner.penalize_mistake(prev.as_deref(), &reverted_word);
@@ -2506,8 +2536,8 @@ impl AndroidLekhaniSession {
                 .collect());
         }
 
-        let candidates = crate::layout::get_layout_strategy(state.layout)
-            .regenerate_candidates(&state, &input);
+        let candidates =
+            crate::layout::get_layout_strategy(state.layout).regenerate_candidates(&state, &input);
 
         let total = candidates.len();
         let items = candidates
@@ -2532,7 +2562,11 @@ impl AndroidLekhaniSession {
     }
 
     /// Classifies an arbitrary list of candidate strings against an input token.
-    pub fn classify_candidates(&self, input: String, candidates: Vec<String>) -> Vec<CandidateItem> {
+    pub fn classify_candidates(
+        &self,
+        input: String,
+        candidates: Vec<String>,
+    ) -> Vec<CandidateItem> {
         let db = get_core_database();
         let total = candidates.len();
         candidates
@@ -2582,7 +2616,15 @@ pub fn evaluate_retro_correction(surrounding_context: &str) -> Option<RetroCorre
     let has_formal_subject = tokens.iter().any(|&t| {
         matches!(
             t,
-            "আপনি" | "আপনারা" | "আপনার" | "আপনাকে" | "তিনি" | "তাঁরা" | "তাঁর" | "তাঁকে" | "উনি"
+            "আপনি"
+                | "আপনারা"
+                | "আপনার"
+                | "আপনাকে"
+                | "তিনি"
+                | "তাঁরা"
+                | "তাঁর"
+                | "তাঁকে"
+                | "উনি"
         )
     });
 
@@ -2633,7 +2675,9 @@ pub fn evaluate_retro_correction(surrounding_context: &str) -> Option<RetroCorre
     }
 
     // 2. Intimate Concordance: Intimate Subject (তুই, তোরা, তোর)
-    let has_intimate_subject = tokens.iter().any(|&t| matches!(t, "তুই" | "তোরা" | "তোর" | "তোকে"));
+    let has_intimate_subject = tokens
+        .iter()
+        .any(|&t| matches!(t, "তুই" | "তোরা" | "তোর" | "তোকে"));
     if has_intimate_subject {
         for (idx, &token) in tokens.iter().enumerate().rev().take(2) {
             let replacement = match token {
@@ -2719,7 +2763,16 @@ pub fn evaluate_retro_correction(surrounding_context: &str) -> Option<RetroCorre
 
             // Case B: [শার্ট, পড়া] or [পড়া, শার্ট]
             if (matches!(t1, "শার্ট" | "প্যান্ট" | "জামা" | "কাপড়" | "জুতো" | "ঘড়ি") && t2 == "পড়া")
-                || (t1 == "পড়া" && matches!(t2, "শার্ট" | "প্যান্ট" | "জামা" | "কাপড়" | "জুতো" | "ঘড়ি"))
+                || (t1 == "পড়া"
+                    && matches!(
+                        t2,
+                        "শার্ট"
+                            | "প্যান্ট"
+                            | "জামা"
+                            | "কাপড়"
+                            | "জুতো"
+                            | "ঘড়ি"
+                    ))
             {
                 let target_idx = if t2 == "পড়া" { idx + 1 } else { idx };
                 let offset_from_end = token_count - 1 - target_idx;
@@ -3923,13 +3976,22 @@ mod tests {
         session.process_key("ব".into()).unwrap();
         session.process_key("ল".into()).unwrap();
         let res_gem = session.process_key("ল".into()).unwrap();
-        assert_eq!(res_gem.preedit, "বল্ল", "2nd tap forms geminate conjunct 'বল্ল'");
+        assert_eq!(
+            res_gem.preedit, "বল্ল",
+            "2nd tap forms geminate conjunct 'বল্ল'"
+        );
         let res_revert = session.process_key("ল".into()).unwrap();
-        assert_eq!(res_revert.preedit, "বলল", "3rd tap cycles back to separate letters 'বলল'");
+        assert_eq!(
+            res_revert.preedit, "বলল",
+            "3rd tap cycles back to separate letters 'বলল'"
+        );
         let res_e = session.process_key("ে".into()).unwrap();
         assert_eq!(res_e.preedit, "বললে");
         let res_bolleo = session.process_key("ও".into()).unwrap();
-        assert_eq!(res_bolleo.preedit, "বললেও", "User can cleanly write 'বললেও'");
+        assert_eq!(
+            res_bolleo.preedit, "বললেও",
+            "User can cleanly write 'বললেও'"
+        );
 
         session.reset();
 
@@ -3947,7 +4009,10 @@ mod tests {
         session.process_key("ল".into()).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(300));
         let res_slow = session.process_key("ল".into()).unwrap();
-        assert_eq!(res_slow.preedit, "বলল", "Slow tap (>280ms) must produce separate consonants 'বলল'");
+        assert_eq!(
+            res_slow.preedit, "বলল",
+            "Slow tap (>280ms) must produce separate consonants 'বলল'"
+        );
     }
 
     #[test]
@@ -4007,7 +4072,11 @@ mod tests {
         // Across fixed layouts (Probhat, National, Gboard), typing 'ব' + 'ল' + 'ল' + 'ে' + 'ও'
         // must naturally type "বললেও" without inserting an unwanted hasanta!
 
-        for layout in [LekhaniLayoutType::Probhat, LekhaniLayoutType::National, LekhaniLayoutType::Probaho] {
+        for layout in [
+            LekhaniLayoutType::Probhat,
+            LekhaniLayoutType::National,
+            LekhaniLayoutType::Probaho,
+        ] {
             session.reset();
             session.set_layout(layout);
 
@@ -4073,25 +4142,37 @@ mod tests {
         session.process_key("ক".into()).unwrap();
         session.process_key("ি".into()).unwrap();
         let res_dt_koi = session.process_key("ি".into()).unwrap();
-        assert_eq!(res_dt_koi.preedit, "কই", "Double-tapping 'ি' after 'ক' must promote to 'কই'");
+        assert_eq!(
+            res_dt_koi.preedit, "কই",
+            "Double-tapping 'ি' after 'ক' must promote to 'কই'"
+        );
 
         session.reset();
         session.process_key("ক".into()).unwrap();
         session.process_key("ো".into()).unwrap();
         let res_dt_kao = session.process_key("ো".into()).unwrap();
-        assert_eq!(res_dt_kao.preedit, "কও", "Double-tapping 'ো' after 'ক' must promote to 'কও'");
+        assert_eq!(
+            res_dt_kao.preedit, "কও",
+            "Double-tapping 'ো' after 'ক' must promote to 'কও'"
+        );
 
         session.reset();
         session.process_key("ব".into()).unwrap();
         session.process_key("ি".into()).unwrap();
         let res_dt_boi = session.process_key("ি".into()).unwrap();
-        assert_eq!(res_dt_boi.preedit, "বই", "Double-tapping 'ি' after 'ব' must promote to 'বই'");
+        assert_eq!(
+            res_dt_boi.preedit, "বই",
+            "Double-tapping 'ি' after 'ব' must promote to 'বই'"
+        );
 
         session.reset();
         session.process_key("ব".into()).unwrap();
         session.process_key("ু".into()).unwrap();
         let res_dt_bou = session.process_key("ু".into()).unwrap();
-        assert_eq!(res_dt_bou.preedit, "বউ", "Double-tapping 'ু' after 'ব' must promote to 'বউ'");
+        assert_eq!(
+            res_dt_bou.preedit, "বউ",
+            "Double-tapping 'ু' after 'ব' must promote to 'বউ'"
+        );
 
         // 1c. Proactive candidate surfacing for consonant + Kar combinations
         session.reset();
@@ -4136,12 +4217,18 @@ mod tests {
         session.reset();
         session.process_key("ক".into()).unwrap();
         let res_probhat_kao = session.process_key("ও".into()).unwrap();
-        assert_eq!(res_probhat_kao.preedit, "কও", "Probhat: 'ক' + 'ও' must produce 'কও'");
+        assert_eq!(
+            res_probhat_kao.preedit, "কও",
+            "Probhat: 'ক' + 'ও' must produce 'কও'"
+        );
 
         session.reset();
         session.process_key("ক".into()).unwrap();
         let res_probhat_koi = session.process_key("ই".into()).unwrap();
-        assert_eq!(res_probhat_koi.preedit, "কই", "Probhat: 'ক' + 'ই' must produce 'কই'");
+        assert_eq!(
+            res_probhat_koi.preedit, "কই",
+            "Probhat: 'ক' + 'ই' must produce 'কই'"
+        );
 
         // ── 3. Gboard Layout ───────────────────────────────────────────────
         session.set_layout(LekhaniLayoutType::Gboard);
@@ -4149,7 +4236,10 @@ mod tests {
         session.reset();
         session.process_key("ক".into()).unwrap();
         let res_gboard_koi = session.process_key("ই".into()).unwrap();
-        assert_eq!(res_gboard_koi.preedit, "কই", "Gboard: 'ক' + 'ই' must produce 'কই'");
+        assert_eq!(
+            res_gboard_koi.preedit, "কই",
+            "Gboard: 'ক' + 'ই' must produce 'কই'"
+        );
 
         session.reset();
         session.process_key("ক".into()).unwrap();
@@ -4196,7 +4286,10 @@ mod tests {
             res_sel_kkh.preedit, "শিক্ষ",
             "Selecting 'ক্ষ' must substitute in-place keeping composing buffer open"
         );
-        assert_eq!(res_sel_kkh.commit_text, None, "Must not commit or insert space");
+        assert_eq!(
+            res_sel_kkh.commit_text, None,
+            "Must not commit or insert space"
+        );
         let res_shikkha = session.process_key("া".into()).unwrap();
         assert_eq!(
             res_shikkha.preedit, "শিক্ষা",
@@ -4210,39 +4303,51 @@ mod tests {
         // 4a. Initial Kar promotion: 'া' at word start -> 'আ'
         session.reset();
         let res_nat_a = session.process_key("া".into()).unwrap();
-        assert_eq!(res_nat_a.preedit, "আ", "National: initial 'া' at word start must promote to 'আ'");
+        assert_eq!(
+            res_nat_a.preedit, "আ",
+            "National: initial 'া' at word start must promote to 'আ'"
+        );
 
         // 4b. Compound: 'অ' + 'া' -> 'আ'
         session.reset();
         session.process_key("অ".into()).unwrap();
         let res_nat_aa = session.process_key("া".into()).unwrap();
-        assert_eq!(res_nat_aa.preedit, "আ", "National: 'অ' + 'া' must compound into 'আ'");
+        assert_eq!(
+            res_nat_aa.preedit, "আ",
+            "National: 'অ' + 'া' must compound into 'আ'"
+        );
 
         // ── 5. Gboard Layout Initial Kar ───────────────────────────────────
         session.set_layout(LekhaniLayoutType::Gboard);
         session.set_smart_initial_kar_enabled(true);
         session.reset();
         let res_gb_a = session.process_key("া".into()).unwrap();
-        assert_eq!(res_gb_a.preedit, "আ", "Gboard: initial 'া' at word start must promote to 'আ'");
+        assert_eq!(
+            res_gb_a.preedit, "আ",
+            "Gboard: initial 'া' at word start must promote to 'আ'"
+        );
     }
 
     #[test]
     fn test_retro_correction_honorific_and_homophone() {
         // 1. Honorific mismatch: "আপনি কেমন আছো" -> proposes "আছেন"
-        let corr_apni = evaluate_retro_correction("আপনি কেমন আছো").expect("Should detect honorific clash");
+        let corr_apni =
+            evaluate_retro_correction("আপনি কেমন আছো").expect("Should detect honorific clash");
         assert_eq!(corr_apni.original_word, "আছো");
         assert_eq!(corr_apni.replacement_word, "আছেন");
         assert_eq!(corr_apni.chip_label, "আছেন");
         assert_eq!(corr_apni.chars_to_backspace, 3); // "আছো".chars().count()
 
         // 2. Intimate mismatch: "তুই কেমন আছো" -> proposes "আছিস"
-        let corr_tui = evaluate_retro_correction("তুই কেমন আছো").expect("Should detect intimate clash");
+        let corr_tui =
+            evaluate_retro_correction("তুই কেমন আছো").expect("Should detect intimate clash");
         assert_eq!(corr_tui.original_word, "আছো");
         assert_eq!(corr_tui.replacement_word, "আছিস");
         assert_eq!(corr_tui.chip_label, "আছিস");
 
         // 3. Homophone mismatch: "আমি বই পরা শুরু করলাম" -> proposes "পড়া"
-        let corr_homo = evaluate_retro_correction("আমি বই পরা শুরু").expect("Should detect homophone clash");
+        let corr_homo =
+            evaluate_retro_correction("আমি বই পরা শুরু").expect("Should detect homophone clash");
         assert_eq!(corr_homo.original_word, "পরা");
         assert_eq!(corr_homo.replacement_word, "পড়া");
 
@@ -4288,30 +4393,51 @@ mod tests {
 
         // Explicit dismissal triggers suppression (posterior probability drops below 0.18)
         session.record_retro_correction_dismissed(true);
-        assert!(session.get_retro_correction().is_none(), "Must be suppressed after explicit dismiss");
+        assert!(
+            session.get_retro_correction().is_none(),
+            "Must be suppressed after explicit dismiss"
+        );
 
         // Typing 49 words keeps it suppressed
         for _ in 0..49 {
             session.handle_space().unwrap();
         }
-        assert!(session.get_retro_correction().is_none(), "Must remain suppressed before 50 words");
+        assert!(
+            session.get_retro_correction().is_none(),
+            "Must remain suppressed before 50 words"
+        );
 
         // 50th word clears suppression
         session.handle_space().unwrap();
-        assert!(session.get_retro_correction().is_some(), "Must re-enable after 50 words typed");
+        assert!(
+            session.get_retro_correction().is_some(),
+            "Must re-enable after 50 words typed"
+        );
     }
 
     #[test]
     fn test_verb_honorific_paradigm_extraction() {
         let session = AndroidLekhaniSession::new();
         let paradigm_koro = session.get_verb_honorific_paradigm("করছো".into());
-        assert!(paradigm_koro.contains(&"করছেন".to_string()), "Must have formal 'করছেন'");
-        assert!(paradigm_koro.contains(&"করছো".to_string()), "Must have familiar 'করছো'");
-        assert!(paradigm_koro.contains(&"করছিস".to_string()), "Must have intimate 'করছিস'");
+        assert!(
+            paradigm_koro.contains(&"করছেন".to_string()),
+            "Must have formal 'করছেন'"
+        );
+        assert!(
+            paradigm_koro.contains(&"করছো".to_string()),
+            "Must have familiar 'করছো'"
+        );
+        assert!(
+            paradigm_koro.contains(&"করছিস".to_string()),
+            "Must have intimate 'করছিস'"
+        );
 
         // Non-verb returns empty list
         let paradigm_boi = session.get_verb_honorific_paradigm("বই".into());
-        assert!(paradigm_boi.is_empty(), "Noun 'বই' must not produce verb paradigm");
+        assert!(
+            paradigm_boi.is_empty(),
+            "Noun 'বই' must not produce verb paradigm"
+        );
     }
 
     #[test]
@@ -4348,7 +4474,8 @@ mod tests {
         assert_eq!(items[0].kind, CandidateKind::DeterministicAvro);
         assert!(items[0].is_primary);
 
-        let custom_items = session.classify_candidates("500tk".into(), vec!["৫০০ টাকা".into(), "500tk".into()]);
+        let custom_items =
+            session.classify_candidates("500tk".into(), vec!["৫০০ টাকা".into(), "500tk".into()]);
         assert_eq!(custom_items[0].kind, CandidateKind::NumericLiteral);
         assert_eq!(custom_items[1].kind, CandidateKind::EnglishPassthrough);
     }
@@ -4364,10 +4491,16 @@ mod tests {
         }
 
         let res = last_res.unwrap();
-        assert!(res.candidates.iter().any(|c| c == "ব\u{09BE}\u{09DC}\u{09BF}" || c == "বারি"));
+        assert!(res
+            .candidates
+            .iter()
+            .any(|c| c == "ব\u{09BE}\u{09DC}\u{09BF}" || c == "বারি"));
 
         let chips = session.get_lps_letter_chips();
-        assert!(!chips.is_empty(), "LPS session must expose letter disambiguation chips");
+        assert!(
+            !chips.is_empty(),
+            "LPS session must expose letter disambiguation chips"
+        );
 
         assert_eq!(session.exact_form("কলম".into()), "k-l-m");
         assert_eq!(session.exact_form("বই".into()), "b-i");
@@ -4383,7 +4516,10 @@ mod tests {
         let res2 = chhara_res.unwrap();
         let chhara_nfc = crate::probaho::nfc_normalize("ছাড়া");
         assert!(res2.candidates.contains(&"ছারা".to_string()));
-        assert!(res2.candidates.iter().any(|c| crate::probaho::nfc_normalize(c) == chhara_nfc));
+        assert!(res2
+            .candidates
+            .iter()
+            .any(|c| crate::probaho::nfc_normalize(c) == chhara_nfc));
 
         // Test Backspace in LPS
         let bs_res = session.handle_backspace().unwrap();
@@ -4410,9 +4546,17 @@ mod tests {
             session.process_key(ch.to_string()).unwrap();
         }
         let chips = session.get_lps_letter_chips();
-        assert!(!chips.is_empty(), "LPS session must expose letter disambiguation chips");
-        let has_d_chip = chips.iter().any(|c| c.siblings.contains(&"ড".to_string()) && c.siblings.contains(&"দ".to_string()));
-        assert!(has_d_chip, "Chips must contain [দ, ড] sibling group for initial d in LPS");
+        assert!(
+            !chips.is_empty(),
+            "LPS session must expose letter disambiguation chips"
+        );
+        let has_d_chip = chips.iter().any(|c| {
+            c.siblings.contains(&"ড".to_string()) && c.siblings.contains(&"দ".to_string())
+        });
+        assert!(
+            has_d_chip,
+            "Chips must contain [দ, ড] sibling group for initial d in LPS"
+        );
 
         // 2. Avro layout remains clean and classic: get_lps_letter_chips must return empty
         session.reset();
@@ -4421,7 +4565,10 @@ mod tests {
             session.process_key(ch.to_string()).unwrap();
         }
         let chips_avro = session.get_lps_letter_chips();
-        assert!(chips_avro.is_empty(), "Avro layout must NOT leak LPS letter chips; layouts remain cleanly separated");
+        assert!(
+            chips_avro.is_empty(),
+            "Avro layout must NOT leak LPS letter chips; layouts remain cleanly separated"
+        );
     }
 
     #[test]
@@ -4433,9 +4580,15 @@ mod tests {
 
         // 1. Direct homophone disambiguation
         let result = session.disambiguate_homophone("পরা".to_string(), "পড়া".to_string());
-        assert!(result.is_some(), "Should disambiguate homophones with context");
+        assert!(
+            result.is_some(),
+            "Should disambiguate homophones with context"
+        );
         let res = result.unwrap();
-        assert_eq!(res.winner, "পড়া", "Education context should favor পড়া over পরা");
+        assert_eq!(
+            res.winner, "পড়া",
+            "Education context should favor পড়া over পরা"
+        );
         assert_eq!(res.runner_up, "পরা");
         assert!(res.confidence > 0.0);
         assert_eq!(res.domain_hint.as_deref(), Some("পড়ালেখা"));
@@ -4464,4 +4617,3 @@ mod tests {
         assert!(!ann_korchi.is_topic_winner);
     }
 }
-

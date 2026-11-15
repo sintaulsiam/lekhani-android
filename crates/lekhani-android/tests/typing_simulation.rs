@@ -856,7 +856,9 @@ fn test_complex_word_prefix_candidate_surfacing() {
             direct_cands.first().map(|s| s.as_str()),
             Some(expected),
             "Direct transliterate_avro('{}') candidate 0 expected '{}', got {:?}",
-            word, expected, direct_cands
+            word,
+            expected,
+            direct_cands
         );
 
         session.reset();
@@ -874,7 +876,9 @@ fn test_complex_word_prefix_candidate_surfacing() {
                 res.candidates.first().map(|s| s.as_str()),
                 Some(expected),
                 "Key-by-key session('{}') candidate 0 expected '{}', got {:?}",
-                word, expected, res.candidates
+                word,
+                expected,
+                res.candidates
             );
         }
     }

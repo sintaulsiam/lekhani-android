@@ -20,8 +20,6 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Import existing user dictionary words from previous keyboards (Gboard/Samsung) -->
     <uses-permission android:name="android.permission.READ_USER_DICTIONARY" />
-    <!-- On-demand updates & offline assets download (strictly zero background telemetry) -->
-    <uses-permission android:name="android.permission.INTERNET" />
     <!-- In-app APK update installation for Android 8.0+ (API 26+) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 

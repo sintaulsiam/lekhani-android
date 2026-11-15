@@ -36,7 +36,9 @@ fn test_chaos_short_tokens_avro() {
         let res = session.handle_space().unwrap();
         let committed = res.commit_text.unwrap_or_default().trim().to_string();
         assert!(
-            committed.chars().all(|c| ('\u{0980}'..='\u{09FF}').contains(&c)),
+            committed
+                .chars()
+                .all(|c| ('\u{0980}'..='\u{09FF}').contains(&c)),
             "Syllable '{}' must produce Bengali, got '{}'",
             input,
             committed
@@ -97,11 +99,7 @@ fn test_chaos_short_tokens_avro() {
     }
 
     // 4. All-caps Bengali words MUST resolve to Bengali
-    let bengali_caps = [
-        ("AMI", "আমি"),
-        ("TUMI", "তুমি"),
-        ("DESH", "দেশ"),
-    ];
+    let bengali_caps = [("AMI", "আমি"), ("TUMI", "তুমি"), ("DESH", "দেশ")];
     for (input, expected) in bengali_caps {
         session.reset();
         for ch in input.chars() {
@@ -140,10 +138,22 @@ fn test_chaos_midword_conjunct_and_continuation() {
             layout
         );
         let r_sel = session.select_candidate("চ্ছ".into()).unwrap();
-        assert_eq!(r_sel.preedit, "আচ্ছ", "Layout {:?} selecting 'চ্ছ' must give 'আচ্ছ'", layout);
-        assert_eq!(r_sel.commit_text, None, "Layout {:?} in-flight conjunct selection must keep composing open", layout);
+        assert_eq!(
+            r_sel.preedit, "আচ্ছ",
+            "Layout {:?} selecting 'চ্ছ' must give 'আচ্ছ'",
+            layout
+        );
+        assert_eq!(
+            r_sel.commit_text, None,
+            "Layout {:?} in-flight conjunct selection must keep composing open",
+            layout
+        );
         let r_akar = session.process_key("া".into()).unwrap();
-        assert_eq!(r_akar.preedit, "আচ্ছা", "Layout {:?} adding akar must give 'আচ্ছা'", layout);
+        assert_eq!(
+            r_akar.preedit, "আচ্ছা",
+            "Layout {:?} adding akar must give 'আচ্ছা'",
+            layout
+        );
         let r_space = session.handle_space().unwrap();
         assert_eq!(
             r_space.commit_text.as_deref().map(|s| s.trim()),
@@ -162,7 +172,10 @@ fn test_chaos_midword_conjunct_and_continuation() {
         let r_akar2 = session.process_key("া".into()).unwrap();
         assert_eq!(r_akar2.preedit, "র্কা");
         let r_space2 = session.handle_space().unwrap();
-        assert_eq!(r_space2.commit_text.as_deref().map(|s| s.trim()), Some("র্কা"));
+        assert_eq!(
+            r_space2.commit_text.as_deref().map(|s| s.trim()),
+            Some("র্কা")
+        );
     }
 }
 
@@ -212,7 +225,10 @@ fn test_chaos_numeric_decimal_dot_in_avro() {
     session.process_key("3".into()).unwrap();
     let r_dot = session.process_key(".".into()).unwrap();
     // In Avro, dot after digit should NOT commit Dari '।'
-    assert_eq!(r_dot.commit_text, None, "Dot after digit in Avro must not flush as Dari");
+    assert_eq!(
+        r_dot.commit_text, None,
+        "Dot after digit in Avro must not flush as Dari"
+    );
     session.process_key("1".into()).unwrap();
     session.process_key("4".into()).unwrap();
     let r_res = session.handle_space().unwrap();
@@ -223,7 +239,10 @@ fn test_chaos_numeric_decimal_dot_in_avro() {
     session.reset();
     session.process_key("৩".into()).unwrap();
     let r_dot_bn = session.process_key(".".into()).unwrap();
-    assert_eq!(r_dot_bn.commit_text, None, "Dot after Bengali digit in Avro must not flush as Dari");
+    assert_eq!(
+        r_dot_bn.commit_text, None,
+        "Dot after Bengali digit in Avro must not flush as Dari"
+    );
     session.process_key("১".into()).unwrap();
     session.process_key("৪".into()).unwrap();
     let r_res_bn = session.handle_space().unwrap();

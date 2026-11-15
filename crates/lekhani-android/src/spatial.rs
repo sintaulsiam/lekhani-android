@@ -89,8 +89,14 @@ impl SpatialKey {
         let new_cx = self.center_x + LEARNING_RATE * (touch_x - self.center_x);
         let new_cy = self.center_y + LEARNING_RATE * (touch_y - self.center_y);
 
-        self.center_x = new_cx.clamp(self.visual_center_x - max_drift_x, self.visual_center_x + max_drift_x);
-        self.center_y = new_cy.clamp(self.visual_center_y - max_drift_y, self.visual_center_y + max_drift_y);
+        self.center_x = new_cx.clamp(
+            self.visual_center_x - max_drift_x,
+            self.visual_center_x + max_drift_x,
+        );
+        self.center_y = new_cy.clamp(
+            self.visual_center_y - max_drift_y,
+            self.visual_center_y + max_drift_y,
+        );
     }
 
     /// Returns learned relative offset ratios (dx_ratio, dy_ratio) normalized to key dimensions.
@@ -108,8 +114,14 @@ impl SpatialKey {
         let max_drift_y = self.height * 0.20;
         let target_cx = self.visual_center_x + dx_ratio * self.width;
         let target_cy = self.visual_center_y + dy_ratio * self.height;
-        self.center_x = target_cx.clamp(self.visual_center_x - max_drift_x, self.visual_center_x + max_drift_x);
-        self.center_y = target_cy.clamp(self.visual_center_y - max_drift_y, self.visual_center_y + max_drift_y);
+        self.center_x = target_cx.clamp(
+            self.visual_center_x - max_drift_x,
+            self.visual_center_x + max_drift_x,
+        );
+        self.center_y = target_cy.clamp(
+            self.visual_center_y - max_drift_y,
+            self.visual_center_y + max_drift_y,
+        );
     }
 
     /// Compute the spatial log-probability `ln P(key | x, y)`.
@@ -156,7 +168,8 @@ impl SpatialTouchModel {
     pub fn update_geometry(&mut self, configs: Vec<KeyGeometryConfig>) {
         // Harvest current relative offsets before re-allocating
         for key in &self.keys {
-            self.learned_offsets.insert(key.label.clone(), key.get_relative_offsets());
+            self.learned_offsets
+                .insert(key.label.clone(), key.get_relative_offsets());
         }
 
         self.keys.clear();
@@ -217,7 +230,8 @@ impl SpatialTouchModel {
         for key in &mut self.keys {
             if key.label == label {
                 key.calibrate_touch(touch_x, touch_y);
-                self.learned_offsets.insert(label.to_string(), key.get_relative_offsets());
+                self.learned_offsets
+                    .insert(label.to_string(), key.get_relative_offsets());
                 break;
             }
         }
@@ -416,7 +430,10 @@ mod tests {
         }
 
         let json = model.export_calibration_json();
-        assert!(json.contains("space"), "Exported JSON must contain calibrated key 'space'");
+        assert!(
+            json.contains("space"),
+            "Exported JSON must contain calibrated key 'space'"
+        );
 
         let mut fresh_model = SpatialTouchModel::new();
         fresh_model.update_geometry(vec![KeyGeometryConfig {
@@ -432,6 +449,9 @@ mod tests {
 
         let p1 = model.log_prob_for_key("space", 315.0, 508.0);
         let p2 = fresh_model.log_prob_for_key("space", 315.0, 508.0);
-        assert!((p1 - p2).abs() < 1e-4, "Imported calibration must match exported calibration");
+        assert!(
+            (p1 - p2).abs() < 1e-4,
+            "Imported calibration must match exported calibration"
+        );
     }
 }
