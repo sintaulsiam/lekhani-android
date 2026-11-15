@@ -39,8 +39,8 @@ lekhani-neural = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = 
 debug = 1
 
 [profile.release]
-opt-level = 3
-lto = "thin"
+opt-level = "s"
+lto = true
 codegen-units = 1
 strip = true
 panic = "abort"
