@@ -16,8 +16,8 @@ android {
         applicationId = "com.lekhani.android"
         minSdk = 24          // Android 7.0 — covers 95%+ of active devices
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.3.1"
 
         // ABI split: ship all three ABIs in a single universal APK for now.
         // Switch to per-ABI APK splits or AAB when Play Store upload is ready.
