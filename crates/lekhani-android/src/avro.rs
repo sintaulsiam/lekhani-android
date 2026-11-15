@@ -507,21 +507,16 @@ pub fn resolve_bilingual_hyphen_clitic(input: &str) -> Option<(String, Vec<Strin
         "bhittik" => "-ভিত্তিক",
         "shongkranto" => "-সংক্রান্ত",
         _ => {
-            let (base_bn, _) = transliterate_avro(base);
-            let parser = get_avro_parser();
             let is_base_latin = base.contains('-')
                 || base.chars().any(|c| c.is_ascii_uppercase())
                 || crate::english::is_recognized_english_word(base);
-            let effective_base_bn = if is_base_latin {
-                base.to_string()
-            } else if !base_bn.is_empty() && base_bn != base {
-                base_bn
-            } else {
-                parser.convert(base)
-            };
-            if !effective_base_bn.is_empty() {
-                let suffix_conv = parser.convert(suffix);
-                let in_flight_primary = format!("{}-{}", effective_base_bn, suffix_conv);
+            if !is_base_latin {
+                return None;
+            }
+            let parser = get_avro_parser();
+            let suffix_conv = parser.convert(suffix);
+            if !suffix_conv.is_empty() {
+                let in_flight_primary = format!("{}-{}", base, suffix_conv);
                 let in_flight_cands = vec![in_flight_primary.clone(), input.to_string()];
                 return Some((in_flight_primary, in_flight_cands));
             }
@@ -2778,6 +2773,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_universal_morpheme_snapping_and_soft_hyphen_compounding() {
         // 1. Soft-hyphen compounding joins segments into canonical compound Bengali words
         let (res_hyphen, cands_hyphen) = transliterate_avro("antorjatik-bhabe");
