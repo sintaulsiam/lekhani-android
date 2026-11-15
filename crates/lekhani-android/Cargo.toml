@@ -28,5 +28,3 @@ edit-distance = { workspace = true }
 [dev-dependencies]
 serial_test = "3"
 
-[build-dependencies]
-uniffi = { workspace = true, features = ["build"] }

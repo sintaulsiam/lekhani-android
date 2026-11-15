@@ -369,10 +369,7 @@ pub fn are_phonetically_compatible(w1: &str, w2: &str) -> bool {
         return true;
     }
     let is_vowel = |c| "অআইঈউঊঋএঐওঔািীুূৃেৈোৌ".contains(c);
-    if is_vowel(c1) && is_vowel(c2) {
-        return true;
-    }
-    false
+    is_vowel(c1) && is_vowel(c2)
 }
 
 /// Looks up offline supervised phonetic override candidates for a key (including inflected suffix peeling).
