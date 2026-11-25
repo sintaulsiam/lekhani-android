@@ -149,6 +149,7 @@ class TouchGestureDispatcher(
                 }
                 if (clipboardAction != null) {
                     host.dismissKeyPreview()
+                    host.keyListener?.clearTouchCoordinates()
                     host.keyListener?.onKey(key, clipboardAction)
                     host.invalidate()
                     return@Runnable
@@ -164,13 +165,16 @@ class TouchGestureDispatcher(
                     host.showAlternatePopup(host.resolvedKeys[pressedKeyIndex], alts)
                 }
                 longAction != null -> {
+                    host.keyListener?.clearTouchCoordinates()
                     host.keyListener?.onKey(key, longAction)
                 }
                 else -> {
                     val activeHint = key.displayHint(host.isShifted)
                     if (activeHint != null) {
+                        host.keyListener?.clearTouchCoordinates()
                         host.keyListener?.onKey(key, KeyAction.Character(activeHint))
                     } else if (key.shiftedLabel != null && key.shiftedLabel != key.label) {
+                        host.keyListener?.clearTouchCoordinates()
                         host.keyListener?.onKey(key, key.shiftedAction)
                     }
                 }
@@ -253,13 +257,23 @@ class TouchGestureDispatcher(
         when (action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 if (action == MotionEvent.ACTION_POINTER_DOWN) {
+                    // Ignore secondary touches while a continuous gesture is active
+                    if (isGliding || isSpaceSwiping || isSpaceCursorMoving || isBackspaceSwiping) {
+                        return true
+                    }
                     // Commit pending key from previous pointer before switching to new pointer
-                    if (pressedKeyIndex in host.resolvedKeys.indices && !isGliding && !isSpaceSwiping &&
-                        !isSpaceCursorMoving && !isBackspaceSwiping && !isLongPressTriggered) {
+                    if (pressedKeyIndex in host.resolvedKeys.indices && !isLongPressTriggered) {
                         host.dispatchKey(host.resolvedKeys[pressedKeyIndex].key, touchStartX, touchStartY)
                     }
                     host.view.removeCallbacks(longPressRunnable)
                     host.view.removeCallbacks(backspaceRepeatRunnable)
+                    host.dismissKeyPreview()
+                    host.dismissAlternatePopup()
+                    isLongPressTriggered = false
+                    isFlickGestureActive = false
+                    isFlickDownActive = false
+                    isSwipeDeleteGestureActive = false
+                    isBackspaceDisarmed = false
                 }
 
                 pressedPointerId = event.getPointerId(actionIndex)
@@ -657,6 +671,7 @@ class TouchGestureDispatcher(
                     host.dismissAlternatePopup()
                     if (chosen != null && pressedKeyIndex in host.resolvedKeys.indices) {
                         val key = host.resolvedKeys[pressedKeyIndex].key
+                        host.keyListener?.clearTouchCoordinates()
                         host.keyListener?.onKey(key, KeyAction.Character(chosen))
                         host.feedbackManager?.onKeyFeedback(host.view)
                     }

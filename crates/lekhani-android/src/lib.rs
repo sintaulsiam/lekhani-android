@@ -3,6 +3,7 @@ pub mod avro;
 pub mod english;
 pub mod error;
 pub mod layout;
+pub mod loaders;
 pub mod probaho;
 pub mod session;
 pub mod spatial;

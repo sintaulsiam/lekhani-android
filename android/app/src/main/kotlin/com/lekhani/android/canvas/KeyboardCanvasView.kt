@@ -54,6 +54,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
     interface KeyListener {
         fun onKey(key: Key, action: KeyAction)
         fun onKeyWithTouch(key: Key, action: KeyAction, touchX: Float, touchY: Float) {}
+        fun clearTouchCoordinates() {}
         fun onGeometryChanged(geometries: List<com.lekhani.android.ffi.KeyGeometryConfig>) {}
         fun onSpaceSwipe(direction: Int) // -1 for previous layout, +1 for next layout
         fun onSpaceSwipeUp() {}

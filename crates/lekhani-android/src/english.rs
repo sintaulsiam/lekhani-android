@@ -477,13 +477,31 @@ pub fn lookup_english_contraction(lower_word: &str) -> Option<&'static str> {
 /// 3. Prefix completions from PrefixTrie
 /// 4. Typo auto-corrections via QWERTY proximity if buffer has few completions
 pub fn get_english_candidates(buffer: &str, limit: usize) -> Vec<String> {
-    get_english_candidates_with_trie(buffer, get_english_trie(), limit)
+    get_english_candidates_with_context(buffer, &[], limit)
+}
+
+/// Generates candidate words for the typed English buffer with optional surrounding context words.
+pub fn get_english_candidates_with_context(
+    buffer: &str,
+    context_words: &[&str],
+    limit: usize,
+) -> Vec<String> {
+    get_english_candidates_with_trie_and_context(buffer, get_english_trie(), context_words, limit)
 }
 
 /// Computes candidates using an explicitly provided PrefixTrie reference.
 pub fn get_english_candidates_with_trie(
     buffer: &str,
     trie: Option<&PrefixTrie>,
+    limit: usize,
+) -> Vec<String> {
+    get_english_candidates_with_trie_and_context(buffer, trie, &[], limit)
+}
+
+fn get_english_candidates_with_trie_and_context(
+    buffer: &str,
+    trie: Option<&PrefixTrie>,
+    context_words: &[&str],
     limit: usize,
 ) -> Vec<String> {
     if buffer.is_empty() {
@@ -536,7 +554,8 @@ pub fn get_english_candidates_with_trie(
 
         // 3. Proximity auto-correction if buffer is not an exact dictionary word (or few completions)
         if (!is_exact_in_trie || results.len() <= 2) && lower_buffer.len() >= 3 {
-            let corrections = generate_qwerty_corrections(&lower_buffer, trie);
+            let corrections =
+                generate_qwerty_corrections_with_context(&lower_buffer, trie, context_words);
             // If raw buffer is OOV and we have no contraction match, promote top correction to Slot 0
             if !is_exact_in_trie && contraction_match.is_none() {
                 if let Some(top_corr) = corrections.first() {
@@ -577,8 +596,12 @@ pub fn get_english_candidates_with_trie(
     results.into_iter().take(limit).collect()
 }
 
-/// Generates single-edit distance corrections using keyboard adjacency.
-fn generate_qwerty_corrections(word: &str, trie: &PrefixTrie) -> Vec<String> {
+/// Generates single-edit distance corrections using keyboard adjacency and optional LM rescoring.
+fn generate_qwerty_corrections_with_context(
+    word: &str,
+    trie: &PrefixTrie,
+    context_words: &[&str],
+) -> Vec<String> {
     let chars: Vec<char> = word.chars().collect();
     let len = chars.len();
     let mut candidates: Vec<(String, u32)> = Vec::new();
@@ -630,6 +653,29 @@ fn generate_qwerty_corrections(word: &str, trie: &PrefixTrie) -> Vec<String> {
                 }
             }
         }
+    }
+
+    // Rescore by frequency + English N-gram context LM (when context is available)
+    if let Some(lm) = (!context_words.is_empty()).then(get_english_lm).flatten() {
+        let prev1 = context_words.last().map(|s| s.to_lowercase());
+        let prev2 = if context_words.len() >= 2 {
+            Some(context_words[context_words.len() - 2].to_lowercase())
+        } else {
+            None
+        };
+        let mut scored: Vec<(String, i32)> = candidates
+            .into_iter()
+            .map(|(w, freq)| {
+                let base = ((freq.max(1) as f32).ln() * 100.0) as i32;
+                let lm_lp =
+                    lm.score_candidate_fourgram(None, prev2.as_deref(), prev1.as_deref(), &w);
+                let bonus = (lm_lp * 150.0) as i32;
+                (w, base + bonus)
+            })
+            .collect();
+        scored.sort_unstable_by_key(|a| std::cmp::Reverse(a.1));
+        scored.dedup_by(|a, b| a.0 == b.0);
+        return scored.into_iter().map(|(w, _)| w).take(4).collect();
     }
 
     // Sort by frequency descending
@@ -890,7 +936,14 @@ impl crate::layout::LayoutStrategy for EnglishStrategy {
             .all(|c| c.is_alphabetic() || c == '\'' || c == '-');
         if is_word_char {
             state.composing_buffer.push_str(key);
-            let candidates = get_english_candidates(&state.composing_buffer, 5);
+            let mut words_buf = [""; 16];
+            let count =
+                crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
+            let candidates = get_english_candidates_with_context(
+                &state.composing_buffer,
+                &words_buf[..count],
+                5,
+            );
             let len = state.composing_buffer.len() as u32;
             Ok(crate::session::TypingResult {
                 preedit: state.composing_buffer.clone(),
@@ -944,10 +997,12 @@ impl crate::layout::LayoutStrategy for EnglishStrategy {
 
     fn regenerate_candidates(
         &self,
-        _state: &crate::session::SessionState,
+        state: &crate::session::SessionState,
         input: &str,
     ) -> Vec<String> {
-        get_english_candidates(input, 5)
+        let mut words_buf = [""; 16];
+        let count = crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
+        get_english_candidates_with_context(input, &words_buf[..count], 5)
     }
 }
 

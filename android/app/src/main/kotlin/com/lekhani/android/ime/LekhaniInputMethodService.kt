@@ -202,12 +202,14 @@ class LekhaniInputMethodService : InputMethodService() {
     private val _paletteHeightDp = MutableStateFlow(304.dp)
     private var isCurrentFieldPrivate: Boolean = false
     private var consumedBackOnKeyDown: Boolean = false
-    private var isEnglishDictLoaded: Boolean = false
+    private val isEnglishDictLoaded: Boolean
+        get() = assetPersistenceCoordinator.isEnglishDictLoaded
     private var previousLayoutBeforePassword: LekhaniLayoutType? = null
     private var layoutPrefListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
     private var lastMeasuredKeyboardHeightPx: Int = 0
     private var lastMeasuredStripHeightPx: Int = 0
     private var lastTouchCoordinates: Pair<Float, Float>? = null
+    private val assetsReadyLatch = java.util.concurrent.CountDownLatch(1)
     private var lastNavBarLeftInset: Int = 0
     private var lastNavBarRightInset: Int = 0
 
@@ -390,6 +392,8 @@ class LekhaniInputMethodService : InputMethodService() {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading user learned dictionary or autocorrect: ${e.message}")
+            } finally {
+                assetsReadyLatch.countDown()
             }
         }
 
@@ -1023,6 +1027,10 @@ class LekhaniInputMethodService : InputMethodService() {
                     if (action is KeyAction.Character) {
                         lastTouchCoordinates = Pair(touchX, touchY)
                     }
+                }
+
+                override fun clearTouchCoordinates() {
+                    lastTouchCoordinates = null
                 }
 
                 override fun onGeometryChanged(geometries: List<com.lekhani.android.ffi.KeyGeometryConfig>) {
@@ -2433,6 +2441,12 @@ class LekhaniInputMethodService : InputMethodService() {
      * that is unavoidable at the Android layer).
      */
     fun onKey(keyToken: String) {
+        if (assetsReadyLatch.count > 0L) {
+            try {
+                assetsReadyLatch.await(120L, java.util.concurrent.TimeUnit.MILLISECONDS)
+            } catch (_: InterruptedException) {
+            }
+        }
         // User is now typing the next word — safe to show next-word predictions again.
         suppressNextWordAfterCommit = false
         if (_candidateState.value is CandidateStripState.RetroCorrectionChip) {
@@ -3319,124 +3333,33 @@ class LekhaniInputMethodService : InputMethodService() {
         }
     }
 
-    private fun ensureEnglishDictionaryLoaded() {
-        if (isEnglishDictLoaded) return
-        val candidates = listOf(
-            File(filesDir, "dictionaries/english_dict.bin"),
-            File(applicationContext.filesDir, "dictionaries/english_dict.bin"),
-            File(createDeviceProtectedStorageContext().filesDir, "dictionaries/english_dict.bin"),
+    private val assetPersistenceCoordinator by lazy {
+        ImeAssetPersistenceCoordinator(
+            context = this,
+            devicePrefs = devicePrefs,
+            session = session,
+            scope = serviceScope,
+            tag = TAG,
         )
-        for (f in candidates) {
-            if (f.exists() && f.length() > 0) {
-                val ok = session.loadEnglishDictionary(f.absolutePath)
-                if (ok) {
-                    isEnglishDictLoaded = true
-                    Log.i(TAG, "English dictionary loaded from ${f.absolutePath} (${f.length()} bytes)")
-                    return
-                }
-            }
-        }
-        Log.w(TAG, "English dictionary file not found or failed to load")
     }
 
-    /**
-     * Imports user words from Android's system UserDictionary (e.g. from Gboard/Samsung Keyboard)
-     * into AutonomousLearner on first run.
-     */
-    private fun importSystemUserDictionaryIfNeeded() {
-        if (devicePrefs.getBoolean("system_user_dict_imported", false)) return
+    private fun ensureEnglishDictionaryLoaded() =
+        assetPersistenceCoordinator.ensureEnglishDictionaryLoaded()
 
-        try {
-            val words = mutableListOf<String>()
-            val cursor = contentResolver.query(
-                UserDictionary.Words.CONTENT_URI,
-                arrayOf(UserDictionary.Words.WORD),
-                null,
-                null,
-                null
-            )
-            cursor?.use {
-                val colIdx = it.getColumnIndex(UserDictionary.Words.WORD)
-                if (colIdx >= 0) {
-                    while (it.moveToNext()) {
-                        val word = it.getString(colIdx)?.trim()
-                        if (!word.isNullOrEmpty()) {
-                            words.add(word)
-                        }
-                    }
-                }
-            }
-            if (words.isNotEmpty()) {
-                val count = session.importRawWords(words)
-                Log.i(TAG, "Imported $count words from system UserDictionary")
-            }
-            devicePrefs.edit().putBoolean("system_user_dict_imported", true).apply()
-        } catch (e: SecurityException) {
-            Log.d(TAG, "UserDictionary permission not granted or unavailable: ${e.message}")
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not import system UserDictionary: ${e.message}")
-        }
-    }
+    private fun importSystemUserDictionaryIfNeeded() =
+        assetPersistenceCoordinator.importSystemUserDictionaryIfNeeded()
 
-    /**
-     * Resolves storage directory resilient to Direct Boot.
-     * Uses Device Protected Storage context so user data is accessible on lock screen before decryption.
-     */
-    private val directBootFilesDir: File by lazy {
-        createDeviceProtectedStorageContext().filesDir
-    }
+    private fun getUserLearnedFile(): File =
+        assetPersistenceCoordinator.getUserLearnedFile()
 
-    private fun getUserLearnedFile(): File {
-        val dpsFile = File(directBootFilesDir, "user_learned.bin")
-        try {
-            val oldFile = File(filesDir, "user_learned.bin")
-            if (!dpsFile.exists() && oldFile.exists()) {
-                oldFile.copyTo(dpsFile, overwrite = true)
-                oldFile.delete()
-                Log.i(TAG, "Migrated user_learned.bin to Device Protected Storage")
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Migration check for user_learned.bin: ${e.message}")
-        }
-        return dpsFile
-    }
+    private fun getUserAutocorrectFile(): File =
+        assetPersistenceCoordinator.getUserAutocorrectFile()
 
-    private fun getUserAutocorrectFile(): File {
-        val dpsFile = File(directBootFilesDir, "user_autocorrect.json")
-        try {
-            val oldFile = File(filesDir, "user_autocorrect.json")
-            if (!dpsFile.exists() && oldFile.exists()) {
-                oldFile.copyTo(dpsFile, overwrite = true)
-                oldFile.delete()
-                Log.i(TAG, "Migrated user_autocorrect.json to Device Protected Storage")
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Migration check for user_autocorrect.json: ${e.message}")
-        }
-        return dpsFile
-    }
+    fun persistUserLearnedAsync() =
+        assetPersistenceCoordinator.persistUserLearnedAsync()
 
-    /**
-     * Persists user-learned vocabulary, candidate memory, and bigrams to local private storage
-     * asynchronously on Dispatchers.IO. Skips I/O if no in-memory mutations occurred.
-     */
-    fun persistUserLearnedAsync() {
-        val file = getUserLearnedFile()
-        serviceScope.launch(Dispatchers.IO) {
-            persistUserLearnedInternal(file)
-        }
-    }
-
-    private fun persistUserLearnedInternal(file: File) {
-        try {
-            if (session.isUserLearnedDirty()) {
-                session.saveUserLearned(file.absolutePath)
-                Log.i(TAG, "User learned data successfully persisted to ${file.absolutePath}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to persist user learned data: ${e.message}")
-        }
-    }
+    private fun persistUserLearnedInternal(file: File) =
+        assetPersistenceCoordinator.persistUserLearnedInternal(file)
 
     private fun clearUndo() {
         undoDismissJob?.cancel()
