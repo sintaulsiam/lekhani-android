@@ -20,10 +20,10 @@ hashbrown = { version = "0.14", features = ["serde", "rayon"] }
 tracing = "0.1"
 unicode-segmentation = "1.11"
 edit-distance = "2.1"
-lekhani-parser = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.11" }
-lekhani-ai     = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.11" }
-lekhani-core   = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.11" }
-lekhani-neural = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.11" }
+lekhani-parser = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.12" }
+lekhani-ai     = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.12" }
+lekhani-core   = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.12" }
+lekhani-neural = { git = "https://github.com/sintaulsiam/lekhani-engine", tag = "v1.2.12" }
 
 # ── Local override for simultaneous engine development ───────────────────────
 # Uncomment the block below (and comment the git deps above) when you are
