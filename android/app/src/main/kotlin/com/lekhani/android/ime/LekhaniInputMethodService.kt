@@ -2483,12 +2483,13 @@ class LekhaniInputMethodService : InputMethodService() {
         // 0b. Orphan Vowel Kar & Diacritic Healing:
         // When deleting a base consonant leaves an orphan vowel kar right after the cursor (e.g. '|ান'),
         // typing a new consonant key seamlessly absorbs the orphan kar and fuses them (e.g. 'p' + 'া' -> 'পা' + 'ন' = 'পান').
-        val charAfter = try { ic.getTextAfterCursor(1, 0)?.toString()?.firstOrNull() } catch (_: Exception) { null }
-        if (charAfter != null && charAfter in BENGALI_VOWEL_KARS &&
-            !session.isComposing() && preeditShadow.isEmpty() &&
+        // Gate Binder IPC behind composing/layout check so active typing does zero synchronous IPC.
+        if (!session.isComposing() && preeditShadow.isEmpty() &&
             session.getLayout() == LekhaniLayoutType.AVRO &&
             !isCurrentFieldPrivate && isAvroPhoneticKey(keyToken)
         ) {
+            val charAfter = try { ic.getTextAfterCursor(1, 0)?.toString()?.firstOrNull() } catch (_: Exception) { null }
+            if (charAfter != null && charAfter in BENGALI_VOWEL_KARS) {
             val mappedVowel = BENGALI_VOWEL_KARS[charAfter] ?: ""
             val isConsonant = keyToken.length == 1 && keyToken[0].lowercaseChar() !in listOf('a', 'e', 'i', 'o', 'u')
             if (mappedVowel.isNotEmpty() && isConsonant) {
@@ -2510,6 +2511,7 @@ class LekhaniInputMethodService : InputMethodService() {
                     publishCandidates(result.candidates)
                 }
                 return
+            }
             }
         }
 
@@ -2568,13 +2570,14 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         // If not actively composing, ensure engine has fresh preceding text before cursor
-        // so context-aware vowel promotion (e.g. Probaho 'মনুষ' + 'া' -> 'মনুষা', NOT 'মনুষআ')
-        // and conjunct suggestions have the exact preceding character.
+        // using cachedSurroundingContext first to avoid synchronous Binder IPC on hot keystrokes.
         if (!session.isComposing() && preeditShadow.isEmpty()) {
-            val immediateBefore = try {
-                ic.getTextBeforeCursor(64, 0)?.toString()
-            } catch (_: Exception) {
-                null
+            val immediateBefore = cachedSurroundingContext.takeLast(64).ifEmpty {
+                try {
+                    ic.getTextBeforeCursor(64, 0)?.toString()
+                } catch (_: Exception) {
+                    null
+                }
             }
             if (!immediateBefore.isNullOrEmpty()) {
                 session.setContext(immediateBefore)
@@ -2928,10 +2931,11 @@ class LekhaniInputMethodService : InputMethodService() {
         val preeditBeforeSpace = preeditShadow
         rawInputBuffer.clear()
 
-        val isPhonetic = session.getLayout() == LekhaniLayoutType.AVRO
+        val isPhoneticOrEnglish = session.getLayout() == LekhaniLayoutType.AVRO ||
+            session.getLayout() == LekhaniLayoutType.ENGLISH
         val isHardwareKeyboard = resources.configuration.keyboard == android.content.res.Configuration.KEYBOARD_QWERTY
         val autoCommitAllowed = keyboardPrefs.spacebarAutocompleteEnabled && !isHardwareKeyboard
-        val chosenForSpace = if (autoCommitAllowed && activePrimary != null && !activePrimary.startsWith("=") && isPhonetic) {
+        val chosenForSpace = if (autoCommitAllowed && activePrimary != null && !activePrimary.startsWith("=") && isPhoneticOrEnglish) {
             activePrimary
         } else {
             null

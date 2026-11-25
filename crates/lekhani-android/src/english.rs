@@ -491,16 +491,33 @@ pub fn get_english_candidates_with_trie(
     }
 
     let mut results: Vec<String> = Vec::with_capacity(limit + 2);
-    // Verbatim word is always candidate 0 (supports verbatim user typing)
-    results.push(buffer.to_string());
-
     let lower_buffer = buffer.to_lowercase();
+    let is_exact_in_trie = trie
+        .map(|t| t.contains_exact(&lower_buffer))
+        .unwrap_or(false);
 
     // 1. High-priority contraction or typo match
-    if let Some(target) = lookup_english_contraction(&lower_buffer) {
-        let formatted = match_casing(buffer, target);
-        if !results.iter().any(|r| r.eq_ignore_ascii_case(&formatted)) {
-            results.push(formatted);
+    let contraction_match =
+        lookup_english_contraction(&lower_buffer).map(|t| match_casing(buffer, t));
+
+    if !is_exact_in_trie {
+        if let Some(ref formatted) = contraction_match {
+            // Promote contractions/typos (e.g. "teh" -> "the", "dont" -> "don't") to Slot 0
+            // when the raw input is not itself a valid dictionary word (so "hell" stays "hell").
+            results.push(formatted.clone());
+        }
+    }
+
+    // Add verbatim buffer (Slot 0 if valid word or no contraction, Slot 1 if contraction promoted)
+    if !results.iter().any(|r| r.eq_ignore_ascii_case(buffer)) {
+        results.push(buffer.to_string());
+    }
+
+    if is_exact_in_trie {
+        if let Some(ref formatted) = contraction_match {
+            if !results.iter().any(|r| r.eq_ignore_ascii_case(formatted)) {
+                results.push(formatted.clone());
+            }
         }
     }
 
@@ -517,9 +534,21 @@ pub fn get_english_candidates_with_trie(
             }
         }
 
-        // 3. Proximity auto-correction if few prefix matches were found and word is >= 3 chars
-        if results.len() <= 2 && lower_buffer.len() >= 3 {
+        // 3. Proximity auto-correction if buffer is not an exact dictionary word (or few completions)
+        if (!is_exact_in_trie || results.len() <= 2) && lower_buffer.len() >= 3 {
             let corrections = generate_qwerty_corrections(&lower_buffer, trie);
+            // If raw buffer is OOV and we have no contraction match, promote top correction to Slot 0
+            if !is_exact_in_trie && contraction_match.is_none() {
+                if let Some(top_corr) = corrections.first() {
+                    let formatted_top = match_casing(buffer, top_corr);
+                    if !results
+                        .iter()
+                        .any(|r| r.eq_ignore_ascii_case(&formatted_top))
+                    {
+                        results.insert(0, formatted_top);
+                    }
+                }
+            }
             for corr in corrections {
                 let formatted = match_casing(buffer, &corr);
                 if !results.iter().any(|r| r.eq_ignore_ascii_case(&formatted)) {
@@ -584,6 +613,21 @@ fn generate_qwerty_corrections(word: &str, trie: &PrefixTrie) -> Vec<String> {
             let cand: String = sub.into_iter().collect();
             if let Some((_, freq)) = trie.get_exact(&cand) {
                 candidates.push((cand, freq));
+            }
+        }
+    }
+
+    // 4. Single missing-letter insertion (e.g. "helo" -> "hello", "wrk" -> "work")
+    if (3..=12).contains(&len) {
+        for i in 0..=len {
+            for ch in 'a'..='z' {
+                let mut ins = chars.clone();
+                ins.insert(i, ch);
+                let cand: String = ins.into_iter().collect();
+                if let Some((_, freq)) = trie.get_exact(&cand) {
+                    // Slight discount vs direct substitution so exact-length matches win ties
+                    candidates.push((cand, freq / 2));
+                }
             }
         }
     }
@@ -950,8 +994,8 @@ mod tests {
         let trie = sample_trie();
         // Typo: "hellp" instead of "hello" ('p' adjacent to 'o')
         let cands = get_english_candidates_with_trie("hellp", Some(&trie), 5);
-        assert_eq!(cands[0], "hellp"); // verbatim
-        assert!(cands.contains(&"hello".to_string())); // corrected!
+        assert_eq!(cands[0], "hello"); // auto-corrected to Slot 0!
+        assert_eq!(cands[1], "hellp"); // verbatim retained as fallback
     }
 
     #[test]
@@ -959,8 +1003,8 @@ mod tests {
         let trie = sample_trie();
         // Typo: "taht" instead of "that"
         let cands = get_english_candidates_with_trie("taht", Some(&trie), 5);
-        assert_eq!(cands[0], "taht");
-        assert!(cands.contains(&"that".to_string()));
+        assert_eq!(cands[0], "that"); // auto-corrected to Slot 0!
+        assert_eq!(cands[1], "taht"); // verbatim retained as fallback
     }
 
     #[test]

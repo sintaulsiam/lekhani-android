@@ -1591,7 +1591,7 @@ pub(crate) fn resolve_avro_candidates(
     };
 
     if !is_avro_special_fastpath(raw) && candidates.len() > 1 {
-        if !context_words.is_empty() {
+        if !context_words.is_empty() && right_word.is_some() {
             let scorer = crate::session::get_context_scorer();
             scorer.rank_candidates_in_place_bidirectional(
                 context_words,
@@ -1605,13 +1605,17 @@ pub(crate) fn resolve_avro_candidates(
             .first()
             .map(|w| db.is_exact_dictionary_word(w) || db.trie.contains_exact(w))
             .unwrap_or(false);
-        let preedit_is_in_dict = db.is_exact_dictionary_word(&preedit) || db.trie.contains_exact(&preedit);
+        let preedit_is_in_dict =
+            db.is_exact_dictionary_word(&preedit) || db.trie.contains_exact(&preedit);
         let top_len = candidates.first().map(|w| w.chars().count()).unwrap_or(0);
         let preedit_len = preedit.chars().count();
         let is_top_distant = !top_is_in_dict || (preedit_len >= 4 && top_len + 1 < preedit_len);
         let is_oov_gibberish = !preedit_is_in_dict && !top_is_in_dict && !has_override_word(raw);
 
-        if has_explicit_avro_intent(raw) || is_oov_gibberish || (is_top_distant && !has_candidate_memory) {
+        if has_explicit_avro_intent(raw)
+            || is_oov_gibberish
+            || (is_top_distant && !has_candidate_memory)
+        {
             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                 if pos != 0 {
                     let cand = candidates.remove(pos);
@@ -2818,11 +2822,20 @@ mod tests {
     fn test_gibberish_and_pure_avro_passthrough() {
         let (res, cands) = transliterate_avro("asdfgh");
         let def = get_avro_parser().convert("asdfgh");
-        assert_eq!(res, def, "Gibberish 'asdfgh' must resolve to pure Avro transliteration");
-        assert_eq!(cands[0], def, "Slot 0 candidate for gibberish must be pure Avro transliteration");
+        assert_eq!(
+            res, def,
+            "Gibberish 'asdfgh' must resolve to pure Avro transliteration"
+        );
+        assert_eq!(
+            cands[0], def,
+            "Slot 0 candidate for gibberish must be pure Avro transliteration"
+        );
 
         let session = crate::session::AndroidLekhaniSession::new();
         let pure = session.transliterate_pure_avro("aso".to_string());
-        assert_eq!(pure, "আছো", "Pure Avro must return 'আছো' without Anvaya shift to 'আছেন'");
+        assert_eq!(
+            pure, "আছো",
+            "Pure Avro must return 'আছো' without Anvaya shift to 'আছেন'"
+        );
     }
 }

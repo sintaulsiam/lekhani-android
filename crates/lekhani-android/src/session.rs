@@ -47,9 +47,28 @@ fn candidate_dict_dirs() -> &'static [&'static std::path::Path] {
 pub fn set_dictionary_directory(path: String) {
     let dir = std::path::PathBuf::from(&path);
     if let Ok(mut lock) = CUSTOM_DICT_DIR.write() {
-        *lock = Some(path);
+        if lock.as_deref() == Some(path.as_str())
+            && CORE_DB.read().ok().is_some_and(|g| g.is_some())
+        {
+            return;
+        }
+        *lock = Some(path.clone());
     }
     if dir.exists() {
+        // Also eagerly load English dictionary & LM if present
+        let eng_dict = dir.join("english_dict.bin");
+        if eng_dict.is_file() {
+            if let Some(p) = eng_dict.to_str() {
+                crate::english::load_english_dictionary_from_path(p);
+            }
+        }
+        let eng_lm = dir.join("english_lm.bin");
+        if eng_lm.is_file() {
+            if let Some(p) = eng_lm.to_str() {
+                crate::english::load_english_lm_from_path(p);
+            }
+        }
+
         let mut db = PhoneticDatabase::new();
         let _ = db.load_from_dir(&dir);
         let static_db: &'static PhoneticDatabase = Box::leak(Box::new(db));
@@ -78,11 +97,23 @@ pub fn set_dictionary_directory(path: String) {
                     sugg.database = static_db.clone();
                     sugg.ai_context = static_scorer.clone();
                     sugg.ai_predictor = static_pred.clone();
+                    sugg.load_seq2seq_from_dir(&dir);
+                    if let Some(parent) = dir.parent() {
+                        let layout_path = parent.join("layouts/avrophonetic.json");
+                        if layout_path.is_file() {
+                            if let Ok(content) = std::fs::read_to_string(&layout_path) {
+                                if let Ok(json) = serde_json::from_str(&content) {
+                                    sugg.set_layout(&json);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         } else if let Some(sugg_mutex) = PHONETIC_SUGGESTION.get() {
             if let Ok(mut sugg) = sugg_mutex.lock() {
                 sugg.database = static_db.clone();
+                sugg.load_seq2seq_from_dir(&dir);
             }
         }
 
@@ -396,7 +427,9 @@ pub fn get_phonetic_suggestion() -> &'static Mutex<lekhani_core::phonetic::Phone
             std::path::Path::new("../../data/layouts/avrophonetic.json"),
         ];
         if let Some(custom_dir) = get_custom_dict_dir() {
-            let parent = std::path::Path::new(&custom_dir).parent();
+            let dict_path = std::path::Path::new(&custom_dir);
+            sugg.load_seq2seq_from_dir(dict_path);
+            let parent = dict_path.parent();
             if let Some(p) = parent {
                 let layout_path = p.join("layouts/avrophonetic.json");
                 if layout_path.is_file() {
@@ -686,6 +719,9 @@ pub(crate) struct SessionState {
     pub(crate) last_commit_action: Option<CommitAction>,
     /// Bivariate Gaussian spatial touch model for fat-finger correction
     pub(crate) spatial_model: crate::spatial::SpatialTouchModel,
+    /// Uncommitted per-tap touch coordinates `(key, x, y)` for the active word.
+    /// Calibrated into `spatial_model` ONLY after a clean commit (never on typos).
+    pub(crate) pending_touch_samples: Vec<(String, f32, f32)>,
     /// Whether initial Kar auto-promotion and post-consonant demotion is enabled
     pub(crate) smart_initial_kar_enabled: bool,
     /// Whether geminate consonant double-tap shortcut is enabled
@@ -967,6 +1003,7 @@ impl AndroidLekhaniSession {
                 auto_learn_enabled: true,
                 last_commit_action: None,
                 spatial_model: crate::spatial::SpatialTouchModel::new(),
+                pending_touch_samples: Vec::with_capacity(16),
                 smart_initial_kar_enabled: true,
                 geminate_double_tap_enabled: false,
                 hasanta_conjuncts_enabled: true,
@@ -985,6 +1022,7 @@ impl AndroidLekhaniSession {
         if let Ok(mut state) = self.state.lock() {
             state.layout = layout;
             state.composing_buffer.clear();
+            state.pending_touch_samples.clear();
             state.last_consonant_tap = None;
         }
     }
@@ -1224,7 +1262,8 @@ impl AndroidLekhaniSession {
 
     /// Process a typed character or key token with physical touch coordinates (x, y).
     /// Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
-    /// on key boundaries and dynamically calibrates personal touch centroids.
+    /// on key boundaries across the active composing word, and queues touch samples for
+    /// verified post-commit calibration (never calibrating on unverified/mistyped taps).
     pub fn process_key_with_touch(
         &self,
         key: String,
@@ -1233,55 +1272,109 @@ impl AndroidLekhaniSession {
     ) -> Result<TypingResult, LekhaniError> {
         let mut result = self.process_key(key.clone())?;
 
-        // If spatial model is populated, check for adjacent fat-finger candidates
         let mut state = self
             .state
             .lock()
             .map_err(|e| LekhaniError::SessionError(e.to_string()))?;
 
-        if !state.spatial_model.is_empty() {
-            state
-                .spatial_model
-                .record_touch_sample(&key, touch_x, touch_y);
-            let spatial_candidates = state.spatial_model.rank_keys_at(touch_x, touch_y, 2);
-            if spatial_candidates.len() >= 2 {
-                let neighbor = if spatial_candidates[0].key == key {
-                    &spatial_candidates[1]
-                } else {
-                    &spatial_candidates[0]
-                };
+        if result.commit_text.is_some() || state.composing_buffer.is_empty() {
+            state.pending_touch_samples.clear();
+            return Ok(result);
+        }
 
-                let key_prob = state.spatial_model.log_prob_for_key(&key, touch_x, touch_y);
-                if (neighbor.log_prob - key_prob).abs() <= 2.8 && !state.composing_buffer.is_empty()
-                {
-                    let alt_buf = if let Some(stripped) = state.composing_buffer.strip_suffix(&key)
-                    {
-                        let mut s = stripped.to_string();
-                        s.push_str(&neighbor.key);
-                        s
+        if state.pending_touch_samples.len() < 32 {
+            state.pending_touch_samples.push((key, touch_x, touch_y));
+        }
+
+        if !state.spatial_model.is_empty() && state.pending_touch_samples.len() <= 14 {
+            let db = get_core_database();
+            let raw_buf = state.composing_buffer.clone();
+            let current_is_valid = match state.layout {
+                LekhaniLayoutType::English => crate::english::get_english_trie()
+                    .map(|t| t.contains_exact(&raw_buf.to_lowercase()))
+                    .unwrap_or(false),
+                LekhaniLayoutType::Avro | LekhaniLayoutType::LpsPhonetic => {
+                    db.is_exact_dictionary_word(&result.preedit)
+                        || db.trie.contains_exact(&result.preedit)
+                        || crate::avro::has_override_word(&raw_buf)
+                }
+                _ => db.trie.contains_exact(&result.preedit),
+            };
+
+            // Evaluate spatial neighbor swaps at each tap position (starting from most recent)
+            let mut best_slot0: Option<(String, Vec<String>, f32)> = None;
+            let tap_count = state.pending_touch_samples.len();
+            let raw_chars: Vec<char> = raw_buf.chars().collect();
+
+            if tap_count == raw_chars.len() {
+                for pos in (0..tap_count).rev() {
+                    let (ref tap_key, tx, ty) = state.pending_touch_samples[pos];
+                    let spatial_candidates = state.spatial_model.rank_keys_at(tx, ty, 2);
+                    if spatial_candidates.len() < 2 {
+                        continue;
+                    }
+                    let neighbor = if spatial_candidates[0].key == *tap_key {
+                        &spatial_candidates[1]
                     } else {
-                        let mut s = state.composing_buffer.clone();
-                        s.pop();
-                        s.push_str(&neighbor.key);
-                        s
+                        &spatial_candidates[0]
                     };
+                    if neighbor.key.chars().count() != 1 {
+                        continue;
+                    }
+                    let key_prob = state.spatial_model.log_prob_for_key(tap_key, tx, ty);
+                    if (neighbor.log_prob - key_prob).abs() > 2.8 {
+                        continue;
+                    }
+
+                    let mut alt_chars = raw_chars.clone();
+                    if let Some(nc) = neighbor.key.chars().next() {
+                        alt_chars[pos] = nc;
+                    }
+                    let alt_buf: String = alt_chars.into_iter().collect();
 
                     match state.layout {
                         LekhaniLayoutType::English => {
-                            let alt_cands = crate::english::get_english_candidates(&alt_buf, 2);
-                            for cand in alt_cands {
-                                if !result.candidates.contains(&cand) && result.candidates.len() < 7
-                                {
-                                    result.candidates.push(cand);
+                            let alt_cands = crate::english::get_english_candidates(&alt_buf, 3);
+                            let exact_match = crate::english::get_english_trie()
+                                .and_then(|t| t.get_exact(&alt_buf.to_lowercase()))
+                                .map(|(_, f)| f)
+                                .unwrap_or(0);
+                            if !current_is_valid && exact_match > 0 {
+                                let score = neighbor.log_prob + (exact_match as f32).ln_1p();
+                                if best_slot0.as_ref().is_none_or(|b| score > b.2) {
+                                    best_slot0 = Some((alt_buf, alt_cands, score));
+                                }
+                            } else {
+                                for cand in alt_cands {
+                                    if !result.candidates.contains(&cand)
+                                        && result.candidates.len() < 7
+                                    {
+                                        result.candidates.push(cand);
+                                    }
                                 }
                             }
                         }
                         LekhaniLayoutType::Avro => {
-                            let (_, alt_cands) = crate::avro::transliterate_avro(&alt_buf);
-                            for cand in alt_cands {
-                                if !result.candidates.contains(&cand) && result.candidates.len() < 7
-                                {
-                                    result.candidates.push(cand);
+                            let (alt_preedit, alt_cands) =
+                                crate::avro::transliterate_avro(&alt_buf);
+                            let alt_top = alt_cands.first().cloned().unwrap_or(alt_preedit);
+                            let alt_freq = db.get_frequency(&alt_top);
+                            if !current_is_valid
+                                && (alt_freq > 0
+                                    || db.trie.contains_exact(&alt_top)
+                                    || crate::avro::has_override_word(&alt_buf))
+                            {
+                                let score = neighbor.log_prob + (alt_freq as f32).ln_1p();
+                                if best_slot0.as_ref().is_none_or(|b| score > b.2) {
+                                    best_slot0 = Some((alt_top, alt_cands, score));
+                                }
+                            } else {
+                                for cand in alt_cands {
+                                    if !result.candidates.contains(&cand)
+                                        && result.candidates.len() < 7
+                                    {
+                                        result.candidates.push(cand);
+                                    }
                                 }
                             }
                         }
@@ -1296,19 +1389,51 @@ impl AndroidLekhaniSession {
                                 }
                             }
                         }
-                        LekhaniLayoutType::Probaho | LekhaniLayoutType::Probhat => {
-                            let db = get_core_database();
+                        LekhaniLayoutType::Probaho
+                        | LekhaniLayoutType::Probhat
+                        | LekhaniLayoutType::National
+                        | LekhaniLayoutType::Gboard => {
                             let prefix_matches = db.trie.find_prefix_entries(&alt_buf, 3);
-                            for (word, _) in prefix_matches {
-                                let w = word.to_string();
-                                if !result.candidates.contains(&w) && result.candidates.len() < 7 {
-                                    result.candidates.push(w);
+                            if !current_is_valid && db.trie.contains_exact(&alt_buf) {
+                                let freq = db.trie.get_frequency(&alt_buf);
+                                let score = neighbor.log_prob + (freq as f32).ln_1p();
+                                let cands: Vec<String> = prefix_matches
+                                    .into_iter()
+                                    .map(|(w, _)| w.to_string())
+                                    .collect();
+                                if best_slot0.as_ref().is_none_or(|b| score > b.2) {
+                                    best_slot0 = Some((alt_buf, cands, score));
+                                }
+                            } else {
+                                for (word, _) in prefix_matches {
+                                    let w = word.to_string();
+                                    if !result.candidates.contains(&w)
+                                        && result.candidates.len() < 7
+                                    {
+                                        result.candidates.push(w);
+                                    }
                                 }
                             }
                         }
-                        _ => {}
                     }
                 }
+            }
+
+            if let Some((promoted_preedit, promoted_cands, _)) = best_slot0 {
+                let old_preedit = result.preedit.clone();
+                result.preedit = promoted_preedit.clone();
+                result.cursor_position = promoted_preedit.graphemes(true).count() as u32;
+                let mut merged = Vec::with_capacity(7);
+                merged.push(promoted_preedit);
+                if !old_preedit.is_empty() && !merged.contains(&old_preedit) {
+                    merged.push(old_preedit);
+                }
+                for c in promoted_cands.into_iter().chain(result.candidates) {
+                    if !merged.contains(&c) && merged.len() < 7 {
+                        merged.push(c);
+                    }
+                }
+                result.candidates = merged;
             }
         }
 
@@ -1990,6 +2115,7 @@ impl AndroidLekhaniSession {
         state.last_consonant_tap = None;
 
         if !state.composing_buffer.is_empty() {
+            state.pending_touch_samples.pop();
             if state.layout == LekhaniLayoutType::Avro {
                 // Grapheme-safe removal: pop the last Unicode grapheme cluster,
                 // not just the last char code-point. Safe for any future Unicode
@@ -2176,6 +2302,12 @@ impl AndroidLekhaniSession {
             // Reallocate the buffer to its pre-allocated capacity to avoid
             // the composing buffer shrinking to zero capacity after `take`.
             state.composing_buffer = String::with_capacity(64);
+            let pending_taps = std::mem::take(&mut state.pending_touch_samples);
+            if chosen_candidate.is_none() && !state.is_private_field {
+                for (tap_key, tx, ty) in pending_taps {
+                    state.spatial_model.record_touch_sample(&tap_key, tx, ty);
+                }
+            }
             let prev_word = state
                 .surrounding_context
                 .split_whitespace()
@@ -2299,6 +2431,7 @@ impl AndroidLekhaniSession {
 
         let typed_buffer = std::mem::take(&mut state.composing_buffer);
         state.composing_buffer = String::with_capacity(64);
+        state.pending_touch_samples.clear();
         state.last_consonant_tap = None;
         let normalized = nfc_normalize(&candidate);
         let commit = format!("{} ", normalized);
@@ -2417,6 +2550,7 @@ impl AndroidLekhaniSession {
     pub fn reset(&self) {
         if let Ok(mut state) = self.state.lock() {
             state.composing_buffer.clear();
+            state.pending_touch_samples.clear();
             state.surrounding_context.clear();
             state.surrounding_context_len = 0;
             state.right_context.clear();

@@ -20,15 +20,15 @@ object LekhaniAssetInstaller {
     private const val TAG = "LekhaniAssetInstaller"
 
     private val BUNDLED_DICTIONARIES = listOf(
-        // ── Core Bengali dictionary (binary primary, JSON fallback) ───────────
+        // ── Core Bengali dictionary (binary primary) ─────────────────────────
         "dictionary.bin",       // 5.0 MB  – PrefixTrie; primary path, always used
-        "dictionary.json",      // 4.1 MB  – JSON source; fallback if .bin is missing on cold install
         // ── Language models ──────────────────────────────────────────────────
         "bengali_lm.bin",       // 5.1 MB  – N-gram LM; required for scoring
         "english_lm.bin",       //  40 KB  – English N-gram LM
         // ── Neural GRU predictor (v2 binary pair, preferred) ─────────────────
         "bengali_gru_v2.bin",   // 592 KB  – MicroGruModel weights v2
         "bengali_vocab_v2.json", //  68 KB  – BPE vocabulary paired with gru_v2
+        "seq2seq_transliterator_int8.bin", // 194 KB – INT8 Seq2Seq neural transliterator
         // NOTE: v1 pair (bengali_gru.bin + bengali_vocab.bin) and dev JSON pair
         //       (neural_weights.json + neural_vocab.json) are intentionally omitted.
         //       The engine selects v2 first; v1/JSON are never reached when v2 is present.

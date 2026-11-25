@@ -45,15 +45,22 @@ class KeyboardTouchTracker {
         val clampedX = x.coerceIn(0f, viewWidth.coerceAtLeast(1f))
         val clampedY = y.coerceIn(0f, viewHeight.coerceAtLeast(1f))
 
-        // Fast direct hit-test
+        // Fast direct hit-test (unless touch landed on the extreme horizontal border of a key)
+        var directHit = -1
         for (i in keys.indices) {
             val b = keys[i].bounds
             if (b.contains(clampedX, clampedY)) {
-                return i
+                val edgeThreshold = b.width() * 0.12f
+                val nearEdge = (clampedX - b.left) < edgeThreshold || (b.right - clampedX) < edgeThreshold
+                if (!nearEdge) {
+                    return i
+                }
+                directHit = i
+                break
             }
         }
 
-        var bestIdx = -1
+        var bestIdx = directHit
         var bestScore = Float.MAX_VALUE
 
         for (i in keys.indices) {
