@@ -910,23 +910,31 @@ fn test_contextual_homophone_disambiguation_matrix() {
     let res4 = session.handle_space().unwrap();
     assert_eq!(res4.commit_text.as_deref(), Some("ভাত "));
 
-    // 5. "আপনি কেমন " -> "aso" should rank "আছেন" higher than "আছো" (Project Anvaya Formal)
+    // 5. "আপনি কেমন " -> "aso" keeps WYSIWYG Slot 0 ("আছো") and ranks "আছেন" at Slot 1 (Project Anvaya Formal)
     session.reset();
     session.set_context("আপনি কেমন ".into());
+    let mut last_res5 = None;
     for c in "aso".chars() {
-        session.process_key(c.to_string()).unwrap();
+        last_res5 = Some(session.process_key(c.to_string()).unwrap());
     }
+    let pre5 = last_res5.unwrap();
+    assert_eq!(pre5.candidates.first().map(|s| s.as_str()), Some("আছো"));
+    assert_eq!(pre5.candidates.get(1).map(|s| s.as_str()), Some("আছেন"));
     let res5 = session.handle_space().unwrap();
-    assert_eq!(res5.commit_text.as_deref(), Some("আছেন "));
+    assert_eq!(res5.commit_text.as_deref(), Some("আছো "));
 
-    // 6. "তুই কেমন " -> "aso" should rank "আছিস" higher than "আছো" (Project Anvaya Intimate)
+    // 6. "তুই কেমন " -> "aso" keeps WYSIWYG Slot 0 ("আছো") and ranks "আছিস" at Slot 1 (Project Anvaya Intimate)
     session.reset();
     session.set_context("তুই কেমন ".into());
+    let mut last_res6 = None;
     for c in "aso".chars() {
-        session.process_key(c.to_string()).unwrap();
+        last_res6 = Some(session.process_key(c.to_string()).unwrap());
     }
+    let pre6 = last_res6.unwrap();
+    assert_eq!(pre6.candidates.first().map(|s| s.as_str()), Some("আছো"));
+    assert_eq!(pre6.candidates.get(1).map(|s| s.as_str()), Some("আছিস"));
     let res6 = session.handle_space().unwrap();
-    assert_eq!(res6.commit_text.as_deref(), Some("আছিস "));
+    assert_eq!(res6.commit_text.as_deref(), Some("আছো "));
 
     // 7. "তুমি কেমন " -> "aso" should rank "আছো" (Project Anvaya Familiar)
     session.reset();
