@@ -1248,3 +1248,32 @@ fn test_kaccha_and_kzackzacani_no_hijack() {
         "paR must produce পাড় at Slot 0"
     );
 }
+
+#[test]
+#[serial]
+fn test_krishnocura_variants() {
+    lekhani_android::set_dictionary_directory(
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../android/app/src/main/assets/dictionaries"
+        )
+        .to_string(),
+    );
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+    for input in ["krishnocura", "krishnochura", "krishnachura"] {
+        session.reset();
+        let mut last_res = None;
+        for ch in input.chars() {
+            last_res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+        let res = last_res.unwrap();
+        assert_eq!(
+            res.candidates.first().map(String::as_str),
+            Some("কৃষ্ণচূড়া"),
+            "{} must produce কৃষ্ণচূড়া at Slot 0 (got {:?})",
+            input,
+            res.candidates
+        );
+    }
+}

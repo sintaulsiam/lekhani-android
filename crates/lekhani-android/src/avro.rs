@@ -1318,7 +1318,12 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
             .map(|w| w.chars().count())
             .unwrap_or(0);
         let def_len = def_norm.chars().count();
-        let is_top_distant = !top_is_valid || (def_len >= 4 && top_len + 1 < def_len);
+        let def_in_dict =
+            db.is_exact_dictionary_word(&def_norm) || db.trie.contains_exact(&def_norm);
+        let is_top_distant = !top_is_valid
+            || (def_len >= 4
+                && top_len + 1 < def_len
+                && !(top_is_in_dict && !def_in_dict && top_len >= 4 && def_len <= top_len + 3));
 
         if let Some(pos) = raw_candidates.iter().position(|c| c == &def_norm) {
             if is_top_distant
@@ -1647,7 +1652,13 @@ pub(crate) fn resolve_avro_candidates(
             db.is_exact_dictionary_word(&preedit) || db.trie.contains_exact(&preedit);
         let top_len = candidates.first().map(|w| w.chars().count()).unwrap_or(0);
         let preedit_len = preedit.chars().count();
-        let is_top_distant = !top_is_in_dict || (preedit_len >= 4 && top_len + 1 < preedit_len);
+        let is_top_distant = !top_is_in_dict
+            || (preedit_len >= 4
+                && top_len + 1 < preedit_len
+                && !(top_is_in_dict
+                    && !preedit_is_in_dict
+                    && top_len >= 4
+                    && preedit_len <= top_len + 3));
         let is_oov_gibberish = !preedit_is_in_dict && !top_is_in_dict && !has_override_word(raw);
 
         let is_contextual_rule_winner =
