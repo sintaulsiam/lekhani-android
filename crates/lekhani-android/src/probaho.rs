@@ -790,24 +790,163 @@ impl crate::layout::LayoutStrategy for ProbhatStrategy {
         key: &str,
         state: &mut crate::session::SessionState,
     ) -> Result<crate::session::TypingResult, crate::error::LekhaniError> {
-        ProbahoStrategy.process_key(key, state)
+        let now = std::time::Instant::now();
+        let key_first_char = key.chars().next();
+        let is_raw_kar = key.chars().count() == 1
+            && key_first_char.is_some_and(|c| ('\u{09BE}'..='\u{09CC}').contains(&c));
+
+        let chars: Vec<char> = state.composing_buffer.chars().collect();
+        let last_ch = chars.last().copied();
+        let is_rapid_consonant_double_tap = if let Some((prev_ch, prev_time)) = state.last_consonant_tap {
+            key.chars().count() == 1
+                && key_first_char == Some(prev_ch)
+                && now.duration_since(prev_time).as_millis() <= 450
+        } else {
+            false
+        };
+
+        let mut did_geminate_or_revert = false;
+
+        if state.composing_buffer.is_empty() && is_raw_kar && state.smart_initial_kar_enabled {
+            let is_start = state
+                .surrounding_context
+                .chars()
+                .last()
+                .map(|c| !is_bengali_consonant_or_modifier(c) && !is_bengali_vowel(c))
+                .unwrap_or(true);
+            let promoted = promote_kar_if_needed(key, is_start);
+            state.composing_buffer.push_str(&promoted);
+        } else if is_raw_kar && last_ch == Some('ঁ') {
+            state.composing_buffer.pop();
+            state.composing_buffer.push_str(key);
+            state.composing_buffer.push('ঁ');
+        } else if key == "র্"
+            && last_ch.is_some_and(|c| {
+                is_bengali_consonant_or_modifier(c) && c != '্' && c != 'র' && c != 'ৎ'
+            })
+        {
+            if let Some(c) = state.composing_buffer.pop() {
+                state.composing_buffer.push_str("র্");
+                state.composing_buffer.push(c);
+            }
+        } else if state.geminate_double_tap_enabled
+            && key.chars().count() == 1
+            && last_ch == key_first_char
+            && chars.len() >= 3
+            && chars[chars.len() - 2] == '্'
+            && chars[chars.len() - 3] == chars[chars.len() - 1]
+        {
+            state.composing_buffer.pop();
+            state.composing_buffer.pop();
+            state.composing_buffer.push_str(key);
+            did_geminate_or_revert = true;
+            state.last_consonant_tap = None;
+        } else if state.geminate_double_tap_enabled
+            && is_rapid_consonant_double_tap
+            && key.chars().count() == 1
+            && last_ch.is_some_and(|c| {
+                key.starts_with(c)
+                    && is_bengali_consonant_or_modifier(c)
+                    && c != '্'
+                    && c != 'ৎ'
+                    && c != 'ড়'
+                    && c != 'ঢ়'
+                    && c != 'য়'
+            })
+            && (chars.len() < 2
+                || key_first_char
+                    .is_some_and(|kc| chars[chars.len() - 2] != '্' && chars[chars.len() - 2] != kc))
+        {
+            state.composing_buffer.push('্');
+            state.composing_buffer.push_str(key);
+            did_geminate_or_revert = true;
+            state.last_consonant_tap = None;
+        } else {
+            state.composing_buffer.push_str(key);
+        }
+
+        if !did_geminate_or_revert {
+            if let Some(ch) = key_first_char.filter(|_| key.chars().count() == 1) {
+                if is_bengali_consonant_or_modifier(ch) && ch != '্' && ch != 'ৎ' {
+                    state.last_consonant_tap = Some((ch, now));
+                } else {
+                    state.last_consonant_tap = None;
+                }
+            } else {
+                state.last_consonant_tap = None;
+            }
+        }
+
+        let mut candidates = Vec::new();
+        if state.hasanta_conjuncts_enabled && key == "্" {
+            let chars: Vec<char> = state.composing_buffer.chars().collect();
+            let hasanta_pos = chars.len().wrapping_sub(1);
+            if hasanta_pos > 0 {
+                let base_consonant = chars[hasanta_pos - 1];
+                candidates = get_conjunct_suggestions(base_consonant);
+            } else if let Some(base_consonant) = state.surrounding_context.chars().last() {
+                if is_bengali_consonant_or_modifier(base_consonant) {
+                    candidates = get_conjunct_suggestions(base_consonant);
+                }
+            }
+        }
+
+        if candidates.is_empty() {
+            let db = crate::session::get_core_database();
+            let prefix_matches = db.trie.find_prefix_entries(&state.composing_buffer, 6);
+            if !prefix_matches.is_empty() {
+                candidates.push(state.composing_buffer.clone());
+                for (word, _) in prefix_matches {
+                    if !candidates.iter().any(|c| c == word) {
+                        candidates.push(word.to_string());
+                    }
+                }
+            }
+        }
+
+        if !state.surrounding_context.is_empty() && candidates.len() > 1 {
+            let mut words_buf = [""; 16];
+            let count =
+                crate::session::get_context_words(&state.surrounding_context, &mut words_buf);
+            let words = &words_buf[..count];
+            let scorer = crate::session::get_context_scorer();
+            let right_word = state.right_context.split_whitespace().next();
+            scorer.rank_candidates_in_place_bidirectional(words, right_word, &mut candidates);
+        }
+
+        if let Some(pos) = candidates.iter().position(|c| c == &state.composing_buffer) {
+            let exact = candidates.remove(pos);
+            candidates.insert(0, exact);
+        }
+
+        let len = unicode_segmentation::UnicodeSegmentation::graphemes(
+            state.composing_buffer.as_str(),
+            true,
+        )
+        .count() as u32;
+        Ok(crate::session::TypingResult {
+            preedit: state.composing_buffer.clone(),
+            commit_text: None,
+            candidates,
+            cursor_position: len,
+        })
     }
 
     fn resolve_space_commit(
         &self,
         raw: &str,
-        state: &mut crate::session::SessionState,
+        _state: &mut crate::session::SessionState,
         chosen_candidate: Option<&str>,
     ) -> String {
-        ProbahoStrategy.resolve_space_commit(raw, state, chosen_candidate)
+        resolve_fixed_space_commit(raw, chosen_candidate)
     }
 
     fn regenerate_candidates(
         &self,
-        state: &crate::session::SessionState,
+        _state: &crate::session::SessionState,
         input: &str,
     ) -> Vec<String> {
-        ProbahoStrategy.regenerate_candidates(state, input)
+        regenerate_fixed_candidates(input)
     }
 }
 

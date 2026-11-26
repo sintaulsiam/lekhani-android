@@ -41,6 +41,7 @@ class KeyboardGeometryEngine {
         val bengaliDedicatedNumberRow: List<Key>,
         val isGboardKarsActive: Boolean,
         val gboardActiveConsonant: String,
+        val gboardDynamicPhalaRow: Boolean = true,
         val fieldType: EnterKeyResolver.FieldType,
     )
 
@@ -196,7 +197,7 @@ class KeyboardGeometryEngine {
             if (params.layoutType == LekhaniLayoutType.GBOARD) {
                 when (rowIndex) {
                     0 -> if (params.isGboardKarsActive) GboardBengaliLayout.getDynamicVowelsRow(params.gboardActiveConsonant) else originalRow
-                    4 -> if (params.isGboardKarsActive) GboardBengaliLayout.getDynamicRow5(params.gboardActiveConsonant) else originalRow
+                    4 -> if (params.isGboardKarsActive && params.gboardDynamicPhalaRow) GboardBengaliLayout.getDynamicRow5(params.gboardActiveConsonant) else originalRow
                     else -> originalRow
                 }
             } else {
@@ -366,7 +367,7 @@ class KeyboardGeometryEngine {
             if (params.layoutType == LekhaniLayoutType.GBOARD) {
                 when (rowIndex) {
                     0 -> if (params.isGboardKarsActive) GboardBengaliLayout.getDynamicVowelsRow(params.gboardActiveConsonant) else originalRow
-                    4 -> if (params.isGboardKarsActive) GboardBengaliLayout.getDynamicRow5(params.gboardActiveConsonant) else originalRow
+                    4 -> if (params.isGboardKarsActive && params.gboardDynamicPhalaRow) GboardBengaliLayout.getDynamicRow5(params.gboardActiveConsonant) else originalRow
                     else -> originalRow
                 }
             } else {

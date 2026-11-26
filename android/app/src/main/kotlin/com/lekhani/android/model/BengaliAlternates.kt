@@ -73,6 +73,7 @@ object BengaliAlternates {
         put("ঃ", arrayOf("ং", "ঁ"))
         put("ঁ", arrayOf("ং", "ঃ"))
         put("্", arrayOf("ঁ", "্‌", "‌", "‍")) // Chandrabindu, Hasanta, ZWNJ, ZWJ
+        put("\u09CD\u09AF", arrayOf("\u09CD\u09AC", "\u09CD\u09AF\u09BE")) // Ya-phala -> Ba-phala, Ya-phala+Aa-kar (অ্যা-কার)
 
         // ── Currency Symbols ────────────────────────────────────────────────────
         put("$", arrayOf("৳", "€", "₹", "£", "¥"))
@@ -105,8 +106,8 @@ object BengaliAlternates {
         put("0", arrayOf("০", "ⁿ", "∅"))
 
         // ── Punctuation ─────────────────────────────────────────────────────────
-        put("।", arrayOf("॥", ".", "?", "!"))
-        put(",", arrayOf(";", "—", "।"))
+        put("।", arrayOf("॥", ".", "?", "!", "—"))
+        put(",", arrayOf(";", "—", ":", "।"))
         put(".", arrayOf("!", "?", ",", "...", "।"))
         put("?", arrayOf("!", "¿", "‽"))
         put("!", arrayOf("?", "¡"))

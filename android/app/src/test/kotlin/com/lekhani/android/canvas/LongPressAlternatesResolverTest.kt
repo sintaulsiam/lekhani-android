@@ -6,6 +6,7 @@ import com.lekhani.android.model.ProbhatLayout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LongPressAlternatesResolverTest {
@@ -71,5 +72,19 @@ class LongPressAlternatesResolverTest {
         val dariAlts = LongPressAlternatesResolver.resolve(dariKey, isShifted = false)
         assertEquals("?", dariAlts.firstOrNull())
         assertEquals("॥", dariAlts.getOrNull(1))
+    }
+
+    @Test
+    fun `probhat র has Reph hint and gboard ya-phala offers ba-phala and ya-aa-kar`() {
+        val raKey = ProbhatLayout.layout.rows[0].first { it.label == "র" }
+        val raAlts = LongPressAlternatesResolver.resolve(raKey, isShifted = false)
+        assertEquals("ড়", raAlts.firstOrNull())
+        assertEquals("র্", raAlts.getOrNull(1))
+
+        val dynamicRow5 = GboardBengaliLayout.getDynamicRow5("ক")
+        val yaPhalaKey = dynamicRow5.first { it.label == "ক্য" }
+        val yaPhalaAlts = LongPressAlternatesResolver.resolve(yaPhalaKey, isShifted = false)
+        assertEquals("\u09CD\u09AC", yaPhalaAlts.firstOrNull())
+        assertTrue(yaPhalaAlts.contains("\u09CD\u09AF\u09BE"))
     }
 }

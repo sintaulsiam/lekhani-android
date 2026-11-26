@@ -391,6 +391,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         private set
     var gboardAlternatePopups: Boolean = true
         private set
+    var gboardDynamicPhalaRow: Boolean = true
+        private set
 
     private val bengaliDedicatedNumberRow get() = com.lekhani.android.model.NumberSymbolsLayout.bengaliDedicatedNumberRow
 
@@ -455,6 +457,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.avroNumeralsBengali = prefs.avroNumeralsBengali
         this.nationalNumeralsBengali = prefs.nationalNumeralsBengali
         this.gboardAlternatePopups = prefs.gboardAlternatePopups
+        this.gboardDynamicPhalaRow = prefs.gboardDynamicPhalaRow
         this.heightScale = prefs.getHeightScaleForOrientation(resources.configuration.orientation)
         this.marginHDp = prefs.keyMarginH
         this.marginVDp = prefs.keyMarginV
@@ -473,7 +476,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.showLayoutNameOnSpacebar = prefs.showLayoutNameOnSpacebar
         this.showBilateralAura = prefs.showBilateralAura
         this.showKeyHints = prefs.showKeyHints
-        this.swipeUpFlickEnabled = prefs.swipeUpFlickEnabled
+        this.swipeUpFlickEnabled = prefs.isSwipeUpFlickActive(layoutType)
         this.longPressClipboardShortcuts = prefs.longPressClipboardShortcuts
 
         val tf = when (prefs.fontStyle) {
@@ -583,7 +586,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
                     ) {
                         for (i in 0 until 11) {
                             resolvedKeys[row0StartIndex + i].key = newRow0[i]
-                            resolvedKeys[row4StartIndex + i].key = newRow4[i]
+                            if (gboardDynamicPhalaRow) {
+                                resolvedKeys[row4StartIndex + i].key = newRow4[i]
+                            }
                         }
                         invalidate()
                     } else {
@@ -609,7 +614,9 @@ class KeyboardCanvasView @JvmOverloads constructor(
     ) {
         layout = newLayout
         layoutType = newLayoutType
-        this.showDedicatedNumberRow = KeyboardPreferences.get(context).isNumberRowActive(newLayoutType)
+        val prefs = KeyboardPreferences.get(context)
+        this.showDedicatedNumberRow = prefs.isNumberRowActive(newLayoutType)
+        this.swipeUpFlickEnabled = prefs.isSwipeUpFlickActive(newLayoutType)
         isShifted = shifted
         isCapsLock = false
         isGboardKarsActive = false
@@ -788,6 +795,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             bengaliDedicatedNumberRow = bengaliDedicatedNumberRow,
             isGboardKarsActive = isGboardKarsActive,
             gboardActiveConsonant = gboardActiveConsonant,
+            gboardDynamicPhalaRow = gboardDynamicPhalaRow,
             fieldType = fieldType,
         )
 

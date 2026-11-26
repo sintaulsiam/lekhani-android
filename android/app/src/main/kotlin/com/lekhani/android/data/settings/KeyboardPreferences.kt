@@ -165,6 +165,10 @@ class KeyboardPreferences private constructor(context: Context) {
         get() = isHasantaHapticActive(LekhaniLayoutType.PROBHAT)
         set(value) = prefs.edit().putBoolean(KEY_PROBHAT_DEAD_KEY_HAPTIC, value).apply()
 
+    var probhatRephHint: Boolean
+        get() = prefs.getBoolean(KEY_PROBHAT_REPH_HINT, true)
+        set(value) = prefs.edit().putBoolean(KEY_PROBHAT_REPH_HINT, value).apply()
+
     // ── National (BBS) Layout Preferences ─────────────────────────────────
     var nationalJuktobornoAssist: Boolean
         get() = prefs.getBoolean(KEY_NATIONAL_JUKTOBORNO_ASSIST, true)
@@ -178,6 +182,10 @@ class KeyboardPreferences private constructor(context: Context) {
     var gboardAlternatePopups: Boolean
         get() = prefs.getBoolean(KEY_GBOARD_ALTERNATE_POPUPS, true)
         set(value) = prefs.edit().putBoolean(KEY_GBOARD_ALTERNATE_POPUPS, value).apply()
+
+    var gboardDynamicPhalaRow: Boolean
+        get() = prefs.getBoolean(KEY_GBOARD_DYNAMIC_PHALA_ROW, true)
+        set(value) = prefs.edit().putBoolean(KEY_GBOARD_DYNAMIC_PHALA_ROW, value).apply()
 
     // ── English Layout Preferences ────────────────────────────────────────
     var englishAutoCapitalize: Boolean
@@ -447,6 +455,24 @@ class KeyboardPreferences private constructor(context: Context) {
             SettingOverride.ALWAYS_ON -> true
             SettingOverride.ALWAYS_OFF -> false
             SettingOverride.FOLLOW_GLOBAL -> hasantaConjunctsEnabled
+        }
+    }
+
+    fun getSwipeUpFlickOverride(layout: LekhaniLayoutType): SettingOverride {
+        val key = getOverrideKey(layout, PREFIX_SWIPE_UP_FLICK)
+        return SettingOverride.fromInt(prefs.getInt(key, SettingOverride.FOLLOW_GLOBAL.value))
+    }
+
+    fun setSwipeUpFlickOverride(layout: LekhaniLayoutType, override: SettingOverride) {
+        val key = getOverrideKey(layout, PREFIX_SWIPE_UP_FLICK)
+        prefs.edit().putInt(key, override.value).apply()
+    }
+
+    fun isSwipeUpFlickActive(layout: LekhaniLayoutType): Boolean {
+        return when (getSwipeUpFlickOverride(layout)) {
+            SettingOverride.ALWAYS_ON -> true
+            SettingOverride.ALWAYS_OFF -> false
+            SettingOverride.FOLLOW_GLOBAL -> swipeUpFlickEnabled
         }
     }
 
@@ -743,15 +769,18 @@ class KeyboardPreferences private constructor(context: Context) {
         const val PREFIX_HASANTA_CONJUNCTS = "override_hasanta_conjuncts"
         const val PREFIX_GEMINATE_DOUBLE_TAP = "override_geminate_double_tap"
         const val PREFIX_HASANTA_HAPTIC = "override_hasanta_haptic"
+        const val PREFIX_SWIPE_UP_FLICK = "override_swipe_up_flick"
 
         const val KEY_PROBHAT_HASANTA_CONJUNCTS = "probhat_hasanta_conjuncts"
         const val KEY_PROBHAT_SMART_INITIAL_KAR = "probhat_smart_initial_kar"
         const val KEY_PROBHAT_GEMINATE_DOUBLE_TAP = "probhat_geminate_double_tap"
         const val KEY_PROBHAT_DEAD_KEY_HAPTIC = "probhat_dead_key_haptic"
+        const val KEY_PROBHAT_REPH_HINT = "probhat_reph_hint"
 
         const val KEY_NATIONAL_JUKTOBORNO_ASSIST = "national_juktoborno_assist"
         const val KEY_NATIONAL_NUMERALS_BENGALI = "national_numerals_bengali"
         const val KEY_GBOARD_ALTERNATE_POPUPS = "gboard_alternate_popups"
+        const val KEY_GBOARD_DYNAMIC_PHALA_ROW = "gboard_dynamic_phala_row"
         const val KEY_ENGLISH_AUTO_CAPITALIZE = "english_auto_capitalize"
         const val KEY_ENGLISH_PREDICTIVE_SUGGESTIONS = "english_predictive_suggestions"
 

@@ -484,7 +484,15 @@ class KeycapPaintPipeline(
                         if (hint != null) {
                             val hintX = drawBounds.right - 5f * density
                             val hintY = drawBounds.top + 13f * density
-                            canvas.drawText(hint, hintX, hintY, hintPaint)
+                            val isShiftedSpecialHint = host.isShifted && key.shiftedHintLabel != null
+                            if (isShiftedSpecialHint) {
+                                val prevColor = hintPaint.color
+                                hintPaint.color = activeTheme.accentColor
+                                canvas.drawText(hint, hintX, hintY, hintPaint)
+                                hintPaint.color = prevColor
+                            } else {
+                                canvas.drawText(hint, hintX, hintY, hintPaint)
+                            }
                         }
                     }
                 }
@@ -495,7 +503,15 @@ class KeycapPaintPipeline(
                         if (hint != null) {
                             val hintX = drawBounds.right - 5f * density
                             val hintY = drawBounds.top + 13f * density
-                            canvas.drawText(hint, hintX, hintY, hintPaint)
+                            val isShiftedSpecialHint = host.isShifted && key.shiftedHintLabel != null
+                            if (isShiftedSpecialHint) {
+                                val prevColor = hintPaint.color
+                                hintPaint.color = activeTheme.accentColor
+                                canvas.drawText(hint, hintX, hintY, hintPaint)
+                                hintPaint.color = prevColor
+                            } else {
+                                canvas.drawText(hint, hintX, hintY, hintPaint)
+                            }
                         }
                     }
                 }

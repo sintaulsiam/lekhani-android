@@ -3324,6 +3324,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private fun updateGboardDynamicRow(keyToken: String) {
         if (session.getLayout() != LekhaniLayoutType.GBOARD) return
         if (keyToken.isEmpty()) return
+        if (keyToken == "র্") return
         val ch = keyToken[0]
         val isConsonant = (ch in '\u0995'..'\u09B9') || (ch in '\u09DC'..'\u09DF') || ch == '\u09CE'
         if (isConsonant) {

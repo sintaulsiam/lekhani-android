@@ -158,6 +158,7 @@ fun LayoutOverrideSection(
     var autocorrectOverride by remember { mutableStateOf(prefs.getAutocorrectOverride(layout)) }
     var numberRowOverride by remember { mutableStateOf(prefs.getNumberRowOverride(layout)) }
     var nextWordOverride by remember { mutableStateOf(prefs.getNextWordOverride(layout)) }
+    var swipeUpFlickOverride by remember { mutableStateOf(prefs.getSwipeUpFlickOverride(layout)) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -229,6 +230,21 @@ fun LayoutOverrideSection(
                 onOverrideChanged = {
                     nextWordOverride = it
                     prefs.setNextWordOverride(layout, it)
+                }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+            // Swipe-Up Flick Override
+            LayoutOverrideRow(
+                title = if (isEnglish) "Swipe-Up / Down Flicks" else "ফ্লিক জেসচার (উপরে/নিচে)",
+                subtitle = if (isEnglish) "Flick up for Shift character or down for hint" else "কী-তে উপরে ফ্লিক করে শিফট অক্ষর ও নিচে ফ্লিক করে হিন্ট লিখবে",
+                override = swipeUpFlickOverride,
+                globalActive = prefs.swipeUpFlickEnabled,
+                isEnglish = isEnglish,
+                onOverrideChanged = {
+                    swipeUpFlickOverride = it
+                    prefs.setSwipeUpFlickOverride(layout, it)
                 }
             )
         }
@@ -1026,6 +1042,7 @@ fun GboardSettingsDialog(
     onDismiss: () -> Unit
 ) {
     var gboardAlternatePopups by remember { mutableStateOf(prefs.gboardAlternatePopups) }
+    var gboardDynamicPhalaRow by remember { mutableStateOf(prefs.gboardDynamicPhalaRow) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1108,6 +1125,35 @@ fun GboardSettingsDialog(
                                     onCheckedChange = {
                                         gboardAlternatePopups = it
                                         prefs.gboardAlternatePopups = it
+                                    }
+                                )
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Dynamic Phala Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEnglish) "Dynamic Phala Row" else "ডাইনামিক ফলা সারি",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                    )
+                                    Text(
+                                        text = if (isEnglish) "Show contextual Ya/Ba/Ra-phala keys after consonants"
+                                               else "ব্যঞ্জনবর্ণের পর নিচের সারিতে য-ফলা, ব-ফলা ও র-ফলা দেখাবে",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = gboardDynamicPhalaRow,
+                                    onCheckedChange = {
+                                        gboardDynamicPhalaRow = it
+                                        prefs.gboardDynamicPhalaRow = it
                                     }
                                 )
                             }

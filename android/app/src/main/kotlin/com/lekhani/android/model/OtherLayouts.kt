@@ -242,7 +242,7 @@ object ProbhatLayout {
         rows = listOf(
             // Row 1 (12 keys: দ ূ ী র ট এ ু ি ও প ে ো)
             listOf(
-                Ch("দ", "ধ"), Ch("ূ", "ঊ"), Ch("ী", "ঈ"), Ch("র", "ড়"),
+                Ch("দ", "ধ"), Ch("ূ", "ঊ"), Ch("ী", "ঈ"), Ch("র", "ড়", hint = "র্", desc = "র, shifted ড়, hint Reph র্"),
                 Ch("ট", "ঠ"), Ch("এ", shifted = "ঐ", shiftedHint = "ঞ", desc = "এ, shifted ঐ, long-press ঞ"), Ch("ু", "উ"), Ch("ি", "ই"),
                 Ch("ও", "ঔ"), Ch("প", "ফ"), Ch("ে", "ৈ"), Ch("ো", "ৌ"),
             ),
