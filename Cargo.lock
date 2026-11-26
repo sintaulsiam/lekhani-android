@@ -451,7 +451,7 @@ dependencies = [
 [[package]]
 name = "lekhani-ai"
 version = "1.2.3"
-source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.2.21#94750e3646be4d64f8dc537bf10ecc5e511146f8"
+source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.2.22#7cde1cca9291541b376af7ebf82e93d0c1650a4a"
 dependencies = [
  "anyhow",
  "hashbrown",
@@ -483,7 +483,7 @@ dependencies = [
 [[package]]
 name = "lekhani-core"
 version = "1.2.3"
-source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.2.21#94750e3646be4d64f8dc537bf10ecc5e511146f8"
+source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.2.22#7cde1cca9291541b376af7ebf82e93d0c1650a4a"
 dependencies = [
  "bincode",
  "chrono",
@@ -503,7 +503,7 @@ dependencies = [
 [[package]]
 name = "lekhani-neural"
 version = "1.2.3"
-source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.2.21#94750e3646be4d64f8dc537bf10ecc5e511146f8"
+source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.2.22#7cde1cca9291541b376af7ebf82e93d0c1650a4a"
 dependencies = [
  "bincode",
  "hashbrown",
@@ -515,7 +515,7 @@ dependencies = [
 [[package]]
 name = "lekhani-parser"
 version = "1.2.3"
-source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.2.21#94750e3646be4d64f8dc537bf10ecc5e511146f8"
+source = "git+https://github.com/sintaulsiam/lekhani-engine?tag=v1.2.22#7cde1cca9291541b376af7ebf82e93d0c1650a4a"
 dependencies = [
  "serde",
  "serde_json",
