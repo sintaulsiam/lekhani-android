@@ -2190,40 +2190,15 @@ class LekhaniInputMethodService : InputMethodService() {
         }
         if (event.isCtrlPressed && !event.isAltPressed) {
             val ic = currentInputConnection
-            if (ic != null) {
-                when (keyCode) {
-                    KeyEvent.KEYCODE_A -> {
-                        ic.finishComposingText()
-                        session.reset()
-                        preeditShadow = ""
-                        rawInputBuffer.clear()
-                        clearCandidates()
-                        ic.performContextMenuAction(android.R.id.selectAll)
-                        return true
-                    }
-                    KeyEvent.KEYCODE_C -> {
-                        ic.performContextMenuAction(android.R.id.copy)
-                        return true
-                    }
-                    KeyEvent.KEYCODE_V -> {
-                        ic.finishComposingText()
-                        session.reset()
-                        preeditShadow = ""
-                        rawInputBuffer.clear()
-                        clearCandidates()
-                        ic.performContextMenuAction(android.R.id.paste)
-                        return true
-                    }
-                    KeyEvent.KEYCODE_X -> {
-                        ic.finishComposingText()
-                        session.reset()
-                        preeditShadow = ""
-                        rawInputBuffer.clear()
-                        clearCandidates()
-                        ic.performContextMenuAction(android.R.id.cut)
-                        return true
-                    }
+            if (ic != null && HardwareKeyShortcuts.handleCtrlShortcut(keyCode, ic) {
+                    ic.finishComposingText()
+                    session.reset()
+                    preeditShadow = ""
+                    rawInputBuffer.clear()
+                    clearCandidates()
                 }
+            ) {
+                return true
             }
             return super.onKeyDown(keyCode, event)
         }

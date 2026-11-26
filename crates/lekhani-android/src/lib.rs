@@ -6,6 +6,7 @@ pub mod layout;
 pub mod loaders;
 pub mod probaho;
 pub mod session;
+pub mod session_types;
 pub mod spatial;
 
 pub use audio::{restore_bengali_punctuation, AsrAudioProcessor, AudioAnalysisResult};
