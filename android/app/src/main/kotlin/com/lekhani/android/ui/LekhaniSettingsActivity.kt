@@ -918,18 +918,19 @@ private fun LayoutsTabContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 text = if (isEnglish) "1. Enable Lekhani" else "১. লেখনী কীবোর্ড চালু করুন",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
-                            Text(
-                                text = if (isEnabled) (if (isEnglish) "Enabled in system settings" else "সিস্টেম সেটিংসে চালু আছে")
-                                       else (if (isEnglish) "Tap to enable in settings" else "সেটিংসে গিয়ে চালু করুন"),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            if (isEnabled) {
+                                Text(
+                                    text = if (isEnglish) "Enabled" else "চালু আছে",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 )
-                            )
+                            }
                         }
                         if (!isEnabled) {
                             Button(
@@ -949,7 +950,7 @@ private fun LayoutsTabContent(
                         }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
 
                     // Step 2: Set as Default
                     Row(
@@ -957,19 +958,19 @@ private fun LayoutsTabContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 text = if (isEnglish) "2. Select as Default" else "২. ডিফল্ট কীবোর্ড নির্বাচন করুন",
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                             )
-                            Text(
-                                text = if (isDefault) (if (isEnglish) "Active as default" else "ডিফল্ট হিসেবে সক্রিয়")
-                                       else if (!isEnabled) (if (isEnglish) "Enable Step 1 first" else "প্রথমে ধাপ ১ চালু করুন")
-                                       else (if (isEnglish) "Tap to select Lekhani" else "ডিফল্ট কীবোর্ড হিসেবে বেছে নিন"),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            if (isDefault) {
+                                Text(
+                                    text = if (isEnglish) "Active" else "সক্রিয় আছে",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 )
-                            )
+                            }
                         }
                         if (!isDefault) {
                             FilledTonalButton(
@@ -997,9 +998,13 @@ private fun LayoutsTabContent(
 
                     if (!isEnabled) {
                         Spacer(modifier = Modifier.height(10.dp))
+                        val restrictedTip = if (Build.VERSION.SDK_INT >= 33) {
+                            if (isEnglish) " Grayed out? App Info → ⋮ → Allow restricted settings."
+                            else " ধূসর থাকলে: অ্যাপ ইনফো → ⋮ → Allow restricted settings।"
+                        } else ""
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
@@ -1007,46 +1012,17 @@ private fun LayoutsTabContent(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Lock,
+                                    imageVector = Icons.Filled.Info,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = if (isEnglish)
-                                        "Android displays a standard security alert for every custom keyboard. Lekhani has 0 internet permissions and operates 100% offline."
+                                    text = (if (isEnglish)
+                                        "Android shows a standard warning for all keyboards. Typing stays on-device."
                                     else
-                                        "যেকোনো কীবোর্ড চালুর সময় অ্যান্ড্রয়েড একটি সতর্কবার্তা দেখায়। লেখনীতে কোনো ইন্টারনেট পারমিশন নেই এবং এটি শতভাগ অফলাইন ও নিরাপদ।",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-
-                    if (!isEnabled && Build.VERSION.SDK_INT >= 33) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Info,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = if (isEnglish)
-                                        "If Lekhani is grayed out in settings, go to App Info ➔ tap ⋮ (top-right) ➔ 'Allow restricted settings'."
-                                    else
-                                        "লেখনী ধূসর থাকলে, অ্যাপ ইনফো ➔ ⋮ (উপরে ডানে) ➔ 'Allow restricted settings' চালু করুন।",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp),
+                                        "সব কীবোর্ডেই অ্যান্ড্রয়েড সাধারণ সতর্কবার্তা দেখায়। আপনার টাইপিং ডিভাইসেই থাকে।") + restrictedTip,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }

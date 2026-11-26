@@ -85,6 +85,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lekhani.android.data.dictionary.LekhaniDictionaryManager
 import com.lekhani.android.data.settings.KeyboardPreferences
+import com.lekhani.android.ui.components.SettingsActionRow
+import com.lekhani.android.ui.components.SettingsSectionCard
+import com.lekhani.android.ui.components.SettingsSwitchRow
 import kotlin.math.roundToInt
 import com.lekhani.android.feedback.LekhaniFeedbackManager
 
@@ -183,8 +186,8 @@ fun PreferencesTabContent(
         }
     }
 
-    val userWordsCount = remember { dictManager.getUserWords().size }
-    val autocorrectCount = remember { dictManager.getAutocorrectRules().size }
+    val userWordsCount = dictManager.getUserWords().size
+    val autocorrectCount = dictManager.getAutocorrectRules().size
 
     val powerManager = remember { context.getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager }
     val isIgnoringBattery by remember {
@@ -237,8 +240,8 @@ fun PreferencesTabContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // ── Search & Filter Header ───────────────────────────────────────────
         OutlinedTextField(
@@ -516,117 +519,50 @@ fun PreferencesTabContent(
                     )
 
                     // Candidate & Suggestion Strip (Global Master)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "Candidate & Suggestion Strip" else "সাজেশন ও ক্যান্ডিডেট বার",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "Show word suggestions & toolbar strip above keyboard"
-                                       else "কীবোর্ডের উপর শব্দ সাজেশন ও ক্যান্ডিডেট বার প্রদর্শন",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    SettingsSwitchRow(
+                        title = if (isEnglish) "Candidate & Suggestion Strip" else "সাজেশন ও ক্যান্ডিডেট বার",
+                        checked = candidateStripEnabled,
+                        onCheckedChange = {
+                            candidateStripEnabled = it
+                            prefs.candidateStripEnabled = it
                         }
-                        Switch(
-                            checked = candidateStripEnabled,
-                            onCheckedChange = {
-                                candidateStripEnabled = it
-                                prefs.candidateStripEnabled = it
-                            }
-                        )
-                    }
+                    )
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                     // Auto-Correction (Global Master)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "Auto-Correction" else "স্বয়ংক্রিয় সংশোধন (Auto-Correct)",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "Automatically correct typos and common mistakes"
-                                       else "টাইপ করার সময় ভুল বানান স্বয়ংক্রিয়ভাবে সংশোধন করবে",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    SettingsSwitchRow(
+                        title = if (isEnglish) "Auto-Correction" else "স্বয়ংক্রিয় বানান সংশোধন",
+                        checked = autocorrectEnabled,
+                        onCheckedChange = {
+                            autocorrectEnabled = it
+                            prefs.autocorrectEnabled = it
                         }
-                        Switch(
-                            checked = autocorrectEnabled,
-                            onCheckedChange = {
-                                autocorrectEnabled = it
-                                prefs.autocorrectEnabled = it
-                            }
-                        )
-                    }
+                    )
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                     // Next-Word Prediction (Global Master)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "Next-Word Prediction" else "পরবর্তী শব্দের অনুমান",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "Predict and suggest upcoming words based on context"
-                                       else "প্রসঙ্গ অনুযায়ী পরবর্তী সম্ভাব্য শব্দ সাজেস্ট করবে",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    SettingsSwitchRow(
+                        title = if (isEnglish) "Next-Word Prediction" else "পরবর্তী শব্দের অনুমান",
+                        checked = nextWordPredictionEnabled,
+                        onCheckedChange = {
+                            nextWordPredictionEnabled = it
+                            prefs.nextWordPredictionEnabled = it
                         }
-                        Switch(
-                            checked = nextWordPredictionEnabled,
-                            onCheckedChange = {
-                                nextWordPredictionEnabled = it
-                                prefs.nextWordPredictionEnabled = it
-                            }
-                        )
-                    }
+                    )
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                     // Dedicated Number Row Toggle
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "Dedicated Number Row" else "স্বতন্ত্র সংখ্যা সারি",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "Show number row above keyboard" else "কীবোর্ডের উপরে সংখ্যার সারি দেখাবে",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    SettingsSwitchRow(
+                        title = if (isEnglish) "Dedicated Number Row" else "স্বতন্ত্র সংখ্যা সারি",
+                        checked = showDedicatedNumberRow,
+                        onCheckedChange = {
+                            showDedicatedNumberRow = it
+                            prefs.showDedicatedNumberRow = it
                         }
-                        Switch(
-                            checked = showDedicatedNumberRow,
-                            onCheckedChange = {
-                                showDedicatedNumberRow = it
-                                prefs.showDedicatedNumberRow = it
-                            }
-                        )
-                    }
+                    )
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
@@ -1828,8 +1764,8 @@ fun PreferencesTabContent(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                     FormFactorPrefOption(
-                        title = if (isEnglish) "Standard" else "সাধারণ (Standard)",
-                        subtitle = if (isEnglish) "Default full width" else "ডিফল্ট পূর্ণ প্রস্থ",
+                        title = if (isEnglish) "Standard" else "সাধারণ",
+                        subtitle = if (isEnglish) "Full width" else "পূর্ণ প্রস্থ",
                         icon = Icons.Filled.Smartphone,
                         selected = formFactor == KeyboardPreferences.FormFactor.STANDARD,
                         onSelect = {
@@ -1838,8 +1774,8 @@ fun PreferencesTabContent(
                         }
                     )
                     FormFactorPrefOption(
-                        title = if (isEnglish) "One-Handed Mode" else "একহাতে ব্যবহারের মোড (One-Handed)",
-                        subtitle = if (isEnglish) "Compact for one-handed typing" else "এক হাতে সহজে টাইপ করার জন্য",
+                        title = if (isEnglish) "One-Handed" else "একহাতে ব্যবহার",
+                        subtitle = if (isEnglish) "Compact side dock" else "এক হাতে টাইপিং",
                         icon = Icons.Filled.Smartphone,
                         selected = formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_RIGHT || formFactor == KeyboardPreferences.FormFactor.ONE_HANDED_LEFT,
                         onSelect = {
@@ -1848,8 +1784,8 @@ fun PreferencesTabContent(
                         }
                     )
                     FormFactorPrefOption(
-                        title = if (isEnglish) "Floating Keyboard" else "ভাসমান কীবোর্ড (Floating)",
-                        subtitle = if (isEnglish) "Movable mini keyboard" else "পর্দার যেকোনো জায়গায় নেওয়া যায়",
+                        title = if (isEnglish) "Floating" else "ভাসমান",
+                        subtitle = if (isEnglish) "Movable mini keyboard" else "যেকোনো জায়গায় সরানো যায়",
                         icon = Icons.Filled.PictureInPictureAlt,
                         selected = formFactor == KeyboardPreferences.FormFactor.FLOATING,
                         onSelect = {
@@ -1858,8 +1794,8 @@ fun PreferencesTabContent(
                         }
                     )
                     FormFactorPrefOption(
-                        title = if (isEnglish) "Split Keyboard" else "বিভক্ত কীবোর্ড (Split)",
-                        subtitle = if (isEnglish) "Split for two-thumb typing on large screens" else "বড় স্ক্রিনে দুই হাতে সহজে টাইপ করার জন্য",
+                        title = if (isEnglish) "Split" else "বিভক্ত",
+                        subtitle = if (isEnglish) "Two-thumb layout for wide screens" else "বড় স্ক্রিনের জন্য দুই ভাগ",
                         icon = Icons.Filled.VerticalSplit,
                         selected = formFactor == KeyboardPreferences.FormFactor.SPLIT,
                         onSelect = {
@@ -1908,55 +1844,20 @@ fun PreferencesTabContent(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 
                     // Toolbar customizer button
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "Customize Strip Toolbar" else "টুলবার বিন্যাস সাজান",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "Reorder shortcuts on the candidate bar" else "ক্যান্ডিডেট বারের শর্টকাটগুলো সাজান",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        FilledTonalButton(
-                            onClick = onOpenToolbarCustomizer,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(if (isEnglish) "Customize" else "সাজান")
-                        }
-                    }
+                    SettingsActionRow(
+                        title = if (isEnglish) "Strip Toolbar" else "টুলবার বিন্যাস",
+                        actionLabel = if (isEnglish) "Customize" else "সাজান",
+                        onClick = onOpenToolbarCustomizer
+                    )
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    if (!showDictionaryQuickCard) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                    // User Dictionary Button
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "Personal Dictionary ($userWordsCount)" else "ব্যক্তিগত ডিকশনারি ($userWordsCount)",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "Manage your custom and learned words" else "সংরক্ষিত ও কাস্টম শব্দসমূহ দেখুন",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        FilledTonalButton(
-                            onClick = onOpenDictionaryManager,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(if (isEnglish) "Manage" else "ব্যবস্থাপনা")
-                        }
+                        SettingsActionRow(
+                            title = if (isEnglish) "Personal Dictionary ($userWordsCount)" else "ব্যক্তিগত ডিকশনারি ($userWordsCount)",
+                            actionLabel = if (isEnglish) "Manage" else "ব্যবস্থাপনা",
+                            onClick = onOpenDictionaryManager
+                        )
                     }
 
                     if (onOpenBackupRestore != null) {
@@ -1993,122 +1894,25 @@ fun PreferencesTabContent(
 
         // ── 7. Privacy & About Card ─────────────────────────────────────────
         if (showPrivacy) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-                )
+            SettingsSectionCard(
+                title = if (isEnglish) "Privacy & About" else "গোপনীয়তা ও পরিচিতি",
+                icon = Icons.Filled.Security
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Security,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = if (isEnglish) "Privacy & Security" else "নিরাপত্তা ও গোপনীয়তা",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                            )
-                        }
-                    }
+                Text(
+                    text = if (isEnglish) "Keystrokes and learned words stay on your device."
+                           else "টাইপিং ও ব্যক্তিগত শব্দ শুধু আপনার ডিভাইসেই থাকে।",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "100% On-Device & Private" else "১০০% অফলাইন ও নিরাপদ",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "Keystrokes and text never leave your device" else "টাইপ করা কোনো তথ্য কখনো ডিভাইস থেকে বাইরে যায় না",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Filled.Security,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    // Software Updates
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "Check for Updates" else "সফ্টওয়্যার আপডেট",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "v${com.lekhani.android.BuildConfig.VERSION_NAME} • GitHub Releases"
-                                       else "সংস্করণ v${com.lekhani.android.BuildConfig.VERSION_NAME} • গিটহাব রিলিজ",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        FilledTonalButton(
-                            onClick = onOpenAbout,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.SystemUpdate,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isEnglish) "Check" else "চেক করুন")
-                        }
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text(
-                                text = if (isEnglish) "About Lekhani" else "লেখনী পরিচিতি",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                            Text(
-                                text = if (isEnglish) "Version, license, and credits" else "অ্যাপ সংস্করণ, লাইসেন্স ও তথ্য",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        OutlinedButton(
-                            onClick = onOpenAbout,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(if (isEnglish) "About" else "পরিচিতি")
-                        }
-                    }
-                }
+                SettingsActionRow(
+                    title = if (isEnglish) "About & Updates" else "পরিচিতি ও আপডেট",
+                    subtitle = "v${com.lekhani.android.BuildConfig.VERSION_NAME}",
+                    actionLabel = if (isEnglish) "Open" else "খুলুন",
+                    onClick = onOpenAbout
+                )
             }
         }
 

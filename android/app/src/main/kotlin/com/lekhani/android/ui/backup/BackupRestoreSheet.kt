@@ -189,7 +189,7 @@ fun BackupRestoreSheet(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = if (isEnglish) "100% On-device & private" else "১০০% অফলাইন ও নিরাপদ",
+                            text = if (isEnglish) "Local device backup" else "ডিভাইসে স্থানীয় ব্যাকআপ",
                             style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                         )
                     }

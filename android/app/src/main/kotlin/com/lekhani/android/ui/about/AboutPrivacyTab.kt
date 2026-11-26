@@ -130,8 +130,8 @@ fun AboutPrivacyTab(
                 )
 
                 Text(
-                    text = if (isEnglish) "Fast, private Bengali keyboard for Android"
-                           else "সম্পূর্ণ অফলাইন, নিরাপদ ও দ্রুত বাংলা কীবোর্ড",
+                    text = if (isEnglish) "Offline Bengali & English keyboard for Android"
+                           else "অ্যান্ড্রয়েডের জন্য অফলাইন বাংলা ও ইংরেজি কীবোর্ড",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -150,8 +150,8 @@ fun AboutPrivacyTab(
                                 if (devTapCount == 7) {
                                     Toast.makeText(
                                         context,
-                                        if (isEnglish) "Developer specifications unlocked"
-                                        else "ডেভেলপার স্পেসিফিকেশন উন্মুক্ত করা হয়েছে",
+                                        if (isEnglish) "Developer info unlocked"
+                                        else "ডেভেলপার তথ্য উন্মুক্ত হয়েছে",
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -159,11 +159,11 @@ fun AboutPrivacyTab(
                         }
                         .semantics {
                             role = Role.Button
-                            contentDescription = "Version ${com.lekhani.android.BuildConfig.VERSION_NAME}, 100 percent offline, zero telemetry"
+                            contentDescription = "Version ${com.lekhani.android.BuildConfig.VERSION_NAME}, offline keyboard"
                         }
                 ) {
                     Text(
-                        text = "v${com.lekhani.android.BuildConfig.VERSION_NAME} • 100% Offline • Zero Telemetry" +
+                        text = "v${com.lekhani.android.BuildConfig.VERSION_NAME}" +
                             if (devTapCount in 1..6) " (${7 - devTapCount})" else "",
                         style = MaterialTheme.typography.labelMedium.copy(
                             color = MaterialTheme.colorScheme.primary,
@@ -207,12 +207,12 @@ fun AboutPrivacyTab(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = if (isEnglish) "100% Offline & Private" else "১০০% অফলাইন ও সম্পূর্ণ গোপনীয়",
+                            text = if (isEnglish) "Privacy" else "গোপনীয়তা",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = if (isEnglish) "Absolute zero telemetry guarantee" else "কোনো ডেটা কখনোই ডিভাইস থেকে বাইরে যায় না",
+                            text = if (isEnglish) "Keystrokes never leave your device" else "টাইপিংয়ের কোনো তথ্য ডিভাইসের বাইরে যায় না",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -226,21 +226,21 @@ fun AboutPrivacyTab(
 
                 PrivacyFeatureItem(
                     icon = Icons.Filled.Security,
-                    title = if (isEnglish) "Zero Telemetry / On-Demand Only" else "জিরো টেলিমেট্রি ও সম্পূর্ণ গোপনীয়",
-                    desc = if (isEnglish) "Zero background tracking or keystroke logging. Internet access is strictly user-initiated when checking updates or downloading offline assets."
-                           else "কোনো ব্যাকগ্রাউন্ড ট্র্যাকিং বা কি-স্ট্রোক মনিটরিং নেই। ইন্টারনেট শুধুমাত্র আপনার অনুরোধে আপডেট চেক বা অফলাইন অ্যাসেট ডাউনলোডে ব্যবহৃত হয়।"
+                    title = if (isEnglish) "No Analytics or Tracking" else "কোনো ট্র্যাকিং নেই",
+                    desc = if (isEnglish) "Network access is only used when you check for updates or download offline assets."
+                           else "ইন্টারনেট শুধুমাত্র আপনি আপডেট বা অফলাইন ফাইল ডাউনলোড করলে ব্যবহৃত হয়।"
                 )
                 PrivacyFeatureItem(
                     icon = Icons.Filled.Memory,
-                    title = if (isEnglish) "On-Device Engine" else "অন-ডিভাইস প্রসেসিং",
-                    desc = if (isEnglish) "Grammar parsing and next-word suggestions run 100% locally on your phone's processor."
-                           else "শব্দ সাজেশন ও ব্যাকরণ পার্সিং সবকিছু সরাসরি আপনার ফোনেই প্রসেস হয়।"
+                    title = if (isEnglish) "On-Device Typing" else "অন-ডিভাইস ইঞ্জিন",
+                    desc = if (isEnglish) "Transliteration, predictions, and voice input run locally."
+                           else "বাংলা লেখা, সাজেশন ও ভয়েস টাইপিং সরাসরি ফোনেই চলে।"
                 )
                 PrivacyFeatureItem(
                     icon = Icons.Filled.Lock,
-                    title = if (isEnglish) "Device-Protected Storage" else "ডিভাইসেই সুরক্ষিত সেভ",
-                    desc = if (isEnglish) "Personal learned words and clipboard items are stored securely on your device and never shared with anyone."
-                           else "ব্যক্তিগত ডিকশনারি ও ক্লিপবোর্ড আপনার ফোনেই সুরক্ষিত থাকে এবং কখনোই কারো সাথে শেয়ার করা হয় না।"
+                    title = if (isEnglish) "Local Storage" else "স্থানীয় সংরক্ষণ",
+                    desc = if (isEnglish) "Learned words and clipboard items are saved only on your device."
+                           else "ব্যক্তিগত শব্দ ও ক্লিপবোর্ড শুধু আপনার ডিভাইসেই সংরক্ষিত থাকে।"
                 )
             }
         }
@@ -308,31 +308,31 @@ fun AboutPrivacyTab(
 
                         HighlightItem(
                             icon = Icons.Filled.TouchApp,
-                            title = if (isEnglish) "Smart Swipe-to-Delete & Two-Thumb Actions"
-                                    else "স্মার্ট সোয়াইপ ডিলিট ও টু-থাম্ব অ্যাকশন",
-                            detail = if (isEnglish) "Drag left from Backspace to preview tokens before deleting. Use your second thumb to Copy or Cut selected text instantly."
-                                     else "ব্যাকস্পেস চেপে বামে টেনে শব্দ সিলেক্ট করুন। সিলেক্ট থাকা অবস্থায় দ্বিতীয় হাত দিয়ে কপি বা কাট করুন।"
+                            title = if (isEnglish) "Backspace Swipe-to-Delete"
+                                    else "ব্যাকস্পেস সোয়াইপ ডিলিট",
+                            detail = if (isEnglish) "Drag left from Backspace to select and delete words."
+                                     else "ব্যাকস্পেস থেকে বামে টেনে শব্দ সিলেক্ট করে মুছুন।"
                         )
                         HighlightItem(
                             icon = Icons.Filled.AutoAwesome,
-                            title = if (isEnglish) "Contextual Selection Toolbar"
-                                    else "কনটেক্সচুয়াল টেক্সট টুলবার",
-                            detail = if (isEnglish) "Instant Cut, Copy, Paste, and Select All buttons appear directly in the suggestion strip when text is selected."
-                                     else "টেক্সট সিলেক্ট করা থাকলে ক্যান্ডিডেট বারে স্বয়ংক্রিয়ভাবে কাট, কপি, পেস্ট ও সিলেক্ট অল বাটন ভেসে ওঠে।"
+                            title = if (isEnglish) "Selection Toolbar"
+                                    else "সিলেকশন টুলবার",
+                            detail = if (isEnglish) "Cut, Copy, Paste, and Select All appear when text is selected."
+                                     else "টেক্সট সিলেক্ট করলে কাট, কপি, পেস্ট ও সিলেক্ট অল বাটন দেখাবে।"
                         )
                         HighlightItem(
                             icon = Icons.Filled.Mic,
-                            title = if (isEnglish) "100% Offline Streaming Voice Typing"
-                                    else "১০০% অফলাইন ভয়েস টাইপিং",
-                            detail = if (isEnglish) "Speak Bengali or English naturally with live animated audio waveform and real-time on-device transcription."
-                                     else "অডিও অ্যানিমেশন ও লাইভ টেক্সট প্রিভিউসহ সম্পূর্ণ ইন্টারনেট ছাড়া ফোনে ভয়েস টাইপিং করুন।"
+                            title = if (isEnglish) "Offline Voice Typing"
+                                    else "অফলাইন ভয়েস টাইপিং",
+                            detail = if (isEnglish) "On-device Bengali and English voice transcription."
+                                     else "ইন্টারনেট ছাড়াই বাংলা ও ইংরেজি ভয়েস টাইপিং।"
                         )
                         HighlightItem(
                             icon = Icons.Filled.Palette,
-                            title = if (isEnglish) "Dynamic RGB Chroma & Custom Themes"
-                                    else "ডাইনামিক আরজিবি ও কাস্টম থিম",
-                            detail = if (isEnglish) "120 FPS chromatic wave animation, custom wallpaper backgrounds, and refined Material 3 Expressive styling."
-                                     else "১২০ এফপিএস স্মুথ আরজিবি লাইটিং, নিজস্ব ওয়ালপেপার এবং ম্যাটেরিয়াল ৩ কালার প্যালেট।"
+                            title = if (isEnglish) "Themes & Wallpapers"
+                                    else "থিম ও ওয়ালপেপার",
+                            detail = if (isEnglish) "Dynamic RGB chroma, custom themes, and keyboard wallpapers."
+                                     else "আরজিবি ক্রোমা, কাস্টম থিম ও কীবোর্ড ওয়ালপেপার।"
                         )
                     }
                 }

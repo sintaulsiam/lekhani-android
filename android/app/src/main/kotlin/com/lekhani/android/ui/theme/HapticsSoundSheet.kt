@@ -336,9 +336,9 @@ fun HapticsSoundSheet(
                             ) {
                                 Text(
                                     text = if (isEnglish) {
-                                        "✓ Feedback Active: ${if (hapticEnabled) "${hapticDuration}ms vibration" else "vibration off"}${if (soundEnabled) " + sound" else ""} (Tap #$testTapCount)"
+                                        "Feedback Active: ${if (hapticEnabled) "${hapticDuration}ms vibration" else "vibration off"}${if (soundEnabled) " + sound" else ""} (Tap #$testTapCount)"
                                     } else {
-                                        "✓ ফিডব্যাক সক্রিয়: ${if (hapticEnabled) "${hapticDuration}ms ভাইব্রেশন" else "ভাইব্রেশন বন্ধ"}${if (soundEnabled) " + সাউন্ড" else ""} (ট্যাপ #$testTapCount)"
+                                        "ফিডব্যাক সক্রিয়: ${if (hapticEnabled) "${hapticDuration}ms ভাইব্রেশন" else "ভাইব্রেশন বন্ধ"}${if (soundEnabled) " + সাউন্ড" else ""} (ট্যাপ #$testTapCount)"
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,

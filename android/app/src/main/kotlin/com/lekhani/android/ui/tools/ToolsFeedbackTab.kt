@@ -98,7 +98,7 @@ fun ToolsFeedbackTab(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (isEnglish) "Haptic Feedback" else "হ্যাপটিক ফিডব্যাক (Haptics)",
+                                text = if (isEnglish) "Haptic Feedback" else "হ্যাপটিক ফিডব্যাক",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(
@@ -197,7 +197,7 @@ fun ToolsFeedbackTab(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = if (isEnglish) "Key Sounds" else "কি-প্রেস সাউন্ড (Key Sounds)",
+                                text = if (isEnglish) "Key Sounds" else "কি-প্রেস সাউন্ড",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                             )
                             Text(
@@ -219,7 +219,7 @@ fun ToolsFeedbackTab(
                 if (soundEnabled) {
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = if (isEnglish) "Sound Profile" else "সাউন্ড প্রোফাইল (Sound Pack)",
+                        text = if (isEnglish) "Sound Profile" else "সাউন্ড প্রোফাইল",
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary
                     )

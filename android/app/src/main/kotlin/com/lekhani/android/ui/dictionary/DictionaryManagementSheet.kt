@@ -559,9 +559,9 @@ fun DictionaryManagementSheet(
                                         Text(
                                             text = if (searchQuery.isBlank()) {
                                                 if (isEnglish)
-                                                    "Create shortcuts like 'omw' ➔ 'On my way!' or 'dh' ➔ 'ধন্যবাদ'."
+                                                    "Create shortcuts like 'omw' → 'On my way!' or 'dh' → 'ধন্যবাদ'."
                                                 else
-                                                    "স্বয়ংক্রিয় প্রতিস্থাপনের জন্য শর্টকাট তৈরি করুন (যেমন: 'dh' ➔ 'ধন্যবাদ')।"
+                                                    "স্বয়ংক্রিয় প্রতিস্থাপনের জন্য শর্টকাট তৈরি করুন (যেমন: 'dh' → 'ধন্যবাদ')।"
                                             } else {
                                                 if (isEnglish) "No shortcuts matching \"$searchQuery\"."
                                                 else "\"$searchQuery\" এর সাথে কোনো শর্টকাট মেলেনি।"
@@ -921,7 +921,7 @@ fun DictionaryManagementSheet(
                                     showAddRuleDialog = false
                                     newTriggerInput = ""
                                     newReplacementInput = ""
-                                    Toast.makeText(context, if (isEnglish) "Shortcut added: $trig ➔ $repl" else "শর্টকাট যোগ হয়েছে: $trig ➔ $repl", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, if (isEnglish) "Shortcut added: $trig → $repl" else "শর্টকাট যোগ হয়েছে: $trig → $repl", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         )
@@ -940,7 +940,7 @@ fun DictionaryManagementSheet(
                             showAddRuleDialog = false
                             newTriggerInput = ""
                             newReplacementInput = ""
-                            Toast.makeText(context, if (isEnglish) "Shortcut added: $trig ➔ $repl" else "শর্টকাট যোগ হয়েছে: $trig ➔ $repl", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (isEnglish) "Shortcut added: $trig → $repl" else "শর্টকাট যোগ হয়েছে: $trig → $repl", Toast.LENGTH_SHORT).show()
                         }
                     }
                 ) {
