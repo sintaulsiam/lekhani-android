@@ -247,7 +247,7 @@ pub fn prioritize_common_or_override_candidate_with_context(
             })
             .unwrap_or(false);
 
-        let is_geminate_input = (lower.contains("cc")
+        let has_double_cons = lower.contains("cc")
             || lower.contains("kk")
             || lower.contains("tt")
             || lower.contains("dd")
@@ -258,12 +258,16 @@ pub fn prioritize_common_or_override_candidate_with_context(
             || lower.contains("ll")
             || lower.contains("ss")
             || lower.contains("jj")
-            || lower.contains("gg"))
-            && eq_word.contains('্');
+            || lower.contains("gg");
+        let is_geminate_input = has_double_cons && eq_word.contains('্');
+        let top_is_geminate_conjunct =
+            has_double_cons && candidates.first().is_some_and(|w| w.contains('্'));
 
         let should_promote_to_slot0 = inserted_idx == 0
             && (is_geminate_input
-                || (eq_freq >= 500 && (!top_is_valid || eq_freq >= top_freq.saturating_mul(10))));
+                || (!top_is_geminate_conjunct
+                    && eq_freq >= 500
+                    && (!top_is_valid || eq_freq >= top_freq.saturating_mul(10))));
 
         let target_idx = if should_promote_to_slot0 {
             0
@@ -1312,7 +1316,10 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
         let top_is_override = ctx.is_explicit_common;
         let top_is_contextual =
             is_contextual_homophone_winner(ctx.input, ctx.context, raw_candidates.first());
-        let top_is_valid = top_is_in_dict || top_is_override || top_is_contextual;
+        let is_bilingual_loanword =
+            lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(ctx.lower).is_some();
+        let top_is_valid =
+            top_is_in_dict || top_is_override || top_is_contextual || is_bilingual_loanword;
         let top_len = raw_candidates
             .first()
             .map(|w| w.chars().count())
@@ -1321,7 +1328,8 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
         let def_in_dict =
             db.is_exact_dictionary_word(&def_norm) || db.trie.contains_exact(&def_norm);
         let is_top_distant = !top_is_valid
-            || (def_len >= 4
+            || (!is_bilingual_loanword
+                && def_len >= 4
                 && top_len + 1 < def_len
                 && !(top_is_in_dict && !def_in_dict && top_len >= 4 && def_len <= top_len + 3));
 
@@ -1652,13 +1660,7 @@ pub(crate) fn resolve_avro_candidates(
             db.is_exact_dictionary_word(&preedit) || db.trie.contains_exact(&preedit);
         let top_len = candidates.first().map(|w| w.chars().count()).unwrap_or(0);
         let preedit_len = preedit.chars().count();
-        let is_top_distant = !top_is_in_dict
-            || (preedit_len >= 4
-                && top_len + 1 < preedit_len
-                && !(top_is_in_dict
-                    && !preedit_is_in_dict
-                    && top_len >= 4
-                    && preedit_len <= top_len + 3));
+        let is_top_distant = !top_is_in_dict || (preedit_len >= 5 && top_len + 3 < preedit_len);
         let is_oov_gibberish = !preedit_is_in_dict && !top_is_in_dict && !has_override_word(raw);
 
         let is_contextual_rule_winner =
@@ -1755,7 +1757,8 @@ pub(crate) fn resolve_avro_candidates(
                 (lm_top - lm_pre) >= 2.0
             };
 
-            if !has_candidate_memory
+            if !is_contextual_rule_winner
+                && !has_candidate_memory
                 && !is_explicit_common
                 && !has_override
                 && (db.is_exact_dictionary_word(&preedit)
@@ -1775,7 +1778,7 @@ pub(crate) fn resolve_avro_candidates(
                 }
             }
 
-            if !has_override {
+            if !has_override && !is_contextual_rule_winner {
                 let def_pure = get_avro_parser().convert(raw);
                 let def_nfc = crate::probaho::nfc_normalize(&def_pure);
                 if let Some(pos) = candidates

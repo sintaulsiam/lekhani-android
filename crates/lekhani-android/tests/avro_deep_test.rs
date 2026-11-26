@@ -1277,3 +1277,56 @@ fn test_krishnocura_variants() {
         );
     }
 }
+
+#[test]
+#[serial]
+fn test_real_chat_banglish_and_loanwords() {
+    lekhani_android::set_dictionary_directory(
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../android/app/src/main/assets/dictionaries"
+        )
+        .to_string(),
+    );
+    let session = AndroidLekhaniSession::new();
+    session.set_layout(LekhaniLayoutType::Avro);
+
+    let cases = [
+        ("somossha", "সমস্যা"),
+        ("khaua", "খাওয়া"),
+        ("chere", "ছেড়ে"),
+        ("shamnashamni", "সামনাসামনি"),
+        ("keo", "কেউ"),
+        ("bepar", "ব্যাপার"),
+        ("tore", "তোরে"),
+        ("bolbone", "বলবোনে"),
+        ("mainshe", "মাইনষে"),
+        ("eida", "এইডা"),
+        ("jigamu", "জিগামু"),
+        ("hoila", "হইলা"),
+        ("hoynai", "হয়নাই"),
+        ("gf", "জিএফ"),
+        ("10k", "10k"),
+        ("friendly", "ফ্রেন্ডলি"),
+        ("judge", "জাজ"),
+        ("fact", "ফ্যাক্ট"),
+        ("netlify", "নেটলিফাই"),
+    ];
+
+    for (input, expected) in cases {
+        session.reset();
+        let mut last_res = None;
+        for ch in input.chars() {
+            last_res = Some(session.process_key(ch.to_string()).unwrap());
+        }
+        let res = last_res.unwrap();
+        assert_eq!(
+            res.candidates.first().map(String::as_str),
+            Some(expected),
+            "{} must produce {} at Slot 0 (got {:?})",
+            input,
+            expected,
+            res.candidates
+        );
+    }
+}
