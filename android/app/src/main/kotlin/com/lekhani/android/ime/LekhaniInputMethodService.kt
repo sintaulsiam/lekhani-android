@@ -2181,8 +2181,53 @@ class LekhaniInputMethodService : InputMethodService() {
             return super.onKeyDown(keyCode, event)
         }
 
-        // Allow system shortcuts (Ctrl+C, Ctrl+V, Alt+Tab, Home, etc.) to pass through
-        if (event.isCtrlPressed || event.isAltPressed) {
+        // Desktop / Samsung DeX hardware keyboard shortcuts
+        if (keyCode == KeyEvent.KEYCODE_SPACE && event.isShiftPressed && !event.isCtrlPressed && !event.isAltPressed) {
+            if (isInputViewShown) {
+                cycleLayout(1)
+                return true
+            }
+        }
+        if (event.isCtrlPressed && !event.isAltPressed) {
+            val ic = currentInputConnection
+            if (ic != null) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_A -> {
+                        ic.finishComposingText()
+                        session.reset()
+                        preeditShadow = ""
+                        rawInputBuffer.clear()
+                        clearCandidates()
+                        ic.performContextMenuAction(android.R.id.selectAll)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_C -> {
+                        ic.performContextMenuAction(android.R.id.copy)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_V -> {
+                        ic.finishComposingText()
+                        session.reset()
+                        preeditShadow = ""
+                        rawInputBuffer.clear()
+                        clearCandidates()
+                        ic.performContextMenuAction(android.R.id.paste)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_X -> {
+                        ic.finishComposingText()
+                        session.reset()
+                        preeditShadow = ""
+                        rawInputBuffer.clear()
+                        clearCandidates()
+                        ic.performContextMenuAction(android.R.id.cut)
+                        return true
+                    }
+                }
+            }
+            return super.onKeyDown(keyCode, event)
+        }
+        if (event.isAltPressed) {
             return super.onKeyDown(keyCode, event)
         }
 

@@ -265,7 +265,7 @@
   - Dual Bengali/Latin numeral and currency conversion (`1234` ➔ `১২৩৪` & `1234`, `$100` ➔ `৳১০০` & `$100`).
   - Autonomous error-pattern memory shielded from Latin/ASCII candidate pollution.
 - [ ] Offline Voice ASR On-Demand Model Downloader UI with zero network telemetry integrity.
-- [ ] Desktop / Samsung DeX hardware keyboard shortcut mappings (`Ctrl+A`, `Ctrl+C`, `Ctrl+V`, `Shift+Space`).
+- [x] Desktop / Samsung DeX hardware keyboard shortcut mappings (`Ctrl+A`, `Ctrl+C`, `Ctrl+V`, `Shift+Space`).
 - [ ] Final reproducible F-Droid recipe and Google Play Store packaging.
 
 ---
