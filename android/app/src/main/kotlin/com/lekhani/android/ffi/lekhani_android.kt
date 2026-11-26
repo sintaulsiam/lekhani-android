@@ -1457,7 +1457,7 @@ private fun uniffiCheckApiChecksums(lib: UniffiLib) {
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key() != 59149.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key_with_touch() != 14157.toShort()) {
+    if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_process_key_with_touch() != 26183.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_lekhani_android_checksum_method_androidlekhanisession_rank_spatial_keys() != 49411.toShort()) {
@@ -2170,7 +2170,8 @@ public interface AndroidLekhaniSessionInterface {
     /**
      * Process a typed character or key token with physical touch coordinates (x, y).
      * Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
-     * on key boundaries and dynamically calibrates personal touch centroids.
+     * on key boundaries across the active composing word, and queues touch samples for
+     * verified post-commit calibration (never calibrating on unverified/mistyped taps).
      */
     fun `processKeyWithTouch`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float): TypingResult
     
@@ -3082,7 +3083,8 @@ open class AndroidLekhaniSession: Disposable, AutoCloseable, AndroidLekhaniSessi
     /**
      * Process a typed character or key token with physical touch coordinates (x, y).
      * Incorporates bivariate Gaussian spatial probabilities to handle fat-finger errors
-     * on key boundaries and dynamically calibrates personal touch centroids.
+     * on key boundaries across the active composing word, and queues touch samples for
+     * verified post-commit calibration (never calibrating on unverified/mistyped taps).
      */
     @Throws(LekhaniException::class)override fun `processKeyWithTouch`(`key`: kotlin.String, `touchX`: kotlin.Float, `touchY`: kotlin.Float): TypingResult {
             return FfiConverterTypeTypingResult.lift(
@@ -4190,9 +4192,6 @@ public object FfiConverterTypeTopicDisambiguationResult: FfiConverterRustBuffer<
 
 
 
-/**
- * Result returned to Android InputConnection after processing a key event.
- */
 data class TypingResult (
     /**
      * Composing text to set via `InputConnection.setComposingText()`
