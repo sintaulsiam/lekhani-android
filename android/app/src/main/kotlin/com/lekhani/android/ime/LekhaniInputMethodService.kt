@@ -287,6 +287,7 @@ class LekhaniInputMethodService : InputMethodService() {
     private var activeUndoInfo: UndoInfo? = null
     private var undoDismissJob: kotlinx.coroutines.Job? = null
     private var refreshContextJob: kotlinx.coroutines.Job? = null
+    private var avroStripJob: kotlinx.coroutines.Job? = null
     private var lastSpaceTapTime: Long = 0L
     private var lastPredictedContext: String = ""
     private var lastCommitWithTrailingSpaceTime: Long = 0L
@@ -1968,7 +1969,10 @@ class LekhaniInputMethodService : InputMethodService() {
             _candidateState.value = CandidateStripState.Empty
         }
         refreshContextJob?.cancel()
+        avroStripJob?.cancel()
         refreshContextJob = null
+        avroStripJob?.cancel()
+        avroStripJob = null
         persistUserLearnedAsync()
         try {
             val spatialJson = session.exportSpatialCalibration()
@@ -2457,7 +2461,8 @@ class LekhaniInputMethodService : InputMethodService() {
             } catch (_: InterruptedException) {
             }
         }
-        // User is now typing the next word — safe to show next-word predictions again.
+        // User is now typing the next word — cancel any pending idle Avro strip inspection.
+        avroStripJob?.cancel()
         suppressNextWordAfterCommit = false
         if (_candidateState.value is CandidateStripState.RetroCorrectionChip) {
             session.recordRetroCorrectionDismissed(false)
@@ -2629,7 +2634,9 @@ class LekhaniInputMethodService : InputMethodService() {
         updateGboardDynamicRow(keyToken)
 
         result.commitText?.let { rawText ->
-            val textBefore = try { ic.getTextBeforeCursor(4, 0)?.toString() } catch (_: Exception) { null }
+            val textBefore = cachedSurroundingContext.takeLast(4).ifEmpty {
+                try { ic.getTextBeforeCursor(4, 0)?.toString() } catch (_: Exception) { null }
+            }
             when (val punctResult = SmartPunctuationCoordinator.processCommit(rawText, textBefore, isUrlOrEmailOrNumericField())) {
                 is SmartPunctuationCoordinator.PunctuationResult.Replace -> {
                     ic.beginBatchEdit()
@@ -3279,6 +3286,7 @@ class LekhaniInputMethodService : InputMethodService() {
         commitActiveComposingText()
         currentInputConnection?.finishComposingText()
         refreshContextJob?.cancel()
+        avroStripJob?.cancel()
         session.reset()
         preeditShadow = ""
         rawInputBuffer.clear()
@@ -4288,6 +4296,7 @@ class LekhaniInputMethodService : InputMethodService() {
             return
         }
         refreshContextJob?.cancel()
+        avroStripJob?.cancel()
         refreshContextJob = serviceScope.launch {
             kotlinx.coroutines.delay(120L)
             if (isCurrentFieldPrivate || (currentMode != InputViewMode.KEYBOARD && currentMode != InputViewMode.EMOJI_SEARCH)) return@launch
@@ -4437,21 +4446,66 @@ class LekhaniInputMethodService : InputMethodService() {
         }
 
         val curItems = (_candidateState.value as? CandidateStripState.Candidates)?.items
-        when (val res = avroInspectionCoordinator.inspectWordAtCursor(
-            ic = ic,
-            mainSession = session,
-            currentCandidateItems = curItems,
-            lastPredictedContext = lastPredictedContext,
-            suppressNextWordAfterCommit = suppressNextWordAfterCommit,
-        )) {
-            is AvroInspectionResult.NoChange -> Unit
-            is AvroInspectionResult.Clear -> {
-                clearCandidates()
+        val predictedSnapshot = lastPredictedContext
+        val suppressSnapshot = suppressNextWordAfterCommit
+
+        avroStripJob?.cancel()
+        avroStripJob = serviceScope.launch {
+            kotlinx.coroutines.delay(80L)
+            if (currentMode != InputViewMode.KEYBOARD ||
+                session.getLayout() != LekhaniLayoutType.AVRO ||
+                isCurrentFieldPrivate ||
+                session.isComposing() ||
+                preeditShadow.isNotEmpty()
+            ) {
+                return@launch
             }
-            is AvroInspectionResult.Update -> {
-                res.newPredictedContext?.let { lastPredictedContext = it }
-                _candidateState.value = CandidateStripState.Candidates(res.items)
-                updateCandidatesVisibility()
+
+            val (before, after) = withContext(Dispatchers.IO) {
+                try {
+                    kotlinx.coroutines.withTimeout(500L) {
+                        val b = ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() ?: ""
+                        val a = ic.getTextAfterCursor(64, 0)?.toString() ?: ""
+                        Pair(b, a)
+                    }
+                } catch (e: java.util.concurrent.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    Pair("", "")
+                }
+            }
+
+            val res = withContext(Dispatchers.Default) {
+                avroInspectionCoordinator.inspectWordAtCursorText(
+                    before = before,
+                    after = after,
+                    mainSession = session,
+                    currentCandidateItems = curItems,
+                    lastPredictedContext = predictedSnapshot,
+                    suppressNextWordAfterCommit = suppressSnapshot,
+                )
+            }
+
+            if (currentMode != InputViewMode.KEYBOARD ||
+                session.getLayout() != LekhaniLayoutType.AVRO ||
+                isCurrentFieldPrivate ||
+                session.isComposing() ||
+                preeditShadow.isNotEmpty() ||
+                rawInputBuffer.isNotEmpty()
+            ) {
+                return@launch
+            }
+
+            when (res) {
+                is AvroInspectionResult.NoChange -> Unit
+                is AvroInspectionResult.Clear -> {
+                    clearCandidates()
+                }
+                is AvroInspectionResult.Update -> {
+                    res.newPredictedContext?.let { lastPredictedContext = it }
+                    _candidateState.value = CandidateStripState.Candidates(res.items)
+                    updateCandidatesVisibility()
+                }
             }
         }
     }

@@ -131,6 +131,27 @@ class AvroInspectionCoordinator(
     ): AvroInspectionResult {
         val before = try { ic.getTextBeforeCursor(CONTEXT_CHAR_LIMIT, 0)?.toString() } catch (_: Exception) { null } ?: ""
         val after = try { ic.getTextAfterCursor(64, 0)?.toString() } catch (_: Exception) { null } ?: ""
+        return inspectWordAtCursorText(
+            before = before,
+            after = after,
+            mainSession = mainSession,
+            currentCandidateItems = currentCandidateItems,
+            lastPredictedContext = lastPredictedContext,
+            suppressNextWordAfterCommit = suppressNextWordAfterCommit,
+        )
+    }
+
+    /**
+     * Pure text + Rust inspection step with zero Binder IPC, safe to run on Dispatchers.Default.
+     */
+    fun inspectWordAtCursorText(
+        before: String,
+        after: String,
+        mainSession: AndroidLekhaniSession,
+        currentCandidateItems: List<CandidateItem>?,
+        lastPredictedContext: String?,
+        suppressNextWordAfterCommit: Boolean,
+    ): AvroInspectionResult {
 
         // Backward scan in before to find the start of the current word
         var beforeWordCount = 0
