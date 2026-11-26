@@ -60,7 +60,13 @@ pub fn set_dictionary_directory(path: String) {
         }
 
         let mut db = PhoneticDatabase::new();
-        let _ = db.load_from_dir(&dir);
+        if dir.join("dictionary.bin").is_file() {
+            let _ = db.load_from_dir_with_dict(&dir, "dictionary.bin");
+        } else {
+            let _ = db.load_from_dir(&dir);
+        }
+        db.generation
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let arc_db = Arc::new(db);
         if let Ok(mut lock) = CORE_DB.write() {
             *lock = Some(Arc::clone(&arc_db));
@@ -191,14 +197,22 @@ pub fn get_core_database() -> Arc<PhoneticDatabase> {
     if let Some(custom_dir) = get_custom_dict_dir() {
         let path = std::path::Path::new(&custom_dir);
         if path.exists() {
-            let _ = db.load_from_dir(path);
+            if path.join("dictionary.bin").is_file() {
+                let _ = db.load_from_dir_with_dict(path, "dictionary.bin");
+            } else {
+                let _ = db.load_from_dir(path);
+            }
             loaded = true;
         }
     }
     if !loaded {
         for dir in candidate_dict_dirs() {
             if dir.exists() {
-                let _ = db.load_from_dir(dir);
+                if dir.join("dictionary.bin").is_file() {
+                    let _ = db.load_from_dir_with_dict(dir, "dictionary.bin");
+                } else {
+                    let _ = db.load_from_dir(dir);
+                }
                 break;
             }
         }
