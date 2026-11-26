@@ -571,12 +571,7 @@ class LekhaniInputMethodService : InputMethodService() {
         keyboardView?.setGboardKarsActive(false)
         keyboardView?.enabledLayoutsCount = getEnabledLayouts().size
         // Self-healing synchronization: Ensure keyboardView's layout matches session layout
-        val isHardware = resources.configuration.keyboard == Configuration.KEYBOARD_QWERTY
-        if (isHardware) {
-            session.setPureAvroMode(true)
-        } else {
-            session.setPureAvroMode(keyboardPrefs.pureAvroMode)
-        }
+        session.setPureAvroMode(keyboardPrefs.pureAvroMode)
         val curLayout = session.getLayout()
         if (!isNumericMode && !isNumericFieldMode && !isPhoneDialpadMode) {
             if (keyboardView?.currentLayoutType != curLayout) {
@@ -764,12 +759,7 @@ class LekhaniInputMethodService : InputMethodService() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val isHardware = newConfig.keyboard == Configuration.KEYBOARD_QWERTY
-        if (isHardware) {
-            session.setPureAvroMode(true)
-        } else {
-            session.setPureAvroMode(keyboardPrefs.pureAvroMode)
-        }
+        session.setPureAvroMode(keyboardPrefs.pureAvroMode)
         if (keyboardPrefs.formFactor == KeyboardPreferences.FormFactor.FLOATING) {
             applyFloatingCardLayout(keyboardPrefs.formFactor)
         } else {
