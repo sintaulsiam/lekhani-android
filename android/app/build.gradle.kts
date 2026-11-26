@@ -201,7 +201,6 @@ val engineDataDir = file("${rootDir.parentFile.parentFile}/lekhani-engine/data")
 /** Files loaded at runtime from the dictionaries/ asset folder. */
 val RUNTIME_DICTIONARIES = listOf(
     "dictionary.bin",          // 5.0 MB – PrefixTrie; primary path
-    "dictionary.json",         // 4.1 MB – JSON source; cold-install fallback only
     "bengali_lm.bin",          // 5.1 MB – N-gram language model
     "english_lm.bin",          //  40 KB – English N-gram LM
     "bengali_gru_v2.bin",      // 592 KB – GRU neural predictor weights (v2, preferred)
