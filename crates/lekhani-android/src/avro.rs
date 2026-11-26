@@ -1247,6 +1247,17 @@ fn stage_short_input_phonetic(
         short_candidates.push(def.to_string());
     }
 
+    lekhani_core::phonetic::contextual_rules::apply_contextual_homophone_rules(
+        input,
+        &[],
+        "",
+        "",
+        false,
+        has_explicit_avro_intent(input),
+        &mut short_candidates,
+    );
+    let primary = short_candidates.first().cloned().unwrap_or(primary);
+
     (primary, short_candidates)
 }
 
@@ -1291,7 +1302,9 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
             .map(|w| db.is_exact_dictionary_word(w) || db.trie.contains_exact(w))
             .unwrap_or(false);
         let top_is_override = ctx.is_explicit_common;
-        let top_is_valid = top_is_in_dict || top_is_override;
+        let top_is_contextual =
+            is_contextual_homophone_winner(ctx.input, ctx.context, raw_candidates.first());
+        let top_is_valid = top_is_in_dict || top_is_override || top_is_contextual;
         let top_len = raw_candidates
             .first()
             .map(|w| w.chars().count())
@@ -1571,6 +1584,23 @@ fn get_frequency_completions(prefix: &str, limit: usize) -> Vec<String> {
 /// 1. Bidirectional context scoring, candidate memory, inflected overrides, and geminate rules execute identically.
 /// 2. `preedit` is 100% mathematically synchronized with `candidates[0]`.
 /// 3. Normalization is single-pass NFC without duplicate allocations.
+fn is_contextual_homophone_winner(raw: &str, context: &[&str], top: Option<&String>) -> bool {
+    let Some(top_word) = top else {
+        return false;
+    };
+    let mut probe = Vec::with_capacity(1);
+    lekhani_core::phonetic::contextual_rules::apply_contextual_homophone_rules(
+        raw,
+        context,
+        "",
+        "",
+        false,
+        has_explicit_avro_intent(raw),
+        &mut probe,
+    );
+    probe.first() == Some(top_word)
+}
+
 pub(crate) fn resolve_avro_candidates(
     raw: &str,
     context_words: &[&str],
@@ -1612,9 +1642,13 @@ pub(crate) fn resolve_avro_candidates(
         let is_top_distant = !top_is_in_dict || (preedit_len >= 4 && top_len + 1 < preedit_len);
         let is_oov_gibberish = !preedit_is_in_dict && !top_is_in_dict && !has_override_word(raw);
 
-        if has_explicit_avro_intent(raw)
-            || is_oov_gibberish
-            || (is_top_distant && !has_candidate_memory)
+        let is_contextual_rule_winner =
+            is_contextual_homophone_winner(raw, context_words, candidates.first());
+
+        if !is_contextual_rule_winner
+            && (has_explicit_avro_intent(raw)
+                || is_oov_gibberish
+                || (is_top_distant && !has_candidate_memory))
         {
             if let Some(pos) = candidates.iter().position(|c| c == &preedit) {
                 if pos != 0 {

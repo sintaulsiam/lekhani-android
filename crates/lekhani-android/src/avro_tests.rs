@@ -973,3 +973,13 @@ fn test_gibberish_and_pure_avro_passthrough() {
         "Pure Avro must return 'আছো' without Anvaya shift to 'আছেন'"
     );
 }
+
+#[test]
+fn test_contextual_acronym_vc_and_vcr() {
+    let (_, vc_cands) = resolve_avro_candidates("vc", &[], None);
+    assert_eq!(vc_cands.first().map(String::as_str), Some("ভিসি"));
+
+    let (vcr_preedit, vcr_cands) = resolve_avro_candidates("vcr", &["এই", "মুলা"], None);
+    assert_eq!(vcr_preedit, "ভিসির");
+    assert_eq!(vcr_cands.first().map(String::as_str), Some("ভিসির"));
+}
