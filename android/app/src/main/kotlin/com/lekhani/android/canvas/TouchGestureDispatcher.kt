@@ -51,6 +51,7 @@ class TouchGestureDispatcher(
 
         fun findKeyIndex(x: Float, y: Float): Int
         fun dispatchKey(key: Key, touchX: Float, touchY: Float)
+        fun resetOneShotShift()
         fun showKeyPreview(key: Key, bounds: RectF)
         fun showFlickKeyPreview(label: String, bounds: RectF)
         fun dismissKeyPreview()
@@ -544,14 +545,15 @@ class TouchGestureDispatcher(
                         val dx = curX - touchStartX
                         val absDx = kotlin.math.abs(dx)
 
-                        // 1. Swipe-Up Flick (Shifted character / Aspirated partner)
+                        // 1. Swipe-Up Flick (Shifted character / Aspirated partner, or unshifted if already shifted)
                         if (flickKey.action is KeyAction.Character && flickKey.shiftedLabel != null && flickKey.shiftedLabel != flickKey.label) {
+                            val flickUpLabel = if (host.isShifted) flickKey.label else flickKey.shiftedLabel!!
                             if (-dy > flickThresholdPx && -dy > absDx * 0.75f) {
                                 if (!isFlickGestureActive && !isFlickDownActive) {
                                     isFlickGestureActive = true
                                     host.view.removeCallbacks(longPressRunnable)
                                     val bounds = host.resolvedKeys[pressedKeyIndex].bounds
-                                    host.showFlickKeyPreview(flickKey.shiftedLabel!!, bounds)
+                                    host.showFlickKeyPreview(flickUpLabel, bounds)
                                     host.feedbackManager?.onTickFeedback(host.view)
                                         ?: host.view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                 }
@@ -564,14 +566,17 @@ class TouchGestureDispatcher(
                             }
                         }
 
-                        // 2. Swipe-Down Flick (Subscript numeric digit / secondary symbol)
-                        if (flickKey.hintLabel != null && flickKey.longPressAction != null && !isFlickGestureActive) {
+                        // 2. Swipe-Down Flick (Subscript numeric digit / secondary symbol / shifted hint)
+                        val flickDownHint = flickKey.displayHint(host.isShifted)
+                        val flickDownAction = flickKey.activeLongPressAction(host.isShifted)
+                            ?: flickDownHint?.let { KeyAction.Character(it) }
+                        if (flickDownHint != null && flickDownAction != null && !isFlickGestureActive) {
                             if (dy > flickThresholdPx && dy > absDx * 0.75f) {
                                 if (!isFlickDownActive) {
                                     isFlickDownActive = true
                                     host.view.removeCallbacks(longPressRunnable)
                                     val bounds = host.resolvedKeys[pressedKeyIndex].bounds
-                                    host.showFlickKeyPreview(flickKey.hintLabel!!, bounds)
+                                    host.showFlickKeyPreview(flickDownHint, bounds)
                                     host.feedbackManager?.onTickFeedback(host.view)
                                         ?: host.view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                                 }
@@ -673,6 +678,7 @@ class TouchGestureDispatcher(
                         val key = host.resolvedKeys[pressedKeyIndex].key
                         host.keyListener?.clearTouchCoordinates()
                         host.keyListener?.onKey(key, KeyAction.Character(chosen))
+                        host.resetOneShotShift()
                         host.feedbackManager?.onKeyFeedback(host.view)
                     }
                     pressedKeyIndex = -1
@@ -749,8 +755,11 @@ class TouchGestureDispatcher(
                 }
                 val isFlickDownRelease = host.swipeUpFlickEnabled && pressedKeyIndex in host.resolvedKeys.indices && run {
                     val flickKey = host.resolvedKeys[pressedKeyIndex].key
-                    flickKey.hintLabel != null &&
-                        flickKey.longPressAction != null &&
+                    val flickDownHint = flickKey.displayHint(host.isShifted)
+                    val flickDownAction = flickKey.activeLongPressAction(host.isShifted)
+                        ?: flickDownHint?.let { KeyAction.Character(it) }
+                    flickDownHint != null &&
+                        flickDownAction != null &&
                         (isFlickDownActive || (upDy >= flickThresholdPx && upDy > kotlin.math.abs(upDx) * 0.75f))
                 }
 
@@ -760,8 +769,10 @@ class TouchGestureDispatcher(
                     host.dismissKeyPreview()
                     if (pressedKeyIndex in host.resolvedKeys.indices) {
                         val flickKey = host.resolvedKeys[pressedKeyIndex].key
-                        host.keyListener?.onKeyWithTouch(flickKey, flickKey.shiftedAction, touchStartX, touchStartY)
-                        host.keyListener?.onKey(flickKey, flickKey.shiftedAction)
+                        val flickUpAction = if (host.isShifted) flickKey.action else flickKey.shiftedAction
+                        host.keyListener?.onKeyWithTouch(flickKey, flickUpAction, touchStartX, touchStartY)
+                        host.keyListener?.onKey(flickKey, flickUpAction)
+                        host.resetOneShotShift()
                         host.feedbackManager?.onKeyFeedback(host.view)
                             ?: host.view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     }
@@ -779,9 +790,12 @@ class TouchGestureDispatcher(
                     host.dismissKeyPreview()
                     if (pressedKeyIndex in host.resolvedKeys.indices) {
                         val flickKey = host.resolvedKeys[pressedKeyIndex].key
-                        flickKey.longPressAction?.let { act ->
+                        val flickDownAction = flickKey.activeLongPressAction(host.isShifted)
+                            ?: flickKey.displayHint(host.isShifted)?.let { KeyAction.Character(it) }
+                        flickDownAction?.let { act ->
                             host.keyListener?.onKeyWithTouch(flickKey, act, touchStartX, touchStartY)
                             host.keyListener?.onKey(flickKey, act)
+                            host.resetOneShotShift()
                             host.feedbackManager?.onKeyFeedback(host.view)
                                 ?: host.view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         }

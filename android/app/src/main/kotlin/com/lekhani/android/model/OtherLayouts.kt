@@ -135,22 +135,24 @@ object NationalLayout {
                     isHomeRow = true, contentDesc = "Ri-kar, shifted Vocalic RR, hint Ri",
                 ),
                 Key(
-                    label = "ু", shiftedLabel = "ূ", hintLabel = "উ",
+                    label = "ু", shiftedLabel = "ূ", hintLabel = "উ", shiftedHintLabel = "ঊ",
                     action = KeyAction.Character("ু"),
                     shiftedAction = KeyAction.Character("ূ"),
                     longPressAction = KeyAction.Character("উ"),
+                    shiftedLongPressAction = KeyAction.Character("ঊ"),
                     isHomeRow = true, contentDesc = "U-kar, shifted UU-kar, hint U",
                 ),
                 Key(
-                    label = "ি", shiftedLabel = "ী", hintLabel = "ই",
+                    label = "ি", shiftedLabel = "ী", hintLabel = "ই", shiftedHintLabel = "ঈ",
                     action = KeyAction.Character("ি"),
                     shiftedAction = KeyAction.Character("ী"),
                     longPressAction = KeyAction.Character("ই"),
+                    shiftedLongPressAction = KeyAction.Character("ঈ"),
                     isHomeRow = true, contentDesc = "I-kar, shifted II-kar, hint I",
                 ),
                 Ch("ব", "ভ", homeRow = true),
                 Ch("্", "।", hint = "ঁ", homeRow = true, desc = "Hasanta linker, shifted Dari, hint Chandrabindu"),
-                Ch("া", "অ", homeRow = true, desc = "Aa-kar, shifted A"),
+                Ch("া", "অ", hint = "আ", shiftedHint = "আ", homeRow = true, desc = "Aa-kar, shifted A, hint Aa"),
                 Ch("ক", "খ", homeRow = true),
                 Ch("ত", "থ", homeRow = true),
                 Ch("দ", "ধ", homeRow = true),
@@ -164,17 +166,19 @@ object NationalLayout {
                 ),
                 Ch("ঁ", "ঃ"),
                 Key(
-                    label = "ো", shiftedLabel = "ৌ", hintLabel = "ও",
+                    label = "ো", shiftedLabel = "ৌ", hintLabel = "ও", shiftedHintLabel = "ঔ",
                     action = KeyAction.Character("ো"),
                     shiftedAction = KeyAction.Character("ৌ"),
                     longPressAction = KeyAction.Character("ও"),
+                    shiftedLongPressAction = KeyAction.Character("ঔ"),
                     contentDesc = "O-kar, shifted Ou-kar, hint O",
                 ),
                 Key(
-                    label = "ে", shiftedLabel = "ৈ", hintLabel = "এ",
+                    label = "ে", shiftedLabel = "ৈ", hintLabel = "এ", shiftedHintLabel = "ঐ",
                     action = KeyAction.Character("ে"),
                     shiftedAction = KeyAction.Character("ৈ"),
                     longPressAction = KeyAction.Character("এ"),
+                    shiftedLongPressAction = KeyAction.Character("ঐ"),
                     contentDesc = "E-kar, shifted Oi-kar, hint E",
                 ),
                 Ch("র", "ল"), Ch("ন", "ণ"), Ch("স", "ষ"),
@@ -321,9 +325,9 @@ object GboardBengaliLayout {
 
     // Default independent vowels for Row 1 (11 independent vowels)
     val vowelsRow: List<Key> = listOf(
-        Ch("অ", "া"), Ch("আ", "া"), Ch("ই", "ি"), Ch("ঈ", "ী"),
-        Ch("উ", "ু"), Ch("ঊ", "ূ"), Ch("ঋ", "ৃ"), Ch("এ", "ে"),
-        Ch("ঐ", "ৈ"), Ch("ও", "ো"), Ch("ঔ", "ৌ"),
+        Ch("অ"), Ch("আ"), Ch("ই"), Ch("ঈ"),
+        Ch("উ"), Ch("ঊ"), Ch("ঋ"), Ch("এ"),
+        Ch("ঐ"), Ch("ও"), Ch("ঔ"),
     )
 
     private val emptyDynamicVowelsRow: List<Key> = listOf(
@@ -366,6 +370,7 @@ object GboardBengaliLayout {
                 Key(label = "$c\u09CC", action = KeyAction.Character("\u09CC"), contentDesc = "$c-kar OU"),
                 Key(
                     label = "অ",
+                    hintLabel = "অ",
                     action = KeyAction.ToggleGboardVowels,
                     longPressAction = KeyAction.Character("অ"),
                     contentDesc = "Independent vowels, long press for A",
@@ -399,7 +404,7 @@ object GboardBengaliLayout {
                     action = KeyAction.Character("\u09CD\u09B0"),
                     contentDesc = "Ra-phala",
                 ),
-                Ch("ং", "ঃ", hint = "ঃ", desc = "Anusvara, shifted Visarga, hint Visarga"),
+                Ch("ং", hint = "ঃ", desc = "Anusvara, hint Visarga"),
                 Key(
                     label = "⌫", shiftedLabel = "⌫",
                     action = KeyAction.Backspace, shiftedAction = KeyAction.Backspace,
@@ -473,7 +478,7 @@ object GboardBengaliLayout {
                 action = KeyAction.Space, shiftedAction = KeyAction.Space,
                 widthWeight = 4.2f, contentDesc = "Space",
             ),
-            Ch("।", "?", desc = "Dari, shifted question"),
+            Ch("।", shifted = "?", hint = "॥", desc = "Dari, hint Double Dari, alternate question"),
             Key(
                 label = "↵", shiftedLabel = "↵",
                 action = KeyAction.Enter, shiftedAction = KeyAction.Enter,

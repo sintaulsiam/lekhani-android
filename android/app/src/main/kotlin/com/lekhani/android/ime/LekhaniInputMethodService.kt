@@ -3311,7 +3311,12 @@ class LekhaniInputMethodService : InputMethodService() {
     private fun applyLayoutSpecificPreferences(layout: LekhaniLayoutType) {
         session.setSmartInitialKarEnabled(keyboardPrefs.isSmartInitialKarActive(layout))
         session.setGeminateDoubleTapEnabled(keyboardPrefs.isGeminateDoubleTapActive(layout))
-        session.setHasantaConjunctsEnabled(keyboardPrefs.isHasantaConjunctsActive(layout))
+        val hasantaConjuncts = if (layout == LekhaniLayoutType.NATIONAL) {
+            keyboardPrefs.nationalJuktobornoAssist && keyboardPrefs.isHasantaConjunctsActive(layout)
+        } else {
+            keyboardPrefs.isHasantaConjunctsActive(layout)
+        }
+        session.setHasantaConjunctsEnabled(hasantaConjuncts)
         session.setPureAvroMode(keyboardPrefs.pureAvroMode)
         updateCandidatesVisibility()
     }

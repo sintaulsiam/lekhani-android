@@ -269,6 +269,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
         override fun dispatchKey(key: Key, touchX: Float, touchY: Float) =
             this@KeyboardCanvasView.dispatchKey(key, touchX, touchY)
 
+        override fun resetOneShotShift() {
+            if (this@KeyboardCanvasView.isShifted && !this@KeyboardCanvasView.isCapsLock) {
+                this@KeyboardCanvasView.setShifted(false)
+            }
+        }
+
         override fun showKeyPreview(key: Key, bounds: RectF) {
             val densityVal = density
             keyPreviewPopup.show(
@@ -339,8 +345,12 @@ class KeyboardCanvasView @JvmOverloads constructor(
     /** Reusable scratch RectF for hit-testing math */
     private val scratchRect = RectF()
 
-    private fun getResolvedAlternates(key: Key, isShifted: Boolean): Array<String> =
-        LongPressAlternatesResolver.resolve(key, isShifted)
+    private fun getResolvedAlternates(key: Key, isShifted: Boolean): Array<String> {
+        if (layoutType == com.lekhani.android.ffi.LekhaniLayoutType.GBOARD && !gboardAlternatePopups) {
+            return emptyArray()
+        }
+        return LongPressAlternatesResolver.resolve(key, isShifted)
+    }
 
     private fun showAlternatePopup(resolvedKey: ResolvedKey, alts: Array<String>) {
         val density = cachedDensity.takeIf { it > 0f } ?: resources.displayMetrics.density
@@ -376,6 +386,10 @@ class KeyboardCanvasView @JvmOverloads constructor(
     var showDedicatedNumberRow: Boolean = false
         private set
     var avroNumeralsBengali: Boolean = false
+        private set
+    var nationalNumeralsBengali: Boolean = true
+        private set
+    var gboardAlternatePopups: Boolean = true
         private set
 
     private val bengaliDedicatedNumberRow get() = com.lekhani.android.model.NumberSymbolsLayout.bengaliDedicatedNumberRow
@@ -439,6 +453,8 @@ class KeyboardCanvasView @JvmOverloads constructor(
         this.showKeyBorders = prefs.showKeyBorders
         this.showDedicatedNumberRow = prefs.isNumberRowActive(layoutType)
         this.avroNumeralsBengali = prefs.avroNumeralsBengali
+        this.nationalNumeralsBengali = prefs.nationalNumeralsBengali
+        this.gboardAlternatePopups = prefs.gboardAlternatePopups
         this.heightScale = prefs.getHeightScaleForOrientation(resources.configuration.orientation)
         this.marginHDp = prefs.keyMarginH
         this.marginVDp = prefs.keyMarginV
@@ -767,6 +783,7 @@ class KeyboardCanvasView @JvmOverloads constructor(
             isNumberSymbolsActive = isNumberSymbolsActive(),
             isNumpad = isNumpadLayout(),
             avroNumeralsBengali = avroNumeralsBengali,
+            nationalNumeralsBengali = nationalNumeralsBengali,
             englishDedicatedNumberRow = englishDedicatedNumberRow,
             bengaliDedicatedNumberRow = bengaliDedicatedNumberRow,
             isGboardKarsActive = isGboardKarsActive,

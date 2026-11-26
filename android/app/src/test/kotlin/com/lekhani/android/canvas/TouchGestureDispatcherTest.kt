@@ -52,6 +52,9 @@ class TouchGestureDispatcherTest {
             lastTouchX = touchX
             lastTouchY = touchY
         }
+        override fun resetOneShotShift() {
+            if (isShifted && !isCapsLock) isShifted = false
+        }
         override fun showKeyPreview(key: Key, bounds: RectF) {}
         override fun showFlickKeyPreview(label: String, bounds: RectF) {}
         override fun dismissKeyPreview() {}

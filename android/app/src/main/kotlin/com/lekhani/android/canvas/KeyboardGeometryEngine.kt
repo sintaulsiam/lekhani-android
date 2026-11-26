@@ -36,6 +36,7 @@ class KeyboardGeometryEngine {
         val isNumberSymbolsActive: Boolean,
         val isNumpad: Boolean,
         val avroNumeralsBengali: Boolean,
+        val nationalNumeralsBengali: Boolean = true,
         val englishDedicatedNumberRow: List<Key>,
         val bengaliDedicatedNumberRow: List<Key>,
         val isGboardKarsActive: Boolean,
@@ -203,7 +204,11 @@ class KeyboardGeometryEngine {
             }
         }
         val allRows = if (params.showDedicatedNumberRow && !params.isNumberSymbolsActive) {
-            val isEnglishDigits = (params.layoutType == LekhaniLayoutType.ENGLISH || !params.avroNumeralsBengali)
+            val isEnglishDigits = when (params.layoutType) {
+                LekhaniLayoutType.ENGLISH -> true
+                LekhaniLayoutType.NATIONAL -> !params.nationalNumeralsBengali
+                else -> !params.avroNumeralsBengali
+            }
             val numRow = if (isEnglishDigits) params.englishDedicatedNumberRow else params.bengaliDedicatedNumberRow
             listOf(numRow) + baseRows
         } else {
@@ -369,7 +374,11 @@ class KeyboardGeometryEngine {
             }
         }
         val allRows = if (params.showDedicatedNumberRow && !params.isNumberSymbolsActive) {
-            val isEnglishDigits = (params.layoutType == LekhaniLayoutType.ENGLISH || !params.avroNumeralsBengali)
+            val isEnglishDigits = when (params.layoutType) {
+                LekhaniLayoutType.ENGLISH -> true
+                LekhaniLayoutType.NATIONAL -> !params.nationalNumeralsBengali
+                else -> !params.avroNumeralsBengali
+            }
             val numRow = if (isEnglishDigits) params.englishDedicatedNumberRow else params.bengaliDedicatedNumberRow
             listOf(numRow) + baseRows
         } else {

@@ -865,7 +865,7 @@ impl crate::layout::LayoutStrategy for NationalStrategy {
         }
 
         let mut candidates = Vec::new();
-        if key == "্" {
+        if state.hasanta_conjuncts_enabled && key == "্" {
             let chars: Vec<char> = state.composing_buffer.chars().collect();
             let hasanta_pos = chars.len().wrapping_sub(1);
             if hasanta_pos > 0 {
