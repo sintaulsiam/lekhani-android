@@ -63,6 +63,9 @@ pub fn prioritize_common_or_override_candidate_with_context(
             return;
         }
     }
+    if is_contextual_homophone_winner(input, &[], candidates.first()) {
+        return;
+    }
 
     // 0. Check all-caps acronyms & English code-switching passthrough (Slot 0 Latin)
     let lower = input.to_lowercase();
@@ -1135,6 +1138,11 @@ fn stage_explicit_avro_intent(
 }
 
 fn stage_generative_morphology(input: &str) -> Option<(String, Vec<String>)> {
+    if !has_explicit_avro_intent(input)
+        && lekhani_core::phonetic::contextual_rules::resolve_acronym_with_suffix(input).is_some()
+    {
+        return None;
+    }
     if let Some((primary, mut candidates)) = resolve_generative_morphology(input) {
         let def_pure = get_avro_parser().convert(input);
         if !def_pure.is_empty() && !candidates.contains(&def_pure) {

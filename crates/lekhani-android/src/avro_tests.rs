@@ -982,4 +982,23 @@ fn test_contextual_acronym_vc_and_vcr() {
     let (vcr_preedit, vcr_cands) = resolve_avro_candidates("vcr", &["এই", "মুলা"], None);
     assert_eq!(vcr_preedit, "ভিসির");
     assert_eq!(vcr_cands.first().map(String::as_str), Some("ভিসির"));
+
+    let (dcr_preedit, dcr_cands) = resolve_avro_candidates("dcr", &[], None);
+    assert_eq!(dcr_preedit, "ডিসির");
+    assert_eq!(dcr_cands.first().map(String::as_str), Some("ডিসির"));
+
+    let (tvte_preedit, tvte_cands) = resolve_avro_candidates("tvte", &[], None);
+    assert_eq!(tvte_preedit, "টিভিতে");
+    assert_eq!(tvte_cands.first().map(String::as_str), Some("টিভিতে"));
+
+    let (atmke_preedit, atmke_cands) = resolve_avro_candidates("atmke", &[], None);
+    assert_eq!(atmke_preedit, "এটিএমকে");
+    assert_eq!(atmke_cands.first().map(String::as_str), Some("এটিএমকে"));
+
+    let (_, atmer_cands) = resolve_avro_candidates("atmer", &[], None);
+    assert!(
+        atmer_cands.iter().any(|c| c == "এটিএমের"),
+        "atmer candidates should include এটিএমের: {:?}",
+        atmer_cands
+    );
 }
