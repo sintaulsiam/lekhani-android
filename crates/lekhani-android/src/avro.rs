@@ -266,8 +266,8 @@ pub fn prioritize_common_or_override_candidate_with_context(
         let should_promote_to_slot0 = inserted_idx == 0
             && (is_geminate_input
                 || (!top_is_geminate_conjunct
-                    && eq_freq >= 500
-                    && (!top_is_valid || eq_freq >= top_freq.saturating_mul(10))));
+                    && ((!top_is_valid && (eq_freq >= 50 || db.is_exact_dictionary_word(&eq_word)))
+                        || (eq_freq >= 500 && eq_freq >= top_freq.saturating_mul(10)))));
 
         let target_idx = if should_promote_to_slot0 {
             0
@@ -1327,7 +1327,21 @@ fn stage_phonetic_engine(ctx: &AvroRequestContext<'_>) -> (String, Vec<String>) 
         let def_len = def_norm.chars().count();
         let def_in_dict =
             db.is_exact_dictionary_word(&def_norm) || db.trie.contains_exact(&def_norm);
+        let top_dropped_trailing_kar = raw_candidates.first().is_some_and(|top| {
+            !def_in_dict
+                && def_len <= top_len + 2
+                && (def_norm.starts_with(top.as_str())
+                    || (def_norm
+                        .chars()
+                        .last()
+                        .is_some_and(|c| matches!(c, '\u{09BE}'..='\u{09CC}'))
+                        && !top
+                            .chars()
+                            .last()
+                            .is_some_and(|tc| matches!(tc, '\u{09BE}'..='\u{09CC}'))))
+        });
         let is_top_distant = !top_is_valid
+            || (top_dropped_trailing_kar && !top_is_contextual && !is_bilingual_loanword)
             || (!is_bilingual_loanword
                 && def_len >= 4
                 && top_len + 1 < def_len
@@ -1660,7 +1674,21 @@ pub(crate) fn resolve_avro_candidates(
             db.is_exact_dictionary_word(&preedit) || db.trie.contains_exact(&preedit);
         let top_len = candidates.first().map(|w| w.chars().count()).unwrap_or(0);
         let preedit_len = preedit.chars().count();
-        let is_top_distant = !top_is_in_dict || (preedit_len >= 5 && top_len + 3 < preedit_len);
+        let top_is_prefix_truncation = candidates.first().is_some_and(|top| {
+            preedit_len > top_len
+                && (preedit.starts_with(top.as_str())
+                    || (preedit
+                        .chars()
+                        .last()
+                        .is_some_and(|c| matches!(c, '\u{09BE}'..='\u{09CC}'))
+                        && !top
+                            .chars()
+                            .last()
+                            .is_some_and(|tc| matches!(tc, '\u{09BE}'..='\u{09CC}'))))
+        });
+        let is_top_distant = !top_is_in_dict
+            || top_is_prefix_truncation
+            || (preedit_len >= 5 && top_len + 3 < preedit_len);
         let is_oov_gibberish = !preedit_is_in_dict && !top_is_in_dict && !has_override_word(raw);
 
         let is_contextual_rule_winner =
@@ -1706,10 +1734,27 @@ pub(crate) fn resolve_avro_candidates(
 
         let lower = raw.to_lowercase();
         let is_acronym_or_tech = is_common_tech_acronym(raw) || raw == "NaN" || raw == "Infinity";
-        if is_acronym_or_tech {
+        let def_nfc_raw = crate::probaho::nfc_normalize(&get_avro_parser().convert(raw));
+        let def_raw_in_dict =
+            db.is_exact_dictionary_word(&def_nfc_raw) || db.trie.contains_exact(&def_nfc_raw);
+        let is_english_oov_codeswitch = !is_acronym_or_tech
+            && !is_contextual_rule_winner
+            && !has_explicit_avro_intent(raw)
+            && !has_override_word(raw)
+            && !has_override_word(&lower)
+            && !def_raw_in_dict
+            && (!top_is_in_dict || candidates.first().is_some_and(|t| t != &def_nfc_raw))
+            && lekhani_core::phonetic::PhoneticDatabase::get_bilingual_loanword(&lower).is_none()
+            && raw.len() >= 4
+            && raw.is_ascii()
+            && raw.chars().all(|c| c.is_ascii_alphabetic())
+            && crate::english::is_recognized_english_word(raw);
+        if is_acronym_or_tech || is_english_oov_codeswitch {
             if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(raw)) {
                 let cand = candidates.remove(pos);
                 candidates.insert(0, cand);
+            } else if is_english_oov_codeswitch {
+                candidates.insert(0, raw.to_string());
             }
         } else if let Some(pos) = candidates.iter().position(|c| c.eq_ignore_ascii_case(raw)) {
             // Keep English at Slot 1 (Rank 2) if it somehow landed at Slot 0
@@ -1758,6 +1803,7 @@ pub(crate) fn resolve_avro_candidates(
             };
 
             if !is_contextual_rule_winner
+                && !is_english_oov_codeswitch
                 && !has_candidate_memory
                 && !is_explicit_common
                 && !has_override
@@ -1786,8 +1832,10 @@ pub(crate) fn resolve_avro_candidates(
                     .position(|c| crate::probaho::nfc_normalize(c) == def_nfc)
                 {
                     let is_cch = raw.contains("cch") && def_nfc.contains("চ্ছ");
-                    let is_geminate_hijacked =
-                        is_geminate && top.contains('য') && !def_nfc.contains('য');
+                    let is_geminate_hijacked = is_geminate
+                        && top.contains('য')
+                        && !def_nfc.contains('য')
+                        && !db.is_exact_dictionary_word(top);
                     if (!are_phonetically_compatible(&def_nfc, top)
                         && db.is_exact_dictionary_word(&def_nfc))
                         || is_cch
